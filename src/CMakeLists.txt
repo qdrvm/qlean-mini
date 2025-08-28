@@ -9,6 +9,7 @@ target_include_directories(qlean_headers INTERFACE ${CMAKE_CURRENT_LIST_DIR})
 
 add_executable(node node.cpp)
 target_link_libraries(node
+  p2p::libp2p
   qlean_headers
   sszpp
 )

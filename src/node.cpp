@@ -6,6 +6,7 @@
 
 #include <print>
 
+#include <libp2p/multi/multiaddress.hpp>
 #include <qlean/todo.hpp>
 #include <sszpp/fork.hpp>
 #include <sszpp/ssz++.hpp>
@@ -40,4 +41,8 @@ int main() {
       (uint8_t)fork.current_version[3],
       fork.epoch,
       ssz::to_string(ssz::serialize(fork)));
+
+  auto address =
+      libp2p::multi::Multiaddress::create("/ip4/127.0.0.1/tcp/8080").value();
+  std::println("Created multiaddress: {}", address);
 }

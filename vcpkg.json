@@ -1,5 +1,6 @@
 {
   "dependencies": [
+    "leanp2p",
     "sszpp"
   ]
 }

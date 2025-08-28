@@ -1,0 +1,24 @@
+{
+  "name": "leanp2p",
+  "version": "0.1.0",
+  "dependencies": [
+    "vcpkg-cmake",
+    "vcpkg-cmake-config",
+
+    "boost-asio",
+    "boost-beast",
+    "boost-di",
+    "boost-filesystem",
+    "boost-program-options",
+    "boost-random",
+    "boost-signals2",
+    "fmt",
+    "liblsquic",
+    "libsecp256k1",
+    "protobuf",
+    "qtils",
+    "soralog",
+    "tsl-hat-trie",
+    "zlib"
+  ]
+}
