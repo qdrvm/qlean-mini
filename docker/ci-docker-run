@@ -1,0 +1,9 @@
+#!/usr/bin/env -S bash -e
+
+LOCAL=$PWD
+
+[[ -d $LOCAL/docker ]]
+
+docker run --rm -it \
+  -v $LOCAL:/cpp-jam \
+  ubuntu:24.04 /cpp-jam/docker/ci-docker
