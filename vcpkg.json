@@ -1,0 +1,20 @@
+{
+  "name": "qlean-mini",
+  "version": "0.0.1",
+  "dependencies": [
+    "qtils",
+    "boost-di",
+    "boost-program-options",
+    "boost-property-tree",
+    "soralog",
+    "openssl",
+    "prometheus-cpp",
+    "boost-asio",
+    "rocksdb",
+    "sszpp",
+    "boost-beast"
+  ],
+  "features": {
+    "test": { "description": "Test", "dependencies": ["gtest"]}
+  }
+}

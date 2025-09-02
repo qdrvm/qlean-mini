@@ -1,0 +1,44 @@
+general:
+  name: NameFromConfig
+  base_path: /tmp/lean_eth_node
+  modules_dir: modules
+  spec_file: jamduna-spec.json
+
+database:
+  directory: db
+  cache_size: 1G
+
+metrics:
+  enabled: true
+  host: 127.0.0.1
+  port: 9615
+
+logging:
+  sinks:
+    - name: console
+      type: console
+      stream: stdout
+      thread: name
+      color: true
+      latency: 0
+  groups:
+    - name: main
+      sink: console
+      level: trace
+      is_fallback: true
+      children:
+        - name: jam
+          children:
+            - name: modules
+              children:
+                - name: example_module
+                - name: synchronizer_module
+                - name: networking_module
+            - name: injector
+            - name: application
+            - name: rpc
+            - name: metrics
+            - name: threads
+            - name: storage
+              children:
+                - name: block_storage
