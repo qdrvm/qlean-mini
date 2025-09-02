@@ -17,7 +17,7 @@ namespace lean {
     Checkpoint target;
     Checkpoint source;
 
-    SSZ_CONT(validator_id,slot,head,target,source);
+    SSZ_CONT(validator_id, slot, head, target, source);
   };
 
 }  // namespace lean

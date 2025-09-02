@@ -41,4 +41,4 @@ namespace lean::storage {
   };
 
   constexpr size_t SpacesCount = static_cast<size_t>(Space::Total);
-}
+}  // namespace lean::storage

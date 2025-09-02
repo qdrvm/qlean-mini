@@ -25,8 +25,8 @@
 #include "app/impl/chain_spec_impl.hpp"
 #include "app/impl/state_manager_impl.hpp"
 #include "app/impl/watchdog.hpp"
-#include "blockchain/impl/genesis_block_header_impl.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
+#include "blockchain/impl/genesis_block_header_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
 #include "injector/bind_by_lambda.hpp"
@@ -140,8 +140,9 @@ namespace lean::injector {
       loader = pimpl_->injector_
                    .create<std::unique_ptr<lean::loaders::NetworkingLoader>>();
     } else if ("SynchronizerLoader" == module->get_loader_id()) {
-      loader = pimpl_->injector_
-                   .create<std::unique_ptr<lean::loaders::SynchronizerLoader>>();
+      loader =
+          pimpl_->injector_
+              .create<std::unique_ptr<lean::loaders::SynchronizerLoader>>();
     } else {
       SL_CRITICAL(logger,
                   "> No loader found for: {} [{}]",

@@ -6,13 +6,12 @@
 
 #pragma once
 
-#include <fmt/format.h>
-
 #include <optional>
 #include <ranges>
 #include <string_view>
 
 #include <boost/optional.hpp>
+#include <fmt/format.h>
 
 template <template <typename> class Optional, typename T>
   requires std::is_same_v<Optional<T>, std::optional<T>>

@@ -7,8 +7,9 @@
 #pragma once
 
 #include <blake2.h>
-#include <qtils/bytes.hpp>
+
 #include <qtils/byte_arr.hpp>
+#include <qtils/bytes.hpp>
 
 namespace lean::crypto {
   struct Blake {
@@ -31,4 +32,4 @@ namespace lean::crypto {
       return Blake{}.update(input).hash();
     }
   };
-}  // namespace lean
+}  // namespace lean::crypto

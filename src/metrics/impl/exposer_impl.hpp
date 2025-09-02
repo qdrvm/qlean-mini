@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "metrics/exposer.hpp"
-
 #include <thread>
+
+#include "metrics/exposer.hpp"
 
 namespace lean::app {
   class StateManager;

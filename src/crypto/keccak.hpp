@@ -110,4 +110,4 @@ namespace lean::crypto {
       return Keccak{}.update(input).hash();
     }
   };
-}  // namespace lean
+}  // namespace lean::crypto

@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "app/state_manager.hpp"
-
 #include <gmock/gmock.h>
+
+#include "app/state_manager.hpp"
 
 namespace lean::app {
 
@@ -64,4 +64,4 @@ namespace lean::app {
       }
     }
   };
-}  // namespace kagome::application
+}  // namespace lean::app

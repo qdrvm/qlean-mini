@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <fmt/core.h>
 #include <filesystem>
+
+#include <fmt/core.h>
 
 template <>
 struct fmt::formatter<std::filesystem::path>

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <thread>
 #include <filesystem>
+#include <thread>
 
 #include "app/configuration.hpp"
 #include "app/state_manager.hpp"

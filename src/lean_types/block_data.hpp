@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include <sszpp/basic_types.hpp>
+#include <sszpp/lists.hpp>
+
 #include "block_body.hpp"
 #include "block_header.hpp"
 #include "block_signature.hpp"
 #include "types.hpp"
-#include <sszpp/basic_types.hpp>
-#include <sszpp/lists.hpp>
 
 // SSZ-friendly optional encoded as List[T; max=1].
 // Empty list -> None, single element -> Some(T).
@@ -22,10 +23,16 @@ struct ssz_maybe : public ssz::ssz_container {
   SSZ_CONT(inner);
 
   // Convenience helpers
-  bool has_value() const { return inner.size() == 1; }
-  explicit operator bool() const { return has_value(); }
+  bool has_value() const {
+    return inner.size() == 1;
+  }
+  explicit operator bool() const {
+    return has_value();
+  }
 
-  void reset() { inner.clear(); }
+  void reset() {
+    inner.clear();
+  }
   void emplace(const T &v) {
     inner = {};
     inner.push_back(v);
@@ -35,16 +42,27 @@ struct ssz_maybe : public ssz::ssz_container {
     inner.push_back({});
   }
 
-  T &value() { return inner[0]; }
-  const T &value() const { return inner[0]; }
+  T &value() {
+    return inner[0];
+  }
+  const T &value() const {
+    return inner[0];
+  }
 
-  T &operator*() { return value(); }
-  const T &operator*() const { return value(); }
+  T &operator*() {
+    return value();
+  }
+  const T &operator*() const {
+    return value();
+  }
 
-  T *operator->() { return &value(); }
-  const T *operator->() const { return &value(); }
+  T *operator->() {
+    return &value();
+  }
+  const T *operator->() const {
+    return &value();
+  }
 };
-
 
 
 namespace lean {

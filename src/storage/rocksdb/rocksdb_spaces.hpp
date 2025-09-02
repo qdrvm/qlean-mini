@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "storage/spaces.hpp"
-
 #include <optional>
 #include <string>
+
+#include "storage/spaces.hpp"
 
 namespace lean::storage {
 

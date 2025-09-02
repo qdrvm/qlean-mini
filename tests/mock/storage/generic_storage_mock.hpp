@@ -54,8 +54,9 @@ namespace lean::storage::face {
     MOCK_CONST_METHOD0_T(size, size_t());
   };
 
-}  // namespace kagome::storage::face
+}  // namespace lean::storage::face
 
 namespace lean::storage {
-  using BufferStorageMock = face::GenericStorageMock<qtils::ByteVec, qtils::ByteVec>;
-}  // namespace kagome::storage
+  using BufferStorageMock =
+      face::GenericStorageMock<qtils::ByteVec, qtils::ByteVec>;
+}  // namespace lean::storage

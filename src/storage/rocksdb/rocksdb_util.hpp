@@ -6,12 +6,14 @@
 
 #pragma once
 
-#include <rocksdb/status.h>
 #include <qtils/byte_vec.hpp>
+#include <rocksdb/status.h>
+
 #include "storage/storage_error.hpp"
 
 namespace lean::storage {
-  inline StorageError status_as_error(const rocksdb::Status &s, const log::Logger &log) {
+  inline StorageError status_as_error(const rocksdb::Status &s,
+                                      const log::Logger &log) {
     if (s.IsNotFound()) {
       return StorageError::NOT_FOUND;
     }

@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include "log/logger.hpp"
-
 #include "clock/impl/clock_impl.hpp"
+#include "log/logger.hpp"
 
 namespace lean::log {
 

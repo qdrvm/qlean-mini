@@ -18,7 +18,8 @@ namespace lean::blockchain {
       const qtils::SharedRef<log::LoggingSystem> &logsys,
       const qtils::SharedRef<app::ChainSpec> &chain_spec,
       const qtils::SharedRef<crypto::Hasher> &hasher) {
-    scale::impl::memory::DecoderFromSpan decoder(chain_spec->genesisHeader(), test_vectors::config::tiny);
+    scale::impl::memory::DecoderFromSpan decoder(chain_spec->genesisHeader(),
+                                                 test_vectors::config::tiny);
     try {
       decode(static_cast<BlockHeader &>(*this), decoder);
     } catch (std::system_error &e) {

@@ -9,8 +9,9 @@
 #include <assert.h>
 #include <thread>
 
-#include <soralog/util.hpp>
 #include <fmt/format.h>
+#include <soralog/util.hpp>
+
 #include "scheduler_impl.hpp"
 
 namespace lean::se {
@@ -27,7 +28,8 @@ namespace lean::se {
             auto tname = fmt::format("worker.{}", ++counter);
             soralog::util::setThreadName(tname);
             return __this->process();
-          }, this);
+          },
+          this);
     }
 
     void dispose(bool wait_for_release = true) {

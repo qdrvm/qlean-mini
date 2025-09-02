@@ -8,9 +8,8 @@
 
 #include <memory>
 
-#include <qtils/shared_ref.hpp>
-
 #include <metrics/registry.hpp>
+#include <qtils/shared_ref.hpp>
 
 #include "app/application.hpp"
 #include "se/subscription_fwd.hpp"

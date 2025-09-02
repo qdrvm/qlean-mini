@@ -15,4 +15,4 @@ namespace lean::messages {
     PeerId peer;
   };
 
-}
+}  // namespace lean::messages

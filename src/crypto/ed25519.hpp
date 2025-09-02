@@ -5,6 +5,7 @@
  */
 
 #include <schnorrkel.h>
+
 #include <qtils/byte_arr.hpp>
 
 namespace lean::crypto::ed25519 {
@@ -34,4 +35,4 @@ namespace lean::crypto::ed25519 {
                               message.size_bytes());
     return res == ED25519_RESULT_OK;
   }
-}  // namespace lean::ed25519
+}  // namespace lean::crypto::ed25519

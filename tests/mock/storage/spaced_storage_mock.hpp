@@ -17,4 +17,4 @@ namespace lean::storage {
     MOCK_METHOD(std::shared_ptr<BufferStorage>, getSpace, (Space), (override));
   };
 
-}  // namespace kagome::storage
+}  // namespace lean::storage

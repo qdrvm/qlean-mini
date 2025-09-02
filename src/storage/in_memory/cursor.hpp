@@ -25,7 +25,7 @@ namespace lean::storage {
 
     outcome::result<bool> seekLast() override {
       return seek(db.storage_.empty() ? db.storage_.end()
-                                     : std::prev(db.storage_.end()));
+                                      : std::prev(db.storage_.end()));
     }
 
     bool isValid() const override {

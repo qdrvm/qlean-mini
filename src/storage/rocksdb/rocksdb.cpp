@@ -179,12 +179,8 @@ namespace lean::storage {
     options.create_missing_column_families = true;
 
     if (no_db_presented) {
-      qtils::raise_on_err(openDatabaseWithTTL(options,
-                                              path,
-                                              column_family_descriptors,
-                                              ttls,
-                                              *this,
-                                              logger_));
+      qtils::raise_on_err(openDatabaseWithTTL(
+          options, path, column_family_descriptors, ttls, *this, logger_));
     }
 
     // Print size of each column family

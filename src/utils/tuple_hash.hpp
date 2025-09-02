@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include <boost/container_hash/hash.hpp>
 #include <functional>
 #include <tuple>
+
+#include <boost/container_hash/hash.hpp>
 
 template <class... Args>
 struct std::hash<std::tuple<Args...>> {

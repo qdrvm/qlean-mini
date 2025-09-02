@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <fmt/format.h>
-
 #include <functional>
 #include <memory>
+
+#include <fmt/format.h>
 
 template <typename T>
 struct fmt::formatter<std::reference_wrapper<T>> {

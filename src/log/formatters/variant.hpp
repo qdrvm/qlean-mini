@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include <boost/variant.hpp>
 #include <fmt/core.h>
 
-#include <boost/variant.hpp>
 #include "common/visitor.hpp"
 
 template <typename... Args>

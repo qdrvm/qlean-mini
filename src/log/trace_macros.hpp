@@ -32,7 +32,7 @@ namespace lean::log {
 #define _SL_TRACE_FUNC_CALL(logger, ret, ...) \
   SL_TRACE(logger,                            \
            "{}",                              \
-           (::lean::log::TraceFuncCall{     \
+           (::lean::log::TraceFuncCall{       \
                this, __FUNCTION__, ret, std::forward_as_tuple(__VA_ARGS__)}))
 
 #endif

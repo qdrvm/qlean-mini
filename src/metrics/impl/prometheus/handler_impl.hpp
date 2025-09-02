@@ -11,6 +11,7 @@
 #include <string_view>
 
 #include <prometheus/collectable.h>
+
 #include "log/logger.hpp"
 #include "metrics/handler.hpp"
 

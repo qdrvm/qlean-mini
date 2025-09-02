@@ -163,8 +163,8 @@ namespace lean::blockchain {
      * Tries to get block data
      * @returns block data or error
      */
-    [[nodiscard]] virtual outcome::result<std::optional<SignedBlock>>
-    getBlock(const BlockHash &block_hash) const = 0;
+    [[nodiscard]] virtual outcome::result<std::optional<SignedBlock>> getBlock(
+        const BlockHash &block_hash) const = 0;
 
     /**
      * Removes all data of block by hash from block storage

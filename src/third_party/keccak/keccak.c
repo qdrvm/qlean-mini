@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "keccak.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "keccak.h"
 
 #define SHA3_ASSERT(x)
 #if defined(_MSC_VER)

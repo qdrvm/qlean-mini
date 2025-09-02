@@ -7,6 +7,7 @@
 #pragma once
 
 #include <rocksdb/write_batch.h>
+
 #include "storage/rocksdb/rocksdb.hpp"
 
 namespace lean::storage {

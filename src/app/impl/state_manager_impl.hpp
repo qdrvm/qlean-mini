@@ -6,14 +6,13 @@
 
 #pragma once
 
-#include "app/state_manager.hpp"
-
 #include <condition_variable>
 #include <mutex>
 #include <queue>
 
 #include <qtils/shared_ref.hpp>
 
+#include "app/state_manager.hpp"
 #include "utils/ctor_limiters.hpp"
 
 namespace soralog {

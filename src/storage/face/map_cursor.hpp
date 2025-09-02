@@ -9,6 +9,7 @@
 #include <optional>
 
 #include <qtils/outcome.hpp>
+
 #include "storage/face/owned_or_view.hpp"
 #include "storage/face/view.hpp"
 

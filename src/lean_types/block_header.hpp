@@ -16,12 +16,12 @@
 namespace lean {
 
   /**
-    * @struct BlockHeader
-    * This is a lighter version of the block, used for referencing and
-    * verification.
-    */
+   * @struct BlockHeader
+   * This is a lighter version of the block, used for referencing and
+   * verification.
+   */
   class BlockHeader : public ssz::ssz_container {
-  public:
+   public:
     /// The block’s slot number
     Slot slot;
     /// Index of the validator that proposed the block

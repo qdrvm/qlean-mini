@@ -1,5 +1,5 @@
 /**
-* Copyright Quadrivium LLC
+ * Copyright Quadrivium LLC
  * All Rights Reserved
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,9 +8,9 @@
  * @file in_memory_spaced_storage.hpp
  * @brief Implements an in-memory version of SpacedStorage for testing purposes.
  *
- * This class provides an in-memory implementation of the SpacedStorage interface.
- * It is useful for unit tests and other scenarios where a persistent backend is
- * not required or desired.
+ * This class provides an in-memory implementation of the SpacedStorage
+ * interface. It is useful for unit tests and other scenarios where a persistent
+ * backend is not required or desired.
  */
 
 #pragma once
@@ -32,7 +32,7 @@ namespace lean::storage {
    * persistent storage spaces without involving a real database.
    */
   class InMemorySpacedStorage : public storage::SpacedStorage {
-  public:
+   public:
     /**
      * @brief Retrieve or create an in-memory storage for a given space.
      *
@@ -51,7 +51,7 @@ namespace lean::storage {
           .first->second;
     }
 
-  private:
+   private:
     /// Map of storage spaces to their corresponding in-memory storages
     std::map<Space, std::shared_ptr<InMemoryStorage>> spaces_;
   };

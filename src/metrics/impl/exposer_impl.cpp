@@ -40,9 +40,9 @@ namespace lean::metrics {
     BOOST_ASSERT(config_->metrics().enabled == true);
     try {
       acceptor_ = lean::api::acceptOnFreePort(context_,
-                                             config_->metrics().endpoint,
-                                             lean::api::kDefaultPortTolerance,
-                                             logger_);
+                                              config_->metrics().endpoint,
+                                              lean::api::kDefaultPortTolerance,
+                                              logger_);
     } catch (const boost::wrapexcept<boost::system::system_error> &exception) {
       SL_CRITICAL(
           logger_, "Failed to prepare a listener: {}", exception.what());

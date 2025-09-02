@@ -7,6 +7,7 @@
 #pragma once
 
 #include <qtils/byte_vec.hpp>
+
 #include "storage/in_memory/in_memory_storage.hpp"
 
 namespace lean::storage {

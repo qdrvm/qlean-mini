@@ -18,10 +18,10 @@ namespace lean::storage {
 
   // Names of non-default space
   static constexpr std::string_view kNamesArr[] = {
-    "lookup_key",
-    "header",
-    "extrinsic",
-    "justification",
+      "lookup_key",
+      "header",
+      "extrinsic",
+      "justification",
   };
   constexpr std::span<const std::string_view> kNames = kNamesArr;
 

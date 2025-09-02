@@ -14,7 +14,8 @@
 namespace lean::se {
 
   /**
-   * Interface for task dispatchers that handle execution across different threads
+   * Interface for task dispatchers that handle execution across different
+   * threads
    */
   struct Dispatcher {
     using Tid = uint32_t;

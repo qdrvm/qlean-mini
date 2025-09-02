@@ -7,7 +7,6 @@
 #pragma once
 
 #include <crypto/hash_types.hpp>
-
 #include <qtils/byte_view.hpp>
 
 namespace lean::crypto {

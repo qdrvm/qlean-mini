@@ -6,9 +6,11 @@
 
 #pragma once
 
-#include "crypto/hasher.hpp"
 #include <gmock/gmock.h>
+
 #include <qtils/byte_view.hpp>
+
+#include "crypto/hasher.hpp"
 
 namespace lean::crypto {
 
@@ -37,4 +39,4 @@ namespace lean::crypto {
     MOCK_METHOD(Hash512, blake2b_512, (qtils::ByteView), (const, override));
   };
 
-}  // namespace kagome::crypto
+}  // namespace lean::crypto

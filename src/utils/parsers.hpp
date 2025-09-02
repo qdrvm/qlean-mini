@@ -103,8 +103,8 @@ namespace lean::util {
         {"tb", 1000ull * 1000ull * 1000ull * 1000ull},
     };
 
-    for (const auto &[suffix, multiplier] : units) {
-      if (iequals(suffix, suffix)) {
+    for (const auto &[table_suffix, multiplier] : units) {
+      if (iequals(table_suffix, suffix)) {
         if (number > UINT64_MAX / multiplier) {
           return std::nullopt;
         }
@@ -175,8 +175,8 @@ namespace lean::util {
         {"weeks", 604800},
     };
 
-    for (const auto &[suffix, multiplier] : suffixes) {
-      if (iequals(suffix, suffix)) {
+    for (const auto &[table_suffix, multiplier] : suffixes) {
+      if (iequals(table_suffix, suffix)) {
         if (number > UINT64_MAX / multiplier) {
           return std::nullopt;
         }

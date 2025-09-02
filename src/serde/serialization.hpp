@@ -21,7 +21,8 @@ namespace lean {
   //                       == sizeof(uint8_t));
   //
   //   auto &as_vec_of_bytes =
-  //       *static_cast<std::vector<std::byte> *>(reinterpret_cast<void *>(&res));
+  //       *static_cast<std::vector<std::byte> *>(reinterpret_cast<void
+  //       *>(&res));
   //   ::ssz::serialize(std::back_inserter(as_vec_of_bytes), v);
   //   return res;
   // }

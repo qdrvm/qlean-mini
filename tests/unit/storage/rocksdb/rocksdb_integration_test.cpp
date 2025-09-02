@@ -11,10 +11,9 @@
 
 #include <qtils/test/outcome.hpp>
 
-#include "testutil/storage/base_rocksdb_test.hpp"
-
 #include "storage/rocksdb/rocksdb.hpp"
 #include "storage/storage_error.hpp"
+#include "testutil/storage/base_rocksdb_test.hpp"
 
 using namespace lean::storage;
 namespace fs = std::filesystem;
