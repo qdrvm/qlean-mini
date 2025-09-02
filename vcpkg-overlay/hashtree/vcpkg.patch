@@ -1,0 +1,31 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..33f588e
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,25 @@
++cmake_minimum_required(VERSION 3.25)
++project(hashtree)
++
++enable_language(ASM)
++
++add_library(hashtree
++  src/hashtree.c
++  src/sha256_armv8_crypto.S
++  src/sha256_armv8_neon_x1.S
++  src/sha256_armv8_neon_x4.S
++  src/sha256_avx_x1.S
++  src/sha256_avx_x16.S
++  src/sha256_avx_x4.S
++  src/sha256_avx_x8.S
++  src/sha256_generic.c
++  src/sha256_shani.S
++  src/sha256_sse_x1.S
++)
++
++include(GNUInstallDirs)
++install(FILES src/hashtree.h DESTINATION include)
++install(TARGETS hashtree EXPORT hashtreeConfig)
++install(EXPORT hashtreeConfig
++  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hashtree
++)

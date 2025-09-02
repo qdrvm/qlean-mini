@@ -11,8 +11,8 @@
 #include "lean_types/types.hpp"
 
 // #include "primitives/block_id.hpp"
+#include "serde/serialization.hpp"
 #include "storage/spaced_storage.hpp"
-#include "scale/jam_scale.hpp"
 
 /**
  * Storage schema overview
@@ -43,7 +43,10 @@ namespace lean::blockchain {
    */
   inline qtils::ByteVec slotToHashLookupKey(Slot slot) {
     BOOST_STATIC_ASSERT(std::is_same_v<decltype(slot), uint64_t>);
-    return encode(slot).value();
+    auto data = encode(slot);
+    BOOST_STATIC_ASSERT(sizeof(std::byte) == sizeof(uint8_t));
+    return std::move(
+        *static_cast<std::vector<uint8_t> *>(reinterpret_cast<void *>(&data)));
   }
 
   /**
@@ -89,7 +92,8 @@ namespace lean::blockchain {
       const BlockHash &block_hash);
 
   /**
-   * Remove an entry from the key space \param space and corresponding lookup keys
+   * Remove an entry from the key space \param space and corresponding lookup
+   * keys
    * @param storage to put the entry to
    * @param space keyspace for the entry value
    * @param block_hash block hash that could be used to retrieve the value

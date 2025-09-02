@@ -12,9 +12,11 @@
 
 namespace lean {
 
-  struct Checkpoint {
+  struct Checkpoint : ssz::ssz_container {
     qtils::ByteArr<32> root;
     Slot slot;
+
+    SSZ_CONT(root, slot);
   };
 
 }  // namespace lean

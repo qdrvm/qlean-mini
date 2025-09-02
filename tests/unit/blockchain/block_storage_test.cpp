@@ -16,7 +16,7 @@
 #include "mock/crypto/hasher_mock.hpp"
 #include "mock/storage/generic_storage_mock.hpp"
 #include "mock/storage/spaced_storage_mock.hpp"
-#include "scale/jam_scale.hpp"
+#include "sszpp/ssz++.hpp"
 #include "storage/storage_error.hpp"
 // #include "testutil/literals.hpp"
 #include <blockchain/genesis_block_header.hpp>
@@ -184,6 +184,7 @@ TEST_F(BlockStorageTest, PutBlock) {
   auto block_storage = createWithGenesis();
 
   BlockData block;
+  block.header.emplace();
   block.header->slot = 1;
   block.header->parent_root = genesis_block_hash;
 

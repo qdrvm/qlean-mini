@@ -8,8 +8,8 @@
 
 #include <cinttypes>
 
-#include <scale/tie_hash.hpp>
 #include <qtils/byte_arr.hpp>
+#include <qtils/tagged.hpp>
 
 namespace lean {
   // stub types. must be refactored in future
@@ -34,10 +34,6 @@ namespace lean {
     BlockHash hash;
     auto operator<=>(const BlockIndex &other) const = default;
   };
-
-}  // namespace lean
-SCALE_TIE_HASH_STD(lean::BlockIndex);
-namespace lean {
 
   using BlockInfo = BlockIndex;
 
@@ -74,11 +70,6 @@ namespace lean {
   };
 
 }  // namespace lean
-
-SCALE_DEFINE_ENUM_VALUE_RANGE(lean,
-                              Direction,
-                              lean::Direction::ASCENDING,
-                              lean::Direction::DESCENDING);
 
 template <>
 struct fmt::formatter<lean::Stub> {

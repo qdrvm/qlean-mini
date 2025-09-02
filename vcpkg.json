@@ -3,21 +3,16 @@
   "version": "0.0.1",
   "dependencies": [
     "qtils",
-    "scale",
-    "fmt",
-    "soralog",
-    "qdrvm-crates",
-    "libb2",
     "boost-di",
     "boost-program-options",
-    "boost-asio",
-    "boost-beast",
-    "prometheus-cpp",
-    "ftxui",
-    "rocksdb",
     "boost-property-tree",
+    "soralog",
     "openssl",
-    "xxhash"
+    "prometheus-cpp",
+    "boost-asio",
+    "rocksdb",
+    "sszpp",
+    "boost-beast"
   ],
   "features": {
     "test": { "description": "Test", "dependencies": ["gtest"]}

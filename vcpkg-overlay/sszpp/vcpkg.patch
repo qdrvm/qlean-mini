@@ -1,0 +1,574 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 099bdd2..abaaf4b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -7,7 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
+ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -Wall -Werror -march=native -O3 -ffast-math -fdiagnostics-color")
+ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -Wall -Werror -march=native -g -fdiagnostics-color")
+ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lstdc++")
+-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/.cmake_modules/")
+ 
+ include_directories(${CMAKE_SOURCE_DIR} "${CMAKE_SOURCE_DIR}/lib")
+ 
+@@ -39,7 +38,7 @@ endif()
+ add_library(sszpp INTERFACE)
+ target_include_directories(sszpp INTERFACE
+ 	$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib>
+-	$<INSTALL_INTERFACE:include/sszpp>
++	$<INSTALL_INTERFACE:include>
+ )
+ target_link_libraries(sszpp INTERFACE hashtree)
+ 
+@@ -71,20 +70,7 @@ install(FILES "${PROJECT_BINARY_DIR}/sszppConfigVersion.cmake"
+         DESTINATION lib/cmake/sszpp)
+ install(DIRECTORY ${PROJECT_SOURCE_DIR}/lib/ DESTINATION include/sszpp)
+ 
+-find_package(yaml-cpp)
+-if(NOT yaml-cpp_FOUND)
+-    message(STATUS "Didn't find yaml-cpp, will not be able to run spectests")
+-else()
+-    add_compile_definitions( HAVE_YAML )
+-    message(STATUS "Found yaml-cpp")
+-endif()
+-find_package(Snappy)
+-if(NOT Snappy_FOUND)
+-    message(STATUS "Didn't find snappy, will not be able to run spectests")
+-else() 
+-    message(STATUS "Found Snappy")
+-endif()
+-find_package(Hashtree)
++find_package(hashtree CONFIG REQUIRED)
+ if(Hashtree_FOUND)
+ 	message(STATUS "Found Hashtree")
+ endif()
+@@ -94,52 +80,3 @@ if(TIDY)
+ 	message(STATUS "Building with clang-tidy")
+ 	set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+ endif()
+-
+-add_executable( bench_root_list 
+-                testing/bench_root_list.cpp
+-            )
+-target_link_libraries(bench_root_list hashtree)
+-
+-add_executable( bench_beacon_state 
+-                testing/bench_beacon_state.cpp
+-            )
+-target_link_libraries(bench_beacon_state hashtree)
+-add_executable( test_concepts
+-                testing/concepts_test.cpp )
+-target_link_libraries( test_concepts hashtree)
+-add_executable( test_serialize
+-                testing/serialize_test.cpp )
+-target_link_libraries( test_serialize hashtree)
+-
+-if(yaml-cpp_FOUND AND Snappy_FOUND)
+-    add_executable( spectests
+-                    testing/spec_test.cpp 
+-                )
+-    target_link_libraries(spectests hashtree yaml-cpp snappy )
+-    add_test( spectests spectests )
+-
+-    set( SPECTEST_URL "https://github.com/ethereum/consensus-spec-tests/releases/download")
+-    set( SPECTEST_VERSION "v1.4.0-beta.0")
+-    set( SPECTEST_MAINNET_HASH "5eeb9b7b0c882fe11ea14444cec44e9e77655f384d80b6743b1f0f82ec9a6599")
+-
+-    file (DOWNLOAD "${SPECTEST_URL}/${SPECTEST_VERSION}/mainnet.tar.gz" ${CMAKE_SOURCE_DIR}/testing/mainnet.tar.gz
+-          EXPECTED_HASH SHA256=${SPECTEST_MAINNET_HASH})
+-
+-    add_custom_target(spec_test_unpack 
+-                    DEPENDS ${CMAKE_SOURCE_DIR}/testing/mainnet.tar.gz)
+-
+-    add_custom_command(TARGET spec_test_unpack
+-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/tests/mainnet
+-    COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/testing/mainnet.tar.gz
+-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+-    DEPENDS ${CMAKE_SOURCE_DIR}/testing/mainnet.tar.gz
+-    COMMENT "Unpacking mainnet.tar.gz"
+-    VERBATIM
+-    )
+-
+-    add_dependencies( spectests spec_test_unpack )
+-endif()
+-                    
+-enable_testing()
+-add_test( concepts test_concepts )
+-add_test( serialize test_serialize )
+diff --git a/lib/bytelists.hpp b/lib/bytelists.hpp
+index 3174735..b086711 100644
+--- a/lib/bytelists.hpp
++++ b/lib/bytelists.hpp
+@@ -25,6 +25,8 @@
+ #include <yaml-cpp/yaml.h>
+ #endif
+ 
++#include "cxx23/ranges/chunk.hpp"
++
+ namespace ssz {
+ namespace _detail{
+ struct Table {
+@@ -68,8 +70,9 @@ constexpr auto bytelist_from_str(const std::string_view &str, std::ranges::sized
+     _sanitize_hextring(str);
+     if (str.size() > 2 * N + 2) throw std::out_of_range("hex string larger than bytelist size");
+ 
+-    std::ranges::transform(str | std::views::drop(2) | std::views::chunk(2), std::begin(r), [](const auto &chunk) {
+-        return _detail::hex_to_byte(chunk[0]) << 4 | _detail::hex_to_byte(chunk[1]);
++    cxx23::views::chunk_f(str | std::views::drop(2), 2, [result{std::begin(r)}](const auto &chunk) mutable {
++        *result = _detail::hex_to_byte(chunk[0]) << 4 | _detail::hex_to_byte(chunk[1]);
++        ++result;
+     });
+ }
+ 
+diff --git a/lib/cxx23/ranges/chunk.hpp b/lib/cxx23/ranges/chunk.hpp
+new file mode 100644
+index 0000000..4c73bd2
+--- /dev/null
++++ b/lib/cxx23/ranges/chunk.hpp
+@@ -0,0 +1,15 @@
++#pragma once
++
++#include <ranges>
++
++namespace cxx23::views {
++    auto chunk_f(auto &&r, size_t n, auto &&f) {
++        auto it = std::ranges::begin(r);
++        auto end = std::ranges::end(r);
++        while (it != end) {
++            auto begin = it;
++            std::ranges::advance(it, std::min<ptrdiff_t>(n, std::ranges::distance(it, end)));
++            f(std::ranges::subrange(begin, it));
++        }
++    }
++}  // namespace cxx23::views
+diff --git a/lib/cxx23/ranges/enumerate.hpp b/lib/cxx23/ranges/enumerate.hpp
+new file mode 100644
+index 0000000..92a8065
+--- /dev/null
++++ b/lib/cxx23/ranges/enumerate.hpp
+@@ -0,0 +1,357 @@
++#pragma once
++
++#include <ranges>
++
++// https://github.com/gcc-mirror/gcc/blob/master/libstdc++-v3/include/std/ranges
++#ifdef __APPLE__
++namespace cxx23 {
++    using std::bidirectional_iterator_tag;
++    using std::convertible_to;
++    using std::copy_constructible;
++    using std::default_initializable;
++    using std::forward_iterator_tag;
++    using std::input_iterator_tag;
++    using std::is_nothrow_move_constructible_v;
++    using std::move_constructible;
++    using std::random_access_iterator_tag;
++    using std::sentinel_for;
++    using std::sized_sentinel_for;
++    using std::strong_ordering;
++    using std::tuple;
++
++    template <bool _Const, class _Tp>
++    using __maybe_const_t = std::__maybe_const<_Const, _Tp>;
++}  // namespace cxx23
++
++namespace cxx23::ranges {
++    using std::ranges::begin;
++    using std::ranges::bidirectional_range;
++    using std::ranges::common_range;
++    using std::ranges::distance;
++    using std::ranges::end;
++    using std::ranges::forward_range;
++    using std::ranges::input_range;
++    using std::ranges::iterator_t;
++    using std::ranges::random_access_range;
++    using std::ranges::range_difference_t;
++    using std::ranges::range_reference_t;
++    using std::ranges::range_rvalue_reference_t;
++    using std::ranges::range_value_t;
++    using std::ranges::sentinel_t;
++    using std::ranges::size;
++    using std::ranges::sized_range;
++    using std::ranges::view;
++    using std::ranges::view_interface;
++    using std::ranges::viewable_range;
++}  // namespace cxx23::ranges
++
++namespace cxx23::ranges::views {
++    using std::ranges::views::all_t;
++}  // namespace cxx23::ranges::views
++
++namespace cxx23::ranges::__adaptor {
++    template <typename T>
++    using _RangeAdaptorClosure = std::ranges::range_adaptor_closure<T>;
++}  // namespace cxx23::ranges::__adaptor
++
++namespace cxx23::ranges::__detail {
++    using std::ranges::__simple_view;
++}  // namespace cxx23::ranges::__detail
++
++namespace cxx23::ranges {
++    namespace __detail {
++        template <typename _Range>
++        concept __range_with_movable_reference = input_range<_Range> && move_constructible<range_reference_t<_Range>> &&
++                                                 move_constructible<range_rvalue_reference_t<_Range>>;
++    }
++
++    template <view _Vp>
++        requires __detail::__range_with_movable_reference<_Vp>
++    class enumerate_view : public view_interface<enumerate_view<_Vp>> {
++        _Vp _M_base = _Vp();
++
++        template <bool _Const>
++        class _Iterator;
++        template <bool _Const>
++        class _Sentinel;
++
++       public:
++        enumerate_view()
++            requires default_initializable<_Vp>
++        = default;
++
++        constexpr explicit enumerate_view(_Vp __base) : _M_base(std::move(__base)) {}
++
++        constexpr auto begin()
++            requires(!__detail::__simple_view<_Vp>)
++        {
++            return _Iterator<false>(ranges::begin(_M_base), 0);
++        }
++
++        constexpr auto begin() const
++            requires __detail::__range_with_movable_reference<const _Vp>
++        {
++            return _Iterator<true>(ranges::begin(_M_base), 0);
++        }
++
++        constexpr auto end()
++            requires(!__detail::__simple_view<_Vp>)
++        {
++            if constexpr (common_range<_Vp> && sized_range<_Vp>)
++                return _Iterator<false>(ranges::end(_M_base), ranges::distance(_M_base));
++            else
++                return _Sentinel<false>(ranges::end(_M_base));
++        }
++
++        constexpr auto end() const
++            requires __detail::__range_with_movable_reference<const _Vp>
++        {
++            if constexpr (common_range<const _Vp> && sized_range<const _Vp>)
++                return _Iterator<true>(ranges::end(_M_base), ranges::distance(_M_base));
++            else
++                return _Sentinel<true>(ranges::end(_M_base));
++        }
++
++        constexpr auto size()
++            requires sized_range<_Vp>
++        {
++            return ranges::size(_M_base);
++        }
++
++        constexpr auto size() const
++            requires sized_range<const _Vp>
++        {
++            return ranges::size(_M_base);
++        }
++
++        constexpr _Vp base() const&
++            requires copy_constructible<_Vp>
++        {
++            return _M_base;
++        }
++
++        constexpr _Vp base() && { return std::move(_M_base); }
++    };
++
++    template <typename _Range>
++    enumerate_view(_Range&&) -> enumerate_view<views::all_t<_Range>>;
++}  // namespace cxx23::ranges
++
++template <typename _Tp>
++inline constexpr bool std::ranges::enable_borrowed_range<cxx23::ranges::enumerate_view<_Tp>> =
++    std::ranges::enable_borrowed_range<_Tp>;
++
++namespace cxx23::ranges {
++    template <view _Vp>
++        requires __detail::__range_with_movable_reference<_Vp>
++    template <bool _Const>
++    class enumerate_view<_Vp>::_Iterator {
++        using _Base = __maybe_const_t<_Const, _Vp>;
++
++        static auto _S_iter_concept() {
++            if constexpr (random_access_range<_Base>)
++                return random_access_iterator_tag{};
++            else if constexpr (bidirectional_range<_Base>)
++                return bidirectional_iterator_tag{};
++            else if constexpr (forward_range<_Base>)
++                return forward_iterator_tag{};
++            else
++                return input_iterator_tag{};
++        }
++
++        friend enumerate_view;
++
++       public:
++        using iterator_category = input_iterator_tag;
++        using iterator_concept = decltype(_S_iter_concept());
++        using difference_type = range_difference_t<_Base>;
++        using value_type = tuple<difference_type, range_value_t<_Base>>;
++
++       private:
++        using __reference_type = tuple<difference_type, range_reference_t<_Base>>;
++
++        iterator_t<_Base> _M_current = iterator_t<_Base>();
++        difference_type _M_pos = 0;
++
++        constexpr explicit _Iterator(iterator_t<_Base> __current, difference_type __pos)
++            : _M_current(std::move(__current)), _M_pos(__pos) {}
++
++       public:
++        _Iterator()
++            requires default_initializable<iterator_t<_Base>>
++        = default;
++
++        constexpr _Iterator(_Iterator<!_Const> __i)
++            requires _Const && convertible_to<iterator_t<_Vp>, iterator_t<_Base>>
++            : _M_current(std::move(__i._M_current)), _M_pos(__i._M_pos) {}
++
++        constexpr const iterator_t<_Base>& base() const& noexcept { return _M_current; }
++
++        constexpr iterator_t<_Base> base() && { return std::move(_M_current); }
++
++        constexpr difference_type index() const noexcept { return _M_pos; }
++
++        constexpr auto operator*() const { return __reference_type(_M_pos, *_M_current); }
++
++        constexpr _Iterator& operator++() {
++            ++_M_current;
++            ++_M_pos;
++            return *this;
++        }
++
++        constexpr void operator++(int) { ++*this; }
++
++        constexpr _Iterator operator++(int)
++            requires forward_range<_Base>
++        {
++            auto __tmp = *this;
++            ++*this;
++            return __tmp;
++        }
++
++        constexpr _Iterator& operator--()
++            requires bidirectional_range<_Base>
++        {
++            --_M_current;
++            --_M_pos;
++            return *this;
++        }
++
++        constexpr _Iterator operator--(int)
++            requires bidirectional_range<_Base>
++        {
++            auto __tmp = *this;
++            --*this;
++            return __tmp;
++        }
++
++        constexpr _Iterator& operator+=(difference_type __n)
++            requires random_access_range<_Base>
++        {
++            _M_current += __n;
++            _M_pos += __n;
++            return *this;
++        }
++
++        constexpr _Iterator& operator-=(difference_type __n)
++            requires random_access_range<_Base>
++        {
++            _M_current -= __n;
++            _M_pos -= __n;
++            return *this;
++        }
++
++        constexpr auto operator[](difference_type __n) const
++            requires random_access_range<_Base>
++        {
++            return __reference_type(_M_pos + __n, _M_current[__n]);
++        }
++
++        friend constexpr bool operator==(const _Iterator& __x, const _Iterator& __y) noexcept {
++            return __x._M_pos == __y._M_pos;
++        }
++
++        friend constexpr strong_ordering operator<=>(const _Iterator& __x, const _Iterator& __y) noexcept {
++            return __x._M_pos <=> __y._M_pos;
++        }
++
++        friend constexpr _Iterator operator+(const _Iterator& __x, difference_type __y)
++            requires random_access_range<_Base>
++        {
++            return (auto(__x) += __y);
++        }
++
++        friend constexpr _Iterator operator+(difference_type __x, const _Iterator& __y)
++            requires random_access_range<_Base>
++        {
++            return auto(__y) += __x;
++        }
++
++        friend constexpr _Iterator operator-(const _Iterator& __x, difference_type __y)
++            requires random_access_range<_Base>
++        {
++            return auto(__x) -= __y;
++        }
++
++        friend constexpr difference_type operator-(const _Iterator& __x, const _Iterator& __y) noexcept {
++            return __x._M_pos - __y._M_pos;
++        }
++
++#if 0
++        friend constexpr auto iter_move(const _Iterator& __i) noexcept(
++            noexcept(ranges::iter_move(__i._M_current)) &&
++            is_nothrow_move_constructible_v<range_rvalue_reference_t<_Base>>) {
++            return tuple<difference_type, range_rvalue_reference_t<_Base>>(__i._M_pos,
++                                                                           ranges::iter_move(__i._M_current));
++        }
++#endif
++    };
++
++    template <view _Vp>
++        requires __detail::__range_with_movable_reference<_Vp>
++    template <bool _Const>
++    class enumerate_view<_Vp>::_Sentinel {
++        using _Base = __maybe_const_t<_Const, _Vp>;
++
++        sentinel_t<_Base> _M_end = sentinel_t<_Base>();
++
++        constexpr explicit _Sentinel(sentinel_t<_Base> __end) : _M_end(std::move(__end)) {}
++
++        friend enumerate_view;
++
++       public:
++        _Sentinel() = default;
++
++        constexpr _Sentinel(_Sentinel<!_Const> __other)
++            requires _Const && convertible_to<sentinel_t<_Vp>, sentinel_t<_Base>>
++            : _M_end(std::move(__other._M_end)) {}
++
++        constexpr sentinel_t<_Base> base() const { return _M_end; }
++
++        template <bool _OtherConst>
++            requires sentinel_for<sentinel_t<_Base>, iterator_t<__maybe_const_t<_OtherConst, _Vp>>>
++        friend constexpr bool operator==(const _Iterator<_OtherConst>& __x, const _Sentinel& __y) {
++            return __x._M_current == __y._M_end;
++        }
++
++        template <bool _OtherConst>
++            requires sized_sentinel_for<sentinel_t<_Base>, iterator_t<__maybe_const_t<_OtherConst, _Vp>>>
++        friend constexpr range_difference_t<__maybe_const_t<_OtherConst, _Vp>> operator-(
++            const _Iterator<_OtherConst>& __x, const _Sentinel& __y) {
++            return __x._M_current - __y._M_end;
++        }
++
++        template <bool _OtherConst>
++            requires sized_sentinel_for<sentinel_t<_Base>, iterator_t<__maybe_const_t<_OtherConst, _Vp>>>
++        friend constexpr range_difference_t<__maybe_const_t<_OtherConst, _Vp>> operator-(
++            const _Sentinel& __x, const _Iterator<_OtherConst>& __y) {
++            return __x._M_end - __y._M_current;
++        }
++    };
++
++    namespace views {
++        namespace __detail {
++            template <typename _Tp>
++            concept __can_enumerate_view = requires { enumerate_view<all_t<_Tp>>(std::declval<_Tp>()); };
++        }  // namespace __detail
++
++        struct _Enumerate : __adaptor::_RangeAdaptorClosure<_Enumerate> {
++            template <viewable_range _Range>
++                requires __detail::__can_enumerate_view<_Range>
++            constexpr auto operator() [[nodiscard]] (_Range&& __r) const {
++                return enumerate_view<all_t<_Range>>(std::forward<_Range>(__r));
++            }
++        };
++
++        inline constexpr _Enumerate enumerate;
++    }  // namespace views
++}  // namespace cxx23::ranges
++#else
++namespace cxx23::ranges::views {
++    using std::views::enumerate;
++}
++#endif
++
++namespace cxx23::views {
++    using cxx23::ranges::views::enumerate;
++}
+diff --git a/lib/lists.hpp b/lib/lists.hpp
+index aaf75ef..e2c596e 100644
+--- a/lib/lists.hpp
++++ b/lib/lists.hpp
+@@ -28,6 +28,9 @@
+ 
+ #include "basic_types.hpp"
+ 
++#include "cxx23/ranges/chunk.hpp"
++#include "cxx23/ranges/enumerate.hpp"
++
+ namespace ssz {
+ const uint32_t BYTES_PER_LENGTH_OFFSET{4};
+ 
+@@ -167,7 +170,7 @@ constexpr void serialize(std::weakly_incrementable auto result, const R &r)
+            ssz_object_variable_size<std::ranges::range_value_t<R>>)
+ {
+   auto data = result + std::ranges::size(r) * BYTES_PER_LENGTH_OFFSET;
+-  for (const auto &[idx, v] : std::views::enumerate(r)) {
++  for (const auto &[idx, v] : cxx23::views::enumerate(r)) {
+     serialize(result + idx * BYTES_PER_LENGTH_OFFSET, static_cast<std::uint32_t>(std::distance(result, data)));
+     serialize(data, v);
+     std::advance(data, size(v));
+@@ -216,14 +219,18 @@ constexpr auto serialize(const std::ranges::sized_range auto &r)
+  */
+ namespace {
+ constexpr auto eight_bits_to_byte = [](const auto &chunk) {
+-  return std::ranges::fold_right(chunk, std::byte{}, [](auto i, std::byte b) {
+-    return (b << 1) | std::byte{i};
+-  });
++  std::byte b{};
++  for (auto &&i : chunk | std::views::reverse) {
++    b = (b << 1) | std::byte{(bool)i};
++  }
++  return b;
+ };
+ constexpr void _serialize_bitvector(std::weakly_incrementable auto result,
+                                     const std::ranges::sized_range auto &r) {
+-  std::ranges::transform(r | std::views::chunk(CHAR_BIT), result,
+-                         eight_bits_to_byte);
++  cxx23::views::chunk_f(r, CHAR_BIT, [&result](const auto &chunk) {
++      *result = eight_bits_to_byte(chunk);
++      ++result;
++  });
+ }
+ }
+ // serialize in place bitvectors modeled by std::vector<bool>
+@@ -324,10 +331,10 @@ template <typename T>
+ constexpr void __deserialize_chunked(auto _ret, const auto &bytes) {
+   T vac{};  // TODO GCC 13.1 dies if we use size(T{})
+   auto chunk_size = ssz::size(vac);
+-  for (const auto &chunk : bytes | std::views::chunk(chunk_size)) {
++  cxx23::views::chunk_f(bytes, chunk_size, [&_ret](auto &&chunk) {
+     deserialize(chunk, *_ret);
+     _ret++;
+-  }
++  });
+ }
+ 
+ // deserialize vectors of fixed sized types modeled as std::vector
+@@ -407,7 +414,7 @@ auto deserialize(const serialized_range auto &bytes, std::vector<bool> &ret) {
+ template <std::size_t N>
+ auto deserialize(const serialized_range auto &bytes, std::bitset<N> &ret) {
+   ret.reset();
+-  for (auto const [i, b] : std::views::enumerate(bytes))
++  for (auto const [i, b] : cxx23::views::enumerate(bytes))
+     for (size_t j = 0; j < CHAR_BIT && CHAR_BIT * i + j < N; ++j)
+       if (std::to_integer<std::uint8_t>(b >> j) & 1)
+         ret.set(CHAR_BIT * i + j);

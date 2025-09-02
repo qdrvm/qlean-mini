@@ -469,7 +469,7 @@ namespace lean::app {
             if (host.IsScalar()) {
               auto value = host.as<std::string>();
               boost::beast::error_code ec;
-              auto address = boost::asio::ip::address::from_string(value, ec);
+              auto address = boost::asio::ip::make_address(value, ec);
               if (!ec) {
                 config_->metrics_.endpoint = {
                     address, config_->metrics_.endpoint.port()};
@@ -523,7 +523,7 @@ namespace lean::app {
     find_argument<std::string>(
         cli_values_map_, "prometheus_host", [&](const std::string &value) {
           boost::beast::error_code ec;
-          auto address = boost::asio::ip::address::from_string(value, ec);
+          auto address = boost::asio::ip::make_address(value, ec);
           if (!ec) {
             config_->metrics_.endpoint = {address,
                                           config_->metrics_.endpoint.port()};

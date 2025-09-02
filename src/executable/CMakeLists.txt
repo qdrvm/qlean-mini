@@ -43,4 +43,4 @@ add_dependencies(jam_node all_modules)
 
 
 add_executable(experiment experiment.cpp)
-target_link_libraries(experiment scale::scale fmt::fmt)
+target_link_libraries(experiment fmt::fmt)

@@ -11,7 +11,7 @@
 #include "blockchain/block_storage_error.hpp"
 #include "blockchain/impl/storage_util.hpp"
 #include "lean_types/block_data.hpp"
-#include "scale/jam_scale.hpp"
+#include "sszpp/ssz++.hpp"
 #include "storage/predefined_keys.hpp"
 
 namespace lean::blockchain {
@@ -245,7 +245,7 @@ namespace lean::blockchain {
   outcome::result<BlockHash> BlockStorageImpl::putBlock(
       const BlockData &block) {
     // insert provided block's parts into the database
-    OUTCOME_TRY(block_hash, putBlockHeader(*block.header));
+    OUTCOME_TRY(block_hash, putBlockHeader(block.header.value()));
 
     OUTCOME_TRY(encoded_header, encode(block.header));
     OUTCOME_TRY(putToSpace(*storage_,

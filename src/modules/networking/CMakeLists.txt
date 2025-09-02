@@ -16,4 +16,5 @@ add_jam_module(networking
   LIBRARIES
     qtils::qtils
     soralog::soralog
+    hashtree
 )

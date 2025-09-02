@@ -12,4 +12,5 @@ add_library(blockchain
 )
 target_link_libraries(blockchain
     Boost::boost
+    sszpp
 )

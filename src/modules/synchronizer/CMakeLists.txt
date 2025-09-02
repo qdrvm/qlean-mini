@@ -16,4 +16,5 @@ add_jam_module(synchronizer
   LIBRARIES
     qtils::qtils
     soralog::soralog
+    sszpp
 )

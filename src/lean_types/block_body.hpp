@@ -6,14 +6,18 @@
 
 #pragma once
 
+#include <sszpp/container.hpp>
+
 #include "lean_types/constants.hpp"
 #include "lean_types/vote.hpp"
 
 namespace lean {
 
-  struct BlockBody {
+  struct BlockBody : ssz::ssz_container {
     /// @note votes will be replaced by aggregated attestations.
-    std::array<Vote, VALIDATOR_REGISTRY_LIMIT> votes;
+    ssz::list<Vote, VALIDATOR_REGISTRY_LIMIT> votes;
+
+    SSZ_CONT(votes);
   };
 
 }  // namespace lean

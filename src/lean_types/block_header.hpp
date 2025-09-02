@@ -8,8 +8,10 @@
 
 #include <crypto/hasher.hpp>
 #include <lean_types/types.hpp>
-#include <scale/jam_scale.hpp>
+#include <sszpp/ssz++.hpp>
 #include <utils/custom_equality.hpp>
+
+#include "serde/serialization.hpp"
 
 namespace lean {
 
@@ -18,7 +20,7 @@ namespace lean {
     * This is a lighter version of the block, used for referencing and
     * verification.
     */
-  class BlockHeader {
+  class BlockHeader : public ssz::ssz_container {
   public:
     /// The block’s slot number
     Slot slot;
@@ -38,8 +40,8 @@ namespace lean {
 
     CUSTOM_EQUALITY(
         BlockHeader, slot, proposer_index, parent_root, state_root, body_root);
-    SCALE_CUSTOM_DECOMPOSITION(
-        BlockHeader, slot, proposer_index, parent_root, state_root, body_root);
+
+    SSZ_CONT(slot, proposer_index, parent_root, state_root, body_root);
 
     const HeaderHash &hash() const {
       BOOST_ASSERT_MSG(hash_opt.has_value(),
