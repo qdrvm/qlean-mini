@@ -39,6 +39,3 @@ add_subdirectory(storage)
 
 # Utilities
 add_subdirectory(utils)
-
-# 3rd-party things
-add_subdirectory(third_party)
