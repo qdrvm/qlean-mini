@@ -21,4 +21,5 @@ target_link_libraries(node_injector
     modules
     storage
     blockchain
+    timeline
 )

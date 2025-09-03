@@ -8,8 +8,8 @@
 
 #include <sszpp/container.hpp>
 
-#include "lean_types/constants.hpp"
-#include "lean_types/vote.hpp"
+#include "types/constants.hpp"
+#include "types/vote.hpp"
 
 namespace lean {
 

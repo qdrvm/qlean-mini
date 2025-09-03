@@ -69,3 +69,14 @@ target_link_libraries(application
     app_configuration
     metrics
 )
+
+add_library(timeline SHARED
+    impl/timeline_impl.cpp
+)
+target_link_libraries(timeline
+    qtils::qtils
+    logger
+    sszpp
+#    app_configuration
+#    metrics
+)

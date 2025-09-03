@@ -8,13 +8,13 @@
 
 #include <qtils/outcome.hpp>
 
-#include "lean_types/block.hpp"
-#include "lean_types/block_body.hpp"
-#include "lean_types/block_data.hpp"
-#include "lean_types/block_header.hpp"
-#include "lean_types/justification.hpp"
-#include "lean_types/signed_block.hpp"
-#include "lean_types/types.hpp"
+#include "types/block.hpp"
+#include "types/block_body.hpp"
+#include "types/block_data.hpp"
+#include "types/block_header.hpp"
+#include "types/justification.hpp"
+#include "types/signed_block.hpp"
+#include "types/types.hpp"
 
 namespace lean::blockchain {
 

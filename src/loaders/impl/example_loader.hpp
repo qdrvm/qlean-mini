@@ -26,13 +26,16 @@ namespace lean::loaders {
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_loading_finished_;
 
-    std::shared_ptr<BaseSubscriber<std::shared_ptr<const std::string>>>
+    std::shared_ptr<
+        BaseSubscriber<qtils::Empty, std::shared_ptr<const std::string>>>
         on_request_;
 
-    std::shared_ptr<BaseSubscriber<std::shared_ptr<const std::string>>>
+    std::shared_ptr<
+        BaseSubscriber<qtils::Empty, std::shared_ptr<const std::string>>>
         on_response_;
 
-    std::shared_ptr<BaseSubscriber<std::shared_ptr<const std::string>>>
+    std::shared_ptr<
+        BaseSubscriber<qtils::Empty, std::shared_ptr<const std::string>>>
         on_notification_;
 
    public:
@@ -81,34 +84,37 @@ namespace lean::loaders {
                 }
               });
 
-      on_request_ = se::SubscriberCreator<std::shared_ptr<const std::string>>::
+      on_request_ = se::SubscriberCreator<qtils::Empty,
+                                          std::shared_ptr<const std::string>>::
           template create<EventTypes::ExampleRequest>(
               *se_manager_,
               SubscriptionEngineHandlers::kTest,
-              [module_internal](auto &msg) {
+              [module_internal](auto &, auto msg) {
                 if (auto m = module_internal.lock()) {
-                  m->on_request(msg);
+                  m->on_request(std::move(msg));
                 }
               });
 
-      on_response_ = se::SubscriberCreator<std::shared_ptr<const std::string>>::
+      on_response_ = se::SubscriberCreator<qtils::Empty,
+                                           std::shared_ptr<const std::string>>::
           template create<EventTypes::ExampleResponse>(
               *se_manager_,
               SubscriptionEngineHandlers::kTest,
-              [module_internal](auto &msg) {
+              [module_internal](auto &, auto msg) {
                 if (auto m = module_internal.lock()) {
-                  m->on_response(msg);
+                  m->on_response(std::move(msg));
                 }
               });
 
       on_notification_ =
-          se::SubscriberCreator<std::shared_ptr<const std::string>>::
+          se::SubscriberCreator<qtils::Empty,
+                                std::shared_ptr<const std::string>>::
               template create<EventTypes::ExampleNotification>(
                   *se_manager_,
                   SubscriptionEngineHandlers::kTest,
-                  [module_internal](auto &msg) {
+                  [module_internal](auto &, auto msg) {
                     if (auto m = module_internal.lock()) {
-                      m->on_notify(msg);
+                      m->on_notify(std::move(msg));
                     }
                   });
 

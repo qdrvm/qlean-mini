@@ -11,7 +11,7 @@
 
 #include <qtils/byte_vec.hpp>
 
-#include "lean_types/types.hpp"
+#include "types/types.hpp"
 
 namespace lean {
 

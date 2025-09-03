@@ -7,8 +7,8 @@
 #pragma once
 
 #include <crypto/hasher.hpp>
-#include <lean_types/types.hpp>
 #include <sszpp/ssz++.hpp>
+#include <types/types.hpp>
 #include <utils/custom_equality.hpp>
 
 #include "serde/serialization.hpp"

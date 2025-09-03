@@ -15,7 +15,7 @@
 #include "blockchain/genesis_block_header.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/storage_util.hpp"
-#include "lean_types/block.hpp"
+#include "types/block.hpp"
 
 namespace lean::blockchain {
 

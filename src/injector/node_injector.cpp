@@ -18,12 +18,14 @@
 #include <boost/di/extension/scopes/shared.hpp>
 #include <loaders/impl/example_loader.hpp>
 #include <loaders/impl/networking_loader.hpp>
+#include <loaders/impl/production_loader.hpp>
 #include <loaders/impl/synchronizer_loader.hpp>
 
 #include "app/configuration.hpp"
 #include "app/impl/application_impl.hpp"
 #include "app/impl/chain_spec_impl.hpp"
 #include "app/impl/state_manager_impl.hpp"
+#include "app/impl/timeline_impl.hpp"
 #include "app/impl/watchdog.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/genesis_block_header_impl.hpp"
@@ -40,6 +42,7 @@
 #include "storage/in_memory/in_memory_spaced_storage.hpp"
 #include "storage/in_memory/in_memory_storage.hpp"
 #include "storage/rocksdb/rocksdb.hpp"
+#include "types/config.hpp"
 
 namespace {
   namespace di = boost::di;
@@ -84,6 +87,7 @@ namespace {
         di::bind<crypto::Hasher>.to<crypto::HasherImpl>(),
         di::bind<blockchain::GenesisBlockHeader>.to<blockchain::GenesisBlockHeaderImpl>(),
         di::bind<blockchain::BlockStorage>.to<blockchain::BlockStorageImpl>(),
+        di::bind<app::Timeline>.to<app::TimelineImpl>(),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);
@@ -139,6 +143,9 @@ namespace lean::injector {
     } else if ("NetworkingLoader" == module->get_loader_id()) {
       loader = pimpl_->injector_
                    .create<std::unique_ptr<lean::loaders::NetworkingLoader>>();
+    } else if ("ProductionLoader" == module->get_loader_id()) {
+      loader = pimpl_->injector_
+                   .create<std::unique_ptr<lean::loaders::ProductionLoader>>();
     } else if ("SynchronizerLoader" == module->get_loader_id()) {
       loader =
           pimpl_->injector_

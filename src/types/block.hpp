@@ -8,7 +8,7 @@
 
 #include <qtils/byte_arr.hpp>
 
-#include "lean_types/block_body.hpp"
+#include "types/block_body.hpp"
 
 namespace lean {
 

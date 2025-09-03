@@ -12,6 +12,7 @@
 #include "app/configuration.hpp"
 #include "app/impl/watchdog.hpp"
 #include "app/state_manager.hpp"
+#include "app/timeline.hpp"
 #include "clock/clock.hpp"
 #include "log/logger.hpp"
 #include "metrics/histogram_timer.hpp"
@@ -33,6 +34,7 @@ namespace lean::app {
       qtils::SharedRef<Watchdog> watchdog,
       qtils::SharedRef<metrics::Exposer> metrics_exposer,
       qtils::SharedRef<clock::SystemClock> system_clock,
+      qtils::SharedRef<Timeline> timeline,
       std::shared_ptr<SeHolder>)
       : logger_(logsys->getLogger("Application", "application")),
         app_config_(std::move(config)),
@@ -40,6 +42,7 @@ namespace lean::app {
         watchdog_(std::move(watchdog)),
         metrics_exposer_(std::move(metrics_exposer)),
         system_clock_(std::move(system_clock)),
+        timeline_(std::move(timeline)),
         metrics_registry_(metrics::createRegistry()) {
     // Metric for exposing name and version of node
     metrics::GaugeHelper(

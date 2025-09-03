@@ -1,3 +1,0 @@
-[submodule "test-vectors/jamtestvectors"]
-	path = test-vectors/jamtestvectors
-	url = https://github.com/davxy/jam-test-vectors

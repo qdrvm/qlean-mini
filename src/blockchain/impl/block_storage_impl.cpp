@@ -10,9 +10,9 @@
 
 #include "blockchain/block_storage_error.hpp"
 #include "blockchain/impl/storage_util.hpp"
-#include "lean_types/block_data.hpp"
 #include "sszpp/ssz++.hpp"
 #include "storage/predefined_keys.hpp"
+#include "types/block_data.hpp"
 
 namespace lean::blockchain {
 

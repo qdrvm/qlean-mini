@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "lean_types/types.hpp"
+#include "types/types.hpp"
 
 namespace lean::messages {
 

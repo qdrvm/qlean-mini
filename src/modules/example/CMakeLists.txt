@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_jam_module(example
+add_lean_module(example
   SOURCE
     example.cpp
   INCLUDE_DIRS

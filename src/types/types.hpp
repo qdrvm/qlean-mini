@@ -26,6 +26,7 @@ namespace lean {
   using BodyRoot = OpaqueHash;
 
   using Slot = uint64_t;
+  using Epoch = uint64_t;  // is needed?
 
   using ProposerIndex = uint64_t;
 

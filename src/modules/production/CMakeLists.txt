@@ -4,13 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_lean_module(synchronizer
+add_lean_module(production
   SOURCE
-    synchronizer.cpp
+    production.cpp
   INCLUDE_DIRS
-    ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_BINARY_DIR}/generated
   DEFINITIONS
     SOME_FLAG=1
   LIBRARIES

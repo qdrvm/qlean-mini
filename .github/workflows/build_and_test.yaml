@@ -57,11 +57,11 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.CACHE_PATH }}
-          key: jam-${{ runner.os }}-${{ github.job }}-${{ env.CACHE_VERSION }}-${{ github.run_id }}
+          key: lean-${{ runner.os }}-${{ github.job }}-${{ env.CACHE_VERSION }}-${{ github.run_id }}
           restore-keys: |
-            jam-${{ runner.os }}-${{ github.job }}-${{ env.CACHE_VERSION }}
-            jam-${{ runner.os }}-${{ github.job }}
-            jam-${{ runner.os }}
+            lean-${{ runner.os }}-${{ github.job }}-${{ env.CACHE_VERSION }}
+            lean-${{ runner.os }}-${{ github.job }}
+            lean-${{ runner.os }}
             
       - name: "Basic init"
         run: |

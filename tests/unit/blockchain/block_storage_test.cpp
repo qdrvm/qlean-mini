@@ -22,10 +22,10 @@
 #include <blockchain/genesis_block_header.hpp>
 #include <qtils/literals.hpp>
 
-#include "lean_types/block_data.hpp"
 #include "qtils/error_throw.hpp"
 #include "testutil/literals.hpp"
 #include "testutil/prepare_loggers.hpp"
+#include "types/block_data.hpp"
 
 using lean::Block;
 using lean::BlockBody;

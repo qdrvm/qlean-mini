@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_jam_module(networking
+add_lean_module(networking
   SOURCE
     networking.cpp
   INCLUDE_DIRS

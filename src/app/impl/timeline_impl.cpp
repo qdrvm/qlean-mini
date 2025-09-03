@@ -1,0 +1,93 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+
+#include "timeline_impl.hpp"
+
+#include "app/state_manager.hpp"
+#include "clock/clock.hpp"
+#include "log/logger.hpp"
+#include "modules/shared/prodution_types.tmp.hpp"
+#include "se/impl/subscription_manager.hpp"
+#include "se/subscription.hpp"
+#include "se/subscription_fwd.hpp"
+#include "types/config.hpp"
+#include "types/constants.hpp"
+
+namespace lean::app {
+
+  TimelineImpl::TimelineImpl(qtils::SharedRef<log::LoggingSystem> logsys,
+                             qtils::SharedRef<StateManager> state_manager,
+                             qtils::SharedRef<Subscription> se_manager,
+                             qtils::SharedRef<clock::SystemClock> clock,
+                             qtils::SharedRef<Config> config)
+      : logger_(logsys->getLogger("Timeline", "application")),
+        state_manager_(std::move(state_manager)),
+        config_(std::move(config)),
+        clock_(std::move(clock)),
+        se_manager_(std::move(se_manager)) {
+    state_manager_->takeControl(*this);
+  }
+
+  void TimelineImpl::prepare() {
+    on_slot_started_ =
+        se::SubscriberCreator<qtils::Empty,
+                              std::shared_ptr<const messages::SlotStarted>>::
+            template create<EventTypes::SlotStarted>(
+                *se_manager_,
+                SubscriptionEngineHandlers::kTest,
+                [this](auto &,
+                       std::shared_ptr<const messages::SlotStarted> msg) {
+                  on_slot_started(msg);
+                });
+  }
+
+  void TimelineImpl::start() {
+    auto now = clock_->nowMsec();
+    auto since_genesis = now - config_->genesis_time;
+    SL_TRACE(logger_, "since genesis: {}ms", since_genesis);
+    auto next_slot = since_genesis / SLOT_DURATION_MS + 1;
+    SL_TRACE(logger_, "next slot: {}", next_slot);
+    auto time_to_next_slot =
+        config_->genesis_time + SLOT_DURATION_MS * next_slot - now;
+    SL_TRACE(logger_, "time to next slot {}ms", time_to_next_slot);
+    if (time_to_next_slot < SLOT_DURATION_MS / 2) {
+      SL_TRACE(logger_, "skip one next slot");
+      ++next_slot;
+      time_to_next_slot += SLOT_DURATION_MS;
+    }
+    SL_INFO(logger_,
+            "Starting timeline. Next slot is {}, starts in {}ms",
+            next_slot,
+            time_to_next_slot);
+    se_manager_->notifyDelayed(
+        std::chrono::milliseconds(time_to_next_slot),
+        EventTypes::SlotStarted,
+        std::make_shared<const messages::SlotStarted>(next_slot, 0, false));
+  }
+
+  void TimelineImpl::stop() {
+    stopped_ = true;
+  }
+
+  void TimelineImpl::on_slot_started(
+      std::shared_ptr<const messages::SlotStarted> msg) {
+    if (stopped_) {
+      return;
+    }
+
+    SL_INFO(logger_, "Slot {} is started", msg->slot);
+
+    auto time_to_next_slot = config_->genesis_time
+                           + SLOT_DURATION_MS * (msg->slot + 1)
+                           - clock_->nowMsec();
+    se_manager_->notifyDelayed(
+        std::chrono::milliseconds(time_to_next_slot),
+        EventTypes::SlotStarted,
+        std::make_shared<const messages::SlotStarted>(msg->slot + 1, 0, false));
+  }
+
+}  // namespace lean::app

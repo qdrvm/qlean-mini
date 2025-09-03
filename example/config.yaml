@@ -27,13 +27,14 @@ logging:
       level: trace
       is_fallback: true
       children:
-        - name: jam
+        - name: lean
           children:
             - name: modules
               children:
                 - name: example_module
                 - name: synchronizer_module
                 - name: networking_module
+                - name: production_module
             - name: injector
             - name: application
             - name: rpc
