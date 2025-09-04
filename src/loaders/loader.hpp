@@ -15,6 +15,9 @@
 #include "modules/module.hpp"
 #include "se/subscription_fwd.hpp"
 
+namespace lean::blockchain {
+  class BlockTree;
+}
 namespace lean::log {
   class LoggingSystem;
 }  // namespace lean::log
@@ -60,7 +63,7 @@ namespace lean::loaders {
     }
 
     void set_module(std::shared_ptr<modules::Module> module) {
-      module_ = module;
+      module_ = std::move(module);
     }
 
    protected:

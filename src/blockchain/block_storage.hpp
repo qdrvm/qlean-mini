@@ -8,6 +8,7 @@
 
 #include <qtils/outcome.hpp>
 
+#include "storage/buffer_map_types.hpp"
 #include "types/block.hpp"
 #include "types/block_body.hpp"
 #include "types/block_data.hpp"
@@ -42,7 +43,7 @@ namespace lean::blockchain {
 
     /**
      * Get the last finalized block
-     * @return BlockInfo of the block
+     * @return BlockIndex of the block
      */
     [[nodiscard]] virtual outcome::result<BlockIndex> getLastFinalized()
         const = 0;
@@ -69,7 +70,47 @@ namespace lean::blockchain {
      * @returns vector of hashes or error
      */
     [[nodiscard]] virtual outcome::result<std::vector<BlockHash>> getBlockHash(
-        BlockNumber slot) const = 0;
+        Slot slot) const = 0;
+
+    class SlotIterator {
+     public:
+      static outcome::result<SlotIterator> create(
+          std::unique_ptr<storage::BufferStorageCursor> cursor) {
+        OUTCOME_TRY(cursor->seekLast());
+        return SlotIterator(std::move(cursor));
+      }
+      SlotIterator &operator++() {
+        std::ignore = cursor_->next();
+        return *this;
+      }
+      SlotIterator &operator--() {
+        std::ignore = cursor_->prev();
+        return *this;
+      }
+      [[nodiscard]] bool isValid() const {
+        return cursor_->isValid();
+      }
+      [[nodiscard]] Slot slot() const {
+        assert(cursor_->isValid());
+        return decode<Slot>(cursor_->key().value()).value();
+      }
+      [[nodiscard]] std::vector<BlockHash> hashes() const {
+        assert(cursor_->isValid());
+        return decode<std::vector<BlockHash>>(cursor_->value().value()).value();
+      }
+
+     private:
+      SlotIterator(std::unique_ptr<storage::BufferStorageCursor> cursor)
+          : cursor_(std::move(cursor)) {}
+      std::unique_ptr<storage::BufferStorageCursor> cursor_;
+    };
+
+    /**
+     * Gets cursor for requested or next slot-to-hash record
+     * @returns vector of hashes or error
+     */
+    [[nodiscard]] virtual outcome::result<SlotIterator> seekLastSlot()
+        const = 0;
 
     // -- headers --
 

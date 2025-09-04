@@ -94,10 +94,10 @@ namespace lean::blockchain {
   }
 
   outcome::result<void> BlockStorageImpl::assignHashToSlot(
-      const BlockInfo &block_index) {
+      const BlockIndex &block_index) {
     SL_DEBUG(logger_, "Add slot-to-hash for {}", block_index);
     auto slot_to_hash_key = slotToHashLookupKey(block_index.slot);
-    auto storage = storage_->getSpace(storage::Space::LookupKey);
+    auto storage = storage_->getSpace(storage::Space::SlotToHashes);
     OUTCOME_TRY(hashes, getBlockHash(block_index.slot));
     if (not qtils::cxx23::ranges::contains(hashes, block_index.hash)) {
       hashes.emplace_back(block_index.hash);
@@ -110,7 +110,7 @@ namespace lean::blockchain {
       const BlockIndex &block_index) {
     SL_DEBUG(logger_, "Remove num-to-idx for {}", block_index);
     auto slot_to_hash_key = slotToHashLookupKey(block_index.slot);
-    auto storage = storage_->getSpace(storage::Space::LookupKey);
+    auto storage = storage_->getSpace(storage::Space::SlotToHashes);
     OUTCOME_TRY(hashes, getBlockHash(block_index.slot));
     auto to_erase = std::ranges::remove(hashes, block_index.hash);
     if (not to_erase.empty()) {
@@ -126,7 +126,7 @@ namespace lean::blockchain {
 
   outcome::result<std::vector<BlockHash>> BlockStorageImpl::getBlockHash(
       Slot slot) const {
-    auto storage = storage_->getSpace(storage::Space::LookupKey);
+    auto storage = storage_->getSpace(storage::Space::SlotToHashes);
     OUTCOME_TRY(data_opt, storage->tryGet(slotToHashLookupKey(slot)));
     if (data_opt.has_value()) {
       return decode<std::vector<BlockHash>>(data_opt.value());
@@ -134,16 +134,23 @@ namespace lean::blockchain {
     return {{}};
   }
 
+  outcome::result<BlockStorage::SlotIterator> BlockStorageImpl::seekLastSlot()
+      const {
+    auto storage = storage_->getSpace(storage::Space::SlotToHashes);
+    return SlotIterator::create(
+        storage->cursor());
+  }
+
   //   outcome::result<std::optional<BlockHash>>
   //   BlockStorageImpl::getBlockHash(const BlockId &block_id) const
   //   {
   //     return visit_in_place(
   //         block_id,
-  //         [&](const BlockNumber &block_number)
+  //         [&](const Slot &slot)
   //             -> outcome::result<std::optional<BlockHash>> {
-  //           auto key_space = storage_->getSpace(storage::Space::kLookupKey);
+  //           auto key_space = storage_->getSpace(storage::Space::SlotToHashes);
   //           OUTCOME_TRY(data_opt,
-  //                       key_space->tryGet(slotToHashLookupKey(block_number)));
+  //                       key_space->tryGet(slotToHashLookupKey(slot)));
   //           if (data_opt.has_value()) {
   //             OUTCOME_TRY(block_hash,
   //                         BlockHash::fromSpan(data_opt.value()));
@@ -245,22 +252,18 @@ namespace lean::blockchain {
   outcome::result<BlockHash> BlockStorageImpl::putBlock(
       const BlockData &block) {
     // insert provided block's parts into the database
-    OUTCOME_TRY(block_hash, putBlockHeader(block.header.value()));
+    OUTCOME_TRY(block_hash, putBlockHeader(*block.header));
 
-    OUTCOME_TRY(encoded_header, encode(block.header));
-    OUTCOME_TRY(putToSpace(*storage_,
-                           storage::Space::Header,
-                           block_hash,
-                           std::move(encoded_header)));
-
-    OUTCOME_TRY(encoded_body, encode(block.body));
-    OUTCOME_TRY(putToSpace(
-        *storage_, storage::Space::Body, block_hash, std::move(encoded_body)));
+    if (block.body.has_value()) {
+      OUTCOME_TRY(encoded_body, encode(*block.body));
+      OUTCOME_TRY(putToSpace(
+          *storage_, storage::Space::Body, block_hash, std::move(encoded_body)));
+    }
 
     logger_->info("Added block {} as child of {}",
                   BlockIndex{block.header->slot, block_hash},
                   block.header->parent_root);
-    return BlockHash{};  // block_hash;
+    return block_hash;
   }
 
   outcome::result<std::optional<SignedBlock>> BlockStorageImpl::getBlock(
@@ -300,7 +303,7 @@ namespace lean::blockchain {
     {  // Remove slot-to-hash assigning
       auto num_to_hash_key = slotToHashLookupKey(block_index.slot);
 
-      auto key_space = storage_->getSpace(storage::Space::LookupKey);
+      auto key_space = storage_->getSpace(storage::Space::SlotToHashes);
       OUTCOME_TRY(hash_opt, key_space->tryGet(num_to_hash_key.view()));
       if (hash_opt == block_hash) {
         if (auto res = key_space->remove(num_to_hash_key); res.has_error()) {

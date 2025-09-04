@@ -29,7 +29,7 @@ namespace lean::storage {
    */
   enum class Space : uint8_t {
     Default = 0,  ///< Default space used for general-purpose storage
-    LookupKey,    ///< Space used for mapping lookup keys
+    SlotToHashes,    ///< Space used for mapping lookup keys
 
     // application-defined spaces
     Header,

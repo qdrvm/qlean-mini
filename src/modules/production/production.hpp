@@ -9,16 +9,27 @@
 #include <log/logger.hpp>
 #include <modules/production/interfaces.hpp>
 
+namespace lean::crypto {
+  class Hasher;
+}
+namespace lean::blockchain {
+  class BlockTree;
+}
+
 namespace lean::modules {
 
   class ProductionModuleImpl final : public lean::modules::ProductionModule {
     lean::modules::ProductionLoader &loader_;
     qtils::SharedRef<lean::log::LoggingSystem> logsys_;
     lean::log::Logger logger_;
+    qtils::SharedRef<blockchain::BlockTree> block_tree_;
+    qtils::SharedRef<crypto::Hasher> hasher_;
 
    public:
     ProductionModuleImpl(lean::modules::ProductionLoader &loader,
-                         qtils::SharedRef<lean::log::LoggingSystem> logsys);
+                         qtils::SharedRef<lean::log::LoggingSystem> logsys,
+                         qtils::SharedRef<blockchain::BlockTree> block_tree,
+                         qtils::SharedRef<crypto::Hasher> hasher);
 
     void on_loaded_success() override;
     void on_loading_is_finished() override;

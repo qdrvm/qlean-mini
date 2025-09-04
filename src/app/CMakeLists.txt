@@ -59,6 +59,7 @@ target_link_libraries(chain_spec
     logger
     Boost::property_tree
     app_configuration
+    sszpp
 )
 
 add_library(application SHARED

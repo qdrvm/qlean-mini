@@ -36,7 +36,7 @@ namespace lean::messages {
 
   struct BlockRequestMessage {
     RequestCxt ctx;
-    BlocksRequest request;
+//    BlocksRequest request;
     PeerId peer;
   };
 

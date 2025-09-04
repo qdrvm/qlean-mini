@@ -65,7 +65,7 @@ class BlockStorageTest : public testing::Test {
                                        Space::Header,
                                        Space::Justification,
                                        Space::Body,
-                                       Space::LookupKey};
+                                       Space::SlotToHashes};
 
     for (auto space : required_spaces) {
       auto storage = std::make_shared<BufferStorageMock>();

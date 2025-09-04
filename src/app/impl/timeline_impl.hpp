@@ -16,11 +16,11 @@ namespace lean::messages {
   struct SlotStarted;
 }
 namespace lean {
-  namespace log {
-    class LoggingSystem;
-  }
   struct Config;
-}  // namespace lean
+}
+namespace lean::log {
+  class LoggingSystem;
+}
 namespace lean::clock {
   class SystemClock;
 }

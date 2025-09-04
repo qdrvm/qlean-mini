@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include "types/block.hpp"
+#include <qtils/byte_arr.hpp>
+
 namespace lean {
 
   struct SignedBlock {

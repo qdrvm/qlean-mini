@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include <memory>
 
 namespace lean {
@@ -76,7 +75,7 @@ namespace lean {
     // -- Block tree
 
     /// New leaf
-    NewLeaf,
+    BlockAdded,
     /// Finalized
     BlockFinalized,
 

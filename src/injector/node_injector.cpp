@@ -28,6 +28,7 @@
 #include "app/impl/timeline_impl.hpp"
 #include "app/impl/watchdog.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
+#include "blockchain/impl/block_tree_impl.hpp"
 #include "blockchain/impl/genesis_block_header_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
@@ -88,6 +89,7 @@ namespace {
         di::bind<blockchain::GenesisBlockHeader>.to<blockchain::GenesisBlockHeaderImpl>(),
         di::bind<blockchain::BlockStorage>.to<blockchain::BlockStorageImpl>(),
         di::bind<app::Timeline>.to<app::TimelineImpl>(),
+        di::bind<blockchain::BlockTree>.to<blockchain::BlockTreeImpl>(),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);

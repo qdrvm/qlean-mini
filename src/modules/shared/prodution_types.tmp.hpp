@@ -6,10 +6,8 @@
 
 #pragma once
 
-#include "types/block.hpp"
 #include "types/block_header.hpp"
 #include "types/types.hpp"
-#include "utils/request_id.hpp"
 
 namespace lean::messages {
 
@@ -20,8 +18,8 @@ namespace lean::messages {
   };
 
   struct NewLeaf {
-    BlockIndex leaf;
-    bool best;
+    BlockHeader header;
+    bool best = false;
   };
 
   struct Finalized {

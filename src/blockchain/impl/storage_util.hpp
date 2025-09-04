@@ -26,7 +26,7 @@
  *
  * There is also an auxilary space named Space::kLookupKey where
  * BlockId->NumHashKey mappings are stored. Effectively there are could be two
- * types of mappings: either BlockNumber->NumHashKey or BlockHash->NumHashKey.
+ * types of mappings: either Slot->NumHashKey or BlockHash->NumHashKey.
  * Anyways, the resulting NumHashKey is good to be used for further manipulating
  * with the Block in other storage spaces.
  */
@@ -53,18 +53,18 @@ namespace lean::blockchain {
    * Returns block hash by number if any
    */
   outcome::result<std::optional<BlockHash>> blockHashByNumber(
-      storage::SpacedStorage &storage, BlockNumber block_number);
+      storage::SpacedStorage &storage, Slot slot);
 
   /**
    * Check if an entry is contained in the database
    * @param storage - to get the entry from
    * @param space - key space in the storage  to which the entry belongs
-   * @param block_id - id of the block to get entry for
+   * @param block_hash - hash of the block to get entry for
    * @return true if the entry exists, false if does not, and error at fail
    */
   outcome::result<bool> hasInSpace(storage::SpacedStorage &storage,
                                    storage::Space space,
-                                   const BlockId &block_id);
+                                   const BlockHash &block_hash);
 
   /**
    * Put an entry to the key space \param space
@@ -103,4 +103,4 @@ namespace lean::blockchain {
                                         storage::Space space,
                                         const BlockHash &block_hash);
 
-}  // namespace lean::blockchain
+}  // namespace jam::blockchain

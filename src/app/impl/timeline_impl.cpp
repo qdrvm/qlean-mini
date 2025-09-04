@@ -7,6 +7,8 @@
 
 #include "timeline_impl.hpp"
 
+#include <utility>
+
 #include "app/state_manager.hpp"
 #include "clock/clock.hpp"
 #include "log/logger.hpp"
@@ -36,26 +38,21 @@ namespace lean::app {
     on_slot_started_ =
         se::SubscriberCreator<qtils::Empty,
                               std::shared_ptr<const messages::SlotStarted>>::
-            template create<EventTypes::SlotStarted>(
+             create<EventTypes::SlotStarted>(
                 *se_manager_,
                 SubscriptionEngineHandlers::kTest,
                 [this](auto &,
                        std::shared_ptr<const messages::SlotStarted> msg) {
-                  on_slot_started(msg);
+                  on_slot_started(std::move(msg));
                 });
   }
 
   void TimelineImpl::start() {
     auto now = clock_->nowMsec();
-    auto since_genesis = now - config_->genesis_time;
-    SL_TRACE(logger_, "since genesis: {}ms", since_genesis);
-    auto next_slot = since_genesis / SLOT_DURATION_MS + 1;
-    SL_TRACE(logger_, "next slot: {}", next_slot);
+    auto next_slot = (now - config_->genesis_time) / SLOT_DURATION_MS + 1;
     auto time_to_next_slot =
         config_->genesis_time + SLOT_DURATION_MS * next_slot - now;
-    SL_TRACE(logger_, "time to next slot {}ms", time_to_next_slot);
     if (time_to_next_slot < SLOT_DURATION_MS / 2) {
-      SL_TRACE(logger_, "skip one next slot");
       ++next_slot;
       time_to_next_slot += SLOT_DURATION_MS;
     }
@@ -75,15 +72,22 @@ namespace lean::app {
 
   void TimelineImpl::on_slot_started(
       std::shared_ptr<const messages::SlotStarted> msg) {
-    if (stopped_) {
+    if (stopped_) [[unlikely]] {
+      SL_INFO(logger_, "Timeline is stopped on slot {}", msg->slot);
       return;
     }
 
-    SL_INFO(logger_, "Slot {} is started", msg->slot);
+    auto now = clock_->nowMsec();
+    auto next_slot = (now - config_->genesis_time) / SLOT_DURATION_MS + 1;
+    auto time_to_next_slot =
+        config_->genesis_time + SLOT_DURATION_MS * next_slot - now;
+    if (time_to_next_slot < SLOT_DURATION_MS / 2) {
+      ++next_slot;
+      time_to_next_slot += SLOT_DURATION_MS;
+    }
 
-    auto time_to_next_slot = config_->genesis_time
-                           + SLOT_DURATION_MS * (msg->slot + 1)
-                           - clock_->nowMsec();
+    SL_INFO(logger_, "Next slot is {} in {}ms", msg->slot, time_to_next_slot);
+
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_next_slot),
         EventTypes::SlotStarted,
