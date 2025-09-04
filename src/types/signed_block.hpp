@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include "types/block.hpp"
 #include <qtils/byte_arr.hpp>
+
+#include "types/block.hpp"
 
 namespace lean {
 

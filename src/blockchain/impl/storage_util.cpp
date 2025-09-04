@@ -48,4 +48,4 @@ namespace lean::blockchain {
     return target_space->remove(block_hash);
   }
 
-}  // namespace jam::blockchain
+}  // namespace lean::blockchain

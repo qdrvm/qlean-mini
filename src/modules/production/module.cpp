@@ -28,7 +28,7 @@ query_module_instance(lean::modules::ProductionLoader &loader,
                       std::shared_ptr<lean::blockchain::BlockTree> block_tree,
                       qtils::SharedRef<lean::crypto::Hasher> hasher) {
   if (!module_instance) {
-    module_instance = std::make_shared<lean::modules::ProductionModuleImpl>(
+    module_instance = lean::modules::ProductionModuleImpl::create_shared(
         loader, std::move(logger), std::move(block_tree), std::move(hasher));
   }
   return module_instance;

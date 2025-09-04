@@ -35,7 +35,7 @@ namespace lean::modules {
   void ProductionModuleImpl::on_slot_started(
       std::shared_ptr<const messages::SlotStarted> msg) {
     if (msg->epoch_change) {
-      SL_INFO(logger_, "Epoch changed to {}", msg->epoch_change);
+      SL_INFO(logger_, "Epoch changed to {}", msg->epoch);
     }
 
     auto is_producer = msg->slot % 3 == 2;  // qdrvm validator indices for dev

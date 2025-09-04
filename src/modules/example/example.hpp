@@ -8,17 +8,16 @@
 
 #include <log/logger.hpp>
 #include <modules/example/interfaces.hpp>
+#include <qtils/create_smart_pointer_macros.hpp>
 
 namespace lean::modules {
 
   class ExampleModuleImpl final : public lean::modules::ExampleModule {
-    lean::modules::ExampleModuleLoader &loader_;
-    qtils::SharedRef<lean::log::LoggingSystem> logsys_;
-    lean::log::Logger logger_;
-
-   public:
     ExampleModuleImpl(lean::modules::ExampleModuleLoader &loader,
                       qtils::SharedRef<lean::log::LoggingSystem> logsys);
+
+   public:
+    CREATE_SHARED_METHOD(ExampleModuleImpl);
 
     void on_loaded_success() override;
 
@@ -29,6 +28,11 @@ namespace lean::modules {
     void on_response(std::shared_ptr<const std::string> s) override;
 
     void on_notify(std::shared_ptr<const std::string> s) override;
+
+   private:
+    lean::modules::ExampleModuleLoader &loader_;
+    qtils::SharedRef<lean::log::LoggingSystem> logsys_;
+    lean::log::Logger logger_;
   };
 
 

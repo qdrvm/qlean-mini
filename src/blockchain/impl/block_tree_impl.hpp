@@ -35,15 +35,13 @@ namespace lean::blockchain {
 
   class BlockTreeImpl final
       : public BlockTree,
-                        public std::enable_shared_from_this<BlockTreeImpl> {
+        public std::enable_shared_from_this<BlockTreeImpl> {
    public:
-
-    BlockTreeImpl(
-        qtils::SharedRef<log::LoggingSystem> logsys,
-        qtils::SharedRef<BlockStorage> storage,
-        qtils::SharedRef<crypto::Hasher> hasher,
-        std::shared_ptr<Subscription> se_manager,
-        qtils::SharedRef<BlockTreeInitializer> initializer);
+    BlockTreeImpl(qtils::SharedRef<log::LoggingSystem> logsys,
+                  qtils::SharedRef<BlockStorage> storage,
+                  qtils::SharedRef<crypto::Hasher> hasher,
+                  std::shared_ptr<Subscription> se_manager,
+                  qtils::SharedRef<BlockTreeInitializer> initializer);
 
     ~BlockTreeImpl() override = default;
 
@@ -115,7 +113,6 @@ namespace lean::blockchain {
     //     Slot slot) const override;
 
    private:
-
     struct BlockTreeData {
       qtils::SharedRef<BlockStorage> storage_;
       // std::shared_ptr<storage::trie_pruner::TriePruner> state_pruner_;

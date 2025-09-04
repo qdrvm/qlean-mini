@@ -41,8 +41,7 @@ namespace lean::blockchain {
   class TreeNode {
    public:
     explicit TreeNode(const BlockIndex &info);
-    TreeNode(const BlockIndex &info,
-             const qtils::SharedRef<TreeNode> &parent);
+    TreeNode(const BlockIndex &info, const qtils::SharedRef<TreeNode> &parent);
 
     [[nodiscard]] std::shared_ptr<TreeNode> parent() const;
     void detach();
@@ -104,7 +103,7 @@ namespace lean::blockchain {
      * Compare node weight with best and replace if heavier.
      * @return true if heavier and replaced.
      */
-    bool chooseBest(const qtils::SharedRef<TreeNode>& node);
+    bool chooseBest(const qtils::SharedRef<TreeNode> &node);
 
     qtils::SharedRef<TreeNode> root_;
     qtils::SharedRef<TreeNode> best_;

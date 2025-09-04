@@ -137,8 +137,7 @@ namespace lean::blockchain {
   outcome::result<BlockStorage::SlotIterator> BlockStorageImpl::seekLastSlot()
       const {
     auto storage = storage_->getSpace(storage::Space::SlotToHashes);
-    return SlotIterator::create(
-        storage->cursor());
+    return SlotIterator::create(storage->cursor());
   }
 
   //   outcome::result<std::optional<BlockHash>>
@@ -148,7 +147,8 @@ namespace lean::blockchain {
   //         block_id,
   //         [&](const Slot &slot)
   //             -> outcome::result<std::optional<BlockHash>> {
-  //           auto key_space = storage_->getSpace(storage::Space::SlotToHashes);
+  //           auto key_space =
+  //               storage_->getSpace(storage::Space::SlotToHashes);
   //           OUTCOME_TRY(data_opt,
   //                       key_space->tryGet(slotToHashLookupKey(slot)));
   //           if (data_opt.has_value()) {
@@ -256,8 +256,10 @@ namespace lean::blockchain {
 
     if (block.body.has_value()) {
       OUTCOME_TRY(encoded_body, encode(*block.body));
-      OUTCOME_TRY(putToSpace(
-          *storage_, storage::Space::Body, block_hash, std::move(encoded_body)));
+      OUTCOME_TRY(putToSpace(*storage_,
+                             storage::Space::Body,
+                             block_hash,
+                             std::move(encoded_body)));
     }
 
     logger_->info("Added block {} as child of {}",

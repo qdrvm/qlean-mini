@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <qtils/enum_error_code.hpp>
 #include <cstdint>
+
+#include <qtils/enum_error_code.hpp>
 
 namespace lean::blockchain {
 

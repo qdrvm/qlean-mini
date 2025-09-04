@@ -26,7 +26,7 @@ MODULE_C_API std::weak_ptr<lean::modules::ExampleModule> query_module_instance(
     lean::modules::ExampleModuleLoader &loader,
     std::shared_ptr<lean::log::LoggingSystem> logger) {
   if (!module_instance) {
-    module_instance = std::make_shared<lean::modules::ExampleModuleImpl>(
+    module_instance = lean::modules::ExampleModuleImpl::create_shared(
         loader, std::move(logger));
   }
   return module_instance;

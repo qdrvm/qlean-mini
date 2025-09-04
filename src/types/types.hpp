@@ -48,7 +48,8 @@ namespace lean {
   //   BlockIndex from{};
   //   /// sequence direction
   //   Direction direction{};
-  //   /// maximum number of blocks to return; an implementation defined maximum is
+  //   /// maximum number of blocks to return; an implementation defined maximum
+  //   is
   //   /// used when unspecified
   //   std::optional<uint32_t> max{};
   //   bool multiple_justifications = true;

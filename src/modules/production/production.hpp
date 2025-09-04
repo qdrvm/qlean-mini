@@ -8,6 +8,7 @@
 
 #include <log/logger.hpp>
 #include <modules/production/interfaces.hpp>
+#include <qtils/create_smart_pointer_macros.hpp>
 
 namespace lean::crypto {
   class Hasher;
@@ -19,17 +20,13 @@ namespace lean::blockchain {
 namespace lean::modules {
 
   class ProductionModuleImpl final : public lean::modules::ProductionModule {
-    lean::modules::ProductionLoader &loader_;
-    qtils::SharedRef<lean::log::LoggingSystem> logsys_;
-    lean::log::Logger logger_;
-    qtils::SharedRef<blockchain::BlockTree> block_tree_;
-    qtils::SharedRef<crypto::Hasher> hasher_;
-
-   public:
     ProductionModuleImpl(lean::modules::ProductionLoader &loader,
                          qtils::SharedRef<lean::log::LoggingSystem> logsys,
                          qtils::SharedRef<blockchain::BlockTree> block_tree,
                          qtils::SharedRef<crypto::Hasher> hasher);
+
+   public:
+    CREATE_SHARED_METHOD(ProductionModuleImpl);
 
     void on_loaded_success() override;
     void on_loading_is_finished() override;
@@ -39,6 +36,13 @@ namespace lean::modules {
     void on_leave_update(std::shared_ptr<const messages::NewLeaf>) override;
     void on_block_finalized(
         std::shared_ptr<const messages::Finalized>) override;
+
+   private:
+    lean::modules::ProductionLoader &loader_;
+    qtils::SharedRef<lean::log::LoggingSystem> logsys_;
+    lean::log::Logger logger_;
+    qtils::SharedRef<blockchain::BlockTree> block_tree_;
+    qtils::SharedRef<crypto::Hasher> hasher_;
   };
 
 

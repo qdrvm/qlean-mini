@@ -38,7 +38,7 @@ namespace lean::app {
     on_slot_started_ =
         se::SubscriberCreator<qtils::Empty,
                               std::shared_ptr<const messages::SlotStarted>>::
-             create<EventTypes::SlotStarted>(
+            create<EventTypes::SlotStarted>(
                 *se_manager_,
                 SubscriptionEngineHandlers::kTest,
                 [this](auto &,

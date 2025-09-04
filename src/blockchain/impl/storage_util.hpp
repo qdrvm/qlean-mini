@@ -103,4 +103,4 @@ namespace lean::blockchain {
                                         storage::Space space,
                                         const BlockHash &block_hash);
 
-}  // namespace jam::blockchain
+}  // namespace lean::blockchain

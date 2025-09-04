@@ -11,8 +11,8 @@
 #include <types/types.hpp>
 #include <utils/custom_equality.hpp>
 
-#include "types/block_index.hpp"
 #include "serde/serialization.hpp"
+#include "types/block_index.hpp"
 
 namespace lean {
 

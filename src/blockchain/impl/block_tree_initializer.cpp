@@ -224,8 +224,7 @@ namespace lean::blockchain {
               const auto &main_header = m_res.value();
 
               BOOST_ASSERT(fork_header.slot == main_header.slot);
-              if (fork_header.parent_root
-               == main_header.parent_root) {
+              if (fork_header.parent_root == main_header.parent_root) {
                 break;
               }
 
