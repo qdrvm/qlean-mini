@@ -15,12 +15,11 @@
 namespace lean::modules {
 
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
-   public:
-    static std::shared_ptr<Networking> instance;
-    CREATE_SHARED_METHOD(NetworkingImpl);
-
     NetworkingImpl(NetworkingLoader &loader,
                    qtils::SharedRef<log::LoggingSystem> logging_system);
+
+   public:
+    CREATE_SHARED_METHOD(NetworkingImpl);
 
     void on_loaded_success() override;
 

@@ -26,7 +26,7 @@ MODULE_C_API std::weak_ptr<lean::modules::Synchronizer> query_module_instance(
     lean::modules::SynchronizerLoader &loader,
     std::shared_ptr<lean::log::LoggingSystem> logsys) {
   if (!module_instance) {
-    module_instance = std::make_shared<lean::modules::SynchronizerImpl>(
+    module_instance = lean::modules::SynchronizerImpl::create_shared(
         loader, std::move(logsys));
   }
   return module_instance;

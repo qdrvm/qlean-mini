@@ -15,7 +15,7 @@
 #include "blockchain/genesis_block_header.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/storage_util.hpp"
-#include "lean_types/block.hpp"
+#include "types/block.hpp"
 
 namespace lean::blockchain {
 
@@ -43,9 +43,8 @@ namespace lean::blockchain {
 
     if (not genesis_header_is_exist) {
       // genesis block initialization
-      BlockData genesis_block{
-          .header = *genesis_header,
-      };
+      BlockData genesis_block;
+      genesis_block.header.emplace(*genesis_header);
 
       auto res = block_storage.putBlock(genesis_block);
       if (res.has_error()) {

@@ -11,6 +11,8 @@ OUTCOME_CPP_DEFINE_CATEGORY(lean::blockchain, BlockStorageError, e) {
   switch (e) {
     case E::BLOCK_EXISTS:
       return "Block already exists on the chain";
+    case E::NO_BLOCKS_FOUND:
+      return "No blocks found";
     case E::HEADER_NOT_FOUND:
       return "Block header was not found";
     case E::GENESIS_BLOCK_ALREADY_EXISTS:

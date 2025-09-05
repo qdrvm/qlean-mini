@@ -39,7 +39,9 @@ namespace lean::blockchain {
         const BlockIndex &block_index) override;
 
     outcome::result<std::vector<BlockHash>> getBlockHash(
-        BlockNumber slot) const override;
+        Slot slot) const override;
+
+    outcome::result<SlotIterator> seekLastSlot() const override;
 
     // -- header --
 

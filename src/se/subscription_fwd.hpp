@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include <memory>
 
 namespace lean {
@@ -48,10 +47,19 @@ namespace lean {
     PeerConnected,
     /// Peer disconnected
     PeerDisconnected,
-    /// Data of block is requested
+    /// Data of a block is requested
     BlockRequest,
-    /// Data of block is respond
+    /// Data of a block is respond
     BlockResponse,
+
+    // -- Block production
+
+    /// Production module is loaded
+    ProductionIsLoaded,
+    /// Production module is unloaded
+    ProductionIsUnloaded,
+    /// New block produced
+    BlockProduced,
 
     // -- Synchronizer
 
@@ -63,6 +71,18 @@ namespace lean {
     BlockAnnounceReceived,
     /// New block index discovered
     BlockIndexDiscovered,
+
+    // -- Block tree
+
+    /// New leaf
+    BlockAdded,
+    /// Finalized
+    BlockFinalized,
+
+    // -- Timeline
+
+    /// New slot started
+    SlotStarted,
   };
 
   static constexpr uint32_t kThreadPoolSize = 3u;
@@ -82,8 +102,8 @@ namespace lean {
 
   using Dispatcher = se::Dispatcher;
   using Subscription = se::SubscriptionManager<kHandlersCount, kThreadPoolSize>;
-  template <typename ObjectType, typename... EventData>
+  template <typename ContextType, typename... EventData>
   using BaseSubscriber =
-      se::SubscriberImpl<EventTypes, Dispatcher, ObjectType, EventData...>;
+      se::SubscriberImpl<EventTypes, Dispatcher, ContextType, EventData...>;
 
 }  // namespace lean

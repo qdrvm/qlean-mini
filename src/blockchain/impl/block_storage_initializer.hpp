@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <lean_types/types.hpp>
 #include <qtils/shared_ref.hpp>
+#include <types/types.hpp>
 #include <utils/ctor_limiters.hpp>
 
 namespace lean::log {

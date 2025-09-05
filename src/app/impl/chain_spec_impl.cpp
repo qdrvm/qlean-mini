@@ -12,6 +12,8 @@
 
 #include <app/configuration.hpp>
 
+#include "types/block_header.hpp"
+
 OUTCOME_CPP_DEFINE_CATEGORY(lean::app, ChainSpecImpl::Error, e) {
   using E = lean::app::ChainSpecImpl::Error;
   switch (e) {
@@ -68,11 +70,16 @@ namespace lean::app {
 
   outcome::result<void> ChainSpecImpl::loadGenesis(
       const boost::property_tree::ptree &tree) {
-    OUTCOME_TRY(
-        genesis_header_hex,
-        ensure("genesis_header", tree.get_child_optional("genesis_header")));
-    OUTCOME_TRY(genesis_header_encoded,
-                qtils::ByteVec::fromHex(genesis_header_hex.data()));
+    // OUTCOME_TRY(
+    //     genesis_header_hex,
+    //     ensure("genesis_header", tree.get_child_optional("genesis_header")));
+    // OUTCOME_TRY(genesis_header_encoded,
+    //             qtils::ByteVec::fromHex(genesis_header_hex.data()));
+
+    BlockHeader header;
+    header.proposer_index = -1ull;
+    OUTCOME_TRY(genesis_header_encoded, encode(header));
+
     genesis_header_ = std::move(genesis_header_encoded);
     return outcome::success();
   }

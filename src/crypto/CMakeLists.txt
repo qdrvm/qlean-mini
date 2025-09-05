@@ -5,7 +5,7 @@
 #
 
 #add_subdirectory(blake2)
-#add_subdirectory(sha)
+add_subdirectory(sha)
 #add_subdirectory(twox)
 
 add_library(hasher
@@ -15,6 +15,6 @@ target_link_libraries(hasher
     qtils::qtils
 #    blake2
 #    twox
-#    sha
+    sha
 #    keccak
 )

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "lean_types/block_header.hpp"
+#include "types/block_header.hpp"
 
 namespace lean::blockchain {
 

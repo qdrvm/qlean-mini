@@ -19,6 +19,7 @@ namespace lean {
 }  // namespace lean
 
 namespace lean::app {
+  class Timeline;
   class Configuration;
   class StateManager;
 }  // namespace lean::app
@@ -82,6 +83,7 @@ namespace lean::app {
                     qtils::SharedRef<Watchdog> watchdog,
                     qtils::SharedRef<metrics::Exposer> metrics_exposer,
                     qtils::SharedRef<clock::SystemClock> system_clock,
+                    qtils::SharedRef<Timeline> timeline,
                     std::shared_ptr<SeHolder>);
 
     void run() override;
@@ -93,6 +95,7 @@ namespace lean::app {
     qtils::SharedRef<Watchdog> watchdog_;
     qtils::SharedRef<metrics::Exposer> metrics_exposer_;
     qtils::SharedRef<clock::SystemClock> system_clock_;
+    qtils::SharedRef<Timeline> timeline_;
 
     // Metrics
     std::unique_ptr<metrics::Registry> metrics_registry_;

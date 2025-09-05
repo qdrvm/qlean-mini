@@ -11,7 +11,7 @@
 // #include "crypto/blake2/blake2b.h"
 // #include "crypto/blake2/blake2s.h"
 // #include "crypto/keccak/keccak.hpp"
-// #include "crypto/sha/sha256.hpp"
+#include "crypto/sha/sha256.hpp"
 // #include "crypto/twox/twox.hpp"
 
 namespace lean::crypto {
@@ -60,9 +60,9 @@ namespace lean::crypto {
   //   blake2s(out.data(), 32, nullptr, 0, data.data(), data.size());
   //   return out;
   // }
-  //
-  // Hash256 HasherImpl::sha2_256(qtils::ByteView data) const {
-  //   return sha256(data);
-  // }
+
+  Hash256 HasherImpl::sha2_256(qtils::ByteView data) const {
+    return sha256(data);
+  }
 
 }  // namespace lean::crypto

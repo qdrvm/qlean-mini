@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <qtils/empty.hpp>
 #include <soralog/logging_system.hpp>
 
@@ -52,10 +50,10 @@ namespace lean::loaders {
       set_module(module);
       auto module_accessor =
           get_module()
-              ->getFunctionFromLibrary<
-                  std::weak_ptr<lean::modules::Synchronizer>,
-                  modules::SynchronizerLoader &,
-                  std::shared_ptr<log::LoggingSystem>>("query_module_instance");
+              ->getFunctionFromLibrary<std::weak_ptr<modules::Synchronizer>,
+                                       modules::SynchronizerLoader &,
+                                       std::shared_ptr<log::LoggingSystem>>(
+                  "query_module_instance");
 
       if (not module_accessor) {
         return;
@@ -63,7 +61,7 @@ namespace lean::loaders {
 
       auto module_internal = (*module_accessor)(*this, logsys_);
 
-      on_init_complete_ = se::SubscriberCreator<qtils::Empty>::template create<
+      on_init_complete_ = se::SubscriberCreator<qtils::Empty>::create<
           EventTypes::SynchronizerIsLoaded>(
           *se_manager_,
           SubscriptionEngineHandlers::kTest,
@@ -77,7 +75,7 @@ namespace lean::loaders {
       on_block_announce_ = se::SubscriberCreator<
           qtils::Empty,
           std::shared_ptr<const messages::BlockAnnounceMessage>>::
-          template create<EventTypes::BlockAnnounceReceived>(
+          create<EventTypes::BlockAnnounceReceived>(
               *se_manager_,
               SubscriptionEngineHandlers::kTest,
               [module_internal, this](auto &, const auto &msg) {
@@ -90,7 +88,7 @@ namespace lean::loaders {
       on_block_response_ = se::SubscriberCreator<
           qtils::Empty,
           std::shared_ptr<const messages::BlockResponseMessage>>::
-          template create<EventTypes::BlockResponse>(
+          create<EventTypes::BlockResponse>(
               *se_manager_,
               SubscriptionEngineHandlers::kTest,
               [module_internal, this](auto &, const auto &msg) {
@@ -101,13 +99,13 @@ namespace lean::loaders {
                 }
               });
 
-      se_manager_->notify(lean::EventTypes::SynchronizerIsLoaded);
+      se_manager_->notify(EventTypes::SynchronizerIsLoaded);
     }
 
     void dispatch_block_request(
         std::shared_ptr<const messages::BlockRequestMessage> msg) override {
       SL_TRACE(logger_, "Dispatch BlockRequest; rid={}", msg->ctx.rid);
-      se_manager_->notify(lean::EventTypes::BlockRequest, msg);
+      se_manager_->notify(EventTypes::BlockRequest, msg);
     }
   };
 

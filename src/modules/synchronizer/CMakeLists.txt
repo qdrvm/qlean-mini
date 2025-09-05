@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_jam_module(synchronizer
+add_lean_module(synchronizer
   SOURCE
     synchronizer.cpp
   INCLUDE_DIRS

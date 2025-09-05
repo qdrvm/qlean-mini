@@ -8,7 +8,7 @@ if(NOT TARGET all_modules)
   add_custom_target(all_modules)
 endif()
 
-function(add_jam_module NAME)
+function(add_lean_module NAME)
   set(MODULE_NAME ${NAME})
 
   set(MODULE "${MODULE_NAME}_module")
@@ -94,6 +94,9 @@ add_subdirectory(example)
 
 # Networking module
 add_subdirectory(networking)
+
+# Block-production module
+add_subdirectory(production)
 
 # Blockchain synchronizer module
 add_subdirectory(synchronizer)

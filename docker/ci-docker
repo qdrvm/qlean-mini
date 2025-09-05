@@ -9,7 +9,7 @@
 
 
 # paths
-PROJECT=/cpp-jam
+PROJECT=/cpp-lean
 VENV=$PROJECT.venv
 BUILD=$PROJECT.build
 VCPKG=/vcpkg

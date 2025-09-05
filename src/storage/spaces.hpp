@@ -28,8 +28,8 @@ namespace lean::storage {
    * specific BufferStorage instances.
    */
   enum class Space : uint8_t {
-    Default = 0,  ///< Default space used for general-purpose storage
-    LookupKey,    ///< Space used for mapping lookup keys
+    Default = 0,   ///< Default space used for general-purpose storage
+    SlotToHashes,  ///< Space used for mapping lookup keys
 
     // application-defined spaces
     Header,

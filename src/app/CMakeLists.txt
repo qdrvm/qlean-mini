@@ -59,6 +59,7 @@ target_link_libraries(chain_spec
     logger
     Boost::property_tree
     app_configuration
+    sszpp
 )
 
 add_library(application SHARED
@@ -68,4 +69,15 @@ target_link_libraries(application
     qtils::qtils
     app_configuration
     metrics
+)
+
+add_library(timeline SHARED
+    impl/timeline_impl.cpp
+)
+target_link_libraries(timeline
+    qtils::qtils
+    logger
+    sszpp
+#    app_configuration
+#    metrics
 )

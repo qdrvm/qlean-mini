@@ -16,12 +16,12 @@ namespace lean::modules {
 
   class SynchronizerImpl final : public Singleton<Synchronizer>,
                                  public Synchronizer {
-   public:
-    static std::shared_ptr<Synchronizer> instance;
-    CREATE_SHARED_METHOD(SynchronizerImpl);
-
     SynchronizerImpl(SynchronizerLoader &loader,
                      qtils::SharedRef<log::LoggingSystem> logging_system);
+
+   public:
+    CREATE_SHARED_METHOD(SynchronizerImpl);
+
 
     void on_loaded_success() override;
 
