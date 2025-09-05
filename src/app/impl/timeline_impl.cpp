@@ -81,10 +81,6 @@ namespace lean::app {
     auto next_slot = (now - config_->genesis_time) / SLOT_DURATION_MS + 1;
     auto time_to_next_slot =
         config_->genesis_time + SLOT_DURATION_MS * next_slot - now;
-    if (time_to_next_slot < SLOT_DURATION_MS / 2) {
-      ++next_slot;
-      time_to_next_slot += SLOT_DURATION_MS;
-    }
 
     SL_INFO(logger_, "Next slot is {} in {}ms", msg->slot, time_to_next_slot);
 
