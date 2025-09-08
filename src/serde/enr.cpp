@@ -74,10 +74,11 @@ namespace lean::rlp {
     }
 
     template <typename T>
+      requires std::is_default_constructible_v<T>
+           and requires(T t) { qtils::BytesOut{t}; }
     T bytes_n() {
       auto raw = bytes();
       T r;
-      qtils::BytesOut{r};
       assert(raw.size() == r.size());
       memcpy(r.data(), raw.data(), r.size());
       return r;
