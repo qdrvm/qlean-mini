@@ -80,6 +80,10 @@ namespace lean::log {
       return logging_system_->resetLevelOfLogger(logger_name);
     }
 
+    auto &getSoralog() const {
+      return logging_system_;
+    }
+
    private:
     std::shared_ptr<soralog::LoggingSystem> logging_system_;
   };

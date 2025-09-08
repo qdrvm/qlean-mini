@@ -26,7 +26,7 @@ namespace lean::blockchain {
                   res.error());
       qtils::raise_on_err(res);
     }
-    updateHash(*hasher);
+    updateHash();
   }
 
 }  // namespace lean::blockchain

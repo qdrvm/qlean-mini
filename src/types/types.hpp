@@ -11,6 +11,9 @@
 #include <qtils/byte_arr.hpp>
 #include <qtils/tagged.hpp>
 
+#include "types/block_hash.hpp"
+#include "types/slot.hpp"
+
 namespace lean {
   // stub types. must be refactored in future
 
@@ -20,45 +23,13 @@ namespace lean {
 
   using OpaqueHash = qtils::ByteArr<32>;
 
-  using BlockHash = OpaqueHash;
   using HeaderHash = OpaqueHash;
   using StateRoot = OpaqueHash;
   using BodyRoot = OpaqueHash;
 
-  using Slot = uint64_t;
   using Epoch = uint64_t;  // is needed?
 
   using ProposerIndex = uint64_t;
-
-  // networking types
-
-  using PeerId = qtils::Tagged<Stub, struct PeerId_>;  // STUB
-
-  // /// Direction, in which to retrieve ordered data
-  // enum class Direction : uint8_t {
-  //   /// from child to parent
-  //   ASCENDING = 0,
-  //   /// from parent to canonical child
-  //   DESCENDING = 1
-  // };
-  //
-  // /// Request for blocks to another peer
-  // struct BlocksRequest {
-  //   /// start from this block
-  //   BlockIndex from{};
-  //   /// sequence direction
-  //   Direction direction{};
-  //   /// maximum number of blocks to return; an implementation defined maximum
-  //   is
-  //   /// used when unspecified
-  //   std::optional<uint32_t> max{};
-  //   bool multiple_justifications = true;
-  // };
-  //
-  // struct BlockAnnounce {
-  //   BlockAnnounce(const BlockAnnounce &) = delete;
-  // };
-
 }  // namespace lean
 
 template <>

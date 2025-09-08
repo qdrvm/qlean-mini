@@ -8,6 +8,9 @@
 
 #include <memory>
 
+#include "modules/shared/macro.hpp"
+#include "modules/shared/networking_types.tmp.hpp"
+
 namespace lean::messages {
   struct SlotStarted;
   struct Finalized;
@@ -23,6 +26,8 @@ namespace lean::modules {
     virtual ~ProductionLoader() = default;
 
     virtual void dispatch_block_produced(std::shared_ptr<const Block>) = 0;
+
+    VIRTUAL_DISPATCH(SendSignedBlock);
   };
 
   struct ProductionModule {

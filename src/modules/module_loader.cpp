@@ -45,7 +45,7 @@ namespace lean::modules {
 
       if (fs::is_directory(entry)) {
         OUTCOME_TRY(recursive_search(entry_path, modules));
-      } else if (fs::is_regular_file(entry)
+      } else if ((fs::is_regular_file(entry) or fs::is_symlink(entry))
                  && entry_path.extension() == ".so") {
         OUTCOME_TRY(load_module(entry_path.string(), modules));
       }

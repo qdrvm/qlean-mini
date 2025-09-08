@@ -14,7 +14,8 @@ add_lean_module(networking
   DEFINITIONS
     SOME_FLAG=1
   LIBRARIES
+    p2p::libp2p
     qtils::qtils
     soralog::soralog
-    hashtree
+    sszpp
 )

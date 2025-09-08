@@ -10,8 +10,10 @@
 #include "types/justification.hpp"
 
 namespace lean {
-  struct BlockBody;
   struct Block;
+  struct BlockBody;
+  struct SignedBlock;
+  struct StatusMessage;
 }  // namespace lean
 
 namespace lean::blockchain {
@@ -150,6 +152,13 @@ namespace lean::blockchain {
      * @return hash of the block
      */
     [[nodiscard]] virtual BlockIndex lastFinalized() const = 0;
+
+    virtual StatusMessage getStatusMessage() const = 0;
+
+    virtual outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
+        const BlockHash block_hash) const = 0;
+
+    virtual void import(std::vector<SignedBlock> blocks) = 0;
   };
 
 }  // namespace lean::blockchain

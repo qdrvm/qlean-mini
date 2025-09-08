@@ -21,6 +21,8 @@
 #include "tests/testutil/literals.hpp"
 #include "types/block.hpp"
 #include "types/block_header.hpp"
+#include "types/signed_block.hpp"
+#include "types/status_message.hpp"
 
 namespace lean::blockchain {
   BlockTreeImpl::SafeBlockTreeData::SafeBlockTreeData(BlockTreeData data)
@@ -126,13 +128,8 @@ namespace lean::blockchain {
           }
           const auto &parent = parent_opt.value();
 
-          BlockHeader header;
-          header.slot = block.slot;
-          header.proposer_index = block.proposer_index;
-          header.parent_root = block.parent_root;
-          header.state_root = block.state_root;
-          header.body_root = {};  // ssz::hash_tree_root(block.body);
-          header.updateHash(*p.hasher_);
+          auto header = block.getHeader();
+          header.updateHash();
 
           SL_DEBUG(log_, "Adding block {}", header.index());
 
@@ -795,6 +792,48 @@ namespace lean::blockchain {
   BlockIndex BlockTreeImpl::lastFinalized() const {
     return block_tree_data_.sharedAccess(
         [&](const BlockTreeData &p) { return getLastFinalizedNoLock(p); });
+  }
+
+  StatusMessage BlockTreeImpl::getStatusMessage() const {
+    auto finalized = lastFinalized();
+    auto head = bestBlock();
+    return StatusMessage{
+        .finalized = {.root = finalized.hash, .slot = finalized.slot},
+        .head = {.root = head.hash, .slot = head.slot},
+    };
+  }
+
+  outcome::result<std::optional<SignedBlock>> BlockTreeImpl::tryGetSignedBlock(
+      const BlockHash block_hash) const {
+    auto header_res = getBlockHeader(block_hash);
+    if (not header_res.has_value()) {
+      return std::nullopt;
+    }
+    auto &header = header_res.value();
+    auto body_res = getBlockBody(block_hash);
+    if (not body_res.has_value()) {
+      return std::nullopt;
+    }
+    auto &body = body_res.value();
+    return SignedBlock{
+        .message =
+            {
+                .slot = header.slot,
+                .proposer_index = header.proposer_index,
+                .parent_root = header.parent_root,
+                .state_root = header.state_root,
+                .body = std::move(body),
+            },
+        // TODO: signature
+        .signature = {},
+    };
+  }
+
+  void BlockTreeImpl::import(std::vector<SignedBlock> blocks) {
+    for (auto &block : blocks) {
+      // TODO: signature
+      std::ignore = addBlock(block.message);
+    }
   }
 
   outcome::result<void> BlockTreeImpl::reorgAndPrune(

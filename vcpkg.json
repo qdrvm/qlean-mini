@@ -2,17 +2,19 @@
   "name": "qlean-mini",
   "version": "0.0.1",
   "dependencies": [
-    "qtils",
+    "boost-asio",
+    "boost-beast",
     "boost-di",
     "boost-program-options",
     "boost-property-tree",
-    "soralog",
-    "openssl",
+    "cppcodec",
+    "leanp2p",
     "prometheus-cpp",
-    "boost-asio",
+    "qtils",
     "rocksdb",
-    "sszpp",
-    "boost-beast"
+    "snappy",
+    "soralog",
+    "sszpp"
   ],
   "features": {
     "test": { "description": "Test", "dependencies": ["gtest"]}

@@ -169,7 +169,7 @@ namespace lean::blockchain {
   outcome::result<BlockHash> BlockStorageImpl::putBlockHeader(
       const BlockHeader &header) {
     OUTCOME_TRY(encoded_header, encode(header));
-    header.updateHash(*hasher_);
+    header.updateHash();
     const auto &block_hash = header.hash();
     OUTCOME_TRY(putToSpace(*storage_,
                            storage::Space::Header,

@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <crypto/hasher.hpp>
-#include <sszpp/ssz++.hpp>
 #include <types/types.hpp>
 #include <utils/custom_equality.hpp>
 
@@ -50,21 +48,12 @@ namespace lean {
       return hash_opt.value();
     }
 
-    void updateHash(const crypto::Hasher &hasher) const {
-      auto enc_res = encode(*this);
-      BOOST_ASSERT_MSG(enc_res.has_value(),
-                       "Header should be encoded errorless");
-      hash_opt.emplace(hasher.sha2_256(enc_res.value()));
+    void updateHash() const {
+      hash_opt = sszHash(*this);
     }
 
     BlockIndex index() const {
       return {slot, hash()};
     }
   };
-
-  inline void calculateBlockHash(const BlockHeader &header,
-                                 const crypto::Hasher &hasher) {
-    header.updateHash(hasher);
-  }
-
 }  // namespace lean

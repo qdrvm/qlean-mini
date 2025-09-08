@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <types/chekpoint.hpp>
+#include <types/checkpoint.hpp>
 
 namespace lean {
 

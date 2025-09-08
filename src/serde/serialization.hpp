@@ -57,4 +57,11 @@ namespace lean {
     }
   }
 
+  auto sszHash(const auto &v) {
+    auto hash1 = ssz::hash_tree_root(v);
+    qtils::ByteArr<32> hash2;
+    static_assert(hash1.size() == hash2.size());
+    memcpy(hash2.data(), hash1.data(), hash1.size());
+    return hash2;
+  }
 }  // namespace lean

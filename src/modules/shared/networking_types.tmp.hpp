@@ -6,44 +6,44 @@
 
 #pragma once
 
-#include "types/block.hpp"
-#include "types/block_header.hpp"
-#include "types/types.hpp"
-#include "utils/request_id.hpp"
+#include <libp2p/peer/peer_id.hpp>
+
+#include "types/signed_block.hpp"
+#include "types/signed_vote.hpp"
+#include "types/status_message.hpp"
 
 namespace lean::messages {
+  template <typename Notification>
+  struct NotificationReceived {
+    libp2p::PeerId from_peer;
+    Notification notification;
+  };
+
+  template <typename Notification>
+  struct GossipNotificationReceived {
+    Notification notification;
+  };
+
+  template <typename Notification>
+  struct BroadcastNotification {
+    Notification notification;
+  };
 
   struct PeerConnectedMessage {
-    PeerId peer;
+    libp2p::PeerId peer;
     // address?
     // initial view?
   };
 
   struct PeerDisconnectedMessage {
-    PeerId peer;
+    libp2p::PeerId peer;
     // reason?
   };
 
-  struct BlockAnnounce {
-    BlockHeader header;
-    PeerId peer;
-  };
+  using StatusMessageReceived = NotificationReceived<StatusMessage>;
 
-  struct BlockAnnounceMessage {
-    BlockAnnounce header;
-    PeerId peer;
-  };
+  using SendSignedBlock = BroadcastNotification<SignedBlock>;
 
-  struct BlockRequestMessage {
-    RequestCxt ctx;
-    //    BlocksRequest request;
-    PeerId peer;
-  };
-
-  struct BlockResponseMessage {
-    RequestCxt ctx;
-    outcome::result<Block> result;
-    PeerId peer;
-  };
-
+  using SendSignedVote = BroadcastNotification<SignedVote>;
+  using SignedVoteReceived = GossipNotificationReceived<SignedVote>;
 }  // namespace lean::messages

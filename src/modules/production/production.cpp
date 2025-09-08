@@ -8,9 +8,11 @@
 
 #include "blockchain/block_tree.hpp"
 #include "crypto/hasher.hpp"
+#include "modules/shared/networking_types.tmp.hpp"
 #include "modules/shared/prodution_types.tmp.hpp"
 #include "types/block_data.hpp"
 #include "types/signed_block.hpp"
+#include "utils/__debug_env.hpp"
 
 namespace lean::modules {
   ProductionModuleImpl::ProductionModuleImpl(
@@ -38,7 +40,8 @@ namespace lean::modules {
       SL_INFO(logger_, "Epoch changed to {}", msg->epoch);
     }
 
-    auto is_producer = msg->slot % 3 == 2;  // qdrvm validator indices for dev
+    auto producer_index = msg->slot % getValidatorCount();
+    auto is_producer = getPeerIndex() == producer_index;
 
     SL_INFO(logger_,
             "Slot {} is started{}",
@@ -48,28 +51,11 @@ namespace lean::modules {
     if (is_producer) {
       auto parent_hash = block_tree_->bestBlock().hash;
       // Produce block
-      BlockBody body;
-
-      BlockHeader header;
-      header.slot = msg->slot;
-      header.proposer_index = 2;
-      header.parent_root = parent_hash;
-      header.state_root = {};
-      header.body_root = {};
-      header.updateHash(*hasher_);
-
-      BlockData block_data;
-      block_data.hash = header.hash();
-      block_data.header.emplace(header);
-      block_data.body.emplace(body);
-      block_data.signature = {};
-
       Block block;
       block.slot = msg->slot;
-      block.proposer_index = 2;
+      block.proposer_index = producer_index;
       block.parent_root = parent_hash;
       block.state_root = {};
-      block.body = body;
 
       // Add a block into the block tree
       auto res = block_tree_->addBlock(block);
@@ -81,6 +67,11 @@ namespace lean::modules {
 
       // Notify subscribers
       loader_.dispatch_block_produced(std::make_shared<const Block>(block));
+
+      // TODO: signature
+      loader_.dispatch_SendSignedBlock(
+          std::make_shared<messages::SendSignedBlock>(
+              SignedBlock{.message = block}));
     }
   }
 

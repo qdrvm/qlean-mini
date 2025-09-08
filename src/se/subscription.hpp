@@ -77,24 +77,33 @@ namespace lean::se {
      *
      * @return A @c std::shared_ptr to the created @ref BaseSubscriber.
      */
-    template <EventTypes key, typename F, typename... Args>
+    template <typename F, typename... Args>
     static auto create(Subscription &se,
                        SubscriptionEngineHandlers tid,
+                       EventTypes key,
                        F &&callback,
                        Args &&...args) {
       auto subscriber = BaseSubscriber<ContextType, EventData...>::create(
           se.getEngine<EventTypes, EventData...>(),
           std::forward<Args>(args)...);
       subscriber->setCallback(
-          [f{std::forward<F>(callback)}](auto /*set_id*/,
-                                         auto &context,
-                                         auto event_key,
-                                         EventData... args) mutable {
+          [key, f{std::forward<F>(callback)}](auto /*set_id*/,
+                                              auto &context,
+                                              auto event_key,
+                                              EventData... args) mutable {
             assert(key == event_key);
             std::forward<F>(f)(context, std::move(args)...);
           });
       subscriber->subscribe(0, key, static_cast<Dispatcher::Tid>(tid));
       return subscriber;
+    }
+    template <EventTypes key, typename F, typename... Args>
+    static auto create(Subscription &se,
+                       SubscriptionEngineHandlers tid,
+                       F &&callback,
+                       Args &&...args) {
+      return create(
+          se, tid, key, std::forward<F>(callback), std::forward<Args>(args)...);
     }
   };
 }  // namespace lean::se

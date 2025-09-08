@@ -8,6 +8,8 @@
 
 #include <modules/shared/networking_types.tmp.hpp>
 
+#include "modules/shared/macro.hpp"
+
 namespace lean::modules {
 
   struct NetworkingLoader {
@@ -19,11 +21,8 @@ namespace lean::modules {
     virtual void dispatch_peer_disconnected(
         std::shared_ptr<const messages::PeerDisconnectedMessage> msg) = 0;
 
-    virtual void dispatch_block_announce(
-        std::shared_ptr<const messages::BlockAnnounceMessage> msg) = 0;
-
-    virtual void dispatch_block_response(
-        std::shared_ptr<const messages::BlockResponseMessage> msg) = 0;
+    VIRTUAL_DISPATCH(StatusMessageReceived);
+    VIRTUAL_DISPATCH(SignedVoteReceived);
   };
 
   struct Networking {
@@ -33,8 +32,8 @@ namespace lean::modules {
 
     virtual void on_loading_is_finished() = 0;
 
-    virtual void on_block_request(
-        std::shared_ptr<const messages::BlockRequestMessage> msg) = 0;
+    VIRTUAL_ON_DISPATCH(SendSignedBlock);
+    VIRTUAL_ON_DISPATCH(SendSignedVote);
   };
 
 }  // namespace lean::modules
