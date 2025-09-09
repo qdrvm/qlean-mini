@@ -824,14 +824,14 @@ namespace lean::blockchain {
                 .state_root = header.state_root,
                 .body = std::move(body),
             },
-        // TODO: signature
+        // TODO(turuslan): signature
         .signature = {},
     };
   }
 
   void BlockTreeImpl::import(std::vector<SignedBlock> blocks) {
     for (auto &block : blocks) {
-      // TODO: signature
+      // TODO(turuslan): signature
       std::ignore = addBlock(block.message);
     }
   }

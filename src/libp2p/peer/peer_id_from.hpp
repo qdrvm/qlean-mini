@@ -12,6 +12,9 @@
 #include <qtils/bytes.hpp>
 
 namespace libp2p {
+  /**
+   * Convert secp256k1 public key to `PeerId`.
+   */
   inline PeerId peerIdFromSecp256k1(
       const crypto::secp256k1::PublicKey &public_key) {
     return libp2p::PeerId::fromPublicKey(

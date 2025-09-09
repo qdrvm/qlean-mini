@@ -6,6 +6,37 @@
 
 #pragma once
 
+/**
+ * Macro to work with subscriptions and messages.
+ *
+ *   struct Message { ... };
+ *
+ *   struct IModule {
+ *     // Send `Message` to subscription
+ *     VIRTUAL_DISPATCH(Message);
+ *
+ *     // Received `Message` from subscription
+ *     VIRTUAL_ON_DISPATCH(Message);
+ *   };
+ *   struct Module : IModule {
+ *     ON_DISPATCH_SUBSCRIPTION(Message);
+ *
+ *     void start() {
+ *       ON_DISPATCH_SUBSCRIBE(Message);
+ *     }
+ *
+ *     DISPATCH_OVERRIDE(Message) {
+ *       log("dispatch Message");
+ *       dispatchDerive(subscription, message);
+ *     }
+ *
+ *     ON_DISPATCH_OVERRIDE(Message);
+ *   };
+ *   ON_DISPATCH_IMPL(Module, Message) {
+ *     log("received Message");
+ *   }
+ */
+
 #define VIRTUAL_DISPATCH(T) \
   virtual void dispatch_##T(std::shared_ptr<const messages::T> message) = 0
 #define DISPATCH_OVERRIDE(T) \

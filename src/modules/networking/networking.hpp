@@ -32,6 +32,18 @@ namespace lean::modules {
   class StatusProtocol;
   class BlockRequestProtocol;
 
+  /**
+   * Network module.
+   *
+   * Sends produced blocks and signed votes.
+   * Syncs blocks from other peers.
+   * Receives votes from other peers.
+   *
+   * Protocols:
+   * - Status handshake protocol (best and finalized block info).
+   * - Block request protocol (`SignedBlock` by hash).
+   * - `SignedBlock` and `SignedVote` gossip protocol.
+   */
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
     NetworkingImpl(NetworkingLoader &loader,
                    qtils::SharedRef<log::LoggingSystem> logging_system,

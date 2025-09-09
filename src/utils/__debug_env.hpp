@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <string>
 
-// TODO: config
+// TODO(turuslan): config
 inline size_t getPeerIndex() {
   static size_t i = [] {
     if (auto s = getenv("PeerIndex")) {

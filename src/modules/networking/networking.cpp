@@ -26,7 +26,7 @@
 #include "utils/sample_peer.hpp"
 
 namespace lean::modules {
-  // TODO: gossip [from,seqno,signature,key]=None
+  // TODO(turuslan): gossip [from,seqno,signature,key]=None
 
   inline auto gossipTopic(std::string_view type) {
     return std::format("/leanconsensus/devnet0/{}/ssz_snappy", type);
@@ -421,7 +421,7 @@ namespace lean::modules {
                       });
   }
 
-  // TODO: detect finalized change
+  // TODO(turuslan): detect finalized change
   void NetworkingImpl::receiveBlock(std::optional<libp2p::PeerId> from_peer,
                                     SignedBlock &&block) {
     auto slot_hash = block.message.slotHash();

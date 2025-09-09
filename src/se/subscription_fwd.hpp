@@ -89,6 +89,9 @@ namespace lean {
     Derive,
   };
 
+  /**
+   * Get `EventType` auto-assigned to type `T`.
+   */
   class DeriveEventType {
    public:
     template <typename T>
@@ -105,6 +108,9 @@ namespace lean {
     }
   };
 
+  /**
+   * Call `notify` with `EventType` auto-assigned to type `T`.
+   */
   template <typename T>
   void dispatchDerive(auto &subscription, const std::shared_ptr<T> &message) {
     subscription.notify(DeriveEventType::get<std::remove_cvref_t<T>>(),
