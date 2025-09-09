@@ -9,7 +9,7 @@
 #include <optional>
 
 #include <libp2p/multi/multiaddress.hpp>
-#include <libp2p/peer/peer_id.hpp>
+#include <libp2p/peer/peer_info.hpp>
 #include <qtils/bytes.hpp>
 
 namespace lean::enr {
@@ -27,8 +27,9 @@ namespace lean::enr {
     std::optional<Port> port;
 
     libp2p::PeerId peerId() const;
-    libp2p::Multiaddress listen() const;
-    libp2p::Multiaddress connect() const;
+    libp2p::Multiaddress listenAddress() const;
+    libp2p::Multiaddress connectAddress() const;
+    libp2p::PeerInfo connectInfo() const;
   };
 
   Enr decode(std::string_view str);

@@ -204,13 +204,13 @@ namespace lean::enr {
     return libp2p::peerIdFromSecp256k1(public_key);
   }
 
-  libp2p::Multiaddress Enr::listen() const {
+  libp2p::Multiaddress Enr::listenAddress() const {
     return libp2p::Multiaddress::create(
                std::format("/ip4/0.0.0.0/udp/{}/quic-v1", port.value()))
         .value();
   }
 
-  libp2p::Multiaddress Enr::connect() const {
+  libp2p::Multiaddress Enr::connectAddress() const {
     auto &ip = this->ip.value();
     return libp2p::Multiaddress::create(
                std::format("/ip4/{}.{}.{}.{}/udp/{}/quic-v1/p2p/{}",
@@ -221,6 +221,10 @@ namespace lean::enr {
                            port.value(),
                            peerId().toBase58()))
         .value();
+  }
+
+  libp2p::PeerInfo Enr::connectInfo() const {
+    return {peerId(), {connectAddress()}};
   }
 
   Enr decode(std::string_view str) {
