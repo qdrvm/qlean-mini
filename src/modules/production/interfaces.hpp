@@ -27,7 +27,8 @@ namespace lean::modules {
 
     virtual void dispatch_block_produced(std::shared_ptr<const Block>) = 0;
 
-    VIRTUAL_DISPATCH(SendSignedBlock);
+    virtual void dispatch_SendSignedBlock(
+        std::shared_ptr<const messages::SendSignedBlock> message) = 0;
   };
 
   struct ProductionModule {

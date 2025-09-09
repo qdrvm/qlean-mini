@@ -107,7 +107,9 @@ namespace lean::loaders {
       se_manager_->notify(lean::EventTypes::PeerDisconnected, msg);
     }
 
-    DISPATCH_OVERRIDE(StatusMessageReceived) {
+    void dispatch_StatusMessageReceived(
+        std::shared_ptr<const messages::StatusMessageReceived> message)
+        override {
       SL_TRACE(logger_,
                "Dispatch StatusMessageReceived peer={} finalized={} head={}",
                message->from_peer,
@@ -116,7 +118,8 @@ namespace lean::loaders {
       dispatchDerive(*se_manager_, message);
     }
 
-    DISPATCH_OVERRIDE(SignedVoteReceived) {
+    void dispatch_SignedVoteReceived(
+        std::shared_ptr<const messages::SignedVoteReceived> message) override {
       SL_TRACE(logger_, "Dispatch SignedVoteReceived");
       dispatchDerive(*se_manager_, message);
     }

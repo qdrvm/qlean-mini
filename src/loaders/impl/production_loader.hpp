@@ -132,7 +132,8 @@ namespace lean::loaders {
       se_manager_->notify(EventTypes::BlockProduced, msg);
     }
 
-    DISPATCH_OVERRIDE(SendSignedBlock) {
+    void dispatch_SendSignedBlock(
+        std::shared_ptr<const messages::SendSignedBlock> message) override {
       dispatchDerive(*se_manager_, message);
     }
   };

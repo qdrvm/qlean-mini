@@ -343,14 +343,16 @@ namespace lean::modules {
     SL_INFO(logger_, "Loading is finished");
   }
 
-  ON_DISPATCH_IMPL(NetworkingImpl, SendSignedBlock) {
+  void NetworkingImpl::on_dispatch_SendSignedBlock(
+      std::shared_ptr<const messages::SendSignedBlock> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_blocks_topic_->publish(
           encodeSszSnappy(message->notification));
     });
   }
 
-  ON_DISPATCH_IMPL(NetworkingImpl, SendSignedVote) {
+  void NetworkingImpl::on_dispatch_SendSignedVote(
+      std::shared_ptr<const messages::SendSignedVote> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_votes_topic_->publish(
           encodeSszSnappy(message->notification));
