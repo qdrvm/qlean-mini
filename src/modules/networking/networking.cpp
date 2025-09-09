@@ -7,6 +7,7 @@
 
 #include "modules/networking/networking.hpp"
 
+#include <boost/endian/conversion.hpp>
 #include <libp2p/basic/read_varint.hpp>
 #include <libp2p/basic/write_varint.hpp>
 #include <libp2p/coro/spawn.hpp>
@@ -19,21 +20,52 @@
 
 #include "blockchain/block_tree.hpp"
 #include "serde/serialization.hpp"
+#include "serde/snappy.hpp"
 #include "types/block_request.hpp"
 #include "utils/__debug_env.hpp"
 #include "utils/sample_peer.hpp"
 
 namespace lean::modules {
+  // TODO: gossip [from,seqno,signature,key]=None
+
   inline auto gossipTopic(std::string_view type) {
     return std::format("/leanconsensus/devnet0/{}/ssz_snappy", type);
+  }
+
+  auto encodeSszSnappy(const auto &t) {
+    return snappyCompress(encode(t).value());
+  }
+
+  template <typename T>
+  outcome::result<T> decodeSszSnappy(qtils::BytesIn compressed) {
+    BOOST_OUTCOME_TRY(auto uncompressed, snappyUncompress(compressed));
+    return decode<T>(uncompressed);
   }
 
   libp2p::protocol::gossip::MessageId gossipMessageId(
       const libp2p::protocol::gossip::Message &message) {
     constexpr qtils::ByteArr<4> MESSAGE_DOMAIN_INVALID_SNAPPY{0, 0, 0, 0};
     constexpr qtils::ByteArr<4> MESSAGE_DOMAIN_VALID_SNAPPY{1, 0, 0, 0};
-    // TODO: snappy
-    return qtils::ByteVec{libp2p::crypto::sha256(message.data).value()};
+    libp2p::crypto::Sha256 hasher;
+    auto hash_topic = [&] {
+      qtils::ByteArr<sizeof(uint64_t)> size;
+      boost::endian::store_little_u64(size.data(), message.topic.size());
+      hasher.write(size).value();
+      hasher.write(message.topic).value();
+    };
+    if (auto uncompressed_res = snappyUncompress(message.data)) {
+      auto &uncompressed = uncompressed_res.value();
+      hash_topic();
+      hasher.write(MESSAGE_DOMAIN_VALID_SNAPPY).value();
+      hasher.write(uncompressed).value();
+    } else {
+      hasher.write(MESSAGE_DOMAIN_INVALID_SNAPPY).value();
+      hash_topic();
+      hasher.write(message.data).value();
+    }
+    auto hash = hasher.digest().value();
+    hash.resize(20);
+    return hash;
   }
 
   class StatusProtocol : public std::enable_shared_from_this<StatusProtocol>,
@@ -53,7 +85,7 @@ namespace lean::modules {
 
     // BaseProtocol
     libp2p::StreamProtocols getProtocolIds() const override {
-      return {"/leanconsensus/req/status/1"};
+      return {"/leanconsensus/req/status/1/ssz_snappy"};
     }
     void handle(std::shared_ptr<libp2p::Stream> stream) override {
       libp2p::coroSpawn(
@@ -80,10 +112,11 @@ namespace lean::modules {
         std::shared_ptr<libp2p::Stream> stream) {
       auto peer_id = stream->remotePeerId();
       BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
-          stream, encode(get_status_()).value()));
+          stream, encodeSszSnappy(get_status_())));
       qtils::ByteVec encoded;
       BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-      BOOST_OUTCOME_CO_TRY(auto status, decode<StatusMessage>(encoded));
+      BOOST_OUTCOME_CO_TRY(auto status,
+                           decodeSszSnappy<StatusMessage>(encoded));
       on_status_(messages::StatusMessageReceived{
           .from_peer = peer_id,
           .notification = status,
@@ -110,7 +143,7 @@ namespace lean::modules {
 
     // BaseProtocol
     libp2p::StreamProtocols getProtocolIds() const override {
-      return {"/leanconsensus/req/blocks_by_root/1"};
+      return {"/leanconsensus/req/blocks_by_root/1/ssz_snappy"};
     }
     void handle(std::shared_ptr<libp2p::Stream> stream) override {
       libp2p::coroSpawn(
@@ -128,11 +161,12 @@ namespace lean::modules {
                                                BlockRequest request) {
       BOOST_OUTCOME_CO_TRY(
           auto stream, co_await host_->newStream(peer_id, getProtocolIds()));
-      BOOST_OUTCOME_CO_TRY(
-          co_await libp2p::writeVarintMessage(stream, encode(request).value()));
+      BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
+          stream, encodeSszSnappy(request)));
       qtils::ByteVec encoded;
       BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-      BOOST_OUTCOME_CO_TRY(auto response, decode<BlockResponse>(encoded));
+      BOOST_OUTCOME_CO_TRY(auto response,
+                           decodeSszSnappy<BlockResponse>(encoded));
       co_return response;
     }
 
@@ -141,7 +175,8 @@ namespace lean::modules {
         std::shared_ptr<libp2p::Stream> stream) {
       qtils::ByteVec encoded;
       BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-      BOOST_OUTCOME_CO_TRY(auto request, decode<BlockRequest>(encoded));
+      BOOST_OUTCOME_CO_TRY(auto request,
+                           decodeSszSnappy<BlockRequest>(encoded));
       BlockResponse response;
       for (auto &block_hash : request.blocks) {
         BOOST_OUTCOME_CO_TRY(auto block,
@@ -151,7 +186,7 @@ namespace lean::modules {
         }
       }
       BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
-          stream, encode(response).value()));
+          stream, encodeSszSnappy(response)));
       co_return outcome::success();
     }
 
@@ -311,13 +346,14 @@ namespace lean::modules {
   ON_DISPATCH_IMPL(NetworkingImpl, SendSignedBlock) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_blocks_topic_->publish(
-          encode(message->notification).value());
+          encodeSszSnappy(message->notification));
     });
   }
 
   ON_DISPATCH_IMPL(NetworkingImpl, SendSignedVote) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
-      self->gossip_votes_topic_->publish(encode(message->notification).value());
+      self->gossip_votes_topic_->publish(
+          encodeSszSnappy(message->notification));
     });
   }
 
@@ -327,10 +363,13 @@ namespace lean::modules {
     auto topic = gossip_->subscribe(gossipTopic(type));
     libp2p::coroSpawn(*io_context_,
                       [topic, f{std::move(f)}]() -> libp2p::Coro<void> {
-                        while (auto encoded_res = co_await topic->receive()) {
-                          auto &message = encoded_res.value();
-                          if (auto r = decode<T>(message)) {
-                            f(std::move(r.value()));
+                        while (auto raw_result = co_await topic->receive()) {
+                          auto &raw = raw_result.value();
+                          if (auto uncompressed_res = snappyUncompress(raw)) {
+                            auto &uncompressed = uncompressed_res.value();
+                            if (auto r = decode<T>(uncompressed)) {
+                              f(std::move(r.value()));
+                            }
                           }
                         }
                       });

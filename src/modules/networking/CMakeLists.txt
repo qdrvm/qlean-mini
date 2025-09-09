@@ -16,6 +16,7 @@ add_lean_module(networking
   LIBRARIES
     p2p::libp2p
     qtils::qtils
+    Snappy::snappy
     soralog::soralog
     sszpp
 )
