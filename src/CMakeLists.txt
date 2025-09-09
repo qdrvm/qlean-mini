@@ -7,6 +7,8 @@
 # Executables (should contain `main()` function)
 add_subdirectory(executable)
 
+add_subdirectory(serde)
+
 # Application's thinks
 add_subdirectory(app)
 

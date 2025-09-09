@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 
 namespace lean {
   enum class SubscriptionEngineHandlers {
@@ -83,7 +84,38 @@ namespace lean {
 
     /// New slot started
     SlotStarted,
+
+    /// Used by `DeriveEventType::get`
+    Derive,
   };
+
+  /**
+   * Get `EventType` auto-assigned to type `T`.
+   */
+  class DeriveEventType {
+   public:
+    template <typename T>
+    static EventTypes get() {
+      static auto type = static_cast<EventTypes>(
+          std::to_underlying(EventTypes::Derive) + nextIndex());
+      return type;
+    }
+
+   private:
+    static size_t nextIndex() {
+      static size_t index = 0;
+      return index++;
+    }
+  };
+
+  /**
+   * Call `notify` with `EventType` auto-assigned to type `T`.
+   */
+  template <typename T>
+  void dispatchDerive(auto &subscription, const std::shared_ptr<T> &message) {
+    subscription.notify(DeriveEventType::get<std::remove_cvref_t<T>>(),
+                        message);
+  }
 
   static constexpr uint32_t kThreadPoolSize = 3u;
 

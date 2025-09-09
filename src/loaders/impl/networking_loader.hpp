@@ -17,6 +17,10 @@
 #include "modules/shared/networking_types.tmp.hpp"
 #include "se/subscription.hpp"
 
+namespace lean::blockchain {
+  class BlockTree;
+}  // namespace lean::blockchain
+
 namespace lean::loaders {
 
   class NetworkingLoader final
@@ -24,21 +28,22 @@ namespace lean::loaders {
         public Loader,
         public modules::NetworkingLoader {
     log::Logger logger_;
+    qtils::SharedRef<blockchain::BlockTree> block_tree_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_loading_finished_;
 
-    std::shared_ptr<
-        BaseSubscriber<qtils::Empty,
-                       std::shared_ptr<const messages::BlockRequestMessage>>>
-        on_block_request_;
+    ON_DISPATCH_SUBSCRIPTION(SendSignedBlock);
+    ON_DISPATCH_SUBSCRIPTION(SendSignedVote);
 
    public:
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
-                     std::shared_ptr<Subscription> se_manager)
+                     std::shared_ptr<Subscription> se_manager,
+                     qtils::SharedRef<blockchain::BlockTree> block_tree)
         : Loader(std::move(logsys), std::move(se_manager)),
-          logger_(logsys_->getLogger("Networking", "networking_module")) {}
+          logger_(logsys_->getLogger("Networking", "networking_module")),
+          block_tree_{std::move(block_tree)} {}
 
     NetworkingLoader(const NetworkingLoader &) = delete;
     NetworkingLoader &operator=(const NetworkingLoader &) = delete;
@@ -51,14 +56,15 @@ namespace lean::loaders {
           get_module()
               ->getFunctionFromLibrary<std::weak_ptr<lean::modules::Networking>,
                                        modules::NetworkingLoader &,
-                                       std::shared_ptr<log::LoggingSystem>>(
+                                       std::shared_ptr<log::LoggingSystem>,
+                                       qtils::SharedRef<blockchain::BlockTree>>(
                   "query_module_instance");
 
       if (not module_accessor) {
         return;
       }
 
-      auto module_internal = (*module_accessor)(*this, logsys_);
+      auto module_internal = (*module_accessor)(*this, logsys_, block_tree_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::template create<
           EventTypes::NetworkingIsLoaded>(
@@ -83,20 +89,8 @@ namespace lean::loaders {
                 }
               });
 
-      on_block_request_ = se::SubscriberCreator<
-          qtils::Empty,
-          std::shared_ptr<const messages::BlockRequestMessage>>::
-          template create<EventTypes::BlockRequest>(
-              *se_manager_,
-              SubscriptionEngineHandlers::kTest,
-              [module_internal, this](auto &, const auto &msg) {
-                if (auto m = module_internal.lock()) {
-                  SL_TRACE(
-                      logger_, "Handle BlockRequest; rid={}", msg->ctx.rid);
-                  m->on_block_request(msg);
-                }
-              });
-
+      ON_DISPATCH_SUBSCRIBE(SendSignedBlock);
+      ON_DISPATCH_SUBSCRIBE(SendSignedVote);
 
       se_manager_->notify(lean::EventTypes::NetworkingIsLoaded);
     }
@@ -113,16 +107,21 @@ namespace lean::loaders {
       se_manager_->notify(lean::EventTypes::PeerDisconnected, msg);
     }
 
-    void dispatch_block_announce(
-        std::shared_ptr<const messages::BlockAnnounceMessage> msg) override {
-      SL_TRACE(logger_, "Dispatch BlockAnnounceReceived");
-      se_manager_->notify(lean::EventTypes::BlockAnnounceReceived, msg);
+    void dispatch_StatusMessageReceived(
+        std::shared_ptr<const messages::StatusMessageReceived> message)
+        override {
+      SL_TRACE(logger_,
+               "Dispatch StatusMessageReceived peer={} finalized={} head={}",
+               message->from_peer,
+               message->notification.finalized.slot,
+               message->notification.head.slot);
+      dispatchDerive(*se_manager_, message);
     }
 
-    void dispatch_block_response(
-        std::shared_ptr<const messages::BlockResponseMessage> msg) override {
-      SL_TRACE(logger_, "Dispatch BlockResponse; rid={}", msg->ctx.rid);
-      se_manager_->notify(lean::EventTypes::BlockResponse, std::move(msg));
+    void dispatch_SignedVoteReceived(
+        std::shared_ptr<const messages::SignedVoteReceived> message) override {
+      SL_TRACE(logger_, "Dispatch SignedVoteReceived");
+      dispatchDerive(*se_manager_, message);
     }
   };
 }  // namespace lean::loaders

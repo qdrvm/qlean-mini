@@ -31,6 +31,10 @@ namespace lean::blockchain {
   class BlockTreeInitializer;
 }
 
+namespace lean::crypto {
+  class Hasher;
+}  // namespace lean::crypto
+
 namespace lean::blockchain {
 
   class BlockTreeImpl final
@@ -103,6 +107,11 @@ namespace lean::blockchain {
         const BlockHash &block) const override;
 
     BlockIndex lastFinalized() const override;
+
+    StatusMessage getStatusMessage() const override;
+    outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
+        const BlockHash block_hash) const override;
+    void import(std::vector<SignedBlock> blocks) override;
 
     // BlockHeaderRepository methods
 

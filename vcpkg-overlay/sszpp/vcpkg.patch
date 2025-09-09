@@ -119,6 +119,28 @@ index 3174735..b086711 100644
      });
  }
  
+diff --git a/lib/container.hpp b/lib/container.hpp
+index dc31773..3e42de7 100644
+--- a/lib/container.hpp
++++ b/lib/container.hpp
+@@ -46,7 +46,7 @@ struct is_ssz_object<R> : std::true_type {};
+ // Serialization
+ #define SSZ_CONT(...)                                                                                      \
+     constexpr std::size_t ssz_size() const noexcept { return ssz::compute_total_length(__VA_ARGS__); }     \
+-    constexpr void serialize(ssz::ssz_iterator auto result) const { ssz::serialize(result, __VA_ARGS__); } \
++    constexpr void serialize(ssz::ssz_iterator auto result) const { ssz::serialize_container(result, __VA_ARGS__); } \
+     constexpr void deserialize(const std::ranges::sized_range auto &bytes) {                               \
+         ssz::deserialize_container(bytes, __VA_ARGS__);                                                    \
+     }                                                                                                      \
+@@ -75,7 +75,7 @@ constexpr std::uint32_t compute_total_length(const ssz_object auto &...members)
+     return (... + size_plus_placeholder(members));
+ }
+ 
+-constexpr void serialize(ssz_iterator auto result, const ssz_object auto &...members) {
++constexpr void serialize_container(ssz_iterator auto result, const ssz_object auto &...members) {
+     auto fsize = compute_fixed_length(members...);
+     auto variable = result + fsize;
+     auto begin = result;
 diff --git a/lib/cxx23/ranges/chunk.hpp b/lib/cxx23/ranges/chunk.hpp
 new file mode 100644
 index 0000000..4c73bd2
@@ -572,3 +594,16 @@ index aaf75ef..e2c596e 100644
      for (size_t j = 0; j < CHAR_BIT && CHAR_BIT * i + j < N; ++j)
        if (std::to_integer<std::uint8_t>(b >> j) & 1)
          ret.set(CHAR_BIT * i + j);
+diff --git a/lib/merkleize.hpp b/lib/merkleize.hpp
+index d64c089..c6d0012 100644
+--- a/lib/merkleize.hpp
++++ b/lib/merkleize.hpp
+@@ -100,7 +100,7 @@ namespace _detail {
+  * It is faster to loop over computing the actual size than overestimating using logarithms and allocating unnecessary
+  * memory
+  */
+-auto compute_hashtree_size(std::size_t chunk_count, std::size_t depth) {
++inline auto compute_hashtree_size(std::size_t chunk_count, std::size_t depth) {
+     std::size_t ret{};
+     if (depth == 0) return BYTES_PER_CHUNK;
+     while (depth > 0) {

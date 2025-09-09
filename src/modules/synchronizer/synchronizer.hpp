@@ -28,21 +28,9 @@ namespace lean::modules {
     void on_block_index_discovered(
         std::shared_ptr<const messages::BlockDiscoveredMessage> msg) override;
 
-    void on_block_announce(
-        std::shared_ptr<const messages::BlockAnnounceMessage> msg) override;
-
-    void on_block_response(
-        std::shared_ptr<const messages::BlockResponseMessage> msg) override;
-
    private:
     SynchronizerLoader &loader_;
     log::Logger logger_;
-
-    std::unordered_map<
-        RequestId,
-        std::function<void(
-            std::shared_ptr<const messages::BlockResponseMessage> msg)>>
-        block_response_callbacks_;
   };
 
 }  // namespace lean::modules

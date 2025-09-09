@@ -10,8 +10,10 @@
 #include "types/justification.hpp"
 
 namespace lean {
-  struct BlockBody;
   struct Block;
+  struct BlockBody;
+  struct SignedBlock;
+  struct StatusMessage;
 }  // namespace lean
 
 namespace lean::blockchain {
@@ -150,6 +152,26 @@ namespace lean::blockchain {
      * @return hash of the block
      */
     [[nodiscard]] virtual BlockIndex lastFinalized() const = 0;
+
+    /**
+     * Get message for "/leanconsensus/req/status/1/ssz_snappy" protocol.
+     * Returns hash and slot for finalized and best blocks.
+     */
+    virtual StatusMessage getStatusMessage() const = 0;
+
+    /**
+     * Get `SignedBlock` for "/leanconsensus/req/blocks_by_root/1/ssz_snappy"
+     * protocol.
+     */
+    virtual outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
+        const BlockHash block_hash) const = 0;
+
+    // TODO(turuslan): state transition function
+    /**
+     * Import pre-sorted batch of `SignedBlock`.
+     * May change best and finalized block.
+     */
+    virtual void import(std::vector<SignedBlock> blocks) = 0;
   };
 
 }  // namespace lean::blockchain

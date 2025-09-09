@@ -8,18 +8,19 @@ add_library(node_injector
     node_injector.cpp
 )
 target_link_libraries(node_injector
-    Boost::Boost.DI
-    logger
     app_configurator
-    chain_spec
     app_state_manager
     application
-    metrics
+    blockchain
+    Boost::Boost.DI
+    chain_spec
     clock
     hasher
-    se_async
+    logger
+    metrics
     modules
+    p2p::libp2p
+    se_async
     storage
-    blockchain
     timeline
 )

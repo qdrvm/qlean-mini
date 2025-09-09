@@ -25,16 +25,6 @@ namespace lean::loaders {
     using InitCompleteSubscriber = BaseSubscriber<qtils::Empty>;
     std::shared_ptr<InitCompleteSubscriber> on_init_complete_;
 
-    std::shared_ptr<
-        BaseSubscriber<qtils::Empty,
-                       std::shared_ptr<const messages::BlockAnnounceMessage>>>
-        on_block_announce_;
-
-    std::shared_ptr<
-        BaseSubscriber<qtils::Empty,
-                       std::shared_ptr<const messages::BlockResponseMessage>>>
-        on_block_response_;
-
    public:
     SynchronizerLoader(std::shared_ptr<log::LoggingSystem> logsys,
                        std::shared_ptr<Subscription> se_manager)
@@ -72,40 +62,7 @@ namespace lean::loaders {
             }
           });
 
-      on_block_announce_ = se::SubscriberCreator<
-          qtils::Empty,
-          std::shared_ptr<const messages::BlockAnnounceMessage>>::
-          create<EventTypes::BlockAnnounceReceived>(
-              *se_manager_,
-              SubscriptionEngineHandlers::kTest,
-              [module_internal, this](auto &, const auto &msg) {
-                if (auto m = module_internal.lock()) {
-                  SL_TRACE(logger_, "Handle BlockAnnounceReceived");
-                  m->on_block_announce(msg);
-                }
-              });
-
-      on_block_response_ = se::SubscriberCreator<
-          qtils::Empty,
-          std::shared_ptr<const messages::BlockResponseMessage>>::
-          create<EventTypes::BlockResponse>(
-              *se_manager_,
-              SubscriptionEngineHandlers::kTest,
-              [module_internal, this](auto &, const auto &msg) {
-                if (auto m = module_internal.lock()) {
-                  SL_TRACE(
-                      logger_, "Handle BlockResponse; rid={}", msg->ctx.rid);
-                  m->on_block_response(msg);
-                }
-              });
-
       se_manager_->notify(EventTypes::SynchronizerIsLoaded);
-    }
-
-    void dispatch_block_request(
-        std::shared_ptr<const messages::BlockRequestMessage> msg) override {
-      SL_TRACE(logger_, "Dispatch BlockRequest; rid={}", msg->ctx.rid);
-      se_manager_->notify(EventTypes::BlockRequest, msg);
     }
   };
 
