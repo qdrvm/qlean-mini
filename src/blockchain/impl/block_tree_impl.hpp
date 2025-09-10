@@ -108,7 +108,6 @@ namespace lean::blockchain {
 
     BlockIndex lastFinalized() const override;
 
-    StatusMessage getStatusMessage() const override;
     outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
         const BlockHash block_hash) const override;
     void import(std::vector<SignedBlock> blocks) override;

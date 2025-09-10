@@ -794,15 +794,6 @@ namespace lean::blockchain {
         [&](const BlockTreeData &p) { return getLastFinalizedNoLock(p); });
   }
 
-  StatusMessage BlockTreeImpl::getStatusMessage() const {
-    auto finalized = lastFinalized();
-    auto head = bestBlock();
-    return StatusMessage{
-        .finalized = {.root = finalized.hash, .slot = finalized.slot},
-        .head = {.root = head.hash, .slot = head.slot},
-    };
-  }
-
   outcome::result<std::optional<SignedBlock>> BlockTreeImpl::tryGetSignedBlock(
       const BlockHash block_hash) const {
     auto header_res = getBlockHeader(block_hash);

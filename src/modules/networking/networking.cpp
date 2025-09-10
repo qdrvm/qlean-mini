@@ -276,7 +276,14 @@ namespace lean::modules {
     status_protocol_ = std::make_shared<StatusProtocol>(
         io_context_,
         host,
-        [block_tree{block_tree_}]() { return block_tree->getStatusMessage(); },
+        [block_tree{block_tree_}]() {
+          auto finalized = block_tree->lastFinalized();
+          auto head = block_tree->bestBlock();
+          return StatusMessage{
+              .finalized = {.root = finalized.hash, .slot = finalized.slot},
+              .head = {.root = head.hash, .slot = head.slot},
+          };
+        },
         [weak_self{weak_from_this()}](messages::StatusMessageReceived message) {
           auto self = weak_self.lock();
           if (not self) {
