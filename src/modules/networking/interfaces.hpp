@@ -8,8 +8,6 @@
 
 #include <modules/shared/networking_types.tmp.hpp>
 
-#include "modules/shared/macro.hpp"
-
 namespace lean::modules {
 
   struct NetworkingLoader {

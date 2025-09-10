@@ -8,7 +8,6 @@
 
 #include <memory>
 
-#include "modules/shared/macro.hpp"
 #include "modules/shared/networking_types.tmp.hpp"
 
 namespace lean::messages {
