@@ -36,11 +36,11 @@ namespace lean::loaders {
 
     SimpleSubscription<messages::SendSignedBlock,
                        modules::Networking,
-                       &modules::Networking::on_dispatch_SendSignedBlock>
+                       &modules::Networking::onDispatchSendSignedBlock>
         subscriptionSendSignedBlock;
     SimpleSubscription<messages::SendSignedVote,
                        modules::Networking,
-                       &modules::Networking::on_dispatch_SendSignedVote>
+                       &modules::Networking::onDispatchSendSignedVote>
         subscriptionSendSignedVote;
 
    public:
@@ -113,7 +113,7 @@ namespace lean::loaders {
       se_manager_->notify(lean::EventTypes::PeerDisconnected, msg);
     }
 
-    void dispatch_StatusMessageReceived(
+    void dispatchStatusMessageReceived(
         std::shared_ptr<const messages::StatusMessageReceived> message)
         override {
       SL_TRACE(logger_,
@@ -124,7 +124,7 @@ namespace lean::loaders {
       dispatchDerive(*se_manager_, message);
     }
 
-    void dispatch_SignedVoteReceived(
+    void dispatchSignedVoteReceived(
         std::shared_ptr<const messages::SignedVoteReceived> message) override {
       SL_TRACE(logger_, "Dispatch SignedVoteReceived");
       dispatchDerive(*se_manager_, message);

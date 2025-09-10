@@ -316,7 +316,7 @@ namespace lean::modules {
           if (not self) {
             return;
           }
-          self->loader_.dispatch_SignedVoteReceived(
+          self->loader_.dispatchSignedVoteReceived(
               std::make_shared<messages::SignedVoteReceived>(std::move(vote)));
         });
 
@@ -350,7 +350,7 @@ namespace lean::modules {
     SL_INFO(logger_, "Loading is finished");
   }
 
-  void NetworkingImpl::on_dispatch_SendSignedBlock(
+  void NetworkingImpl::onDispatchSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_blocks_topic_->publish(
@@ -358,7 +358,7 @@ namespace lean::modules {
     });
   }
 
-  void NetworkingImpl::on_dispatch_SendSignedVote(
+  void NetworkingImpl::onDispatchSendSignedVote(
       std::shared_ptr<const messages::SendSignedVote> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_votes_topic_->publish(
@@ -404,7 +404,7 @@ namespace lean::modules {
       SL_TRACE(logger_, "receiveStatus {} => request", head.slot);
       requestBlock(message.from_peer, head.hash);
     }
-    loader_.dispatch_StatusMessageReceived(qtils::toSharedPtr(message));
+    loader_.dispatchStatusMessageReceived(qtils::toSharedPtr(message));
   }
 
   void NetworkingImpl::requestBlock(const libp2p::PeerId &peer_id,

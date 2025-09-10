@@ -69,7 +69,7 @@ namespace lean::modules {
       loader_.dispatch_block_produced(std::make_shared<const Block>(block));
 
       // TODO(turuslan): signature
-      loader_.dispatch_SendSignedBlock(
+      loader_.dispatchSendSignedBlock(
           std::make_shared<messages::SendSignedBlock>(
               SignedBlock{.message = block}));
     }

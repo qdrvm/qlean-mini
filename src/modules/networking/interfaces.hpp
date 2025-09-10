@@ -19,9 +19,9 @@ namespace lean::modules {
     virtual void dispatch_peer_disconnected(
         std::shared_ptr<const messages::PeerDisconnectedMessage> msg) = 0;
 
-    virtual void dispatch_StatusMessageReceived(
+    virtual void dispatchStatusMessageReceived(
         std::shared_ptr<const messages::StatusMessageReceived> message) = 0;
-    virtual void dispatch_SignedVoteReceived(
+    virtual void dispatchSignedVoteReceived(
         std::shared_ptr<const messages::SignedVoteReceived> message) = 0;
   };
 
@@ -32,9 +32,9 @@ namespace lean::modules {
 
     virtual void on_loading_is_finished() = 0;
 
-    virtual void on_dispatch_SendSignedBlock(
+    virtual void onDispatchSendSignedBlock(
         std::shared_ptr<const messages::SendSignedBlock> message) = 0;
-    virtual void on_dispatch_SendSignedVote(
+    virtual void onDispatchSendSignedVote(
         std::shared_ptr<const messages::SendSignedVote> message) = 0;
   };
 
