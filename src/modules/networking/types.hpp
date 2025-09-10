@@ -9,6 +9,13 @@
 #include "types/signed_block.hpp"
 
 namespace lean {
+  struct StatusMessage : ssz::ssz_container {
+    Checkpoint finalized;
+    Checkpoint head;
+
+    SSZ_CONT(finalized, head);
+  };
+
   struct BlockRequest : ssz::ssz_container {
     ssz::list<BlockHash, MAX_REQUEST_BLOCKS> blocks;
 

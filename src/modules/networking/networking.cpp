@@ -19,9 +19,9 @@
 #include <qtils/to_shared_ptr.hpp>
 
 #include "blockchain/block_tree.hpp"
+#include "modules/networking/types.hpp"
 #include "serde/serialization.hpp"
 #include "serde/snappy.hpp"
-#include "types/block_request.hpp"
 #include "utils/__debug_env.hpp"
 #include "utils/sample_peer.hpp"
 

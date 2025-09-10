@@ -22,7 +22,6 @@
 #include "types/block.hpp"
 #include "types/block_header.hpp"
 #include "types/signed_block.hpp"
-#include "types/status_message.hpp"
 
 namespace lean::blockchain {
   BlockTreeImpl::SafeBlockTreeData::SafeBlockTreeData(BlockTreeData data)
