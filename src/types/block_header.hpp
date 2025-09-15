@@ -22,9 +22,9 @@ namespace lean {
   class BlockHeader : public ssz::ssz_container {
    public:
     /// The block’s slot number
-    Slot slot;
+    Slot slot{};
     /// Index of the validator that proposed the block
-    ProposerIndex proposer_index;
+    ProposerIndex proposer_index{};
     /// Hash of the parent block
     HeaderHash parent_root;
     /// Hash of the post-state after the block is processed
@@ -34,9 +34,11 @@ namespace lean {
 
     BlockHeader() = default;
 
+   private:
     /// Block hash if calculated
     mutable std::optional<HeaderHash> hash_opt{};
 
+   public:
     CUSTOM_EQUALITY(
         BlockHeader, slot, proposer_index, parent_root, state_root, body_root);
 
@@ -56,4 +58,5 @@ namespace lean {
       return {slot, hash()};
     }
   };
+
 }  // namespace lean

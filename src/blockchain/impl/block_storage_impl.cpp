@@ -363,8 +363,8 @@ namespace lean::blockchain {
     if (encoded_header_opt.has_value()) {
       auto &encoded_header = encoded_header_opt.value();
       OUTCOME_TRY(header, decode<BlockHeader>(encoded_header));
-      header.hash_opt.emplace(block_hash);
-      return std::make_optional(std::move(header));
+      BOOST_ASSERT((header.updateHash(), header.hash() == block_hash));
+      return std::make_optional(header);
     }
     return std::nullopt;
   }

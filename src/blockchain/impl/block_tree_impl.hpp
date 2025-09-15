@@ -160,8 +160,6 @@ namespace lean::blockchain {
         const BlockHash &block_hash,
         const BlockHeader &block_header);
 
-    void notifyChainEventsEngine(EventTypes event, const BlockHeader &header);
-
     class SafeBlockTreeData {
      public:
       explicit SafeBlockTreeData(BlockTreeData data);

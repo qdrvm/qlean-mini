@@ -6,9 +6,9 @@ SPDX-License-Identifier: Apache-2.0
 
 # Git Hooks
 
-This folder _might_ contain some git-hooks to execute various checkup in Kagome.
+This folder _might_ contain some git-hooks to execute various checkup in Lean.
 
-To activate presented (_and all future_) hooks just execute **once** shell-script [activate_hooks.sh](./activate_hooks.sh) from Kagome project root path. 
+To activate presented (_and all future_) hooks just execute **once** shell-script [activate_hooks.sh](./activate_hooks.sh) from Lean project root path. 
 
 ## pre-commit
 
