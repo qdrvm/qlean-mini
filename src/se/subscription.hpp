@@ -115,22 +115,23 @@ namespace lean {
   class SimpleSubscription {
    public:
     void subscribe(auto &subscription, std::weak_ptr<Module> weak_module) {
-      subscription_ = se::SubscriberCreator<std::nullptr_t,
-                                            std::shared_ptr<const Message>>::
-          create(subscription,
-                 SubscriptionEngineHandlers::kTest,
-                 DeriveEventType::get<Message>(),
-                 [weak_module](std::nullptr_t,
-                               const std::shared_ptr<const Message> &message) {
-                   if (auto module = weak_module.lock()) {
-                     ((*module).*on_dispatch)(message);
-                   }
-                 });
+      subscription_ =
+          se::SubscriberCreator<qtils::Empty, std::shared_ptr<const Message>>::
+              create(
+                  subscription,
+                  SubscriptionEngineHandlers::kTest,
+                  DeriveEventType::get<Message>(),
+                  [weak_module](qtils::Empty,
+                                const std::shared_ptr<const Message> &message) {
+                    if (auto module = weak_module.lock()) {
+                      ((*module).*on_dispatch)(message);
+                    }
+                  });
     }
 
    private:
     std::shared_ptr<
-        BaseSubscriber<std::nullptr_t, std::shared_ptr<const Message>>>
+        BaseSubscriber<qtils::Empty, std::shared_ptr<const Message>>>
         subscription_;
   };
 }  // namespace lean
