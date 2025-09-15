@@ -37,11 +37,11 @@ namespace lean::loaders {
     SimpleSubscription<messages::SendSignedBlock,
                        modules::Networking,
                        &modules::Networking::onSendSignedBlock>
-        subscriptionSendSignedBlock;
+        subscription_send_signed_block_;
     SimpleSubscription<messages::SendSignedVote,
                        modules::Networking,
                        &modules::Networking::onSendSignedVote>
-        subscriptionSendSignedVote;
+        subscription_send_signed_vote_;
 
    public:
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
@@ -95,8 +95,8 @@ namespace lean::loaders {
                 }
               });
 
-      subscriptionSendSignedBlock.subscribe(*se_manager_, module_internal);
-      subscriptionSendSignedVote.subscribe(*se_manager_, module_internal);
+      subscription_send_signed_block_.subscribe(*se_manager_, module_internal);
+      subscription_send_signed_vote_.subscribe(*se_manager_, module_internal);
 
       se_manager_->notify(lean::EventTypes::NetworkingIsLoaded);
     }
