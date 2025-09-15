@@ -9,15 +9,15 @@
 #include <sszpp/container.hpp>
 
 #include "types/constants.hpp"
-#include "types/vote.hpp"
+#include "types/signed_vote.hpp"
 
 namespace lean {
 
   struct BlockBody : ssz::ssz_container {
     /// @note votes will be replaced by aggregated attestations.
-    ssz::list<Vote, VALIDATOR_REGISTRY_LIMIT> votes;
+    ssz::list<SignedVote, VALIDATOR_REGISTRY_LIMIT> attestations;
 
-    SSZ_CONT(votes);
+    SSZ_CONT(attestations);
   };
 
 }  // namespace lean
