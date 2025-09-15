@@ -32,9 +32,9 @@ namespace lean::modules {
 
     virtual void on_loading_is_finished() = 0;
 
-    virtual void onDispatchSendSignedBlock(
+    virtual void onSendSignedBlock(
         std::shared_ptr<const messages::SendSignedBlock> message) = 0;
-    virtual void onDispatchSendSignedVote(
+    virtual void onSendSignedVote(
         std::shared_ptr<const messages::SendSignedVote> message) = 0;
   };
 

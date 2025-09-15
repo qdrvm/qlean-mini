@@ -36,11 +36,11 @@ namespace lean::loaders {
 
     SimpleSubscription<messages::SendSignedBlock,
                        modules::Networking,
-                       &modules::Networking::onDispatchSendSignedBlock>
+                       &modules::Networking::onSendSignedBlock>
         subscriptionSendSignedBlock;
     SimpleSubscription<messages::SendSignedVote,
                        modules::Networking,
-                       &modules::Networking::onDispatchSendSignedVote>
+                       &modules::Networking::onSendSignedVote>
         subscriptionSendSignedVote;
 
    public:

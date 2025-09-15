@@ -57,9 +57,9 @@ namespace lean::modules {
     // Networking
     void on_loaded_success() override;
     void on_loading_is_finished() override;
-    void onDispatchSendSignedBlock(
+    void onSendSignedBlock(
         std::shared_ptr<const messages::SendSignedBlock> message) override;
-    void onDispatchSendSignedVote(
+    void onSendSignedVote(
         std::shared_ptr<const messages::SendSignedVote> message) override;
 
    private:
