@@ -7,6 +7,7 @@
 #pragma once
 
 #include <qtils/byte_arr.hpp>
+#include <sszpp/ssz++.hpp>
 
 #include "types.hpp"
 

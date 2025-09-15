@@ -55,7 +55,7 @@ namespace lean::modules {
       block.slot = msg->slot;
       block.proposer_index = producer_index;
       block.parent_root = parent_hash;
-      block.state_root = {};
+      // block.state_root = ;
 
       // Add a block into the block tree
       auto res = block_tree_->addBlock(block);

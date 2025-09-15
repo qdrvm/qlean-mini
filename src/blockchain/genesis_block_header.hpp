@@ -12,7 +12,11 @@ namespace lean::blockchain {
 
   class GenesisBlockHeader : public BlockHeader {
    public:
-    using BlockHeader::BlockHeader;
+    template <typename... Args>
+    GenesisBlockHeader(Args &&...args)
+        : BlockHeader(std::forward<Args>(args)...) {
+      updateHash();
+    }
   };
 
 }  // namespace lean::blockchain

@@ -64,4 +64,26 @@ namespace lean {
     memcpy(hash2.data(), hash1.data(), hash1.size());
     return hash2;
   }
+
+  template <size_t N>
+  std::array<uint8_t, N>& as_u8(std::array<std::byte, N>& v) {
+    return reinterpret_cast<std::array<uint8_t, N>&>(v);
+  }
+
+  template <size_t N>
+  std::array<std::byte, N>& as_byte(std::array<uint8_t, N>& v) {
+    return reinterpret_cast<std::array<std::byte, N>&>(v);
+  }
+
+  template <size_t N>
+  std::array<uint8_t, N> as_u8(std::array<std::byte, N>&& v) {
+    return reinterpret_cast<std::array<uint8_t, N>&>(v);
+  }
+
+  template <size_t N>
+  std::array<std::byte, N> as_byte(std::array<uint8_t, N>&& v) {
+    return reinterpret_cast<std::array<std::byte, N>&>(v);
+  }
+
+
 }  // namespace lean
