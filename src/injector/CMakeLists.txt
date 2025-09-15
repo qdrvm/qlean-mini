@@ -23,4 +23,5 @@ target_link_libraries(node_injector
     se_async
     storage
     timeline
+    p2p::p2p_key_validator
 )
