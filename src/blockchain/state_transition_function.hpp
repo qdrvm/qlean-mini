@@ -26,6 +26,9 @@ namespace lean {
       STATE_ROOT_DOESNT_MATCH,
       INVALID_PROPOSER,
       PARENT_ROOT_DOESNT_MATCH,
+      INVALID_VOTE_SOURCE_SLOT,
+      INVALID_VOTE_TARGET_SLOT,
+      INVALID_VOTER,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
@@ -38,6 +41,12 @@ namespace lean {
           return "Parent root doesn't match";
         case E::STATE_ROOT_DOESNT_MATCH:
           return "State root doesn't match";
+        case E::INVALID_VOTE_SOURCE_SLOT:
+          return "Invalid vote source slot";
+        case E::INVALID_VOTE_TARGET_SLOT:
+          return "Invalid vote target slot";
+        case E::INVALID_VOTER:
+          return "Invalid voter";
       }
       abort();
     }
@@ -59,8 +68,9 @@ namespace lean {
     outcome::result<void> processBlock(State &state, const Block &block) const;
     outcome::result<void> processBlockHeader(State &state,
                                              const Block &block) const;
-    void processOperations(State &state, const BlockBody &body) const;
-    void processAttestations(State &state,
-                             const std::vector<SignedVote> &attestations) const;
+    outcome::result<void> processOperations(State &state,
+                                            const BlockBody &body) const;
+    outcome::result<void> processAttestations(
+        State &state, const std::vector<SignedVote> &attestations) const;
   };
 }  // namespace lean

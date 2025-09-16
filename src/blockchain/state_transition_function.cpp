@@ -126,7 +126,7 @@ namespace lean {
   outcome::result<void> StateTransitionFunction::processBlock(
       State &state, const Block &block) const {
     OUTCOME_TRY(processBlockHeader(state, block));
-    processOperations(state, block.body);
+    OUTCOME_TRY(processOperations(state, block.body));
     return outcome::success();
   }
 
@@ -182,14 +182,15 @@ namespace lean {
     return outcome::success();
   }
 
-  void StateTransitionFunction::processOperations(State &state,
-                                                  const BlockBody &body) const {
+  outcome::result<void> StateTransitionFunction::processOperations(
+      State &state, const BlockBody &body) const {
     // process attestations
-    processAttestations(state, body.attestations.data());
+    OUTCOME_TRY(processAttestations(state, body.attestations.data()));
     // other operations will get added as the functionality evolves
+    return outcome::success();
   }
 
-  void StateTransitionFunction::processAttestations(
+  outcome::result<void> StateTransitionFunction::processAttestations(
       State &state, const std::vector<SignedVote> &attestations) const {
     // get justifications, justified slots and historical block hashes are
     // already upto date as per the processing in process_block_header
@@ -198,6 +199,12 @@ namespace lean {
     // From 3sf-mini/consensus.py - apply votes
     for (auto &signed_vote : attestations) {
       auto &vote = signed_vote.data;
+      if (vote.source.slot >= state.historical_block_hashes.size()) {
+        return Error::INVALID_VOTE_SOURCE_SLOT;
+      }
+      if (vote.target.slot >= state.historical_block_hashes.size()) {
+        return Error::INVALID_VOTE_TARGET_SLOT;
+      }
       // Ignore votes whose source is not already justified,
       // or whose target is not in the history, or whose target is not a
       // valid justifiable slot
@@ -217,15 +224,21 @@ namespace lean {
         continue;
       }
 
+      auto justifications_it = justifications.find(vote.target.root);
       // Track attempts to justify new hashes
-      if (not justifications.contains(vote.target.root)) {
-        justifications[vote.target.root].resize(VALIDATOR_REGISTRY_LIMIT);
+      if (justifications_it == justifications.end()) {
+        justifications_it =
+            justifications.emplace(vote.target.root, std::vector<bool>{}).first;
+        justifications_it->second.resize(VALIDATOR_REGISTRY_LIMIT);
       }
 
-      justifications.at(vote.target.root).at(vote.validator_id) = true;
+      if (vote.validator_id >= justifications_it->second.size()) {
+        return Error::INVALID_VOTER;
+      }
+      justifications_it->second.at(vote.validator_id) = true;
 
       size_t count = 0;
-      for (auto &&bit : justifications.at(vote.target.root)) {
+      for (auto &&bit : justifications_it->second) {
         if (bit) {
           ++count;
         }
@@ -260,5 +273,6 @@ namespace lean {
 
     // flatten and set updated justifications back to the state
     setJustifications(state, justifications);
+    return outcome::success();
   }
 }  // namespace lean
