@@ -16,8 +16,8 @@ TEST(StateTransitionFunction, Test) {
   lean::StateTransitionFunction stf;
 
   lean::Config config{
-      .genesis_time = 0,
       .num_validators = 2,
+      .genesis_time = 0,
   };
   auto state0 = stf.generateGenesisState(config);
   auto block0 = stf.genesisBlock(state0);
