@@ -19,7 +19,6 @@ namespace lean {
     return i < bits.size() and bits.at(i);
   }
 
-  // TODO(turuslan): spec doesn't rotate history
   inline void setBit(std::vector<bool> &bits, size_t i) {
     if (bits.size() <= i) {
       bits.resize(i + 1);
