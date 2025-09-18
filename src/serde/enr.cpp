@@ -45,7 +45,7 @@ namespace lean::rlp {
       return input_.empty();
     }
 
-    outcome::result<qtils::BytesIn> _take(size_t n) {
+    outcome::result<qtils::BytesIn> take(size_t n) {
       if (n > input_.size()) {
         return Error::INVALID_RLP;
       }
@@ -74,14 +74,14 @@ namespace lean::rlp {
       }
       if (input_[0] <= base2) {
         auto n = input_[0] - base1;
-        BOOST_OUTCOME_TRY(_take(1));
-        return _take(n);
+        BOOST_OUTCOME_TRY(take(1));
+        return take(n);
       }
       auto n1 = input_[0] - base2;
-      BOOST_OUTCOME_TRY(_take(1));
-      BOOST_OUTCOME_TRY(auto n2_raw, _take(n1));
+      BOOST_OUTCOME_TRY(take(1));
+      BOOST_OUTCOME_TRY(auto n2_raw, take(n1));
       BOOST_OUTCOME_TRY(auto n2, _uint<size_t>(n2_raw));
-      return _take(n2);
+      return take(n2);
     }
 
     bool is_list() const {
@@ -104,7 +104,7 @@ namespace lean::rlp {
         return Error::INVALID_RLP;
       }
       if (input_[0] < kBytesPrefix1) {
-        return _take(1);
+        return take(1);
       }
       return _bytes<kBytesPrefix1>();
     }
