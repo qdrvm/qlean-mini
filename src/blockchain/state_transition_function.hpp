@@ -72,5 +72,6 @@ namespace lean {
                                             const BlockBody &body) const;
     outcome::result<void> processAttestations(
         State &state, const std::vector<SignedVote> &attestations) const;
+    bool validateProposerIndex(const State &state, const Block &block) const;
   };
 }  // namespace lean

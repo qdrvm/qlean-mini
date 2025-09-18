@@ -58,9 +58,9 @@ namespace lean {
                                 const Justifications &justifications) {
     auto &roots = state.justifications_roots.data();
     auto &validators = state.justifications_validators.data();
-    roots.resize(0);
+    roots.clear();
     roots.reserve(justifications.size());
-    validators.resize(0);
+    validators.clear();
     validators.reserve(justifications.size() * VALIDATOR_REGISTRY_LIMIT);
     for (auto &[root, bits] : justifications) {
       BOOST_ASSERT(bits.size() == VALIDATOR_REGISTRY_LIMIT);
@@ -137,7 +137,7 @@ namespace lean {
       return Error::INVALID_SLOT;
     }
     // Verify that proposer index is the correct index
-    if (block.proposer_index != block.slot % state.config.num_validators) {
+    if (not validateProposerIndex(state, block)) {
       return Error::INVALID_PROPOSER;
     }
     // Verify that the parent matches
@@ -151,7 +151,7 @@ namespace lean {
     // finalized. This is not possible at the time of genesis state generation
     // and are set at zero bytes because genesis block is calculated using
     // genesis state causing a circular dependency
-    if (state.latest_block_header.slot == 0) {
+    [[unlikely]] if (state.latest_block_header.slot == 0) {
       // block.parent_root is the genesis root
       state.latest_justified.root = block.parent_root;
       state.latest_finalized.root = block.parent_root;
@@ -233,12 +233,7 @@ namespace lean {
       }
       justifications_it->second.at(vote.validator_id) = true;
 
-      size_t count = 0;
-      for (auto &&bit : justifications_it->second) {
-        if (bit) {
-          ++count;
-        }
-      }
+      size_t count = std::ranges::count(justifications_it->second, true);
 
       // If 2/3 voted for the same new valid hash to justify
       // in 3sf mini this is strict equality, but we have updated it to >=
@@ -270,5 +265,10 @@ namespace lean {
     // flatten and set updated justifications back to the state
     setJustifications(state, justifications);
     return outcome::success();
+  }
+
+  bool STF::validateProposerIndex(const State &state,
+                                  const Block &block) const {
+    return block.proposer_index == block.slot % state.config.num_validators;
   }
 }  // namespace lean
