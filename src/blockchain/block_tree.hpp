@@ -154,12 +154,6 @@ namespace lean::blockchain {
     [[nodiscard]] virtual BlockIndex lastFinalized() const = 0;
 
     /**
-     * Get message for "/leanconsensus/req/status/1/ssz_snappy" protocol.
-     * Returns hash and slot for finalized and best blocks.
-     */
-    virtual StatusMessage getStatusMessage() const = 0;
-
-    /**
      * Get `SignedBlock` for "/leanconsensus/req/blocks_by_root/1/ssz_snappy"
      * protocol.
      */

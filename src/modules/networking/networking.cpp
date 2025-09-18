@@ -19,9 +19,10 @@
 #include <qtils/to_shared_ptr.hpp>
 
 #include "blockchain/block_tree.hpp"
-#include "serde/serialization.hpp"
-#include "serde/snappy.hpp"
-#include "types/block_request.hpp"
+#include "modules/networking/block_request_protocol.hpp"
+#include "modules/networking/ssz_snappy.hpp"
+#include "modules/networking/status_protocol.hpp"
+#include "modules/networking/types.hpp"
 #include "utils/__debug_env.hpp"
 #include "utils/sample_peer.hpp"
 
@@ -30,16 +31,6 @@ namespace lean::modules {
 
   inline auto gossipTopic(std::string_view type) {
     return std::format("/leanconsensus/devnet0/{}/ssz_snappy", type);
-  }
-
-  auto encodeSszSnappy(const auto &t) {
-    return snappyCompress(encode(t).value());
-  }
-
-  template <typename T>
-  outcome::result<T> decodeSszSnappy(qtils::BytesIn compressed) {
-    BOOST_OUTCOME_TRY(auto uncompressed, snappyUncompress(compressed));
-    return decode<T>(uncompressed);
   }
 
   libp2p::protocol::gossip::MessageId gossipMessageId(
@@ -67,133 +58,6 @@ namespace lean::modules {
     hash.resize(20);
     return hash;
   }
-
-  class StatusProtocol : public std::enable_shared_from_this<StatusProtocol>,
-                         public libp2p::protocol::BaseProtocol {
-   public:
-    using GetStatus = std::function<StatusMessage()>;
-    using OnStatus = std::function<void(messages::StatusMessageReceived)>;
-
-    StatusProtocol(std::shared_ptr<boost::asio::io_context> io_context,
-                   std::shared_ptr<libp2p::host::BasicHost> host,
-                   GetStatus get_status,
-                   OnStatus on_status)
-        : io_context_{std::move(io_context)},
-          host_{std::move(host)},
-          get_status_{std::move(get_status)},
-          on_status_{std::move(on_status)} {}
-
-    // BaseProtocol
-    libp2p::StreamProtocols getProtocolIds() const override {
-      return {"/leanconsensus/req/status/1/ssz_snappy"};
-    }
-    void handle(std::shared_ptr<libp2p::Stream> stream) override {
-      libp2p::coroSpawn(
-          *io_context_,
-          [self{shared_from_this()}, stream]() -> libp2p::Coro<void> {
-            std::ignore = co_await self->coroHandle(stream);
-          });
-    }
-
-    void start() {
-      host_->listenProtocol(shared_from_this());
-    }
-
-    libp2p::CoroOutcome<void> connect(
-        std::shared_ptr<libp2p::connection::CapableConnection> connection) {
-      BOOST_OUTCOME_CO_TRY(
-          auto stream, co_await host_->newStream(connection, getProtocolIds()));
-      BOOST_OUTCOME_CO_TRY(co_await coroHandle(stream));
-      co_return outcome::success();
-    }
-
-   private:
-    libp2p::CoroOutcome<void> coroHandle(
-        std::shared_ptr<libp2p::Stream> stream) {
-      auto peer_id = stream->remotePeerId();
-      BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
-          stream, encodeSszSnappy(get_status_())));
-      qtils::ByteVec encoded;
-      BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-      BOOST_OUTCOME_CO_TRY(auto status,
-                           decodeSszSnappy<StatusMessage>(encoded));
-      on_status_(messages::StatusMessageReceived{
-          .from_peer = peer_id,
-          .notification = status,
-      });
-      co_return outcome::success();
-    }
-
-    std::shared_ptr<boost::asio::io_context> io_context_;
-    std::shared_ptr<libp2p::host::BasicHost> host_;
-    GetStatus get_status_;
-    OnStatus on_status_;
-  };
-
-  class BlockRequestProtocol
-      : public std::enable_shared_from_this<BlockRequestProtocol>,
-        public libp2p::protocol::BaseProtocol {
-   public:
-    BlockRequestProtocol(std::shared_ptr<boost::asio::io_context> io_context,
-                         std::shared_ptr<libp2p::host::BasicHost> host,
-                         qtils::SharedRef<blockchain::BlockTree> block_tree)
-        : io_context_{std::move(io_context)},
-          host_{std::move(host)},
-          block_tree_{std::move(block_tree)} {}
-
-    // BaseProtocol
-    libp2p::StreamProtocols getProtocolIds() const override {
-      return {"/leanconsensus/req/blocks_by_root/1/ssz_snappy"};
-    }
-    void handle(std::shared_ptr<libp2p::Stream> stream) override {
-      libp2p::coroSpawn(
-          *io_context_,
-          [self{shared_from_this()}, stream]() -> libp2p::Coro<void> {
-            std::ignore = co_await self->coroRespond(stream);
-          });
-    }
-
-    void start() {
-      host_->listenProtocol(shared_from_this());
-    }
-
-    libp2p::CoroOutcome<BlockResponse> request(libp2p::PeerId peer_id,
-                                               BlockRequest request) {
-      BOOST_OUTCOME_CO_TRY(
-          auto stream, co_await host_->newStream(peer_id, getProtocolIds()));
-      BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
-          stream, encodeSszSnappy(request)));
-      qtils::ByteVec encoded;
-      BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-      BOOST_OUTCOME_CO_TRY(auto response,
-                           decodeSszSnappy<BlockResponse>(encoded));
-      co_return response;
-    }
-
-   private:
-    libp2p::CoroOutcome<void> coroRespond(
-        std::shared_ptr<libp2p::Stream> stream) {
-      qtils::ByteVec encoded;
-      BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-      BOOST_OUTCOME_CO_TRY(auto request,
-                           decodeSszSnappy<BlockRequest>(encoded));
-      BlockResponse response;
-      for (auto &block_hash : request.blocks) {
-        BOOST_OUTCOME_CO_TRY(auto block,
-                             block_tree_->tryGetSignedBlock(block_hash));
-        if (block.has_value()) {
-          response.blocks.push_back(std::move(block.value()));
-        }
-      }
-      BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
-          stream, encodeSszSnappy(response)));
-      co_return outcome::success();
-    }
-
-    std::shared_ptr<boost::asio::io_context> io_context_;
-    std::shared_ptr<libp2p::host::BasicHost> host_;
-    qtils::SharedRef<blockchain::BlockTree> block_tree_;
-  };
 
   NetworkingImpl::NetworkingImpl(
       NetworkingLoader &loader,
@@ -276,7 +140,14 @@ namespace lean::modules {
     status_protocol_ = std::make_shared<StatusProtocol>(
         io_context_,
         host,
-        [block_tree{block_tree_}]() { return block_tree->getStatusMessage(); },
+        [block_tree{block_tree_}]() {
+          auto finalized = block_tree->lastFinalized();
+          auto head = block_tree->bestBlock();
+          return StatusMessage{
+              .finalized = {.root = finalized.hash, .slot = finalized.slot},
+              .head = {.root = head.hash, .slot = head.slot},
+          };
+        },
         [weak_self{weak_from_this()}](messages::StatusMessageReceived message) {
           auto self = weak_self.lock();
           if (not self) {
@@ -309,7 +180,7 @@ namespace lean::modules {
           if (not self) {
             return;
           }
-          self->loader_.dispatch_SignedVoteReceived(
+          self->loader_.dispatchSignedVoteReceived(
               std::make_shared<messages::SignedVoteReceived>(std::move(vote)));
         });
 
@@ -343,7 +214,7 @@ namespace lean::modules {
     SL_INFO(logger_, "Loading is finished");
   }
 
-  void NetworkingImpl::on_dispatch_SendSignedBlock(
+  void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_blocks_topic_->publish(
@@ -351,7 +222,7 @@ namespace lean::modules {
     });
   }
 
-  void NetworkingImpl::on_dispatch_SendSignedVote(
+  void NetworkingImpl::onSendSignedVote(
       std::shared_ptr<const messages::SendSignedVote> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_votes_topic_->publish(
@@ -397,7 +268,7 @@ namespace lean::modules {
       SL_TRACE(logger_, "receiveStatus {} => request", head.slot);
       requestBlock(message.from_peer, head.hash);
     }
-    loader_.dispatch_StatusMessageReceived(qtils::toSharedPtr(message));
+    loader_.dispatchStatusMessageReceived(qtils::toSharedPtr(message));
   }
 
   void NetworkingImpl::requestBlock(const libp2p::PeerId &peer_id,

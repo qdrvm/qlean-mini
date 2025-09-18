@@ -8,9 +8,9 @@
 
 #include <libp2p/peer/peer_id.hpp>
 
+#include "modules/networking/types.hpp"
 #include "types/signed_block.hpp"
 #include "types/signed_vote.hpp"
-#include "types/status_message.hpp"
 
 namespace lean::messages {
   template <typename Notification>

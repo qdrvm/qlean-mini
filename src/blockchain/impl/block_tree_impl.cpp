@@ -22,7 +22,6 @@
 #include "types/block.hpp"
 #include "types/block_header.hpp"
 #include "types/signed_block.hpp"
-#include "types/status_message.hpp"
 
 namespace lean::blockchain {
   BlockTreeImpl::SafeBlockTreeData::SafeBlockTreeData(BlockTreeData data)
@@ -785,15 +784,6 @@ namespace lean::blockchain {
   BlockIndex BlockTreeImpl::lastFinalized() const {
     return block_tree_data_.sharedAccess(
         [&](const BlockTreeData &p) { return getLastFinalizedNoLock(p); });
-  }
-
-  StatusMessage BlockTreeImpl::getStatusMessage() const {
-    auto finalized = lastFinalized();
-    auto head = bestBlock();
-    return StatusMessage{
-        .finalized = {.root = finalized.hash, .slot = finalized.slot},
-        .head = {.root = head.hash, .slot = head.slot},
-    };
   }
 
   outcome::result<std::optional<SignedBlock>> BlockTreeImpl::tryGetSignedBlock(

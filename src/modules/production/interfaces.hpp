@@ -8,7 +8,6 @@
 
 #include <memory>
 
-#include "modules/shared/macro.hpp"
 #include "modules/shared/networking_types.tmp.hpp"
 
 namespace lean::messages {
@@ -27,7 +26,7 @@ namespace lean::modules {
 
     virtual void dispatch_block_produced(std::shared_ptr<const Block>) = 0;
 
-    virtual void dispatch_SendSignedBlock(
+    virtual void dispatchSendSignedBlock(
         std::shared_ptr<const messages::SendSignedBlock> message) = 0;
   };
 
