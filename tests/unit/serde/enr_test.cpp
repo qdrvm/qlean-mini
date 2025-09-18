@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <array>
 
+#include <qtils/test/outcome.hpp>
+
 using lean::enr::Enr;
 using lean::enr::Ip;
 using lean::enr::Port;
@@ -41,7 +43,7 @@ TEST(EnrTest, EncodeDecodeRoundTrip) {
   // Encoded string must start with "enr:"
   ASSERT_TRUE(encoded.rfind("enr:", 0) == 0) << encoded;
 
-  auto enr = lean::enr::decode(encoded);
+  ASSERT_OUTCOME_SUCCESS(enr, lean::enr::decode(encoded));
 
   // Basic fields
   EXPECT_EQ(enr.sequence, 1u);
@@ -90,10 +92,12 @@ TEST(EnrTest, DeterministicEncoding) {
 
 TEST(EnrTest, DecodeGivenEnrAddress) {
   // Provided ENR string from user request
-  const char *addr =
+  // clang-format off
+  std::string_view addr =
       "enr:-Ku4QHqVeJ8PPICcWk1vSn_XcSkjOkNiTg6Fmii5j6vUQgvzMc9L1goFnLKgXqBJspJjIsB91LTOleFmyWWrFVATGngBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpC1MD8qAAAAAP__________gmlkgnY0gmlwhAMRHkWJc2VjcDI1NmsxoQKLVXFOhp2uX6jeT0DvvDpPcU8FWMjQdR4wMuORMhpX24N1ZHCCIyg";
+  // clang-format on
 
-  auto enr = lean::enr::decode(addr);
+  ASSERT_OUTCOME_SUCCESS(enr, lean::enr::decode(addr));
 
   // Sequence should be positive
   EXPECT_GT(enr.sequence, 0u);
