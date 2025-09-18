@@ -12,8 +12,8 @@
 #include "types/signed_block.hpp"
 #include "types/state.hpp"
 
-TEST(StateTransitionFunction, Test) {
-  lean::StateTransitionFunction stf;
+TEST(STF, Test) {
+  lean::STF stf;
 
   lean::Config config{
       .num_validators = 2,

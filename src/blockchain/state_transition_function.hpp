@@ -19,7 +19,7 @@ namespace lean {
   struct SignedVote;
   struct State;
 
-  class StateTransitionFunction {
+  class STF {
    public:
     enum class Error {
       INVALID_SLOT,

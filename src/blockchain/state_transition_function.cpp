@@ -69,8 +69,7 @@ namespace lean {
     }
   }
 
-  State StateTransitionFunction::generateGenesisState(
-      const Config &config) const {
+  State STF::generateGenesisState(const Config &config) const {
     BlockHeader header;
     header.body_root = sszHash(BlockBody{});
     return State{
@@ -79,14 +78,13 @@ namespace lean {
     };
   }
 
-  Block StateTransitionFunction::genesisBlock(const State &state) const {
+  Block STF::genesisBlock(const State &state) const {
     return Block{.state_root = sszHash(state)};
   }
 
-  outcome::result<State> StateTransitionFunction::stateTransition(
-      const SignedBlock &signed_block,
-      const State &parent_state,
-      bool check_state_root) const {
+  outcome::result<State> STF::stateTransition(const SignedBlock &signed_block,
+                                              const State &parent_state,
+                                              bool check_state_root) const {
     auto &block = signed_block.message;
     auto state = parent_state;
     // Process slots (including those with no blocks) since block
@@ -103,8 +101,7 @@ namespace lean {
     return std::move(state);
   }
 
-  outcome::result<void> StateTransitionFunction::processSlots(State &state,
-                                                              Slot slot) const {
+  outcome::result<void> STF::processSlots(State &state, Slot slot) const {
     if (state.slot >= slot) {
       return Error::INVALID_SLOT;
     }
@@ -115,22 +112,22 @@ namespace lean {
     return outcome::success();
   }
 
-  void StateTransitionFunction::processSlot(State &state) const {
+  void STF::processSlot(State &state) const {
     // Cache latest block header state root
     if (state.latest_block_header.state_root == kZeroHash) {
       state.latest_block_header.state_root = sszHash(state);
     }
   }
 
-  outcome::result<void> StateTransitionFunction::processBlock(
-      State &state, const Block &block) const {
+  outcome::result<void> STF::processBlock(State &state,
+                                          const Block &block) const {
     OUTCOME_TRY(processBlockHeader(state, block));
     OUTCOME_TRY(processOperations(state, block.body));
     return outcome::success();
   }
 
-  outcome::result<void> StateTransitionFunction::processBlockHeader(
-      State &state, const Block &block) const {
+  outcome::result<void> STF::processBlockHeader(State &state,
+                                                const Block &block) const {
     // Verify that the slots match
     if (block.slot != state.slot) {
       return Error::INVALID_SLOT;
@@ -181,15 +178,15 @@ namespace lean {
     return outcome::success();
   }
 
-  outcome::result<void> StateTransitionFunction::processOperations(
-      State &state, const BlockBody &body) const {
+  outcome::result<void> STF::processOperations(State &state,
+                                               const BlockBody &body) const {
     // process attestations
     OUTCOME_TRY(processAttestations(state, body.attestations.data()));
     // other operations will get added as the functionality evolves
     return outcome::success();
   }
 
-  outcome::result<void> StateTransitionFunction::processAttestations(
+  outcome::result<void> STF::processAttestations(
       State &state, const std::vector<SignedVote> &attestations) const {
     // get justifications, justified slots and historical block hashes are
     // already upto date as per the processing in process_block_header
