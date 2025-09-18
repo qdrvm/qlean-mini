@@ -27,14 +27,14 @@ namespace lean {
     abort();
   }
 
-  qtils::ByteVec snappyCompress(qtils::BytesIn input) {
+  inline qtils::ByteVec snappyCompress(qtils::BytesIn input) {
     std::string compressed;
     snappy::Compress(qtils::byte2str(input.data()), input.size(), &compressed);
     return qtils::ByteVec{qtils::str2byte(std::as_const(compressed))};
   }
 
-  outcome::result<qtils::ByteVec> snappyUncompress(qtils::BytesIn compressed,
-                                                   size_t max_size = 4 << 20) {
+  inline outcome::result<qtils::ByteVec> snappyUncompress(
+      qtils::BytesIn compressed, size_t max_size = 4 << 20) {
     size_t size = 0;
     if (not snappy::GetUncompressedLength(
             qtils::byte2str(compressed.data()), compressed.size(), &size)) {
