@@ -20,7 +20,7 @@ namespace fs = std::filesystem;
 
 struct RocksDb_Integration_Test : public test::BaseRocksDB_Test {
   RocksDb_Integration_Test()
-      : test::BaseRocksDB_Test("/tmp/kagome_rocksdb_integration_test") {}
+      : test::BaseRocksDB_Test("/tmp/lean_rocksdb_integration_test") {}
 
   Buffer key_{1, 3, 3, 7};
   Buffer value_{1, 2, 3};

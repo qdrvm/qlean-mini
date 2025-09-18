@@ -52,7 +52,8 @@ class BlockStorageTest : public testing::Test {
   }
 
   void SetUp() override {
-    genesis_header->hash_opt = genesis_block_hash;
+    genesis_header->updateHash();
+    genesis_block_hash = genesis_header->hash();
 
     hasher = std::make_shared<HasherMock>();
     spaced_storage = std::make_shared<SpacedStorageMock>();
@@ -231,8 +232,7 @@ TEST_F(BlockStorageTest, PutWithStorageError) {
   BlockHeader header;
   header.slot = 1;
   header.parent_root = genesis_block_hash;
-  header.body_root = {};  // ssz::hash_tree_root(body);
-  header.updateHash();
+  header.body_root = lean::sszHash(body);
 
   BlockData block;
   block.header.emplace(header);
@@ -240,7 +240,11 @@ TEST_F(BlockStorageTest, PutWithStorageError) {
   block.header->parent_root = genesis_block_hash;
   block.body.emplace(body);
 
-  ByteVec key{block.header->hash()};
+  auto encoded_header = ByteVec(encode(*block.header).value());
+  ON_CALL(*hasher, sha2_256(encoded_header.view()))
+      .WillByDefault(Return(regular_block_hash));
+
+  ByteVec key{lean::sszHash(header)};
 
   EXPECT_CALL(*spaces[Space::Body], put(key.view(), _))
       .WillOnce(Return(lean::storage::StorageError::IO_ERROR));

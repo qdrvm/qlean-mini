@@ -158,13 +158,6 @@ namespace lean::blockchain {
         });
   }
 
-  void BlockTreeImpl::notifyChainEventsEngine(EventTypes event,
-                                              const BlockHeader &header) {
-    BOOST_ASSERT(header.hash_opt.has_value());
-    auto header_ptr = std::make_shared<BlockHeader>(header);
-    se_manager_->notify(event, header_ptr);
-  }
-
   outcome::result<void> BlockTreeImpl::removeLeaf(const BlockHash &block_hash) {
     return block_tree_data_.exclusiveAccess(
         [&](BlockTreeData &p) -> outcome::result<void> {
