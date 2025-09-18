@@ -256,7 +256,13 @@ namespace lean::enr {
       rlp.str("udp");
       enr.port = rlp.uint<Port>();
     }
-    assert(rlp.empty());
+    // Parse remaining key/value pairs
+    while (!rlp.empty()) {
+      // Unknown key: skip its value
+      auto logger = libp2p::log::createLogger("ENR");
+      SL_WARN(logger, "Skipping unknown ENR key '{}'", key);
+      rlp.skip();
+    }
     return enr;
   }
 
