@@ -34,8 +34,14 @@ namespace lean::loaders {
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_loading_finished_;
 
-    ON_DISPATCH_SUBSCRIPTION(SendSignedBlock);
-    ON_DISPATCH_SUBSCRIPTION(SendSignedVote);
+    SimpleSubscription<messages::SendSignedBlock,
+                       modules::Networking,
+                       &modules::Networking::onSendSignedBlock>
+        subscription_send_signed_block_;
+    SimpleSubscription<messages::SendSignedVote,
+                       modules::Networking,
+                       &modules::Networking::onSendSignedVote>
+        subscription_send_signed_vote_;
 
    public:
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
@@ -89,8 +95,8 @@ namespace lean::loaders {
                 }
               });
 
-      ON_DISPATCH_SUBSCRIBE(SendSignedBlock);
-      ON_DISPATCH_SUBSCRIBE(SendSignedVote);
+      subscription_send_signed_block_.subscribe(*se_manager_, module_internal);
+      subscription_send_signed_vote_.subscribe(*se_manager_, module_internal);
 
       se_manager_->notify(lean::EventTypes::NetworkingIsLoaded);
     }
@@ -107,7 +113,7 @@ namespace lean::loaders {
       se_manager_->notify(lean::EventTypes::PeerDisconnected, msg);
     }
 
-    void dispatch_StatusMessageReceived(
+    void dispatchStatusMessageReceived(
         std::shared_ptr<const messages::StatusMessageReceived> message)
         override {
       SL_TRACE(logger_,
@@ -118,7 +124,7 @@ namespace lean::loaders {
       dispatchDerive(*se_manager_, message);
     }
 
-    void dispatch_SignedVoteReceived(
+    void dispatchSignedVoteReceived(
         std::shared_ptr<const messages::SignedVoteReceived> message) override {
       SL_TRACE(logger_, "Dispatch SignedVoteReceived");
       dispatchDerive(*se_manager_, message);
