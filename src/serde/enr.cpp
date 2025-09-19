@@ -55,7 +55,7 @@ namespace lean::rlp {
     }
 
     template <typename T>
-    static outcome::result<T> _uint(qtils::BytesIn be) {
+    static outcome::result<T> uint(qtils::BytesIn be) {
       if (be.size() * 8 > std::numeric_limits<T>::digits) {
         return Error::INT_OVERFLOW;
       }
@@ -67,7 +67,7 @@ namespace lean::rlp {
     }
 
     template <uint8_t base1>
-    outcome::result<qtils::BytesIn> _bytes() {
+    outcome::result<qtils::BytesIn> bytesInternal() {
       constexpr auto base2 = base1 + kMaxPrefix1;
       if (base1 > input_[0]) {
         return Error::INVALID_RLP;
@@ -80,7 +80,7 @@ namespace lean::rlp {
       auto n1 = input_[0] - base2;
       BOOST_OUTCOME_TRY(take(1));
       BOOST_OUTCOME_TRY(auto n2_raw, take(n1));
-      BOOST_OUTCOME_TRY(auto n2, _uint<size_t>(n2_raw));
+      BOOST_OUTCOME_TRY(auto n2, uint<size_t>(n2_raw));
       return take(n2);
     }
 
@@ -92,7 +92,7 @@ namespace lean::rlp {
       if (empty()) {
         return Error::INVALID_RLP;
       }
-      BOOST_OUTCOME_TRY(auto raw, _bytes<kListPrefix1>());
+      BOOST_OUTCOME_TRY(auto raw, bytesInternal<kListPrefix1>());
       return Decoder{raw};
     }
 
@@ -106,7 +106,7 @@ namespace lean::rlp {
       if (input_[0] < kBytesPrefix1) {
         return take(1);
       }
-      return _bytes<kBytesPrefix1>();
+      return bytesInternal<kBytesPrefix1>();
     }
 
     template <typename T>
@@ -135,7 +135,7 @@ namespace lean::rlp {
     template <typename T>
     outcome::result<T> uint() {
       BOOST_OUTCOME_TRY(auto be, bytes());
-      return _uint<T>(be);
+      return uint<T>(be);
     }
 
     outcome::result<void> skip() {
@@ -175,7 +175,7 @@ namespace lean::rlp {
       return buffer_[0] < kBytesPrefix1;
     }
     template <uint8_t base>
-    void _uint(uint64_t v) {
+    void uint(uint64_t v) {
       auto n = sizeof(uint64_t) - std::countl_zero(v) / 8;
       size_ = 1 + n;
       buffer_[0] = base + n;
@@ -184,12 +184,12 @@ namespace lean::rlp {
       }
     }
     template <uint8_t base>
-    void _bytes(size_t bytes) {
+    void bytesInternal(size_t bytes) {
       if (bytes <= kMaxPrefix1) {
         size_ = 1;
         buffer_[0] = base + bytes;
       } else {
-        _uint<base + kMaxPrefix1>(bytes);
+        uint<base + kMaxPrefix1>(bytes);
       }
     }
   };
@@ -200,7 +200,7 @@ namespace lean::rlp {
         size_ = 1;
         buffer_[0] = v;
       } else {
-        _uint<kBytesPrefix1>(v);
+        uint<kBytesPrefix1>(v);
       }
     }
   };
@@ -211,14 +211,14 @@ namespace lean::rlp {
         size_ = 1;
         buffer_[0] = bytes[0];
       } else {
-        _bytes<kBytesPrefix1>(bytes.size());
+        bytesInternal<kBytesPrefix1>(bytes.size());
       }
     }
   };
 
   struct EncodeList : EncodeBuffer {
     EncodeList(size_t bytes) {
-      _bytes<kListPrefix1>(bytes);
+      bytesInternal<kListPrefix1>(bytes);
     }
   };
 
