@@ -47,8 +47,8 @@ std::optional<Checkpoint> getVote(const ForkChoiceStore::Votes &votes) {
 }
 
 lean::Config config{
-    .genesis_time = 1000,
     .num_validators = 100,
+    .genesis_time = 1000,
 };
 
 auto makeBlockMap(std::vector<lean::Block> blocks) {
