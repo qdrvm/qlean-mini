@@ -16,6 +16,7 @@ using lean::Block;
 using lean::Checkpoint;
 using lean::ForkChoiceStore;
 using lean::getForkChoiceHead;
+using lean::INTERVALS_PER_SLOT;
 using lean::SignedVote;
 
 lean::BlockHash testHash(std::string_view s) {
@@ -575,4 +576,117 @@ TEST(TestTimeAdvancement, test_advance_time_small_increment) {
 
   // Should advance by small amount
   EXPECT_GE(sample_store.time_, initial_time);
+}
+
+// Test basic interval ticking.
+TEST(TestIntervalTicking, test_tick_interval_basic) {
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+  };
+  auto initial_time = sample_store.time_;
+
+  // Tick one interval forward
+  sample_store.tickInterval(false);
+
+  // Time should advance by one interval
+  EXPECT_EQ(sample_store.time_, initial_time + 1);
+}
+
+// Test interval ticking with proposal.
+TEST(TestIntervalTicking, test_tick_interval_with_proposal) {
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+  };
+  auto initial_time = sample_store.time_;
+
+  sample_store.tickInterval(false);
+
+  // Time should advance
+  EXPECT_EQ(sample_store.time_, initial_time + 1);
+}
+
+// Test sequence of interval ticks.
+TEST(TestIntervalTicking, test_tick_interval_sequence) {
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+  };
+  auto initial_time = sample_store.time_;
+
+  // Tick multiple intervals
+  for (auto i = 0; i < 5; ++i) {
+    sample_store.tickInterval(i % 2 == 0);
+  }
+
+  // Should have advanced by 5 intervals
+  EXPECT_EQ(sample_store.time_, initial_time + 5);
+}
+
+// Test different actions performed based on interval phase.
+TEST(TestIntervalTicking, test_tick_interval_actions_by_phase) {
+  // Reset store to known state
+  ForkChoiceStore sample_store;
+
+  // Add some test votes for processing
+  sample_store.latest_new_votes_.emplace(0, Checkpoint{.slot = 1});
+
+  // Tick through a complete slot cycle
+  for (lean::Interval interval = 0; interval < INTERVALS_PER_SLOT; ++interval) {
+    // Proposal only in first interval
+    auto has_proposal = interval == 0;
+    sample_store.tickInterval(has_proposal);
+
+    auto current_interval = sample_store.time_ % INTERVALS_PER_SLOT;
+    auto expected_interval = (interval + 1) % INTERVALS_PER_SLOT;
+    EXPECT_EQ(current_interval, expected_interval);
+  }
+}
+
+// Test getting proposal head for a slot.
+TEST(TestProposalHeadTiming, test_get_proposal_head_basic) {
+  auto blocks = makeBlocks(1);
+  auto &genesis = blocks.at(0);
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+      .config_ = config,
+      .head_ = genesis.hash(),
+      .blocks_ = makeBlockMap(blocks),
+  };
+
+  // Get proposal head for slot 0
+  auto head = sample_store.getProposalHead(genesis.slot);
+
+  // Should return current head
+  EXPECT_EQ(head, sample_store.head_);
+}
+
+// Test that get_proposal_head advances store time appropriately.
+TEST(TestProposalHeadTiming, test_get_proposal_head_advances_time) {
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+  };
+  auto initial_time = sample_store.time_;
+
+  // Get proposal head for a future slot
+  sample_store.getProposalHead(5);
+
+  // Time may have advanced (depending on slot timing)
+  // This is mainly testing that the call doesn't fail
+  EXPECT_GE(sample_store.time_, initial_time);
+}
+
+// Test that get_proposal_head processes pending votes.
+TEST(TestProposalHeadTiming, test_get_proposal_head_processes_votes) {
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+  };
+
+  // Add some new votes
+  sample_store.latest_new_votes_.emplace(0, Checkpoint{.slot = 1});
+
+  // Get proposal head should process votes
+  sample_store.getProposalHead(1);
+
+  // Votes should have been processed (moved to known votes)
+  ASSERT_FALSE(getVote(sample_store.latest_new_votes_));
+  ASSERT_TRUE(getVote(sample_store.latest_known_votes_));
 }
