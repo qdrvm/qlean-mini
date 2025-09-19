@@ -78,7 +78,7 @@ namespace lean {
     outcome::result<void> onBlock(Block block);
 
     STF stf_;
-    Interval time_;
+    Interval time_ = 0;
     Config config_;
     BlockHash head_;
     BlockHash safe_target_;
