@@ -29,11 +29,11 @@ namespace lean {
       return header;
     }
 
-    std::optional<BlockHash> hash_cached;
+    mutable std::optional<BlockHash> hash_cached;
     const BlockHash &hash() const {
       return hash_cached.value();
     }
-    void setHash() {
+    void setHash() const {
       auto header = getHeader();
       header.updateHash();
       auto hash = header.hash();

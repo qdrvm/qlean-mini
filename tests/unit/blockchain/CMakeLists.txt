@@ -13,6 +13,13 @@ target_link_libraries(block_storage_test
     storage
     )
 
+addtest(fork_choice_test
+    fork_choice_test.cpp
+    )
+target_link_libraries(fork_choice_test
+    blockchain
+    )
+
 addtest(state_transition_function_test
     state_transition_function_test.cpp
     )
