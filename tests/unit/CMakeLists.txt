@@ -7,3 +7,4 @@
 add_subdirectory(app)
 add_subdirectory(blockchain)
 add_subdirectory(storage)
+add_subdirectory(serde)

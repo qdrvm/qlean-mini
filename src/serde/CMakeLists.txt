@@ -10,4 +10,5 @@ add_library(enr
 target_link_libraries(enr
     cppcodec
     p2p::libp2p
+    p2p::p2p_key_validator
 )

@@ -17,6 +17,27 @@ namespace lean::rlp {
   constexpr uint8_t kBytesPrefix1 = 0x80;
   constexpr uint8_t kListPrefix1 = 0xc0;
 
+  enum class Error {
+    INVALID_RLP,
+    INT_OVERFLOW,
+    INVALID_KEY_VALUE,
+    KEY_NOT_FOUND,
+  };
+  Q_ENUM_ERROR_CODE(Error) {
+    using E = decltype(e);
+    switch (e) {
+      case E::INVALID_RLP:
+        return "Invalid rlp";
+      case E::INT_OVERFLOW:
+        return "Int overflow";
+      case E::INVALID_KEY_VALUE:
+        return "Invalid key-value";
+      case E::KEY_NOT_FOUND:
+        return "Key not found";
+    }
+    abort();
+  }
+
   struct Decoder {
     qtils::BytesIn input_;
 
@@ -24,15 +45,20 @@ namespace lean::rlp {
       return input_.empty();
     }
 
-    qtils::BytesIn _take(size_t n) {
-      assert(n <= input_.size());
+    outcome::result<qtils::BytesIn> take(size_t n) {
+      if (n > input_.size()) {
+        return Error::INVALID_RLP;
+      }
       auto r = input_.first(n);
       input_ = input_.subspan(n);
       return r;
     }
 
     template <typename T>
-    static T _uint(qtils::BytesIn be) {
+    static outcome::result<T> uint(qtils::BytesIn be) {
+      if (be.size() * 8 > std::numeric_limits<T>::digits) {
+        return Error::INT_OVERFLOW;
+      }
       T v = 0;
       for (auto &x : be) {
         v = (v << 8) | x;
@@ -41,75 +67,100 @@ namespace lean::rlp {
     }
 
     template <uint8_t base1>
-    qtils::BytesIn _bytes() {
+    outcome::result<qtils::BytesIn> bytesInternal() {
       constexpr auto base2 = base1 + kMaxPrefix1;
-      assert(base1 <= input_[0]);
+      if (base1 > input_[0]) {
+        return Error::INVALID_RLP;
+      }
       if (input_[0] <= base2) {
         auto n = input_[0] - base1;
-        _take(1);
-        return _take(n);
+        BOOST_OUTCOME_TRY(take(1));
+        return take(n);
       }
       auto n1 = input_[0] - base2;
-      _take(1);
-      auto n2 = _uint<size_t>(_take(n1));
-      return _take(n2);
+      BOOST_OUTCOME_TRY(take(1));
+      BOOST_OUTCOME_TRY(auto n2_raw, take(n1));
+      BOOST_OUTCOME_TRY(auto n2, uint<size_t>(n2_raw));
+      return take(n2);
     }
 
     bool is_list() const {
       return not empty() and kListPrefix1 <= input_[0];
     }
 
-    Decoder list() {
-      assert(not empty());
-      return Decoder{_bytes<kListPrefix1>()};
+    outcome::result<Decoder> list() {
+      if (empty()) {
+        return Error::INVALID_RLP;
+      }
+      BOOST_OUTCOME_TRY(auto raw, bytesInternal<kListPrefix1>());
+      return Decoder{raw};
     }
 
-    qtils::BytesIn bytes() {
-      assert(not empty());
-      assert(input_[0] < kListPrefix1);
-      if (input_[0] < kBytesPrefix1) {
-        return _take(1);
+    outcome::result<qtils::BytesIn> bytes() {
+      if (empty()) {
+        return Error::INVALID_RLP;
       }
-      return _bytes<kBytesPrefix1>();
+      if (input_[0] >= kListPrefix1) {
+        return Error::INVALID_RLP;
+      }
+      if (input_[0] < kBytesPrefix1) {
+        return take(1);
+      }
+      return bytesInternal<kBytesPrefix1>();
     }
 
     template <typename T>
       requires std::is_default_constructible_v<T>
            and requires(T t) { qtils::BytesOut{t}; }
-    T bytes_n() {
-      auto raw = bytes();
+    outcome::result<T> bytes_n() {
+      BOOST_OUTCOME_TRY(auto raw, bytes());
       T r;
-      assert(raw.size() == r.size());
+      if (raw.size() != r.size()) {
+        return Error::INVALID_RLP;
+      }
       memcpy(r.data(), raw.data(), r.size());
       return r;
     }
 
     template <size_t N>
-    qtils::ByteArr<N> bytes_n() {
+    outcome::result<qtils::ByteArr<N>> bytes_n() {
       return bytes_n<qtils::ByteArr<N>>();
     }
 
-    std::string_view str() {
-      return qtils::byte2str(bytes());
-    }
-
-    void str(std::string_view expected) {
-      auto actual = str();
-      assert(actual == expected);
+    outcome::result<std::string_view> str() {
+      BOOST_OUTCOME_TRY(auto raw, bytes());
+      return qtils::byte2str(raw);
     }
 
     template <typename T>
-    T uint() {
-      auto be = bytes();
-      return _uint<T>(be);
+    outcome::result<T> uint() {
+      BOOST_OUTCOME_TRY(auto be, bytes());
+      return uint<T>(be);
     }
 
-    void skip() {
+    outcome::result<void> skip() {
       if (is_list()) {
-        list();
+        BOOST_OUTCOME_TRY(list());
       } else {
-        bytes();
+        BOOST_OUTCOME_TRY(bytes());
       }
+      return outcome::success();
+    }
+
+    using KeyValue = std::unordered_map<std::string_view, Decoder>;
+    outcome::result<KeyValue> keyValue() {
+      KeyValue kv;
+      while (not empty()) {
+        BOOST_OUTCOME_TRY(auto key, str());
+        if (empty()) {
+          return Error::INVALID_KEY_VALUE;
+        }
+        auto value = input_;
+        BOOST_OUTCOME_TRY(skip());
+        value = value.first(value.size() - input_.size());
+        kv.emplace(key, Decoder{value});
+      }
+      return kv;
     }
   };
 
@@ -124,7 +175,7 @@ namespace lean::rlp {
       return buffer_[0] < kBytesPrefix1;
     }
     template <uint8_t base>
-    void _uint(uint64_t v) {
+    void uint(uint64_t v) {
       auto n = sizeof(uint64_t) - std::countl_zero(v) / 8;
       size_ = 1 + n;
       buffer_[0] = base + n;
@@ -133,12 +184,12 @@ namespace lean::rlp {
       }
     }
     template <uint8_t base>
-    void _bytes(size_t bytes) {
+    void bytesInternal(size_t bytes) {
       if (bytes <= kMaxPrefix1) {
         size_ = 1;
         buffer_[0] = base + bytes;
       } else {
-        _uint<base + kMaxPrefix1>(bytes);
+        uint<base + kMaxPrefix1>(bytes);
       }
     }
   };
@@ -149,7 +200,7 @@ namespace lean::rlp {
         size_ = 1;
         buffer_[0] = v;
       } else {
-        _uint<kBytesPrefix1>(v);
+        uint<kBytesPrefix1>(v);
       }
     }
   };
@@ -160,14 +211,14 @@ namespace lean::rlp {
         size_ = 1;
         buffer_[0] = bytes[0];
       } else {
-        _bytes<kBytesPrefix1>(bytes.size());
+        bytesInternal<kBytesPrefix1>(bytes.size());
       }
     }
   };
 
   struct EncodeList : EncodeBuffer {
     EncodeList(size_t bytes) {
-      _bytes<kListPrefix1>(bytes);
+      bytesInternal<kListPrefix1>(bytes);
     }
   };
 
@@ -200,6 +251,21 @@ namespace lean::rlp {
 }  // namespace lean::rlp
 
 namespace lean::enr {
+  enum class Error {
+    INVALID_PREFIX,
+    INVALID_ID,
+  };
+  Q_ENUM_ERROR_CODE(Error) {
+    using E = decltype(e);
+    switch (e) {
+      case E::INVALID_PREFIX:
+        return "Invalid ENR prefix";
+      case E::INVALID_ID:
+        return "Invalid ENR id";
+    }
+    abort();
+  }
+
   libp2p::PeerId Enr::peerId() const {
     return libp2p::peerIdFromSecp256k1(public_key);
   }
@@ -227,36 +293,46 @@ namespace lean::enr {
     return {peerId(), {connectAddress()}};
   }
 
-  Enr decode(std::string_view str) {
+  outcome::result<Enr> decode(std::string_view str) {
     constexpr std::string_view s_enr{"enr:"};
-    assert(str.starts_with(s_enr));
+    if (not str.starts_with(s_enr)) {
+      return Error::INVALID_PREFIX;
+    }
     str.remove_prefix(s_enr.size());
     auto rlp_bytes = cppcodec::base64_url_unpadded::decode(str);
     rlp::Decoder rlp{rlp_bytes};
-    rlp = rlp.list();
+    BOOST_OUTCOME_TRY(rlp, rlp.list());
     Enr enr;
-    enr.signature = rlp.bytes_n<Secp256k1Signature>();
-    enr.sequence = rlp.uint<Sequence>();
-    std::string_view key;
-    key = rlp.str();
-    while (key != "id") {
-      rlp.skip();
-      key = rlp.str();
+    BOOST_OUTCOME_TRY(enr.signature, rlp.bytes_n<Secp256k1Signature>());
+    BOOST_OUTCOME_TRY(enr.sequence, rlp.uint<Sequence>());
+    BOOST_OUTCOME_TRY(auto kv, rlp.keyValue());
+
+    auto kv_id = kv.find("id");
+    if (kv_id == kv.end()) {
+      return rlp::Error::KEY_NOT_FOUND;
     }
-    assert(key == "id");
-    rlp.str("v4");
-    key = rlp.str();
-    if (key == "ip") {
-      enr.ip = rlp.bytes_n<Ip>();
-      key = rlp.str();
+    BOOST_OUTCOME_TRY(auto id, kv_id->second.str());
+    if (id != "v4") {
+      return Error::INVALID_ID;
     }
-    assert(key == "secp256k1");
-    enr.public_key = rlp.bytes_n<Secp256k1PublicKey>();
-    if (not rlp.empty()) {
-      rlp.str("udp");
-      enr.port = rlp.uint<Port>();
+
+    auto kv_ip = kv.find("ip");
+    if (kv_ip != kv.end()) {
+      BOOST_OUTCOME_TRY(enr.ip, kv_ip->second.bytes_n<Ip>());
     }
-    assert(rlp.empty());
+
+    auto kv_secp256k1 = kv.find("secp256k1");
+    if (kv_secp256k1 == kv.end()) {
+      return rlp::Error::KEY_NOT_FOUND;
+    }
+    BOOST_OUTCOME_TRY(enr.public_key,
+                      kv_secp256k1->second.bytes_n<Secp256k1PublicKey>());
+
+    auto kv_udp = kv.find("udp");
+    if (kv_udp != kv.end()) {
+      BOOST_OUTCOME_TRY(enr.port, kv_udp->second.uint<Port>());
+    }
+
     return enr;
   }
 
