@@ -56,7 +56,7 @@ namespace lean::rlp {
 
     template <typename T>
     static outcome::result<T> _uint(qtils::BytesIn be) {
-      if (be.size() * 8 > std::numeric_limits<int>::digits) {
+      if (be.size() * 8 > std::numeric_limits<T>::digits) {
         return Error::INT_OVERFLOW;
       }
       T v = 0;
