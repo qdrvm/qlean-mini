@@ -9,6 +9,8 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstring>
+#include <format>
 
 #include "qtils/test/outcome.hpp"
 

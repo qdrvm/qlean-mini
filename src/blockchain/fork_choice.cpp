@@ -6,6 +6,8 @@
 
 #include "blockchain/fork_choice.hpp"
 
+#include <ranges>
+
 #include "types/signed_block.hpp"
 
 namespace lean {
@@ -222,7 +224,7 @@ namespace lean {
     // add block votes to the onchain known last votes
     for (auto &signed_vote : block.body.attestations) {
       // Add block votes to the onchain known last votes
-      OUTCOME_TRY(processAttestation(signed_vote, true));
+      BOOST_OUTCOME_TRY(processAttestation(signed_vote, true));
     }
 
     updateHead();

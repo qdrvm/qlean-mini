@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <optional>
+#include <unordered_map>
+
 #include <boost/assert.hpp>
 
 #include "blockchain/is_justifiable_slot.hpp"
