@@ -6,24 +6,37 @@
 
 #pragma once
 
+#include "types/block_header.hpp"
+#include "types/checkpoint.hpp"
+#include "types/config.hpp"
+#include "types/constants.hpp"
+
 namespace lean {
+  struct State : ssz::ssz_container {
+    Config config;
+    Slot slot;
+    BlockHeader latest_block_header;
 
-  struct State {
-    Config : config;
-    uint64_t : slot;
-    BlockHeader : latest_block_header;
+    Checkpoint latest_justified;
+    Checkpoint latest_finalized;
 
-    Checkpoint : latest_justified;
-    Checkpoint : latest_finalized;
-
-    List[Bytes32, HISTORICAL_ROOTS_LIMIT] : historical_block_hashes;
-    List[bool, HISTORICAL_ROOTS_LIMIT] : justified_slots;
+    ssz::list<BlockHash, HISTORICAL_ROOTS_LIMIT> historical_block_hashes;
+    ssz::list<bool, HISTORICAL_ROOTS_LIMIT> justified_slots;
 
     // Diverged from 3SF-mini.py:
     // Flattened `justifications: Dict[str, List[bool]]` for SSZ compatibility
-    List[Bytes32, HISTORICAL_ROOTS_LIMIT] : justifications_roots;
-    Bitlist[HISTORICAL_ROOTS_LIMIT * VALIDATOR_REGISTRY_LIMIT]
-        : justifications_validators;
-  };
+    ssz::list<BlockHash, HISTORICAL_ROOTS_LIMIT> justifications_roots;
+    ssz::list<bool, HISTORICAL_ROOTS_LIMIT * VALIDATOR_REGISTRY_LIMIT>
+        justifications_validators;
 
+    SSZ_CONT(config,
+             slot,
+             latest_block_header,
+             latest_justified,
+             latest_finalized,
+             historical_block_hashes,
+             justified_slots,
+             justifications_roots,
+             justifications_validators);
+  };
 }  // namespace lean

@@ -34,10 +34,11 @@ namespace lean {
       return hash_cached.value();
     }
     void setHash() {
-      BOOST_ASSERT(not hash_cached.has_value());
       auto header = getHeader();
       header.updateHash();
-      hash_cached = header.hash();
+      auto hash = header.hash();
+      BOOST_ASSERT(not hash_cached.has_value() or hash == hash_cached);
+      hash_cached = hash;
     }
 
     BlockIndex slotHash() const {
