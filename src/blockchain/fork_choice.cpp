@@ -17,7 +17,7 @@ namespace lean {
         blocks_, latest_justified_, latest_new_votes_, min_target_score);
   }
 
-  Checkpoint ForkChoiceStore::getLatestJustified() {
+  std::optional<Checkpoint> ForkChoiceStore::getLatestJustified() {
     using Key = std::tuple<Slot, BlockHash>;
     std::optional<Key> max;
     for (auto &state : states_ | std::views::values) {
@@ -26,13 +26,17 @@ namespace lean {
         max = key;
       }
     }
-    BOOST_ASSERT(max.has_value());
+    if (not max.has_value()) {
+      return std::nullopt;
+    }
     auto &[slot, hash] = max.value();
     return Checkpoint{.root = hash, .slot = slot};
   }
 
   void ForkChoiceStore::updateHead() {
-    latest_justified_ = getLatestJustified();
+    if (auto latest_justified = getLatestJustified()) {
+      latest_justified_ = latest_justified.value();
+    }
     head_ =
         getForkChoiceHead(blocks_, latest_justified_, latest_known_votes_, 0);
 
@@ -64,7 +68,7 @@ namespace lean {
     }
   }
 
-  void ForkChoiceStore::onTick(Interval time, bool has_proposal) {
+  void ForkChoiceStore::advanceTime(Interval time, bool has_proposal) {
     // Calculate the number of intervals that have passed since genesis
     auto tick_interval_time =
         (time - config_.genesis_time) / SECONDS_PER_INTERVAL;
@@ -84,7 +88,7 @@ namespace lean {
     auto slot_time = config_.genesis_time + slot * SECONDS_PER_SLOT;
     // this would be a no-op if the store is already ticked to the current
     // time
-    onTick(slot_time, true);
+    advanceTime(slot_time, true);
     // this would be a no-op or just a fast compute if store was already
     // ticked to accept new votes for a registered validator with the node
     acceptNewVotes();

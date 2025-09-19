@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include "qtils/test/outcome.hpp"
 
 using lean::Block;
@@ -511,4 +513,66 @@ TEST(TestAttestationProcessing,
   ASSERT_FALSE(getVote(sample_store.latest_new_votes_));
   EXPECT_EQ(getVote(sample_store.latest_known_votes_),
             Checkpoint::from(target));
+}
+
+// Test basic time advancement.
+TEST(TestTimeAdvancement, test_advance_time_basic) {
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+  };
+
+  auto initial_time = sample_store.time_;
+  // Much later time
+  auto target_time = sample_store.config_.genesis_time + 200;
+
+  sample_store.advanceTime(target_time, true);
+
+  // Time should advance
+  EXPECT_GT(sample_store.time_, initial_time);
+}
+
+// Test time advancement without proposal.
+TEST(TestTimeAdvancement, test_advance_time_no_proposal) {
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+  };
+
+  auto initial_time = sample_store.time_;
+  auto target_time = sample_store.config_.genesis_time + 100;
+
+  sample_store.advanceTime(target_time, false);
+
+  // Time should still advance
+  EXPECT_GE(sample_store.time_, initial_time);
+}
+
+// Test advance_time when already at target time.
+TEST(TestTimeAdvancement, test_advance_time_already_current) {
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+  };
+
+  auto initial_time = sample_store.time_;
+  auto current_target = sample_store.config_.genesis_time + initial_time;
+
+  // Try to advance to current time (should be no-op)
+  sample_store.advanceTime(current_target, false);
+
+  // Should not change significantly
+  EXPECT_LE(std::abs<int>(sample_store.time_ - initial_time), 10);
+}
+
+// Test advance_time with small time increment.
+TEST(TestTimeAdvancement, test_advance_time_small_increment) {
+  ForkChoiceStore sample_store{
+      .time_ = 100,
+  };
+
+  auto initial_time = sample_store.time_;
+  auto target_time = sample_store.config_.genesis_time + initial_time + 1;
+
+  sample_store.advanceTime(target_time, false);
+
+  // Should advance by small amount
+  EXPECT_GE(sample_store.time_, initial_time);
 }

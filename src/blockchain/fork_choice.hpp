@@ -37,7 +37,7 @@ namespace lean {
     // target
     void updateSafeTarget();
 
-    Checkpoint getLatestJustified();
+    std::optional<Checkpoint> getLatestJustified();
 
     // Updates the store's latest justified checkpoint, head, and latest
     // finalized state.
@@ -55,7 +55,7 @@ namespace lean {
     // if node has a validator with proposal in this slot so as to not delay
     // accepting new votes and parallelize compute.
     // Ticks the store forward in intervals until it reaches the given time.
-    void onTick(Interval time, bool has_proposal);
+    void advanceTime(Interval time, bool has_proposal);
 
     BlockHash getProposalHead(Slot slot);
 
