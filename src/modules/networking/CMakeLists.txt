@@ -6,7 +6,9 @@
 
 add_lean_module(networking
   SOURCE
+    block_request_protocol.cpp
     networking.cpp
+    status_protocol.cpp
   INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
