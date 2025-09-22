@@ -102,7 +102,7 @@ int main(int argc, const char **argv, const char **env) {
   soralog::util::setThreadName("lean-node");
 
   auto getArg = [&](size_t i) {
-    return static_cast<int>(i) < argc
+    return static_cast<ptrdiff_t>(i) < argc
              ? std::make_optional(std::string_view{argv[i]})
              : std::nullopt;
   };

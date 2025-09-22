@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <memory>
 #include <print>
 
+#include <fmt/format.h>
 #include <libp2p/crypto/random_generator/boost_generator.hpp>
 #include <libp2p/crypto/secp256k1_provider/secp256k1_provider_impl.hpp>
 #include <libp2p/peer/peer_id_from.hpp>
