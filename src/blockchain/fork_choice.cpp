@@ -42,7 +42,10 @@ namespace lean {
     head_ =
         getForkChoiceHead(blocks_, latest_justified_, latest_known_votes_, 0);
 
-    latest_finalized_ = states_[head_].latest_finalized;
+    auto state_it = states_.find(head_);
+    if (state_it != states_.end()) {
+      latest_finalized_ = state_it->second.latest_finalized;
+    }
   }
 
   void ForkChoiceStore::acceptNewVotes() {
