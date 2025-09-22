@@ -15,6 +15,7 @@
 #include "app/application.hpp"
 #include "app/configuration.hpp"
 #include "app/configurator.hpp"
+#include "executable/cmd_key_generate_node_key.hpp"
 #include "injector/node_injector.hpp"
 #include "loaders/loader.hpp"
 #include "log/logger.hpp"
@@ -115,6 +116,12 @@ int main(int argc, const char **argv, const char **env) {
     // Run without arguments
     wrong_usage();
     return EXIT_FAILURE;
+  }
+
+  if (argc >= 3 and std::string_view{argv[1]} == "key"
+      and std::string_view{argv[2]} == "generate-node-key") {
+    cmdKeyGenerateNodeKey();
+    return EXIT_SUCCESS;
   }
 
   auto app_configurator =
