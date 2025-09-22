@@ -80,7 +80,7 @@ namespace lean::modules {
     SL_INFO(logger_,
             "New leaf {} appeared{}",
             msg->header.index(),
-            msg->best ? "; it's the new the best leaf" : "");
+            msg->best ? "; it's the new best leaf" : "");
   }
 
   void ProductionModuleImpl::on_block_finalized(
