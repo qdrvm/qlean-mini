@@ -101,6 +101,12 @@ namespace {
 int main(int argc, const char **argv, const char **env) {
   soralog::util::setThreadName("lean-node");
 
+  auto getArg = [&](size_t i) {
+    return static_cast<int>(i) < argc
+             ? std::make_optional(std::string_view{argv[i]})
+             : std::nullopt;
+  };
+
   qtils::FinalAction flush_std_streams_at_exit([] {
     std::cout.flush();
     std::cerr.flush();
@@ -118,10 +124,14 @@ int main(int argc, const char **argv, const char **env) {
     return EXIT_FAILURE;
   }
 
-  if (argc >= 3 and std::string_view{argv[1]} == "key"
-      and std::string_view{argv[2]} == "generate-node-key") {
-    cmdKeyGenerateNodeKey();
-    return EXIT_SUCCESS;
+  if (getArg(1) == "key") {
+    if (getArg(2) == "generate-node-key") {
+      cmdKeyGenerateNodeKey();
+      return EXIT_SUCCESS;
+    }
+    std::println(std::cerr, "Expected one of following commands");
+    std::println(std::cerr, "  lean_node key generate-node-key");
+    return EXIT_FAILURE;
   }
 
   auto app_configurator =
