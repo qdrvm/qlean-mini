@@ -10,6 +10,8 @@
 #include <modules/production/interfaces.hpp>
 #include <qtils/create_smart_pointer_macros.hpp>
 
+#include "blockchain/fork_choice.hpp"
+
 namespace lean::crypto {
   class Hasher;
 }

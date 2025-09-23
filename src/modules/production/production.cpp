@@ -24,7 +24,9 @@ namespace lean::modules {
         logsys_(std::move(logging_system)),
         logger_(logsys_->getLogger("ProductionModule", "production_module")),
         block_tree_(std::move(block_tree)),
-        hasher_(std::move(hasher)) {}
+        fork_choice_store_{},
+        hasher_(std::move(hasher)) {
+  }
 
   void ProductionModuleImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");

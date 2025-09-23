@@ -20,6 +20,7 @@
 #include "log/logger.hpp"
 #include "modules/module_loader.hpp"
 #include "se/subscription.hpp"
+#include "types/config.hpp"
 
 using std::string_view_literals::operator""sv;
 
@@ -37,8 +38,9 @@ namespace {
   using lean::log::LoggingSystem;
 
   int run_node(std::shared_ptr<LoggingSystem> logsys,
-               std::shared_ptr<Configuration> appcfg) {
-    auto injector = std::make_unique<NodeInjector>(logsys, appcfg);
+               std::shared_ptr<Configuration> appcfg,
+               std::shared_ptr<lean::Config> genesis_cfg) {
+    auto injector = std::make_unique<NodeInjector>(logsys, appcfg, genesis_cfg);
 
     // Load modules
     std::deque<std::unique_ptr<lean::loaders::Loader>> loaders;
@@ -165,7 +167,7 @@ int main(int argc, const char **argv, const char **env) {
   }
 
   // Setup config
-  auto configuration = ({
+  auto app_configuration = ({
     auto logger = logging_system->getLogger("Configurator", "lean");
 
     auto config_res = app_configurator->calculateConfig(logger);
@@ -180,6 +182,8 @@ int main(int argc, const char **argv, const char **env) {
     config_res.value();
   });
 
+  lean::Config genesis_config{.num_validators = 1, .genesis_time = 0};
+
   int exit_code;
 
   {
@@ -187,7 +191,9 @@ int main(int argc, const char **argv, const char **env) {
 
     if (name.substr(0, 1) == "-") {
       // The first argument isn't subcommand, run as node
-      exit_code = run_node(logging_system, configuration);
+      exit_code = run_node(logging_system,
+                           app_configuration,
+                           std::make_shared<lean::Config>(genesis_config));
     }
 
     // else if (false and name == "subcommand-1"s) {
