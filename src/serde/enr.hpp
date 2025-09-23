@@ -32,7 +32,7 @@ namespace lean::enr {
     libp2p::PeerInfo connectInfo() const;
   };
 
-  Enr decode(std::string_view str);
+  outcome::result<Enr> decode(std::string_view str);
 
   std::string encode(const Secp256k1PublicKey &public_key, Port port);
 }  // namespace lean::enr
