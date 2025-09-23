@@ -37,6 +37,9 @@ namespace lean::metrics {
       static constexpr size_t kDefaultRequestSize = 10000u;
       static constexpr Duration kDefaultTimeout = std::chrono::seconds(30);
 
+      // Fixes default field values with boost::di.
+      Configuration() = default;
+
       size_t max_request_size{kDefaultRequestSize};
       Duration operation_timeout{kDefaultTimeout};
     };
