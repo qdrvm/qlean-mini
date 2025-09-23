@@ -1,0 +1,14 @@
+#
+# Copyright Quadrivium LLC
+# All Rights Reserved
+# SPDX-License-Identifier: Apache-2.0
+#
+
+addtest(enr_test
+    enr_test.cpp
+)
+
+target_link_libraries(enr_test
+    enr
+)
+
