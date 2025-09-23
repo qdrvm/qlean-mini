@@ -15,7 +15,11 @@ namespace lean {
 
   struct Checkpoint : ssz::ssz_container {
     qtils::ByteArr<32> root;
-    Slot slot;
+    Slot slot = 0;
+
+    static Checkpoint from(const auto &v) {
+      return Checkpoint{.root = v.hash(), .slot = v.slot};
+    }
 
     SSZ_CONT(root, slot);
   };
