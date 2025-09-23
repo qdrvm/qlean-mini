@@ -17,6 +17,21 @@ namespace lean::messages {
     bool epoch_change;
   };
 
+  struct SlotIntervalOneStarted {
+    Slot slot;
+    Epoch epoch;
+  };
+
+  struct SlotIntervalTwoStarted {
+    Slot slot;
+    Epoch epoch;
+  };
+
+  struct SlotIntervalThreeStarted {
+    Slot slot;
+    Epoch epoch;
+  };
+
   struct NewLeaf {
     BlockHeader header;
     bool best = false;

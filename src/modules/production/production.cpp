@@ -74,6 +74,18 @@ namespace lean::modules {
               SignedBlock{.message = block}));
     }
   }
+  void ProductionModuleImpl::on_slot_interval_one_started(
+      std::shared_ptr<const messages::SlotIntervalOneStarted> msg) {
+    SL_INFO(logger_, "Slot interval one started on slot {}", msg->slot);
+  }
+  void ProductionModuleImpl::on_slot_interval_two_started(
+      std::shared_ptr<const messages::SlotIntervalTwoStarted> msg) {
+    SL_INFO(logger_, "Slot interval two started on slot {}", msg->slot);
+  }
+  void ProductionModuleImpl::on_slot_interval_three_started(
+      std::shared_ptr<const messages::SlotIntervalThreeStarted> msg) {
+    SL_INFO(logger_, "Slot interval three started on slot {}", msg->slot);
+  }
 
   void ProductionModuleImpl::on_leave_update(
       std::shared_ptr<const messages::NewLeaf> msg) {

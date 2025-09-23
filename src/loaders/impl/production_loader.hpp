@@ -13,6 +13,11 @@
 #include "modules/production/production.hpp"
 #include "se/subscription.hpp"
 
+namespace lean::messages {
+  struct SlotIntervalThreeStarted;
+  struct SlotIntervalTwoStarted;
+  struct SlotIntervalOneStarted;
+}  // namespace lean::messages
 namespace lean::loaders {
 
   class ProductionLoader final
@@ -30,6 +35,18 @@ namespace lean::loaders {
         BaseSubscriber<qtils::Empty,
                        std::shared_ptr<const messages::SlotStarted>>>
         on_slot_started_;
+    std::shared_ptr<
+        BaseSubscriber<qtils::Empty,
+                       std::shared_ptr<const messages::SlotIntervalOneStarted>>>
+        on_slot_interval_one_started_;
+    std::shared_ptr<
+        BaseSubscriber<qtils::Empty,
+                       std::shared_ptr<const messages::SlotIntervalTwoStarted>>>
+        on_slot_interval_two_started_;
+    std::shared_ptr<BaseSubscriber<
+        qtils::Empty,
+        std::shared_ptr<const messages::SlotIntervalThreeStarted>>>
+        on_slot_interval_three_started_;
     std::shared_ptr<
         BaseSubscriber<qtils::Empty, std::shared_ptr<const messages::NewLeaf>>>
         on_leave_update_;
@@ -100,6 +117,39 @@ namespace lean::loaders {
                       m->on_slot_started(std::move(msg));
                     }
                   });
+      on_slot_interval_one_started_ = se::SubscriberCreator<
+          qtils::Empty,
+          std::shared_ptr<const messages::SlotIntervalOneStarted>>::
+          create<EventTypes::SlotIntervalOneStarted>(
+              *se_manager_,
+              SubscriptionEngineHandlers::kTest,
+              [module_internal](auto &, auto msg) {
+                if (auto m = module_internal.lock()) {
+                  m->on_slot_interval_one_started(std::move(msg));
+                }
+              });
+      on_slot_interval_two_started_ = se::SubscriberCreator<
+          qtils::Empty,
+          std::shared_ptr<const messages::SlotIntervalTwoStarted>>::
+          create<EventTypes::SlotIntervalTwoStarted>(
+              *se_manager_,
+              SubscriptionEngineHandlers::kTest,
+              [module_internal](auto &, auto msg) {
+                if (auto m = module_internal.lock()) {
+                  m->on_slot_interval_two_started(std::move(msg));
+                }
+              });
+      on_slot_interval_three_started_ = se::SubscriberCreator<
+          qtils::Empty,
+          std::shared_ptr<const messages::SlotIntervalThreeStarted>>::
+          create<EventTypes::SlotIntervalThreeStarted>(
+              *se_manager_,
+              SubscriptionEngineHandlers::kTest,
+              [module_internal](auto &, auto msg) {
+                if (auto m = module_internal.lock()) {
+                  m->on_slot_interval_three_started(std::move(msg));
+                }
+              });
 
       on_leave_update_ =
           se::SubscriberCreator<qtils::Empty,

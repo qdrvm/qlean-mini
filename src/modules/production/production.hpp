@@ -32,6 +32,12 @@ namespace lean::modules {
     void on_loading_is_finished() override;
 
     void on_slot_started(std::shared_ptr<const messages::SlotStarted>) override;
+    void on_slot_interval_one_started(
+        std::shared_ptr<const messages::SlotIntervalOneStarted>) override;
+    void on_slot_interval_two_started(
+        std::shared_ptr<const messages::SlotIntervalTwoStarted>) override;
+    void on_slot_interval_three_started(
+        std::shared_ptr<const messages::SlotIntervalThreeStarted>) override;
 
     void on_leave_update(std::shared_ptr<const messages::NewLeaf>) override;
     void on_block_finalized(
