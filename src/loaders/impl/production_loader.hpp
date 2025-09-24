@@ -26,6 +26,7 @@ namespace lean::loaders {
         public modules::ProductionLoader {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<crypto::Hasher> hasher_;
+    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
 
@@ -58,10 +59,12 @@ namespace lean::loaders {
     ProductionLoader(qtils::SharedRef<log::LoggingSystem> logsys,
                      qtils::SharedRef<Subscription> se_manager,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
-                     qtils::SharedRef<crypto::Hasher> hasher)
+                     qtils::SharedRef<crypto::Hasher> hasher,
+                     qtils::SharedRef<ForkChoiceStore> fork_choice_store)
         : Loader(std::move(logsys), std::move(se_manager)),
           block_tree_(std::move(block_tree)),
-          hasher_(std::move(hasher)) {}
+          hasher_(std::move(hasher)),
+          fork_choice_store_(std::move(fork_choice_store)) {}
 
     ProductionLoader(const ProductionLoader &) = delete;
     ProductionLoader &operator=(const ProductionLoader &) = delete;
@@ -76,6 +79,7 @@ namespace lean::loaders {
                                        modules::ProductionLoader &,
                                        std::shared_ptr<log::LoggingSystem>,
                                        std::shared_ptr<blockchain::BlockTree>,
+                                       qtils::SharedRef<ForkChoiceStore>,
                                        std::shared_ptr<crypto::Hasher>>(
                   "query_module_instance");
 
@@ -83,8 +87,8 @@ namespace lean::loaders {
         return;
       }
 
-      auto module_internal =
-          (*module_accessor)(*this, logsys_, block_tree_, hasher_);
+      auto module_internal = (*module_accessor)(
+          *this, logsys_, block_tree_, fork_choice_store_, hasher_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::create<
           EventTypes::ProductionIsLoaded>(

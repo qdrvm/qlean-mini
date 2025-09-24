@@ -61,6 +61,7 @@ namespace lean {
     void advanceTime(Interval time, bool has_proposal);
 
     BlockHash getProposalHead(Slot slot);
+    State getState(const BlockHash &block_hash) const;
 
     /**
      * Calculates the target checkpoint for a vote based on the head, safe

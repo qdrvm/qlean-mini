@@ -19,15 +19,14 @@ namespace lean::modules {
       ProductionLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
-      qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+      std::shared_ptr<ForkChoiceStore> fork_choice_store,
       qtils::SharedRef<crypto::Hasher> hasher)
       : loader_(loader),
         logsys_(std::move(logging_system)),
         logger_(logsys_->getLogger("ProductionModule", "production_module")),
         block_tree_(std::move(block_tree)),
         fork_choice_store_(std::move(fork_choice_store)),
-        hasher_(std::move(hasher)) {
-  }
+        hasher_(std::move(hasher)) {}
 
   void ProductionModuleImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");
@@ -52,29 +51,41 @@ namespace lean::modules {
             is_producer ? " - I'm a producer" : "");
 
     if (is_producer) {
-      auto parent_hash = block_tree_->bestBlock().hash;
+      auto parent_hash = fork_choice_store_->getProposalHead(msg->slot);
+      auto parent_state = fork_choice_store_->getState(parent_hash);
       // Produce block
       Block block;
       block.slot = msg->slot;
       block.proposer_index = producer_index;
       block.parent_root = parent_hash;
-      // block.state_root = ;
+
+      // create signed block with signature containing only zero bytes for now
+      SignedBlock signed_block{.message = block,
+                               .signature = qtils::ByteArr<32>{0}};
+      // calculate new state
+      State new_state = fork_choice_store_->stf_
+                            .stateTransition(signed_block, parent_state, false)
+                            .value();
+      signed_block.message.state_root = sszHash(new_state);
 
       // Add a block into the block tree
-      auto res = block_tree_->addBlock(block);
-      if (res.has_error()) {
-        SL_ERROR(
-            logger_, "Could not add block to the block tree: {}", res.error());
-        return;
-      }
+      // auto res = block_tree_->addBlock(block);
+      // if (res.has_error()) {
+      //   SL_ERROR(
+      //       logger_, "Could not add block to the block tree: {}", res.error());
+      //   return;
+      // }
+
+      auto on_block_res = fork_choice_store_->onBlock(signed_block.message);
+      BOOST_ASSERT_MSG(on_block_res.has_value(),
+                       "Fork choice store should accept produced block");
 
       // Notify subscribers
-      loader_.dispatch_block_produced(std::make_shared<const Block>(block));
+      loader_.dispatch_block_produced(
+          std::make_shared<const Block>(signed_block.message));
 
-      // TODO(turuslan): signature
       loader_.dispatchSendSignedBlock(
-          std::make_shared<messages::SendSignedBlock>(
-              SignedBlock{.message = block}));
+          std::make_shared<messages::SendSignedBlock>(signed_block));
     }
   }
   void ProductionModuleImpl::on_slot_interval_one_started(

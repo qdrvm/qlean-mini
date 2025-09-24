@@ -15,6 +15,7 @@
 #include "app/application.hpp"
 #include "app/configuration.hpp"
 #include "app/configurator.hpp"
+#include "blockchain/fork_choice.hpp"
 #include "injector/node_injector.hpp"
 #include "loaders/loader.hpp"
 #include "log/logger.hpp"
@@ -41,6 +42,8 @@ namespace {
                std::shared_ptr<Configuration> appcfg,
                std::shared_ptr<lean::Config> genesis_cfg) {
     auto injector = std::make_unique<NodeInjector>(logsys, appcfg, genesis_cfg);
+    auto fc_store = injector->injectForkChoiceStore();
+    BOOST_ASSERT(fc_store);
 
     // Load modules
     std::deque<std::unique_ptr<lean::loaders::Loader>> loaders;
@@ -182,7 +185,14 @@ int main(int argc, const char **argv, const char **env) {
     config_res.value();
   });
 
-  lean::Config genesis_config{.num_validators = 1, .genesis_time = 0};
+  // set genesis config. Genesis time should be current time in ms
+  lean::Config genesis_config{
+      .num_validators = 1, .genesis_time = (uint64_t)([] {
+                             using namespace std::chrono;
+                             return duration_cast<milliseconds>(
+                                        system_clock::now().time_since_epoch())
+                                 .count();
+                           })()};
 
   int exit_code;
 

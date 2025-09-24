@@ -11,6 +11,9 @@
 #include "se/subscription.hpp"
 
 namespace lean {
+  class ForkChoiceStore;
+}
+namespace lean {
   struct Config;
 }
 namespace lean::log {
@@ -45,6 +48,7 @@ namespace lean::injector {
     std::shared_ptr<app::Application> injectApplication();
     std::unique_ptr<loaders::Loader> register_loader(
         std::shared_ptr<modules::Module> module);
+    std::shared_ptr<lean::ForkChoiceStore> injectForkChoiceStore();
 
    protected:
     std::shared_ptr<class NodeInjectorImpl> pimpl_;

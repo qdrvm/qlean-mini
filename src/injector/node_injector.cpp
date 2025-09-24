@@ -56,12 +56,19 @@ namespace {
         std::move(c))[boost::di::override];
   }
 
+  // Overload for shared_ptr to bind the underlying type
+  template <typename T>
+  auto useConfig(std::shared_ptr<T> c) {
+    return boost::di::bind<T>().to(std::move(c))[boost::di::override];
+  }
+
   using injector::bind_by_lambda;
 
   template <typename... Ts>
   auto makeApplicationInjector(std::shared_ptr<log::LoggingSystem> logsys,
                                std::shared_ptr<app::Configuration> app_config,
                                std::shared_ptr<Config> genesis_config,
+                               std::shared_ptr<ForkChoiceStore> fork_choice_store,
                                Ts &&...args) {
     // clang-format off
     return di::make_injector(
@@ -83,6 +90,7 @@ namespace {
           };
         }),
         di::bind<Config>.to(genesis_config),
+        di::bind<ForkChoiceStore>.to(fork_choice_store),
         di::bind<storage::BufferStorage>.to<storage::InMemoryStorage>(),
         //di::bind<storage::SpacedStorage>.to<storage::InMemorySpacedStorage>(),
         di::bind<storage::SpacedStorage>.to<storage::RocksDb>(),
@@ -105,13 +113,15 @@ namespace {
                         Ts &&...args) {
     State genesis_state = STF::generateGenesisState(*genesis_config);
     Block genesis_block = STF::genesisBlock(genesis_state);
-    ForkChoiceStore fork_choice_store =
-        getForkchoiceStore(genesis_state, genesis_block);
+    // Construct ForkChoiceStore and bind it as a shared_ptr so DI can provide
+    // std::shared_ptr<ForkChoiceStore> where requested
+    auto fork_choice_store = std::make_shared<ForkChoiceStore>(
+        getForkchoiceStore(genesis_state, genesis_block));
     return di::make_injector<boost::di::extension::shared_config>(
         makeApplicationInjector(std::move(logsys),
                                 std::move(app_config),
                                 std::move(genesis_config),
-                                useConfig(std::move(fork_choice_store))),
+                                std::move(fork_choice_store)),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);
@@ -185,5 +195,9 @@ namespace lean::injector {
                module->get_path());
     }
     return std::unique_ptr<lean::loaders::Loader>(loader.release());
+  }
+  std::shared_ptr<lean::ForkChoiceStore> NodeInjector::injectForkChoiceStore() {
+    return pimpl_->injector_
+        .template create<std::shared_ptr<lean::ForkChoiceStore>>();
   }
 }  // namespace lean::injector

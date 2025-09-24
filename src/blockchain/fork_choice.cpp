@@ -93,11 +93,18 @@ namespace lean {
     auto slot_time = config_.genesis_time + slot * SECONDS_PER_SLOT;
     // this would be a no-op if the store is already ticked to the current
     // time
-    advanceTime(slot_time, true);
+    // advanceTime(slot_time, true);
     // this would be a no-op or just a fast compute if store was already
     // ticked to accept new votes for a registered validator with the node
-    acceptNewVotes();
+    // acceptNewVotes();
     return head_;
+  }
+  State ForkChoiceStore::getState(const BlockHash &block_hash) const {
+    auto it = states_.find(block_hash);
+    if (it == states_.end()) {
+      throw std::out_of_range("No state for block hash");
+    }
+    return it->second;
   }
 
   Checkpoint ForkChoiceStore::getVoteTarget() const {
@@ -298,6 +305,7 @@ namespace lean {
 
   ForkChoiceStore getForkchoiceStore(State anchor_state, Block anchor_block) {
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
+    anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
     ForkChoiceStore store{
         .time_ = anchor_block.slot * INTERVALS_PER_SLOT,

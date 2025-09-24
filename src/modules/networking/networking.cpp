@@ -297,8 +297,8 @@ namespace lean::modules {
 
   // TODO(turuslan): detect finalized change
   void NetworkingImpl::receiveBlock(std::optional<libp2p::PeerId> from_peer,
-                                    SignedBlock &&block) {
-    auto slot_hash = block.message.slotHash();
+                                    SignedBlock &&signed_block) {
+    auto slot_hash = signed_block.message.slotHash();
     SL_TRACE(logger_, "receiveBlock {}", slot_hash.slot);
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
@@ -312,7 +312,7 @@ namespace lean::modules {
         }
       }
     };
-    auto parent_hash = block.message.parent_root;
+    auto parent_hash = signed_block.message.parent_root;
     if (block_cache_.contains(slot_hash.hash)) {
       SL_TRACE(logger_, "receiveBlock {} => ignore cached", slot_hash.slot);
       return;
@@ -329,7 +329,7 @@ namespace lean::modules {
       return;
     }
     if (block_tree_->has(parent_hash)) {
-      std::vector<SignedBlock> blocks{std::move(block)};
+      std::vector<SignedBlock> blocks{std::move(signed_block)};
       remove([&](const BlockHash &block_hash) {
         blocks.emplace_back(block_cache_.extract(block_hash).mapped());
       });
@@ -339,10 +339,12 @@ namespace lean::modules {
       }
       SL_TRACE(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
       block_tree_->import(std::move(blocks));
-      // fork_choice_store_->onBlock(block);
+      auto res = fork_choice_store_->onBlock(signed_block.message);
+      BOOST_ASSERT_MSG(res.has_value(),
+                       "Fork choice store should accept imported block");
       return;
     }
-    block_cache_.emplace(slot_hash.hash, std::move(block));
+    block_cache_.emplace(slot_hash.hash, std::move(signed_block));
     block_children_.emplace(parent_hash, slot_hash.hash);
     if (block_cache_.contains(parent_hash)) {
       SL_TRACE(logger_, "receiveBlock {} => has parent", slot_hash.slot);

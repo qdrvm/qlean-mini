@@ -29,6 +29,7 @@ namespace lean::loaders {
         public modules::NetworkingLoader {
     log::Logger logger_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
+    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
 
@@ -46,10 +47,12 @@ namespace lean::loaders {
    public:
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
                      std::shared_ptr<Subscription> se_manager,
-                     qtils::SharedRef<blockchain::BlockTree> block_tree)
+                     qtils::SharedRef<blockchain::BlockTree> block_tree,
+                     qtils::SharedRef<ForkChoiceStore> fork_choice_store)
         : Loader(std::move(logsys), std::move(se_manager)),
           logger_(logsys_->getLogger("Networking", "networking_module")),
-          block_tree_{std::move(block_tree)} {}
+          block_tree_{std::move(block_tree)},
+          fork_choice_store_{std::move(fork_choice_store)} {}
 
     NetworkingLoader(const NetworkingLoader &) = delete;
     NetworkingLoader &operator=(const NetworkingLoader &) = delete;
@@ -63,14 +66,16 @@ namespace lean::loaders {
               ->getFunctionFromLibrary<std::weak_ptr<lean::modules::Networking>,
                                        modules::NetworkingLoader &,
                                        std::shared_ptr<log::LoggingSystem>,
-                                       qtils::SharedRef<blockchain::BlockTree>>(
+                                       qtils::SharedRef<blockchain::BlockTree>,
+                                       qtils::SharedRef<ForkChoiceStore>>(
                   "query_module_instance");
 
       if (not module_accessor) {
         return;
       }
 
-      auto module_internal = (*module_accessor)(*this, logsys_, block_tree_);
+      auto module_internal =
+          (*module_accessor)(*this, logsys_, block_tree_, fork_choice_store_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::template create<
           EventTypes::NetworkingIsLoaded>(
