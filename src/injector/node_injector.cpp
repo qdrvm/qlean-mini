@@ -103,10 +103,15 @@ namespace {
                         std::shared_ptr<app::Configuration> app_config,
                         std::shared_ptr<Config> genesis_config,
                         Ts &&...args) {
+    State genesis_state = STF::generateGenesisState(*genesis_config);
+    Block genesis_block = STF::genesisBlock(genesis_state);
+    ForkChoiceStore fork_choice_store =
+        getForkchoiceStore(genesis_state, genesis_block);
     return di::make_injector<boost::di::extension::shared_config>(
         makeApplicationInjector(std::move(logsys),
                                 std::move(app_config),
-                                std::move(genesis_config)),
+                                std::move(genesis_config),
+                                useConfig(std::move(fork_choice_store))),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);

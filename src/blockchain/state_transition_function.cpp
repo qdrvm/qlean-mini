@@ -69,7 +69,7 @@ namespace lean {
     }
   }
 
-  State STF::generateGenesisState(const Config &config) const {
+  State STF::generateGenesisState(const Config &config) {
     BlockHeader header;
     header.body_root = sszHash(BlockBody{});
     return State{
@@ -78,7 +78,7 @@ namespace lean {
     };
   }
 
-  Block STF::genesisBlock(const State &state) const {
+  Block STF::genesisBlock(const State &state) {
     return Block{.state_root = sszHash(state)};
   }
 

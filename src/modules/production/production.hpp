@@ -25,6 +25,7 @@ namespace lean::modules {
     ProductionModuleImpl(lean::modules::ProductionLoader &loader,
                          qtils::SharedRef<lean::log::LoggingSystem> logsys,
                          qtils::SharedRef<blockchain::BlockTree> block_tree,
+                         qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                          qtils::SharedRef<crypto::Hasher> hasher);
 
    public:
@@ -50,6 +51,7 @@ namespace lean::modules {
     qtils::SharedRef<lean::log::LoggingSystem> logsys_;
     lean::log::Logger logger_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
+    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<crypto::Hasher> hasher_;
   };
 

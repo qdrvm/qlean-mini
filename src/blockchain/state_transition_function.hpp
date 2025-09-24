@@ -51,8 +51,8 @@ namespace lean {
       abort();
     }
 
-    State generateGenesisState(const Config &config) const;
-    Block genesisBlock(const State &state) const;
+    static State generateGenesisState(const Config &config);
+    static Block genesisBlock(const State &state);
 
     /**
      * Apply block to parent state.

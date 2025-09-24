@@ -19,12 +19,13 @@ namespace lean::modules {
       ProductionLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
+      qtils::SharedRef<ForkChoiceStore> fork_choice_store,
       qtils::SharedRef<crypto::Hasher> hasher)
       : loader_(loader),
         logsys_(std::move(logging_system)),
         logger_(logsys_->getLogger("ProductionModule", "production_module")),
         block_tree_(std::move(block_tree)),
-        fork_choice_store_{},
+        fork_choice_store_(std::move(fork_choice_store)),
         hasher_(std::move(hasher)) {
   }
 

@@ -7,6 +7,7 @@
 
 #include "modules/networking/networking.hpp"
 
+#include <blockchain/fork_choice.hpp>
 #include <boost/endian/conversion.hpp>
 #include <libp2p/basic/read_varint.hpp>
 #include <libp2p/basic/write_varint.hpp>
@@ -62,10 +63,12 @@ namespace lean::modules {
   NetworkingImpl::NetworkingImpl(
       NetworkingLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
-      qtils::SharedRef<blockchain::BlockTree> block_tree)
+      qtils::SharedRef<blockchain::BlockTree> block_tree,
+      qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
-        block_tree_{std::move(block_tree)} {
+        block_tree_{std::move(block_tree)},
+        fork_choice_store_{std::move(fork_choice_store)} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
   }
 
@@ -336,6 +339,7 @@ namespace lean::modules {
       }
       SL_TRACE(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
       block_tree_->import(std::move(blocks));
+      // fork_choice_store_->onBlock(block);
       return;
     }
     block_cache_.emplace(slot_hash.hash, std::move(block));
