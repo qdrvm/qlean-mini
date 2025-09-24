@@ -60,7 +60,7 @@ namespace lean {
     // Ticks the store forward in intervals until it reaches the given time.
     void advanceTime(Interval time, bool has_proposal);
 
-    BlockHash getProposalHead(Slot slot);
+    BlockHash getHead();
     State getState(const BlockHash &block_hash) const;
 
     /**
@@ -91,6 +91,7 @@ namespace lean {
     Blocks blocks_;
     std::unordered_map<BlockHash, State> states_;
     Votes latest_known_votes_;
+    std::unordered_map<ValidatorIndex, SignedVote> signed_votes_;
     Votes latest_new_votes_;
   };
 

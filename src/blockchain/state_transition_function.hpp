@@ -9,6 +9,7 @@
 #include <qtils/enum_error_code.hpp>
 #include <qtils/outcome.hpp>
 
+#include "app/impl/chain_spec_impl.hpp"
 #include "types/slot.hpp"
 
 namespace lean {

@@ -7,6 +7,7 @@
 #include "blockchain/state_transition_function.hpp"
 
 #include <boost/assert.hpp>
+#include <soralog/macro.hpp>
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "types/signed_block.hpp"
@@ -85,6 +86,29 @@ namespace lean {
   outcome::result<State> STF::stateTransition(const SignedBlock &signed_block,
                                               const State &parent_state,
                                               bool check_state_root) const {
+    // if (signed_block.message.hash_cached) {
+    //   fmt::println(
+    //       "State transition for signed block {} with parent hash state {}",
+    //       signed_block.message.hash().toHex(),
+    //       sszHash(parent_state).toHex());
+    // }
+    // // print all signed_block.message's fields
+    // fmt::println("Signed block: slot {}, proposer_index {}, parent_root {}, state_root {}",
+    //              signed_block.message.slot,
+    //              signed_block.message.proposer_index,
+    //              signed_block.message.parent_root.toHex(),
+    //              signed_block.message.state_root.toHex());
+    // // print all signed_block.message.body's attestations
+    // for (auto &attestation : signed_block.message.body.attestations) {
+    //   fmt::println("  Attestation: validator_id {}, source(slot {}, root {}), target(slot {}, root {})",
+    //                attestation.data.validator_id,
+    //                attestation.data.source.slot,
+    //                attestation.data.source.root.toHex(),
+    //                attestation.data.target.slot,
+    //                attestation.data.target.root.toHex());
+    // }
+
+
     auto &block = signed_block.message;
     auto state = parent_state;
     // Process slots (including those with no blocks) since block

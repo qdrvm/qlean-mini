@@ -187,12 +187,7 @@ int main(int argc, const char **argv, const char **env) {
 
   // set genesis config. Genesis time should be current time in ms
   lean::Config genesis_config{
-      .num_validators = 1, .genesis_time = (uint64_t)([] {
-                             using namespace std::chrono;
-                             return duration_cast<milliseconds>(
-                                        system_clock::now().time_since_epoch())
-                                 .count();
-                           })()};
+      .num_validators = 2, .genesis_time = 1758719218000};
 
   int exit_code;
 

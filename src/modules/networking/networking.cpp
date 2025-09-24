@@ -20,6 +20,7 @@
 #include <qtils/to_shared_ptr.hpp>
 
 #include "blockchain/block_tree.hpp"
+#include "blockchain/impl/fc_block_tree.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
@@ -70,6 +71,7 @@ namespace lean::modules {
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
+    block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }
 
   NetworkingImpl::~NetworkingImpl() {
@@ -178,13 +180,20 @@ namespace lean::modules {
           self->receiveBlock(std::nullopt, std::move(block));
         });
     gossip_votes_topic_ = gossipSubscribe<SignedVote>(
-        "vote", [weak_self{weak_from_this()}](SignedVote &&vote) {
+        "vote", [weak_self{weak_from_this()}](SignedVote &&signed_vote) {
           auto self = weak_self.lock();
           if (not self) {
             return;
           }
-          self->loader_.dispatchSignedVoteReceived(
-              std::make_shared<messages::SignedVoteReceived>(std::move(vote)));
+          auto res =
+              self->fork_choice_store_->processAttestation(signed_vote, false);
+          BOOST_ASSERT_MSG(res.has_value(), "Gossiped vote should be valid");
+          SL_INFO(self->logger_,
+                  "Received vote for target {}@{}",
+                  signed_vote.data.target.slot,
+                  signed_vote.data.target.root);
+          // self->loader_.dispatchSignedVoteReceived(
+          //     std::make_shared<messages::SignedVoteReceived>(std::move(vote)));
         });
 
     if (sample_peer.index != 0) {
@@ -220,6 +229,11 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
+      // auto msg = encode(message->notification);
+      // SL_INFO(self->logger_,
+      //         "Gossiping block {} size {}",
+      //         message->notification.message.slot,
+      //         msg.value().toHex());
       self->gossip_blocks_topic_->publish(
           encodeSszSnappy(message->notification));
     });
@@ -237,18 +251,23 @@ namespace lean::modules {
   std::shared_ptr<libp2p::protocol::gossip::Topic>
   NetworkingImpl::gossipSubscribe(std::string_view type, auto f) {
     auto topic = gossip_->subscribe(gossipTopic(type));
-    libp2p::coroSpawn(*io_context_,
-                      [topic, f{std::move(f)}]() -> libp2p::Coro<void> {
-                        while (auto raw_result = co_await topic->receive()) {
-                          auto &raw = raw_result.value();
-                          if (auto uncompressed_res = snappyUncompress(raw)) {
-                            auto &uncompressed = uncompressed_res.value();
-                            if (auto r = decode<T>(uncompressed)) {
-                              f(std::move(r.value()));
-                            }
-                          }
-                        }
-                      });
+    libp2p::coroSpawn(
+        *io_context_,
+        [this, type, topic, f{std::move(f)}]() -> libp2p::Coro<void> {
+          while (auto raw_result = co_await topic->receive()) {
+            auto &raw = raw_result.value();
+            if (auto uncompressed_res = snappyUncompress(raw)) {
+              auto &uncompressed = uncompressed_res.value();
+              if (auto r = decode<T>(uncompressed)) {
+                // SL_INFO(logger_,
+                //         "Received gossiped {}, uncompressed {}",
+                //         type,
+                //         uncompressed.toHex());
+                f(std::move(r.value()));
+              }
+            }
+          }
+        });
     return topic;
   }
 
@@ -336,12 +355,12 @@ namespace lean::modules {
       std::string __s;
       for (auto &block : blocks) {
         __s += std::format(" {}", block.message.slot);
+        auto res = fork_choice_store_->onBlock(block.message);
+        BOOST_ASSERT_MSG(res.has_value(),
+                         "Fork choice store should accept imported block");
       }
       SL_TRACE(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
       block_tree_->import(std::move(blocks));
-      auto res = fork_choice_store_->onBlock(signed_block.message);
-      BOOST_ASSERT_MSG(res.has_value(),
-                       "Fork choice store should accept imported block");
       return;
     }
     block_cache_.emplace(slot_hash.hash, std::move(signed_block));

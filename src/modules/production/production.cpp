@@ -42,7 +42,8 @@ namespace lean::modules {
       SL_INFO(logger_, "Epoch changed to {}", msg->epoch);
     }
 
-    auto producer_index = msg->slot % getValidatorCount();
+    auto producer_index =
+        msg->slot % fork_choice_store_->config_.num_validators;
     auto is_producer = getPeerIndex() == producer_index;
 
     SL_INFO(logger_,
@@ -51,13 +52,21 @@ namespace lean::modules {
             is_producer ? " - I'm a producer" : "");
 
     if (is_producer) {
-      auto parent_hash = fork_choice_store_->getProposalHead(msg->slot);
+      fork_choice_store_->acceptNewVotes();
+      SL_INFO(logger_, "States size {}", fork_choice_store_->states_.size());
+      auto parent_hash = fork_choice_store_->getHead();
       auto parent_state = fork_choice_store_->getState(parent_hash);
       // Produce block
       Block block;
       block.slot = msg->slot;
       block.proposer_index = producer_index;
       block.parent_root = parent_hash;
+
+      for (auto [validator_id, signed_vote] :
+           fork_choice_store_->signed_votes_) {
+        block.body.attestations.push_back(
+            signed_vote);  // TODO: add cleaning of old attestations
+      }
 
       // create signed block with signature containing only zero bytes for now
       SignedBlock signed_block{.message = block,
@@ -72,7 +81,8 @@ namespace lean::modules {
       // auto res = block_tree_->addBlock(block);
       // if (res.has_error()) {
       //   SL_ERROR(
-      //       logger_, "Could not add block to the block tree: {}", res.error());
+      //       logger_, "Could not add block to the block tree: {}",
+      //       res.error());
       //   return;
       // }
 
@@ -81,8 +91,8 @@ namespace lean::modules {
                        "Fork choice store should accept produced block");
 
       // Notify subscribers
-      loader_.dispatch_block_produced(
-          std::make_shared<const Block>(signed_block.message));
+      // loader_.dispatch_block_produced(
+      //     std::make_shared<const Block>(signed_block.message));
 
       loader_.dispatchSendSignedBlock(
           std::make_shared<messages::SendSignedBlock>(signed_block));
@@ -91,14 +101,49 @@ namespace lean::modules {
   void ProductionModuleImpl::on_slot_interval_one_started(
       std::shared_ptr<const messages::SlotIntervalOneStarted> msg) {
     SL_INFO(logger_, "Slot interval one started on slot {}", msg->slot);
+    Checkpoint head{.root = fork_choice_store_->getHead(), .slot = msg->slot};
+    auto target = fork_choice_store_->getVoteTarget();
+    auto source = fork_choice_store_->getLatestJustified();
+    SL_INFO(logger_,
+            "For slot {}: head is {}@{}, target is {}@{}, source is {}@{}",
+            msg->slot,
+            head.slot,
+            head.root,
+            target.slot,
+            target.root,
+            source->slot,
+            source->root);
+    SignedVote signed_vote{
+        .data =
+            Vote{
+                .validator_id = getPeerIndex(),
+                .head = head,
+                .target = target,
+                .source = *source,
+            },
+        .signature = qtils::ByteArr<32>{0}  // signature with zero bytes for now
+    };
+
+    // Dispatching send signed vote only broadcasts to other peers. Current peer
+    // should process attestation directly
+    auto res = fork_choice_store_->processAttestation(signed_vote, false);
+    BOOST_ASSERT_MSG(res.has_value(), "Produced vote should be valid");
+    SL_INFO(logger_,
+            "Produced vote for target {}@{}",
+            signed_vote.data.target.slot,
+            signed_vote.data.target.root);
+    loader_.dispatchSendSignedVote(
+        std::make_shared<messages::SendSignedVote>(signed_vote));
   }
   void ProductionModuleImpl::on_slot_interval_two_started(
       std::shared_ptr<const messages::SlotIntervalTwoStarted> msg) {
     SL_INFO(logger_, "Slot interval two started on slot {}", msg->slot);
+    fork_choice_store_->updateSafeTarget();
   }
   void ProductionModuleImpl::on_slot_interval_three_started(
       std::shared_ptr<const messages::SlotIntervalThreeStarted> msg) {
     SL_INFO(logger_, "Slot interval three started on slot {}", msg->slot);
+    fork_choice_store_->acceptNewVotes();
   }
 
   void ProductionModuleImpl::on_leave_update(

@@ -6,6 +6,7 @@
 
 #include "blockchain/fork_choice.hpp"
 
+#include <iostream>
 #include <ranges>
 
 #include "types/signed_block.hpp"
@@ -32,12 +33,26 @@ namespace lean {
       return std::nullopt;
     }
     auto &[slot, hash] = max.value();
+    if (slot == 0) {
+      for (auto &[hash, block] : blocks_) {
+        if (block.slot == 0) {
+          return Checkpoint{.root = hash, .slot = slot};
+        }
+      }
+    }
     return Checkpoint{.root = hash, .slot = slot};
   }
 
   void ForkChoiceStore::updateHead() {
     if (auto latest_justified = getLatestJustified()) {
       latest_justified_ = latest_justified.value();
+      if (latest_justified_.slot == 0) {
+        for (auto &[hash, block] : blocks_) {
+          if (block.slot == 0) {
+            latest_justified_.root = hash;
+          }
+        }
+      }
     }
     head_ =
         getForkChoiceHead(blocks_, latest_justified_, latest_known_votes_, 0);
@@ -45,6 +60,13 @@ namespace lean {
     auto state_it = states_.find(head_);
     if (state_it != states_.end()) {
       latest_finalized_ = state_it->second.latest_finalized;
+      if (latest_finalized_.slot == 0) {
+        for (auto &[hash, block] : blocks_) {
+          if (block.slot == 0) {
+            latest_finalized_.root = hash;
+          }
+        }
+      }
     }
   }
 
@@ -89,14 +111,7 @@ namespace lean {
     }
   }
 
-  BlockHash ForkChoiceStore::getProposalHead(Slot slot) {
-    auto slot_time = config_.genesis_time + slot * SECONDS_PER_SLOT;
-    // this would be a no-op if the store is already ticked to the current
-    // time
-    // advanceTime(slot_time, true);
-    // this would be a no-op or just a fast compute if store was already
-    // ticked to accept new votes for a registered validator with the node
-    // acceptNewVotes();
+  BlockHash ForkChoiceStore::getHead() {
     return head_;
   }
   State ForkChoiceStore::getState(const BlockHash &block_hash) const {
@@ -174,6 +189,7 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::processAttestation(
       const SignedVote &signed_vote, bool is_from_block) {
+    signed_votes_[signed_vote.data.validator_id] = signed_vote;
     // Validate attestation structure and constraints
     BOOST_OUTCOME_TRY(validateAttestation(signed_vote));
 
@@ -312,11 +328,14 @@ namespace lean {
         .config_ = anchor_state.config,
         .head_ = anchor_root,
         .safe_target_ = anchor_root,
-        .latest_justified_ = anchor_state.latest_justified,
-        .latest_finalized_ = anchor_state.latest_finalized,
+
+        // TODO: ensure latest justified and finalized are set correctly
+        .latest_justified_ = Checkpoint::from(anchor_block),
+        .latest_finalized_ = Checkpoint::from(anchor_block),
     };
     store.blocks_.emplace(anchor_root, std::move(anchor_block));
     store.states_.emplace(anchor_root, std::move(anchor_state));
+    std::cout << "Genesis (anchor) root " << anchor_root.toHex() << "\n";
     return store;
   }
 }  // namespace lean

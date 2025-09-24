@@ -11,6 +11,7 @@ add_library(blockchain
     impl/block_storage_initializer.cpp
     impl/block_tree_error.cpp
     impl/block_tree_impl.cpp
+    impl/fc_block_tree.cpp
     impl/block_tree_initializer.cpp
     impl/cached_tree.cpp
     impl/genesis_block_header_impl.cpp

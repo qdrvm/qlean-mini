@@ -655,7 +655,7 @@ TEST(TestProposalHeadTiming, test_get_proposal_head_basic) {
   };
 
   // Get proposal head for slot 0
-  auto head = sample_store.getProposalHead(genesis.slot);
+  auto head = sample_store.getHead(genesis.slot);
 
   // Should return current head
   EXPECT_EQ(head, sample_store.head_);
@@ -669,7 +669,7 @@ TEST(TestProposalHeadTiming, test_get_proposal_head_advances_time) {
   auto initial_time = sample_store.time_;
 
   // Get proposal head for a future slot
-  sample_store.getProposalHead(5);
+  sample_store.getHead(5);
 
   // Time may have advanced (depending on slot timing)
   // This is mainly testing that the call doesn't fail
@@ -686,7 +686,7 @@ TEST(TestProposalHeadTiming, test_get_proposal_head_processes_votes) {
   sample_store.latest_new_votes_.emplace(0, Checkpoint{.slot = 1});
 
   // Get proposal head should process votes
-  sample_store.getProposalHead(1);
+  sample_store.getHead(1);
 
   // Votes should have been processed (moved to known votes)
   ASSERT_FALSE(getVote(sample_store.latest_new_votes_));

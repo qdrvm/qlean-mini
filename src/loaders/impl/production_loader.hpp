@@ -190,6 +190,11 @@ namespace lean::loaders {
         std::shared_ptr<const messages::SendSignedBlock> message) override {
       dispatchDerive(*se_manager_, message);
     }
+
+    void dispatchSendSignedVote(
+        std::shared_ptr<const messages::SendSignedVote> message) override {
+      dispatchDerive(*se_manager_, message);
+    }
   };
 
 }  // namespace lean::loaders
