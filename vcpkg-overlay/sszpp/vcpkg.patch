@@ -120,19 +120,52 @@ index 3174735..b086711 100644
  }
  
 diff --git a/lib/container.hpp b/lib/container.hpp
-index dc31773..3e42de7 100644
+index dc31773..c1e1e57 100644
 --- a/lib/container.hpp
 +++ b/lib/container.hpp
-@@ -46,7 +46,7 @@ struct is_ssz_object<R> : std::true_type {};
+@@ -31,6 +31,8 @@
+ namespace ssz {
+ 
+ struct ssz_container {
++    struct variable_size : std::false_type {};
++
+     constexpr auto operator<=>(const ssz_container &rhs) const noexcept = default;
+     constexpr bool operator==(const ssz_container &rhs) const noexcept = default;
+ };
+@@ -43,15 +45,24 @@ template <class R>
+     requires std::derived_from<R, ssz_container>
+ struct is_ssz_object<R> : std::true_type {};
+ 
++template <typename>
++struct tuple_all_fixed_size;
++template <typename... T>
++struct tuple_all_fixed_size<std::tuple<T...>> : std::bool_constant<(ssz_object_fixed_size<T> and ...)> {};
++
  // Serialization
- #define SSZ_CONT(...)                                                                                      \
-     constexpr std::size_t ssz_size() const noexcept { return ssz::compute_total_length(__VA_ARGS__); }     \
+-#define SSZ_CONT(...)                                                                                      \
+-    constexpr std::size_t ssz_size() const noexcept { return ssz::compute_total_length(__VA_ARGS__); }     \
 -    constexpr void serialize(ssz::ssz_iterator auto result) const { ssz::serialize(result, __VA_ARGS__); } \
+-    constexpr void deserialize(const std::ranges::sized_range auto &bytes) {                               \
+-        ssz::deserialize_container(bytes, __VA_ARGS__);                                                    \
+-    }                                                                                                      \
+-    void hash_tree_root(ssz::ssz_iterator auto result, size_t cpu_count = 0) const {                       \
+-        ssz::_container_hash(result, cpu_count, __VA_ARGS__);                                              \
++#define SSZ_CONT(...)                                                                                                \
++    constexpr std::size_t ssz_size() const noexcept { return ssz::compute_total_length(__VA_ARGS__); }               \
 +    constexpr void serialize(ssz::ssz_iterator auto result) const { ssz::serialize_container(result, __VA_ARGS__); } \
-     constexpr void deserialize(const std::ranges::sized_range auto &bytes) {                               \
-         ssz::deserialize_container(bytes, __VA_ARGS__);                                                    \
-     }                                                                                                      \
-@@ -75,7 +75,7 @@ constexpr std::uint32_t compute_total_length(const ssz_object auto &...members)
++    constexpr void deserialize(const std::ranges::sized_range auto &bytes) {                                         \
++        ssz::deserialize_container(bytes, __VA_ARGS__);                                                              \
++    }                                                                                                                \
++    void hash_tree_root(ssz::ssz_iterator auto result, size_t cpu_count = 0) const {                                 \
++        ssz::_container_hash(result, cpu_count, __VA_ARGS__);                                                        \
++    }                                                                                                                \
++    void assert_consistent_variable_size() const {                                                                   \
++        auto t = std::tie(__VA_ARGS__);                                                                              \
++        static_assert(variable_size::value or ssz::tuple_all_fixed_size<decltype(t)>::value);                        \
+     }
+ #ifdef HAVE_YAML
+ #define YAML_CONT(...) \
+@@ -75,7 +86,7 @@ constexpr std::uint32_t compute_total_length(const ssz_object auto &...members)
      return (... + size_plus_placeholder(members));
  }
  
@@ -141,6 +174,15 @@ index dc31773..3e42de7 100644
      auto fsize = compute_fixed_length(members...);
      auto variable = result + fsize;
      auto begin = result;
+@@ -174,7 +185,7 @@ namespace _detail {
+ auto _decode_member = [](const YAML::Node &node, yaml_pair auto pair) {
+     return YAML::convert<std::remove_reference_t<decltype(pair.second)>>::decode(node[pair.first], pair.second);
+ };
+-}
++}  // namespace _detail
+ 
+ bool yaml_decode_container(const YAML::Node &node, yaml_pair auto... pairs) {
+     return (_detail::_decode_member(node, pairs), ...);
 diff --git a/lib/cxx23/ranges/chunk.hpp b/lib/cxx23/ranges/chunk.hpp
 new file mode 100644
 index 0000000..4c73bd2

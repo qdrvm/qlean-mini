@@ -10,7 +10,7 @@
 #include "types/block_header.hpp"
 
 namespace lean {
-  struct Block : ssz::ssz_container {
+  struct Block : ssz::ssz_variable_size_container {
     uint64_t slot;
     uint64_t proposer_index;
     qtils::ByteArr<32> parent_root;
