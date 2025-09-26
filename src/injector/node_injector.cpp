@@ -115,8 +115,7 @@ namespace {
     Block genesis_block = STF::genesisBlock(genesis_state);
     // Construct ForkChoiceStore and bind it as a shared_ptr so DI can provide
     // std::shared_ptr<ForkChoiceStore> where requested
-    auto fork_choice_store = std::make_shared<ForkChoiceStore>(
-        getForkchoiceStore(genesis_state, genesis_block));
+    auto fork_choice_store = std::make_shared<ForkChoiceStore>(genesis_state, genesis_block);
     return di::make_injector<boost::di::extension::shared_config>(
         makeApplicationInjector(std::move(logsys),
                                 std::move(app_config),

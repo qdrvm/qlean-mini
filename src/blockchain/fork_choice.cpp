@@ -133,6 +133,26 @@ namespace lean {
     return it->second;
   }
 
+  bool ForkChoiceStore::hasBlock(const BlockHash &hash) const {
+    return blocks_.contains(hash);
+  }
+
+  Slot ForkChoiceStore::getBlockSlot(const BlockHash &block_hash) const {
+    return blocks_.at(block_hash).slot;
+  }
+
+  Slot ForkChoiceStore::getHeadSlot() const {
+    return blocks_.at(head_).slot;
+  }
+
+  const Config &ForkChoiceStore::getConfig() const {
+    return config_;
+  }
+
+  Checkpoint ForkChoiceStore::getLatestFinalized() const {
+    return latest_finalized_;
+  }
+
   Checkpoint ForkChoiceStore::getVoteTarget() const {
     // Start from head as target candidate
     auto target_block_root = head_;
@@ -418,23 +438,21 @@ namespace lean {
     }
   }
 
-  ForkChoiceStore getForkchoiceStore(State anchor_state, Block anchor_block) {
+  ForkChoiceStore::ForkChoiceStore(State anchor_state, Block anchor_block) {
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
-    ForkChoiceStore store{
-        .time_ = anchor_block.slot * INTERVALS_PER_SLOT,
-        .config_ = anchor_state.config,
-        .head_ = anchor_root,
-        .safe_target_ = anchor_root,
+    time_ = anchor_block.slot * INTERVALS_PER_SLOT;
+    config_ = anchor_state.config;
+    head_ = anchor_root;
+    safe_target_ = anchor_root;
 
-        // TODO: ensure latest justified and finalized are set correctly
-        .latest_justified_ = Checkpoint::from(anchor_block),
-        .latest_finalized_ = Checkpoint::from(anchor_block),
-    };
-    store.blocks_.emplace(anchor_root, std::move(anchor_block));
-    store.states_.emplace(anchor_root, std::move(anchor_state));
+    // TODO: ensure latest justified and finalized are set correctly
+    latest_justified_ = Checkpoint::from(anchor_block);
+    latest_finalized_ = Checkpoint::from(anchor_block);
+
+    blocks_.emplace(anchor_root, std::move(anchor_block));
+    states_.emplace(anchor_root, std::move(anchor_state));
     std::cout << "Genesis (anchor) root " << anchor_root.toHex() << "\n";
-    return store;
   }
 }  // namespace lean

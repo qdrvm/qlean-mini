@@ -36,6 +36,8 @@ namespace lean {
       abort();
     }
 
+    ForkChoiceStore(State anchor_state, Block anchor_block);
+
     // Compute the latest block that the validator is allowed to choose as the
     // target
     void updateSafeTarget();
@@ -64,6 +66,12 @@ namespace lean {
 
     BlockHash getHead();
     State getState(const BlockHash &block_hash) const;
+
+    bool hasBlock(const BlockHash &hash) const;
+    Slot getBlockSlot(const BlockHash &block_hash) const;
+    Slot getHeadSlot() const;
+    const Config &getConfig() const;
+    Checkpoint getLatestFinalized() const;
 
     /**
      * Calculates the target checkpoint for a vote based on the head, safe
@@ -102,6 +110,7 @@ namespace lean {
     // Processes a new block, updates the store, and triggers a head update.
     outcome::result<void> onBlock(Block block);
 
+   private:
     STF stf_;
     Interval time_ = 0;
     Config config_;
@@ -120,6 +129,4 @@ namespace lean {
                               const Checkpoint &root,
                               const ForkChoiceStore::Votes &latest_votes,
                               uint64_t min_score);
-
-  ForkChoiceStore getForkchoiceStore(State anchor_state, Block anchor_block);
 }  // namespace lean

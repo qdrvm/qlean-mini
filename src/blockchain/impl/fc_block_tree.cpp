@@ -19,7 +19,7 @@ namespace lean::blockchain {
   }
 
   bool FCBlockTree::has(const BlockHash &hash) const {
-    return fork_choice_store_->blocks_.contains(hash);
+    return fork_choice_store_->hasBlock(hash);
   }
 
   outcome::result<BlockHeader> FCBlockTree::getBlockHeader(
@@ -81,8 +81,8 @@ namespace lean::blockchain {
 
   BlockIndex FCBlockTree::bestBlock() const {
     return BlockIndex{
-        .slot = fork_choice_store_->blocks_.at(fork_choice_store_->head_).slot,
-        .hash = fork_choice_store_->head_};
+        .slot = fork_choice_store_->getHeadSlot(),
+        .hash = fork_choice_store_->getHead()};
   }
 
   outcome::result<BlockIndex> FCBlockTree::getBestContaining(
@@ -101,8 +101,8 @@ namespace lean::blockchain {
   }
 
   BlockIndex FCBlockTree::lastFinalized() const {
-    return BlockIndex{.slot = fork_choice_store_->latest_finalized_.slot,
-                      .hash = fork_choice_store_->latest_finalized_.root};
+    auto finalized = fork_choice_store_->getLatestFinalized();
+    return BlockIndex{.slot = finalized.slot, .hash = finalized.root};
   }
 
   outcome::result<std::optional<SignedBlock>> FCBlockTree::tryGetSignedBlock(
@@ -116,6 +116,6 @@ namespace lean::blockchain {
 
   outcome::result<Slot> FCBlockTree::getNumberByHash(
       const BlockHash &block_hash) const {
-    return fork_choice_store_->blocks_.at(block_hash).slot;
+    return fork_choice_store_->getBlockSlot(block_hash);
   }
 }  // namespace lean::blockchain

@@ -43,7 +43,7 @@ namespace lean::modules {
     }
 
     auto producer_index =
-        msg->slot % fork_choice_store_->config_.num_validators;
+        msg->slot % fork_choice_store_->getConfig().num_validators;
     auto is_producer = getPeerIndex() == producer_index;
 
     SL_INFO(logger_,
@@ -77,7 +77,7 @@ namespace lean::modules {
     SL_INFO(logger_, "Slot interval one started on slot {}", msg->slot);
     auto head_root = fork_choice_store_->getHead();
     Checkpoint head{.root = head_root,
-                    .slot = fork_choice_store_->blocks_[head_root].slot};
+                    .slot = fork_choice_store_->getBlockSlot(head_root)};
     auto target = fork_choice_store_->getVoteTarget();
     auto source = fork_choice_store_->getLatestJustified();
     SL_INFO(logger_,
