@@ -25,11 +25,16 @@ static std::shared_ptr<lean::modules::ProductionModule> module_instance;
 MODULE_C_API std::weak_ptr<lean::modules::ProductionModule>
 query_module_instance(lean::modules::ProductionLoader &loader,
                       std::shared_ptr<lean::log::LoggingSystem> logger,
+                      qtils::SharedRef<lean::app::Configuration> app_config,
                       std::shared_ptr<lean::blockchain::BlockTree> block_tree,
                       qtils::SharedRef<lean::crypto::Hasher> hasher) {
   if (!module_instance) {
     module_instance = lean::modules::ProductionModuleImpl::create_shared(
-        loader, std::move(logger), std::move(block_tree), std::move(hasher));
+        loader,
+        std::move(logger),
+        std::move(app_config),
+        std::move(block_tree),
+        std::move(hasher));
   }
   return module_instance;
 }

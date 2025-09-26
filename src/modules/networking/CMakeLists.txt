@@ -16,9 +16,11 @@ add_lean_module(networking
   DEFINITIONS
     SOME_FLAG=1
   LIBRARIES
+    enr
     p2p::libp2p
     qtils::qtils
     Snappy::snappy
     soralog::soralog
     sszpp
+    yaml-cpp::yaml-cpp
 )

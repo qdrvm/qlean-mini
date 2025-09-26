@@ -19,6 +19,7 @@ namespace lean::loaders {
       : public std::enable_shared_from_this<ProductionLoader>,
         public Loader,
         public modules::ProductionLoader {
+    qtils::SharedRef<app::Configuration> app_config_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<crypto::Hasher> hasher_;
 
@@ -40,9 +41,11 @@ namespace lean::loaders {
    public:
     ProductionLoader(qtils::SharedRef<log::LoggingSystem> logsys,
                      qtils::SharedRef<Subscription> se_manager,
+                     qtils::SharedRef<app::Configuration> app_config,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
                      qtils::SharedRef<crypto::Hasher> hasher)
         : Loader(std::move(logsys), std::move(se_manager)),
+          app_config_{std::move(app_config)},
           block_tree_(std::move(block_tree)),
           hasher_(std::move(hasher)) {}
 
@@ -58,6 +61,7 @@ namespace lean::loaders {
               ->getFunctionFromLibrary<std::weak_ptr<modules::ProductionModule>,
                                        modules::ProductionLoader &,
                                        std::shared_ptr<log::LoggingSystem>,
+                                       std::shared_ptr<app::Configuration>,
                                        std::shared_ptr<blockchain::BlockTree>,
                                        std::shared_ptr<crypto::Hasher>>(
                   "query_module_instance");
@@ -67,7 +71,7 @@ namespace lean::loaders {
       }
 
       auto module_internal =
-          (*module_accessor)(*this, logsys_, block_tree_, hasher_);
+          (*module_accessor)(*this, logsys_, app_config_, block_tree_, hasher_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::create<
           EventTypes::ProductionIsLoaded>(

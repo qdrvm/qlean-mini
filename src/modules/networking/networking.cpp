@@ -18,12 +18,14 @@
 #include <libp2p/transport/quic/transport.hpp>
 #include <qtils/to_shared_ptr.hpp>
 
+#include "app/configuration.hpp"
 #include "blockchain/block_tree.hpp"
 #include "modules/networking/block_request_protocol.hpp"
+#include "modules/networking/get_node_key.hpp"
+#include "modules/networking/read_nodes_yaml.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
 #include "modules/networking/types.hpp"
-#include "utils/__debug_env.hpp"
 #include "utils/sample_peer.hpp"
 
 namespace lean::modules {
@@ -62,9 +64,11 @@ namespace lean::modules {
   NetworkingImpl::NetworkingImpl(
       NetworkingLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<app::Configuration> app_config,
       qtils::SharedRef<blockchain::BlockTree> block_tree)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
+        app_config_{std::move(app_config)},
         block_tree_{std::move(block_tree)} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
   }
@@ -79,10 +83,30 @@ namespace lean::modules {
   void NetworkingImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");
 
-    SamplePeer sample_peer{getPeerIndex()};
+    auto node_key_path = app_config_->basePath() / "node_key.hex";
+    auto node_key_result = getNodeKey(node_key_path);
+    if (not node_key_result.has_value()) {
+      SL_ERROR(logger_,
+               "Error reading {}: ",
+               node_key_path.string(),
+               node_key_result.error());
+      return;
+    }
+    auto &node_key = node_key_result.value();
+
+    auto nodes_yaml_path = app_config_->basePath() / "genesis" / "nodes.yaml";
+    auto nodes_yaml_result = readNodesYaml(nodes_yaml_path);
+    if (not nodes_yaml_result.has_value()) {
+      SL_ERROR(logger_,
+               "Error reading {}: ",
+               node_key_path.string(),
+               nodes_yaml_result.error());
+      return;
+    }
+    auto &nodes_yaml = nodes_yaml_result.value();
 
     auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
-        libp2p::injector::useKeyPair(sample_peer.keypair),
+        libp2p::injector::useKeyPair(node_key),
         libp2p::injector::useTransportAdaptors<
             libp2p::transport::QuicTransport>()));
     injector_ = injector;
@@ -90,8 +114,14 @@ namespace lean::modules {
 
     auto host = injector->create<std::shared_ptr<libp2p::host::BasicHost>>();
 
-    if (auto r = host->listen(sample_peer.listen); not r.has_value()) {
-      SL_WARN(logger_, "listen {} error: {}", sample_peer.listen, r.error());
+    for (auto &enr : nodes_yaml) {
+      if (qtils::ByteView{enr.public_key} == node_key.publicKey.data) {
+        auto address = enr.listenAddress();
+        if (auto r = host->listen(address); not r.has_value()) {
+          SL_WARN(logger_, "listen {} error: {}", address, r.error());
+        }
+        break;
+      }
     }
     host->start();
 
@@ -184,24 +214,27 @@ namespace lean::modules {
               std::make_shared<messages::SignedVoteReceived>(std::move(vote)));
         });
 
-    if (sample_peer.index != 0) {
-      libp2p::coroSpawn(
-          *io_context_,
-          [weak_self{weak_from_this()}, host]() -> libp2p::Coro<void> {
-            SamplePeer sample_peer{0};
-
-            if (auto r = co_await host->connect(sample_peer.connect_info);
-                not r.has_value()) {
-              auto self = weak_self.lock();
-              if (not self) {
-                co_return;
+    for (auto &enr : nodes_yaml) {
+      if (qtils::ByteView{enr.public_key} != node_key.publicKey.data) {
+        libp2p::PeerInfo info{
+            .id = enr.peerId(),
+            .addresses = {enr.connectAddress()},
+        };
+        libp2p::coroSpawn(
+            *io_context_,
+            [weak_self{weak_from_this()}, host, info]() -> libp2p::Coro<void> {
+              if (auto r = co_await host->connect(info); not r.has_value()) {
+                auto self = weak_self.lock();
+                if (not self) {
+                  co_return;
+                }
+                SL_WARN(self->logger_,
+                        "connect {} error: {}",
+                        info.addresses.at(0),
+                        r.error());
               }
-              SL_WARN(self->logger_,
-                      "connect {} error: {}",
-                      sample_peer.connect,
-                      r.error());
-            }
-          });
+            });
+      }
     }
 
     io_thread_.emplace([io_context{io_context_}] {

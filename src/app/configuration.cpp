@@ -27,6 +27,10 @@ namespace lean::app {
     return name_;
   }
 
+  const std::string &Configuration::nodeId() const {
+    return node_id_;
+  }
+
   const std::filesystem::path &Configuration::basePath() const {
     return base_path_;
   }

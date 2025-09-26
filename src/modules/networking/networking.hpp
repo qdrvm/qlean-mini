@@ -19,6 +19,10 @@ namespace boost::asio {
   class io_context;
 }  // namespace boost::asio
 
+namespace lean::app {
+  class Configuration;
+}  // namespace lean::app
+
 namespace lean::blockchain {
   class BlockTree;
 }  // namespace lean::blockchain
@@ -47,6 +51,7 @@ namespace lean::modules {
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
     NetworkingImpl(NetworkingLoader &loader,
                    qtils::SharedRef<log::LoggingSystem> logging_system,
+                   qtils::SharedRef<app::Configuration> app_config,
                    qtils::SharedRef<blockchain::BlockTree> block_tree);
 
    public:
@@ -76,6 +81,7 @@ namespace lean::modules {
 
     NetworkingLoader &loader_;
     log::Logger logger_;
+    qtils::SharedRef<app::Configuration> app_config_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     std::shared_ptr<void> injector_;
     std::shared_ptr<boost::asio::io_context> io_context_;

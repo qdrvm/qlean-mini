@@ -29,10 +29,11 @@ static std::shared_ptr<lean::modules::Networking> module_instance;
 MODULE_C_API std::weak_ptr<lean::modules::Networking> query_module_instance(
     lean::modules::NetworkingLoader &loader,
     std::shared_ptr<lean::log::LoggingSystem> logsys,
+    qtils::SharedRef<lean::app::Configuration> app_config,
     qtils::SharedRef<lean::blockchain::BlockTree> block_tree) {
   if (!module_instance) {
     module_instance = lean::modules::NetworkingImpl::create_shared(
-        loader, std::move(logsys), block_tree);
+        loader, std::move(logsys), app_config, block_tree);
   }
   return module_instance;
 }
