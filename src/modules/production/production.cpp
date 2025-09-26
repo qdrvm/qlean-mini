@@ -54,8 +54,15 @@ namespace lean::modules {
     if (is_producer) {
       fork_choice_store_->acceptNewVotes();
 
-      auto new_block =
-          fork_choice_store_->produceBlock(msg->slot, producer_index);
+      auto res = fork_choice_store_->produceBlock(msg->slot, producer_index);
+      if (!res.has_value()) {
+        SL_ERROR(logger_,
+                 "Failed to produce block for slot {}: {}",
+                 msg->slot,
+                 res.error());
+        return;
+      }
+      auto new_block = res.value();
 
       SignedBlock new_signed_block{
           .message = new_block, .signature = qtils::ByteArr<32>{0}

@@ -178,10 +178,11 @@ namespace lean {
     };
   }
 
-  Block ForkChoiceStore::produceBlock(Slot slot,
-                                      ValidatorIndex validator_index) {
-    BOOST_ASSERT_MSG(validator_index == slot % config_.num_validators,
-                     "Validator is not proposer for this slot");
+  outcome::result<Block> ForkChoiceStore::produceBlock(Slot slot,
+                                                     ValidatorIndex validator_index) {
+    if (validator_index != slot % config_.num_validators) {
+      return Error::INVALID_PROPOSER;
+    }
     const auto& head_root = getHead();
     const auto& head_state = getState(head_root);
 
@@ -199,10 +200,8 @@ namespace lean {
       // Apply state transition to get the post-block state
       // First advance state to target slot, then process the block
       auto state = head_state;  // get head state
-      auto res = stf_.processSlots(state, slot);  // advances state
-      BOOST_ASSERT_MSG(res.has_value(), "Should be able to advance state");
-      res = stf_.processBlock(state, candidate_block);
-      BOOST_ASSERT_MSG(res.has_value(), "Should be able to process block");
+      OUTCOME_TRY(stf_.processSlots(state, slot));  // advances state
+      OUTCOME_TRY(stf_.processBlock(state, candidate_block));
 
       // Find new valid attestations matching post-state justification
       Attestations new_attestations;
@@ -243,8 +242,7 @@ namespace lean {
     }
     // Create final block with all collected attestations
     auto final_state = head_state;
-    auto res = stf_.processSlots(final_state, slot);  // create final state
-    BOOST_ASSERT_MSG(res.has_value(), "Should be able to create final state");
+    OUTCOME_TRY(stf_.processSlots(final_state, slot));  // create final state
     Block final_block{.slot = slot,
                       .proposer_index = validator_index,
                       .parent_root = head_root,
@@ -252,8 +250,7 @@ namespace lean {
                       .body = BlockBody{.attestations = attestations}};
 
     // Apply state transition to get final post-state and compute state root
-    res = stf_.processBlock(final_state, final_block);
-    BOOST_ASSERT_MSG(res.has_value(), "Should be able to process final block");
+    OUTCOME_TRY(stf_.processBlock(final_state, final_block));
     final_block.state_root = sszHash(final_state);
 
     // Store block and state in forkchoice store

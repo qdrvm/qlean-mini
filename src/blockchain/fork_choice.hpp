@@ -26,12 +26,15 @@ namespace lean {
 
     enum class Error {
       INVALID_ATTESTATION,
+      INVALID_PROPOSER,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
       switch (e) {
         case E::INVALID_ATTESTATION:
           return "Invalid attestation";
+        case E::INVALID_PROPOSER:
+          return "Invalid proposer";
       }
       abort();
     }
@@ -96,7 +99,7 @@ namespace lean {
      *   slot: Target slot number for block production
      *   validator_index: Index of validator authorized to propose this block
      */
-    Block produceBlock(Slot slot, ValidatorIndex validator_index);
+    outcome::result<Block> produceBlock(Slot slot, ValidatorIndex validator_index);
 
     // Validate incoming attestation before processing.
     // Performs basic validation checks on attestation structure and timing.
