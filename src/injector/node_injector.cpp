@@ -65,11 +65,12 @@ namespace {
   using injector::bind_by_lambda;
 
   template <typename... Ts>
-  auto makeApplicationInjector(std::shared_ptr<log::LoggingSystem> logsys,
-                               std::shared_ptr<app::Configuration> app_config,
-                               std::shared_ptr<Config> genesis_config,
-                               std::shared_ptr<ForkChoiceStore> fork_choice_store,
-                               Ts &&...args) {
+  auto makeApplicationInjector(
+      std::shared_ptr<log::LoggingSystem> logsys,
+      std::shared_ptr<app::Configuration> app_config,
+      std::shared_ptr<Config> genesis_config,
+      std::shared_ptr<ForkChoiceStore> fork_choice_store,
+      Ts &&...args) {
     // clang-format off
     return di::make_injector(
         di::bind<app::Configuration>.to(app_config),
@@ -114,7 +115,10 @@ namespace {
     State genesis_state = STF::generateGenesisState(*genesis_config);
     Block genesis_block = STF::genesisBlock(genesis_state);
 
-    auto fork_choice_store = std::make_shared<ForkChoiceStore>(genesis_state, genesis_block);
+    auto fork_choice_store = std::make_shared<ForkChoiceStore>(
+        genesis_state,
+        genesis_block,
+        std::make_shared<clock::SystemClockImpl>());
     return di::make_injector<boost::di::extension::shared_config>(
         makeApplicationInjector(std::move(logsys),
                                 std::move(app_config),

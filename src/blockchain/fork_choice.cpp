@@ -77,45 +77,10 @@ namespace lean {
     updateHead();
   }
 
-  void ForkChoiceStore::tickInterval(bool has_proposal) {
-    ++time_;
-    auto current_interval = time_ % INTERVALS_PER_SLOT;
-    if (current_interval == 0) {
-      if (has_proposal) {
-        acceptNewVotes();
-      }
-    } else if (current_interval == 1) {
-      // validators will vote in this interval using safe target previously
-      // computed
-    } else if (current_interval == 2) {
-      updateSafeTarget();
-    } else {
-      acceptNewVotes();
-    }
-  }
-
-  void ForkChoiceStore::advanceTime(Interval time, bool has_proposal) {
-    // Calculate the number of intervals that have passed since genesis
-    auto tick_interval_time =
-        (time - config_.genesis_time) / SECONDS_PER_INTERVAL;
-
-    // Tick the store one interval at a time until the target time is reached
-    while (time_ < tick_interval_time) {
-      // Determine if a proposal should be signaled for the next interval
-      auto should_signal_proposal =
-          has_proposal and (time_ + 1) == tick_interval_time;
-
-      // Tick the interval and potentially signal a proposal
-      tickInterval(should_signal_proposal);
-    }
-  }
-
   Slot ForkChoiceStore::getCurrentSlot() {
     // get current slot by dividing current time (in ms) by
     // SLOT_DURATION_MS
-    uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                       std::chrono::system_clock::now().time_since_epoch())
-                       .count();
+    uint64_t now = clock_->nowMsec();
     Slot current_slot = (now - config_.genesis_time) / SLOT_DURATION_MS;
     return current_slot;
   }
@@ -434,11 +399,12 @@ namespace lean {
     }
   }
 
-  ForkChoiceStore::ForkChoiceStore(State anchor_state, Block anchor_block) {
+  ForkChoiceStore::ForkChoiceStore(State anchor_state, Block anchor_block,
+                                   std::shared_ptr<clock::SystemClock> clock) 
+      : clock_(clock) {
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
-    time_ = anchor_block.slot * INTERVALS_PER_SLOT;
     config_ = anchor_state.config;
     head_ = anchor_root;
     safe_target_ = anchor_root;
@@ -449,5 +415,30 @@ namespace lean {
 
     blocks_.emplace(anchor_root, std::move(anchor_block));
     states_.emplace(anchor_root, std::move(anchor_state));
+  }
+
+  // Test constructor implementation
+  ForkChoiceStore::ForkChoiceStore(std::shared_ptr<clock::SystemClock> clock,
+                                   Config config,
+                                   BlockHash head,
+                                   BlockHash safe_target,
+                                   Checkpoint latest_justified,
+                                   Checkpoint latest_finalized,
+                                   Blocks blocks,
+                                   std::unordered_map<BlockHash, State> states,
+                                   Votes latest_known_votes,
+                                   std::unordered_map<ValidatorIndex, SignedVote> signed_votes,
+                                   Votes latest_new_votes)
+      : clock_(clock),
+        config_(config),
+        head_(head),
+        safe_target_(safe_target),
+        latest_justified_(latest_justified),
+        latest_finalized_(latest_finalized),
+        blocks_(std::move(blocks)),
+        states_(std::move(states)),
+        latest_known_votes_(std::move(latest_known_votes)),
+        signed_votes_(std::move(signed_votes)),
+        latest_new_votes_(std::move(latest_new_votes)) {
   }
 }  // namespace lean

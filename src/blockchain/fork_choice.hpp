@@ -13,6 +13,7 @@
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
+#include "clock/clock.hpp"
 #include "types/block.hpp"
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
@@ -39,7 +40,21 @@ namespace lean {
       abort();
     }
 
-    ForkChoiceStore(State anchor_state, Block anchor_block);
+    ForkChoiceStore(State anchor_state, Block anchor_block, 
+                    std::shared_ptr<clock::SystemClock> clock);
+
+    // Test constructor - only for use in tests
+    ForkChoiceStore(std::shared_ptr<clock::SystemClock> clock,
+                    Config config = {},
+                    BlockHash head = {},
+                    BlockHash safe_target = {},
+                    Checkpoint latest_justified = {},
+                    Checkpoint latest_finalized = {},
+                    Blocks blocks = {},
+                    std::unordered_map<BlockHash, State> states = {},
+                    Votes latest_known_votes = {},
+                    std::unordered_map<ValidatorIndex, SignedVote> signed_votes = {},
+                    Votes latest_new_votes = {});
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -57,14 +72,6 @@ namespace lean {
     // updates the fork-choice head.
     void acceptNewVotes();
 
-    void tickInterval(bool has_proposal);
-
-    // called every interval and with has_proposal flag on the new slot interval
-    // if node has a validator with proposal in this slot so as to not delay
-    // accepting new votes and parallelize compute.
-    // Ticks the store forward in intervals until it reaches the given time.
-    void advanceTime(Interval time, bool has_proposal);
-
     Slot getCurrentSlot();
 
     BlockHash getHead();
@@ -75,6 +82,13 @@ namespace lean {
     Slot getHeadSlot() const;
     const Config &getConfig() const;
     Checkpoint getLatestFinalized() const;
+    
+    // Test helper methods
+    BlockHash getSafeTarget() const { return safe_target_; }
+    const Blocks& getBlocks() const { return blocks_; }
+    const Votes& getLatestNewVotes() const { return latest_new_votes_; }
+    const Votes& getLatestKnownVotes() const { return latest_known_votes_; }
+    Votes& getLatestNewVotesRef() { return latest_new_votes_; }
 
     /**
      * Calculates the target checkpoint for a vote based on the head, safe
@@ -115,7 +129,7 @@ namespace lean {
 
    private:
     STF stf_;
-    Interval time_ = 0;
+    std::shared_ptr<clock::SystemClock> clock_;
     Config config_;
     BlockHash head_;
     BlockHash safe_target_;
