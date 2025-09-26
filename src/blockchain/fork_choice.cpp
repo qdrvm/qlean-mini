@@ -6,7 +6,6 @@
 
 #include "blockchain/fork_choice.hpp"
 
-#include <iostream>
 #include <ranges>
 
 #include "types/signed_block.hpp"
@@ -450,6 +449,5 @@ namespace lean {
 
     blocks_.emplace(anchor_root, std::move(anchor_block));
     states_.emplace(anchor_root, std::move(anchor_state));
-    std::cout << "Genesis (anchor) root " << anchor_root.toHex() << "\n";
   }
 }  // namespace lean

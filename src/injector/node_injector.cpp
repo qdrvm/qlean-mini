@@ -113,8 +113,7 @@ namespace {
                         Ts &&...args) {
     State genesis_state = STF::generateGenesisState(*genesis_config);
     Block genesis_block = STF::genesisBlock(genesis_state);
-    // Construct ForkChoiceStore and bind it as a shared_ptr so DI can provide
-    // std::shared_ptr<ForkChoiceStore> where requested
+
     auto fork_choice_store = std::make_shared<ForkChoiceStore>(genesis_state, genesis_block);
     return di::make_injector<boost::di::extension::shared_config>(
         makeApplicationInjector(std::move(logsys),
@@ -194,9 +193,5 @@ namespace lean::injector {
                module->get_path());
     }
     return std::unique_ptr<lean::loaders::Loader>(loader.release());
-  }
-  std::shared_ptr<lean::ForkChoiceStore> NodeInjector::injectForkChoiceStore() {
-    return pimpl_->injector_
-        .template create<std::shared_ptr<lean::ForkChoiceStore>>();
   }
 }  // namespace lean::injector

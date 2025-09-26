@@ -87,21 +87,21 @@ namespace lean::app {
 
     SL_INFO(logger_, "Next slot is {} in {}ms", next_slot, time_to_next_slot);
 
-    auto time_to_interval_1 = SLOT_DURATION_MS / 4;
+    auto time_to_interval_1 = SECONDS_PER_INTERVAL * 1000;
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_1),
         EventTypes::SlotIntervalOneStarted,
         std::make_shared<const messages::SlotIntervalOneStarted>(msg->slot,
                                                                  msg->epoch));
 
-    auto time_to_interval_2 = SLOT_DURATION_MS / 2;
+    auto time_to_interval_2 = 2 * SECONDS_PER_INTERVAL * 1000;
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_2),
         EventTypes::SlotIntervalTwoStarted,
         std::make_shared<const messages::SlotIntervalTwoStarted>(msg->slot,
                                                                  msg->epoch));
 
-    auto time_to_interval_3 = 3 * SLOT_DURATION_MS / 4;
+    auto time_to_interval_3 = 3 * SECONDS_PER_INTERVAL * 1000;
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_3),
         EventTypes::SlotIntervalThreeStarted,
