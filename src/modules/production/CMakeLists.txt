@@ -15,4 +15,5 @@ add_lean_module(production
     qtils::qtils
     soralog::soralog
     sszpp
+    yaml-cpp::yaml-cpp
 )

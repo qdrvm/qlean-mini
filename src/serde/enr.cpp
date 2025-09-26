@@ -328,9 +328,9 @@ namespace lean::enr {
     BOOST_OUTCOME_TRY(enr.public_key,
                       kv_secp256k1->second.bytes_n<Secp256k1PublicKey>());
 
-    auto kv_udp = kv.find("udp");
-    if (kv_udp != kv.end()) {
-      BOOST_OUTCOME_TRY(enr.port, kv_udp->second.uint<Port>());
+    auto kv_quic = kv.find("quic");
+    if (kv_quic != kv.end()) {
+      BOOST_OUTCOME_TRY(enr.port, kv_quic->second.uint<Port>());
     }
 
     return enr;
@@ -345,10 +345,10 @@ namespace lean::enr {
     rlp.str("v4");
     rlp.str("ip");
     rlp.bytes(enr.ip.value());
+    rlp.str("quic");
+    rlp.uint(enr.port.value());
     rlp.str("secp256k1");
     rlp.bytes(enr.public_key);
-    rlp.str("udp");
-    rlp.uint(enr.port.value());
     return "enr:" + cppcodec::base64_url_unpadded::encode(rlp.list());
   }
 }  // namespace lean::enr

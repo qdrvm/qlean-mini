@@ -7,6 +7,7 @@
 set(CMAKE_OSX_ARCHITECTURES "arm64")
 
 set(LIBRARIES
+    enr
     node_injector
 )
 

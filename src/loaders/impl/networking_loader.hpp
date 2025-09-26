@@ -28,6 +28,7 @@ namespace lean::loaders {
         public Loader,
         public modules::NetworkingLoader {
     log::Logger logger_;
+    qtils::SharedRef<app::Configuration> app_config_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
@@ -46,9 +47,11 @@ namespace lean::loaders {
    public:
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
                      std::shared_ptr<Subscription> se_manager,
+                     qtils::SharedRef<app::Configuration> app_config,
                      qtils::SharedRef<blockchain::BlockTree> block_tree)
         : Loader(std::move(logsys), std::move(se_manager)),
           logger_(logsys_->getLogger("Networking", "networking_module")),
+          app_config_{std::move(app_config)},
           block_tree_{std::move(block_tree)} {}
 
     NetworkingLoader(const NetworkingLoader &) = delete;
@@ -63,6 +66,7 @@ namespace lean::loaders {
               ->getFunctionFromLibrary<std::weak_ptr<lean::modules::Networking>,
                                        modules::NetworkingLoader &,
                                        std::shared_ptr<log::LoggingSystem>,
+                                       qtils::SharedRef<app::Configuration>,
                                        qtils::SharedRef<blockchain::BlockTree>>(
                   "query_module_instance");
 
@@ -70,7 +74,8 @@ namespace lean::loaders {
         return;
       }
 
-      auto module_internal = (*module_accessor)(*this, logsys_, block_tree_);
+      auto module_internal =
+          (*module_accessor)(*this, logsys_, app_config_, block_tree_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::template create<
           EventTypes::NetworkingIsLoaded>(
