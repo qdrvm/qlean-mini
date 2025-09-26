@@ -185,9 +185,16 @@ int main(int argc, const char **argv, const char **env) {
     config_res.value();
   });
 
-  // set genesis config. Genesis time should be current time in ms
-  lean::Config genesis_config{
-      .num_validators = 2, .genesis_time = 1758719218000};
+  // set genesis config. Genesis time should be next multiple of 12 seconds
+  // since epoch (in ms)
+  uint64_t genesis_time =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count();
+  genesis_time += 12000 - (genesis_time % 12000); // 1758719218000
+
+  lean::Config genesis_config{.num_validators = 3,
+                              .genesis_time = genesis_time};
 
   int exit_code;
 

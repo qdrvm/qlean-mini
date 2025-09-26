@@ -49,7 +49,10 @@ namespace lean::app {
 
   void TimelineImpl::start() {
     auto now = clock_->nowMsec();
-    auto next_slot = (now - config_->genesis_time) / SLOT_DURATION_MS + 1;
+    auto next_slot = now > config_->genesis_time  // somehow now could be less
+                                                  // than genesis time
+                       ? (now - config_->genesis_time) / SLOT_DURATION_MS + 1
+                       : 1;
     auto time_to_next_slot =
         config_->genesis_time + SLOT_DURATION_MS * next_slot - now;
     if (time_to_next_slot < SLOT_DURATION_MS / 2) {
@@ -82,25 +85,28 @@ namespace lean::app {
     auto time_to_next_slot =
         config_->genesis_time + SLOT_DURATION_MS * next_slot - now;
 
-    SL_INFO(logger_, "Next slot is {} in {}ms", msg->slot, time_to_next_slot);
+    SL_INFO(logger_, "Next slot is {} in {}ms", next_slot, time_to_next_slot);
 
     auto time_to_interval_1 = SLOT_DURATION_MS / 4;
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_1),
         EventTypes::SlotIntervalOneStarted,
-        std::make_shared<const messages::SlotIntervalOneStarted>(msg->slot, msg->epoch));
+        std::make_shared<const messages::SlotIntervalOneStarted>(msg->slot,
+                                                                 msg->epoch));
 
     auto time_to_interval_2 = SLOT_DURATION_MS / 2;
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_2),
         EventTypes::SlotIntervalTwoStarted,
-        std::make_shared<const messages::SlotIntervalTwoStarted>(msg->slot, msg->epoch));
+        std::make_shared<const messages::SlotIntervalTwoStarted>(msg->slot,
+                                                                 msg->epoch));
 
     auto time_to_interval_3 = 3 * SLOT_DURATION_MS / 4;
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_3),
         EventTypes::SlotIntervalThreeStarted,
-        std::make_shared<const messages::SlotIntervalThreeStarted>(msg->slot, msg->epoch));
+        std::make_shared<const messages::SlotIntervalThreeStarted>(msg->slot,
+                                                                   msg->epoch));
 
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_next_slot),

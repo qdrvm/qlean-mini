@@ -318,7 +318,7 @@ namespace lean::modules {
   void NetworkingImpl::receiveBlock(std::optional<libp2p::PeerId> from_peer,
                                     SignedBlock &&signed_block) {
     auto slot_hash = signed_block.message.slotHash();
-    SL_TRACE(logger_, "receiveBlock {}", slot_hash.slot);
+    SL_DEBUG(logger_, "receiveBlock slot {} hash {}", slot_hash.slot, slot_hash.hash);
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
       while (not queue.empty()) {
@@ -359,7 +359,7 @@ namespace lean::modules {
         BOOST_ASSERT_MSG(res.has_value(),
                          "Fork choice store should accept imported block");
       }
-      SL_TRACE(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
+      SL_INFO(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
       block_tree_->import(std::move(blocks));
       return;
     }

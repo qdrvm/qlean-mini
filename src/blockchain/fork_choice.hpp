@@ -60,6 +60,8 @@ namespace lean {
     // Ticks the store forward in intervals until it reaches the given time.
     void advanceTime(Interval time, bool has_proposal);
 
+    Slot getCurrentSlot();
+
     BlockHash getHead();
     State getState(const BlockHash &block_hash) const;
 
@@ -68,6 +70,25 @@ namespace lean {
      * target, and latest finalized state.
      */
     Checkpoint getVoteTarget() const;
+
+    /**
+     * Produce a new block for the given slot and validator.
+     *
+     * Algorithm Overview:
+     * 1. Validate proposer authorization for the target slot
+     * 2. Get the current chain head as the parent block
+     * 3. Iteratively build attestation set:
+     *    - Create candidate block with current attestations
+     *    - Apply state transition (slot advancement + block processing)
+     *    - Find new valid attestations matching post-state requirements
+     *    - Continue until no new attestations can be added
+     * 4. Finalize block with computed state root and store it
+     *
+     * Args:
+     *   slot: Target slot number for block production
+     *   validator_index: Index of validator authorized to propose this block
+     */
+    Block produceBlock(Slot slot, ValidatorIndex validator_index);
 
     // Validate incoming attestation before processing.
     // Performs basic validation checks on attestation structure and timing.

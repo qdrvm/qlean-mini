@@ -31,7 +31,8 @@ namespace lean {
 
     mutable std::optional<BlockHash> hash_cached;
     const BlockHash &hash() const {
-      return hash_cached.value();
+      return hash_cached.has_value() ? hash_cached.value()
+                                     : (setHash(), hash_cached.value());
     }
     void setHash() const {
       auto header = getHeader();

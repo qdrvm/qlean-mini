@@ -63,10 +63,11 @@ namespace lean {
                                            const State &parent_state,
                                            bool check_state_root) const;
 
-   private:
     outcome::result<void> processSlots(State &state, Slot slot) const;
-    void processSlot(State &state) const;
     outcome::result<void> processBlock(State &state, const Block &block) const;
+
+   private:
+    void processSlot(State &state) const;
     outcome::result<void> processBlockHeader(State &state,
                                              const Block &block) const;
     outcome::result<void> processOperations(State &state,

@@ -53,55 +53,31 @@ namespace lean::modules {
 
     if (is_producer) {
       fork_choice_store_->acceptNewVotes();
-      SL_INFO(logger_, "States size {}", fork_choice_store_->states_.size());
-      auto parent_hash = fork_choice_store_->getHead();
-      auto parent_state = fork_choice_store_->getState(parent_hash);
-      // Produce block
-      Block block;
-      block.slot = msg->slot;
-      block.proposer_index = producer_index;
-      block.parent_root = parent_hash;
 
-      for (auto [validator_id, signed_vote] :
-           fork_choice_store_->signed_votes_) {
-        block.body.attestations.push_back(
-            signed_vote);  // TODO: add cleaning of old attestations
-      }
+      auto new_block =
+          fork_choice_store_->produceBlock(msg->slot, producer_index);
 
-      // create signed block with signature containing only zero bytes for now
-      SignedBlock signed_block{.message = block,
-                               .signature = qtils::ByteArr<32>{0}};
-      // calculate new state
-      State new_state = fork_choice_store_->stf_
-                            .stateTransition(signed_block, parent_state, false)
-                            .value();
-      signed_block.message.state_root = sszHash(new_state);
+      SignedBlock new_signed_block{
+          .message = new_block, .signature = qtils::ByteArr<32>{0}
+          // signature with zero bytes for now
+      };
 
-      // Add a block into the block tree
-      // auto res = block_tree_->addBlock(block);
-      // if (res.has_error()) {
-      //   SL_ERROR(
-      //       logger_, "Could not add block to the block tree: {}",
-      //       res.error());
-      //   return;
-      // }
-
-      auto on_block_res = fork_choice_store_->onBlock(signed_block.message);
-      BOOST_ASSERT_MSG(on_block_res.has_value(),
-                       "Fork choice store should accept produced block");
-
-      // Notify subscribers
-      // loader_.dispatch_block_produced(
-      //     std::make_shared<const Block>(signed_block.message));
+      SL_INFO(logger_,
+              "Produced block for slot {} with parent {} state {}",
+              msg->slot,
+              new_block.parent_root,
+              new_signed_block.message.state_root);
 
       loader_.dispatchSendSignedBlock(
-          std::make_shared<messages::SendSignedBlock>(signed_block));
+          std::make_shared<messages::SendSignedBlock>(new_signed_block));
     }
   }
   void ProductionModuleImpl::on_slot_interval_one_started(
       std::shared_ptr<const messages::SlotIntervalOneStarted> msg) {
     SL_INFO(logger_, "Slot interval one started on slot {}", msg->slot);
-    Checkpoint head{.root = fork_choice_store_->getHead(), .slot = msg->slot};
+    auto head_root = fork_choice_store_->getHead();
+    Checkpoint head{.root = head_root,
+                    .slot = fork_choice_store_->blocks_[head_root].slot};
     auto target = fork_choice_store_->getVoteTarget();
     auto source = fork_choice_store_->getLatestJustified();
     SL_INFO(logger_,
@@ -117,6 +93,7 @@ namespace lean::modules {
         .data =
             Vote{
                 .validator_id = getPeerIndex(),
+                .slot = msg->slot,
                 .head = head,
                 .target = target,
                 .source = *source,

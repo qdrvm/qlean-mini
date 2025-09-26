@@ -111,6 +111,17 @@ namespace lean {
     }
   }
 
+  Slot ForkChoiceStore::getCurrentSlot() {
+    // get current slot by dividing current time (in ms) by
+    // SLOT_DURATION_MS
+    uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::system_clock::now().time_since_epoch())
+                       .count();
+    Slot current_slot = (now - config_.genesis_time) / SLOT_DURATION_MS;
+    return current_slot;
+  }
+
+
   BlockHash ForkChoiceStore::getHead() {
     return head_;
   }
@@ -147,6 +158,96 @@ namespace lean {
     };
   }
 
+  Block ForkChoiceStore::produceBlock(Slot slot,
+                                      ValidatorIndex validator_index) {
+    BOOST_ASSERT_MSG(validator_index == slot % config_.num_validators,
+                     "Validator is not proposer for this slot");
+    const auto& head_root = getHead();
+    const auto& head_state = getState(head_root);
+
+    Attestations attestations;
+
+    while (true) {
+      // Create candidate block with current attestation set
+      Block candidate_block{
+          .slot = slot,
+          .proposer_index = validator_index,
+          .parent_root = head_root,
+          .state_root = {},  // to be filled after state transition
+          .body = BlockBody{.attestations = attestations}};
+
+      // Apply state transition to get the post-block state
+      // First advance state to target slot, then process the block
+      auto state = head_state;  // get head state
+      auto res = stf_.processSlots(state, slot);  // advances state
+      BOOST_ASSERT_MSG(res.has_value(), "Should be able to advance state");
+      res = stf_.processBlock(state, candidate_block);
+      BOOST_ASSERT_MSG(res.has_value(), "Should be able to process block");
+
+      // Find new valid attestations matching post-state justification
+      Attestations new_attestations;
+      for (const auto &[validator_id, checkpoint] : latest_known_votes_) {
+        // Skip if target block is unknown in our store
+        if (not blocks_.contains(checkpoint.root)) {
+          continue;
+        }
+        // Create attestation with post-state's latest justified as source
+        SignedVote signed_vote{
+            .data =
+                Vote{
+                    .validator_id = validator_id,
+                    .slot = checkpoint.slot,
+                    .head = checkpoint,
+                    .target = checkpoint,
+                    .source = state.latest_justified,
+                },
+            .signature = qtils::ByteArr<32>{0}  // signature with zero bytes for
+                                                // now
+        };
+        // Only include if attestation is valid and not already included
+        if (auto it = std::find(
+                attestations.begin(), attestations.end(), signed_vote);
+            it == attestations.end()) {
+          new_attestations.push_back(signed_vote);
+        }
+      }
+      // If no new attestations, we are done
+      if (new_attestations.size() == 0) {
+        break;
+      }
+
+      // Add new attestations and continue iteration
+      for (auto &attestation : new_attestations) {
+        attestations.push_back(attestation);
+      }
+    }
+    // Create final block with all collected attestations
+    auto final_state = head_state;
+    auto res = stf_.processSlots(final_state, slot);  // create final state
+    BOOST_ASSERT_MSG(res.has_value(), "Should be able to create final state");
+    Block final_block{.slot = slot,
+                      .proposer_index = validator_index,
+                      .parent_root = head_root,
+                      .state_root = {},  // to be filled after state transition
+                      .body = BlockBody{.attestations = attestations}};
+
+    // Apply state transition to get final post-state and compute state root
+    res = stf_.processBlock(final_state, final_block);
+    BOOST_ASSERT_MSG(res.has_value(), "Should be able to process final block");
+    final_block.state_root = sszHash(final_state);
+
+    // Store block and state in forkchoice store
+    auto block_hash = sszHash(final_block);
+    blocks_.emplace(block_hash, final_block);
+    states_.emplace(block_hash, std::move(final_state));
+
+    // update head (not in spec)
+    head_ = block_hash;
+
+    return final_block;
+  }
+
+
   outcome::result<void> ForkChoiceStore::validateAttestation(
       const SignedVote &signed_vote) {
     auto &vote = signed_vote.data;
@@ -179,8 +280,7 @@ namespace lean {
     }
 
     // Validate attestation is not too far in the future
-    auto current_slot = time_ / SECONDS_PER_INTERVAL;
-    if (vote.slot > current_slot + 1) {
+    if (vote.slot > getCurrentSlot() + 1) {
       return Error::INVALID_ATTESTATION;
     }
 
@@ -213,8 +313,7 @@ namespace lean {
     } else {
       // forkchoice should be correctly ticked to current time before importing
       // gossiped attestations
-      auto time_slots = time_ / SECONDS_PER_INTERVAL;
-      if (vote.slot > time_slots) {
+      if (vote.slot > getCurrentSlot() + 1) {
         return Error::INVALID_ATTESTATION;
       }
 
