@@ -23,7 +23,7 @@ namespace lean {
   class ForkChoiceStore {
    public:
     using Blocks = std::unordered_map<BlockHash, Block>;
-    using Votes = std::unordered_map<ValidatorIndex, Checkpoint>;
+    using Votes = std::unordered_map<ValidatorIndex, SignedVote>;
 
     enum class Error {
       INVALID_ATTESTATION,
@@ -53,7 +53,7 @@ namespace lean {
                     Blocks blocks = {},
                     std::unordered_map<BlockHash, State> states = {},
                     Votes latest_known_votes = {},
-                    std::unordered_map<ValidatorIndex, SignedVote> signed_votes = {},
+                    // std::unordered_map<ValidatorIndex, SignedVote> signed_votes = {},
                     Votes latest_new_votes = {});
 
     // Compute the latest block that the validator is allowed to choose as the
@@ -138,7 +138,6 @@ namespace lean {
     Blocks blocks_;
     std::unordered_map<BlockHash, State> states_;
     Votes latest_known_votes_;
-    std::unordered_map<ValidatorIndex, SignedVote> signed_votes_;
     Votes latest_new_votes_;
   };
 

@@ -142,90 +142,38 @@ namespace lean {
     };
   }
 
-  outcome::result<Block> ForkChoiceStore::produceBlock(Slot slot,
-                                                     ValidatorIndex validator_index) {
+  outcome::result<Block> ForkChoiceStore::produceBlock(
+      Slot slot, ValidatorIndex validator_index) {
     if (validator_index != slot % config_.num_validators) {
       return Error::INVALID_PROPOSER;
     }
-    const auto& head_root = getHead();
-    const auto& head_state = getState(head_root);
+    const auto &head_root = getHead();
+    const auto &head_state = getState(head_root);
 
-    Attestations attestations;
-
-    while (true) {
-      // Create candidate block with current attestation set
-      Block candidate_block{
-          .slot = slot,
-          .proposer_index = validator_index,
-          .parent_root = head_root,
-          .state_root = {},  // to be filled after state transition
-          .body = BlockBody{.attestations = attestations}};
-
-      // Apply state transition to get the post-block state
-      // First advance state to target slot, then process the block
-      auto state = head_state;  // get head state
-      OUTCOME_TRY(stf_.processSlots(state, slot));  // advances state
-      OUTCOME_TRY(stf_.processBlock(state, candidate_block));
-
-      // Find new valid attestations matching post-state justification
-      Attestations new_attestations;
-      for (const auto &[validator_id, checkpoint] : latest_known_votes_) {
-        // Skip if target block is unknown in our store
-        if (not blocks_.contains(checkpoint.root)) {
-          continue;
-        }
-        // Create attestation with post-state's latest justified as source
-        SignedVote signed_vote{
-            .data =
-                Vote{
-                    .validator_id = validator_id,
-                    .slot = checkpoint.slot,
-                    .head = checkpoint,
-                    .target = checkpoint,
-                    .source = state.latest_justified,
-                },
-            .signature = qtils::ByteArr<32>{0}  // signature with zero bytes for
-                                                // now
-        };
-        // Only include if attestation is valid and not already included
-        if (auto it = std::find(
-                attestations.begin(), attestations.end(), signed_vote);
-            it == attestations.end()) {
-          new_attestations.push_back(signed_vote);
-        }
-      }
-      // If no new attestations, we are done
-      if (new_attestations.size() == 0) {
-        break;
-      }
-
-      // Add new attestations and continue iteration
-      for (auto &attestation : new_attestations) {
-        attestations.push_back(attestation);
-      }
+    Block block{
+        .slot = slot,
+        .proposer_index = validator_index,
+        .parent_root = head_root,
+        .state_root = {},  // to be filled after state transition
+    };
+    for (auto &signed_vote : latest_known_votes_ | std::views::values) {
+      block.body.attestations.push_back(signed_vote);
     }
-    // Create final block with all collected attestations
-    auto final_state = head_state;
-    OUTCOME_TRY(stf_.processSlots(final_state, slot));  // create final state
-    Block final_block{.slot = slot,
-                      .proposer_index = validator_index,
-                      .parent_root = head_root,
-                      .state_root = {},  // to be filled after state transition
-                      .body = BlockBody{.attestations = attestations}};
-
-    // Apply state transition to get final post-state and compute state root
-    OUTCOME_TRY(stf_.processBlock(final_state, final_block));
-    final_block.state_root = sszHash(final_state);
+    BOOST_OUTCOME_TRY(
+        auto state,
+        stf_.stateTransition({.message = block}, head_state, false));
+    block.state_root = sszHash(state);
+    block.setHash();
 
     // Store block and state in forkchoice store
-    auto block_hash = sszHash(final_block);
-    blocks_.emplace(block_hash, final_block);
-    states_.emplace(block_hash, std::move(final_state));
+    auto block_hash = block.hash();
+    blocks_.emplace(block_hash, block);
+    states_.emplace(block_hash, std::move(state));
 
     // update head (not in spec)
     head_ = block_hash;
 
-    return final_block;
+    return block;
   }
 
 
@@ -270,9 +218,9 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::processAttestation(
       const SignedVote &signed_vote, bool is_from_block) {
-    signed_votes_[signed_vote.data.validator_id] = signed_vote;
     // Validate attestation structure and constraints
     BOOST_OUTCOME_TRY(validateAttestation(signed_vote));
+    // signed_votes_[signed_vote.data.validator_id] = signed_vote;
 
     auto &validator_id = signed_vote.data.validator_id;
     auto &vote = signed_vote.data;
@@ -281,14 +229,14 @@ namespace lean {
       // update latest known votes if this is latest
       auto latest_known_vote = latest_known_votes_.find(validator_id);
       if (latest_known_vote == latest_known_votes_.end()
-          or latest_known_vote->second.slot < vote.slot) {
-        latest_known_votes_.insert_or_assign(validator_id, vote.target);
+          or latest_known_vote->second.data.target.slot < vote.slot) {
+        latest_known_votes_.insert_or_assign(validator_id, signed_vote);
       }
 
       // clear from new votes if this is latest
       auto latest_new_vote = latest_new_votes_.find(validator_id);
       if (latest_new_vote != latest_new_votes_.end()
-          and latest_new_vote->second.slot <= vote.target.slot) {
+          and latest_new_vote->second.data.target.slot <= vote.target.slot) {
         latest_new_votes_.erase(latest_new_vote);
       }
     } else {
@@ -301,8 +249,8 @@ namespace lean {
       // update latest new votes if this is the latest
       auto latest_new_vote = latest_new_votes_.find(validator_id);
       if (latest_new_vote == latest_new_votes_.end()
-          or latest_new_vote->second.slot < vote.target.slot) {
-        latest_new_votes_.insert_or_assign(validator_id, vote.target);
+          or latest_new_vote->second.data.target.slot < vote.target.slot) {
+        latest_new_votes_.insert_or_assign(validator_id, signed_vote);
       }
     }
 
@@ -356,7 +304,7 @@ namespace lean {
     };
 
     for (auto &vote : latest_votes | std::views::values) {
-      auto block_it = blocks.find(vote.root);
+      auto block_it = blocks.find(vote.data.target.root);
       if (block_it != blocks.end()) {
         while (block_it->second.slot > root.slot) {
           ++vote_weights[block_it->first];
@@ -399,8 +347,9 @@ namespace lean {
     }
   }
 
-  ForkChoiceStore::ForkChoiceStore(State anchor_state, Block anchor_block,
-                                   std::shared_ptr<clock::SystemClock> clock) 
+  ForkChoiceStore::ForkChoiceStore(State anchor_state,
+                                   Block anchor_block,
+                                   std::shared_ptr<clock::SystemClock> clock)
       : clock_(clock) {
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
@@ -418,17 +367,17 @@ namespace lean {
   }
 
   // Test constructor implementation
-  ForkChoiceStore::ForkChoiceStore(std::shared_ptr<clock::SystemClock> clock,
-                                   Config config,
-                                   BlockHash head,
-                                   BlockHash safe_target,
-                                   Checkpoint latest_justified,
-                                   Checkpoint latest_finalized,
-                                   Blocks blocks,
-                                   std::unordered_map<BlockHash, State> states,
-                                   Votes latest_known_votes,
-                                   std::unordered_map<ValidatorIndex, SignedVote> signed_votes,
-                                   Votes latest_new_votes)
+  ForkChoiceStore::ForkChoiceStore(
+      std::shared_ptr<clock::SystemClock> clock,
+      Config config,
+      BlockHash head,
+      BlockHash safe_target,
+      Checkpoint latest_justified,
+      Checkpoint latest_finalized,
+      Blocks blocks,
+      std::unordered_map<BlockHash, State> states,
+      Votes latest_known_votes,
+      Votes latest_new_votes)
       : clock_(clock),
         config_(config),
         head_(head),
@@ -438,7 +387,6 @@ namespace lean {
         blocks_(std::move(blocks)),
         states_(std::move(states)),
         latest_known_votes_(std::move(latest_known_votes)),
-        signed_votes_(std::move(signed_votes)),
-        latest_new_votes_(std::move(latest_new_votes)) {
-  }
+        // signed_votes_(std::move(signed_votes)),
+        latest_new_votes_(std::move(latest_new_votes)) {}
 }  // namespace lean

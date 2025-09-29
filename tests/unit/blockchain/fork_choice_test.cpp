@@ -42,12 +42,12 @@ SignedVote makeVote(const Block &source, const Block &target) {
   };
 }
 
-std::optional<Checkpoint> getVote(const ForkChoiceStore::Votes &votes) {
+std::optional<Checkpoint> getTargetVote(const ForkChoiceStore::Votes &votes) {
   auto it = votes.find(0);
   if (it == votes.end()) {
     return std::nullopt;
   }
-  return it->second;
+  return it->second.data.target;
 }
 
 lean::Config config{
@@ -225,10 +225,16 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  auto head = getForkChoiceHead(makeBlockMap(blocks),
-                                Checkpoint::from(root),
-                                {{0, Checkpoint::from(target)}},
-                                0);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks),
+      Checkpoint::from(root),
+      lean::ForkChoiceStore::Votes{
+          {0,
+           SignedVote{.data = lean::Vote{.validator_id = 0,
+                                         .head = Checkpoint::from(target),
+                                         .target = Checkpoint::from(target),
+                                         .source = Checkpoint::from(root)}}}},
+      0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -250,10 +256,15 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  auto head = getForkChoiceHead(makeBlockMap(blocks),
-                                Checkpoint::from(root),
-                                {{0, Checkpoint::from(target)}},
-                                2);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks),
+      Checkpoint::from(root),
+      {{0,
+        SignedVote{.data = lean::Vote{.validator_id = 0,
+                                      .head = Checkpoint::from(target),
+                                      .target = Checkpoint::from(target),
+                                      .source = Checkpoint::from(root)}}}},
+      2);
 
   EXPECT_EQ(head, root.hash());
 }
@@ -264,14 +275,27 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  auto head = getForkChoiceHead(makeBlockMap(blocks),
-                                Checkpoint::from(root),
-                                {
-                                    {0, Checkpoint::from(target)},
-                                    {1, Checkpoint::from(target)},
-                                    {2, Checkpoint::from(target)},
-                                },
-                                0);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks),
+      Checkpoint::from(root),
+      {
+          {0,
+           SignedVote{.data = lean::Vote{.validator_id = 0,
+                                         .head = Checkpoint::from(target),
+                                         .target = Checkpoint::from(target),
+                                         .source = Checkpoint::from(root)}}},
+          {1,
+           SignedVote{.data = lean::Vote{.validator_id = 0,
+                                         .head = Checkpoint::from(target),
+                                         .target = Checkpoint::from(target),
+                                         .source = Checkpoint::from(root)}}},
+          {2,
+           SignedVote{.data = lean::Vote{.validator_id = 0,
+                                         .head = Checkpoint::from(target),
+                                         .target = Checkpoint::from(target),
+                                         .source = Checkpoint::from(root)}}},
+      },
+      0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -309,21 +333,29 @@ TEST(TestSafeTargetComputation, test_safe_target_with_votes) {
   auto finalized = Checkpoint::from(genesis);
   auto mock_clock = createManualClock(100);
 
-  ForkChoiceStore store(mock_clock,            // clock
-                        config,                // config
-                        block_1.hash(),        // head
-                        genesis.hash(),        // safe_target
-                        finalized,             // latest_justified
-                        finalized,             // latest_finalized
-                        makeBlockMap(blocks),  // blocks
-                        {},                    // states
-                        {},                    // latest_known_votes
-                        {},                    // signed_votes
-                        {
-                            // latest_new_votes
-                            {0, Checkpoint::from(block_1)},
-                            {1, Checkpoint::from(block_1)},
-                        });
+  ForkChoiceStore store(
+      mock_clock,            // clock
+      config,                // config
+      block_1.hash(),        // head
+      genesis.hash(),        // safe_target
+      finalized,             // latest_justified
+      finalized,             // latest_finalized
+      makeBlockMap(blocks),  // blocks
+      {},                    // states
+      {},                    // latest_known_votes
+      {
+          // latest_new_votes
+          {0,
+           SignedVote{.data = lean::Vote{.validator_id = 0,
+                                         .head = Checkpoint::from(block_1),
+                                         .target = Checkpoint::from(block_1),
+                                         .source = Checkpoint::from(genesis)}}},
+          {1,
+           SignedVote{.data = lean::Vote{.validator_id = 0,
+                                         .head = Checkpoint::from(block_1),
+                                         .target = Checkpoint::from(block_1),
+                                         .source = Checkpoint::from(genesis)}}},
+      });
 
   // Update safe target with votes
   store.updateSafeTarget();
@@ -475,7 +507,7 @@ TEST(TestAttestationProcessing, test_process_network_attestation) {
       sample_store.processAttestation(makeVote(source, target), false));
 
   // Vote should be added to new votes
-  EXPECT_EQ(getVote(sample_store.getLatestNewVotes()),
+  EXPECT_EQ(getTargetVote(sample_store.getLatestNewVotes()),
             Checkpoint::from(target));
 }
 
@@ -501,7 +533,7 @@ TEST(TestAttestationProcessing, test_process_block_attestation) {
       sample_store.processAttestation(makeVote(source, target), true));
 
   // Vote should be added to known votes
-  EXPECT_EQ(getVote(sample_store.getLatestKnownVotes()),
+  EXPECT_EQ(getTargetVote(sample_store.getLatestKnownVotes()),
             Checkpoint::from(target));
 }
 
@@ -530,7 +562,7 @@ TEST(TestAttestationProcessing, test_process_attestation_superseding) {
       sample_store.processAttestation(makeVote(target_1, target_2), false));
 
   // Should have the newer vote
-  EXPECT_EQ(getVote(sample_store.getLatestNewVotes()),
+  EXPECT_EQ(getTargetVote(sample_store.getLatestNewVotes()),
             Checkpoint::from(target_2));
 }
 
@@ -556,14 +588,14 @@ TEST(TestAttestationProcessing,
   EXPECT_OUTCOME_SUCCESS(sample_store.processAttestation(signed_vote, false));
 
   // Should be in new votes
-  ASSERT_TRUE(getVote(sample_store.getLatestNewVotes()));
+  ASSERT_TRUE(getTargetVote(sample_store.getLatestNewVotes()));
 
   // Process same vote as block attestation
   EXPECT_OUTCOME_SUCCESS(sample_store.processAttestation(signed_vote, true));
 
   // Vote should move to known votes and be removed from new votes
-  ASSERT_FALSE(getVote(sample_store.getLatestNewVotes()));
-  EXPECT_EQ(getVote(sample_store.getLatestKnownVotes()),
+  ASSERT_FALSE(getTargetVote(sample_store.getLatestNewVotes()));
+  EXPECT_EQ(getTargetVote(sample_store.getLatestKnownVotes()),
             Checkpoint::from(target));
 }
 
@@ -737,7 +769,7 @@ TEST(TestProposalHeadTiming, test_head_calculation_with_votes) {
 
   // Test that votes are still accessible (they won't be processed
   // automatically)
-  ASSERT_TRUE(getVote(sample_store.getLatestNewVotes()));
+  ASSERT_TRUE(getTargetVote(sample_store.getLatestNewVotes()));
 
   // Test clock functionality
   EXPECT_EQ(sample_store.getCurrentSlot(), 1);  // Should be slot 1 initially
