@@ -87,29 +87,44 @@ namespace lean::app {
 
     SL_INFO(logger_, "Next slot is {} in {}ms", next_slot, time_to_next_slot);
 
-    auto time_to_interval_1 = SECONDS_PER_INTERVAL * 1000;
+    const auto slot_start_abs =
+        config_->genesis_time
+        + SLOT_DURATION_MS * msg->slot;  // in milliseconds
+
+    auto abs_interval1 = slot_start_abs + SECONDS_PER_INTERVAL * 1000;
+    auto abs_interval2 = slot_start_abs + 2 * SECONDS_PER_INTERVAL * 1000;
+    auto abs_interval3 = slot_start_abs + 3 * SECONDS_PER_INTERVAL * 1000;
+
+    auto ms_to_abs = [&](uint64_t abs_time_ms) -> uint64_t {
+      return (abs_time_ms > now) ? (abs_time_ms - now) : 0ull;
+    };
+
+    auto time_to_interval_1 = ms_to_abs(abs_interval1);
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_1),
         EventTypes::SlotIntervalOneStarted,
         std::make_shared<const messages::SlotIntervalOneStarted>(msg->slot,
                                                                  msg->epoch));
 
-    auto time_to_interval_2 = 2 * SECONDS_PER_INTERVAL * 1000;
+    auto time_to_interval_2 = ms_to_abs(abs_interval2);
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_2),
         EventTypes::SlotIntervalTwoStarted,
         std::make_shared<const messages::SlotIntervalTwoStarted>(msg->slot,
                                                                  msg->epoch));
 
-    auto time_to_interval_3 = 3 * SECONDS_PER_INTERVAL * 1000;
+    auto time_to_interval_3 = ms_to_abs(abs_interval3);
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_3),
         EventTypes::SlotIntervalThreeStarted,
         std::make_shared<const messages::SlotIntervalThreeStarted>(msg->slot,
                                                                    msg->epoch));
 
+    const auto next_slot_abs =
+        config_->genesis_time + SLOT_DURATION_MS * (msg->slot + 1);
+    auto time_to_next_slot_abs = ms_to_abs(next_slot_abs);
     se_manager_->notifyDelayed(
-        std::chrono::milliseconds(time_to_next_slot),
+        std::chrono::milliseconds(time_to_next_slot_abs),
         EventTypes::SlotStarted,
         std::make_shared<const messages::SlotStarted>(msg->slot + 1, 0, false));
   }
