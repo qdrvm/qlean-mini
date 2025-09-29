@@ -39,4 +39,6 @@ namespace lean {
              justifications_roots,
              justifications_validators);
   };
+
+  using AnchorState = qtils::Tagged<State, struct AnchorStateTag>;
 }  // namespace lean

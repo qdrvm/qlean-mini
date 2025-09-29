@@ -26,7 +26,8 @@ namespace lean::modules {
                          qtils::SharedRef<lean::log::LoggingSystem> logsys,
                          qtils::SharedRef<blockchain::BlockTree> block_tree,
                          std::shared_ptr<ForkChoiceStore> fork_choice_store,
-                         qtils::SharedRef<crypto::Hasher> hasher);
+                         qtils::SharedRef<crypto::Hasher> hasher,
+                         qtils::SharedRef<clock::SystemClock> clock);
 
    public:
     CREATE_SHARED_METHOD(ProductionModuleImpl);
@@ -34,13 +35,8 @@ namespace lean::modules {
     void on_loaded_success() override;
     void on_loading_is_finished() override;
 
-    void on_slot_started(std::shared_ptr<const messages::SlotStarted>) override;
-    void on_slot_interval_one_started(
-        std::shared_ptr<const messages::SlotIntervalOneStarted>) override;
-    void on_slot_interval_two_started(
-        std::shared_ptr<const messages::SlotIntervalTwoStarted>) override;
-    void on_slot_interval_three_started(
-        std::shared_ptr<const messages::SlotIntervalThreeStarted>) override;
+    void on_slot_interval_started(
+        std::shared_ptr<const messages::SlotIntervalStarted>) override;
 
     void on_leave_update(std::shared_ptr<const messages::NewLeaf>) override;
     void on_block_finalized(
@@ -53,6 +49,7 @@ namespace lean::modules {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<crypto::Hasher> hasher_;
+    qtils::SharedRef<clock::SystemClock> clock_;
   };
 
 

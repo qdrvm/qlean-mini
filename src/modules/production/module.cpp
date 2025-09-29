@@ -27,14 +27,16 @@ query_module_instance(lean::modules::ProductionLoader &loader,
                       std::shared_ptr<lean::log::LoggingSystem> logger,
                       std::shared_ptr<lean::blockchain::BlockTree> block_tree,
                       std::shared_ptr<lean::ForkChoiceStore> fork_choice_store,
-                      qtils::SharedRef<lean::crypto::Hasher> hasher) {
+                      qtils::SharedRef<lean::crypto::Hasher> hasher,
+                      qtils::SharedRef<lean::clock::SystemClock> clock) {
   if (!module_instance) {
     module_instance = lean::modules::ProductionModuleImpl::create_shared(
         loader,
         std::move(logger),
         std::move(block_tree),
         std::move(fork_choice_store),
-        std::move(hasher));
+        std::move(hasher),
+        std::move(clock));
   }
   return module_instance;
 }

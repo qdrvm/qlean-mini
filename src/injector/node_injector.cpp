@@ -62,15 +62,24 @@ namespace {
     return boost::di::bind<T>().to(std::move(c))[boost::di::override];
   }
 
+  template <typename Injector>
+  std::shared_ptr<ForkChoiceStore> get_fork_choice_store(
+      const Injector &injector) {
+    auto config = injector.template create<std::shared_ptr<Config>>();
+    return std::make_shared<ForkChoiceStore>(
+        injector.template create<AnchorState>(),
+        injector.template create<AnchorBlock>(),
+        injector.template create<qtils::SharedRef<clock::SystemClock>>(),
+        injector.template create<qtils::SharedRef<log::LoggingSystem>>());
+  }
+
   using injector::bind_by_lambda;
 
   template <typename... Ts>
-  auto makeApplicationInjector(
-      std::shared_ptr<log::LoggingSystem> logsys,
-      std::shared_ptr<app::Configuration> app_config,
-      std::shared_ptr<Config> genesis_config,
-      std::shared_ptr<ForkChoiceStore> fork_choice_store,
-      Ts &&...args) {
+  auto makeApplicationInjector(std::shared_ptr<log::LoggingSystem> logsys,
+                               std::shared_ptr<app::Configuration> app_config,
+                               std::shared_ptr<Config> genesis_config,
+                               Ts &&...args) {
     // clang-format off
     return di::make_injector(
         di::bind<app::Configuration>.to(app_config),
@@ -91,7 +100,9 @@ namespace {
           };
         }),
         di::bind<Config>.to(genesis_config),
-        di::bind<ForkChoiceStore>.to(fork_choice_store),
+        bind_by_lambda<ForkChoiceStore>([](const auto& injector) {
+          return get_fork_choice_store(injector);
+        }),
         di::bind<storage::BufferStorage>.to<storage::InMemoryStorage>(),
         //di::bind<storage::SpacedStorage>.to<storage::InMemorySpacedStorage>(),
         di::bind<storage::SpacedStorage>.to<storage::RocksDb>(),
@@ -112,18 +123,15 @@ namespace {
                         std::shared_ptr<app::Configuration> app_config,
                         std::shared_ptr<Config> genesis_config,
                         Ts &&...args) {
-    State genesis_state = STF::generateGenesisState(*genesis_config);
-    Block genesis_block = STF::genesisBlock(genesis_state);
+    AnchorState genesis_state = STF::generateGenesisState(*genesis_config);
+    AnchorBlock genesis_block = STF::genesisBlock(genesis_state);
 
-    auto fork_choice_store = std::make_shared<ForkChoiceStore>(
-        genesis_state,
-        genesis_block,
-        std::make_shared<clock::SystemClockImpl>());
     return di::make_injector<boost::di::extension::shared_config>(
         makeApplicationInjector(std::move(logsys),
                                 std::move(app_config),
                                 std::move(genesis_config),
-                                std::move(fork_choice_store)),
+                                useConfig<AnchorState>(genesis_state),
+                                useConfig<AnchorBlock>(genesis_block)),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);

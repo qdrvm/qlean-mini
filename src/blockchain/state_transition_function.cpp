@@ -70,17 +70,36 @@ namespace lean {
     }
   }
 
-  State STF::generateGenesisState(const Config &config) {
+  AnchorState STF::generateGenesisState(const Config &config) {
     BlockHeader header;
+    header.slot = 0;
+    header.proposer_index = 0;
+    header.parent_root = kZeroHash;
+    header.state_root = kZeroHash;
     header.body_root = sszHash(BlockBody{});
-    return State{
-        .config = config,
-        .latest_block_header = header,
-    };
+
+    AnchorState result;
+    result.config = config;
+    result.slot = 0;
+    result.latest_block_header = header;
+    result.latest_justified = Checkpoint{.root = kZeroHash, .slot = 0};
+    result.latest_finalized = Checkpoint{.root = kZeroHash, .slot = 0};
+    // result.historical_block_hashes;
+    // result.justified_slots;
+    // result.justifications_roots;
+    // result.justifications_validators;
+
+    return result;
   }
 
-  Block STF::genesisBlock(const State &state) {
-    return Block{.state_root = sszHash(state)};
+  AnchorBlock STF::genesisBlock(const State &state) {
+    AnchorBlock result;
+    result.slot = state.slot;
+    result.proposer_index = 0;
+    result.parent_root = kZeroHash;
+    result.state_root = sszHash(state);
+    result.body = BlockBody{};
+    return result;
   }
 
   outcome::result<State> STF::stateTransition(const SignedBlock &signed_block,
@@ -93,14 +112,16 @@ namespace lean {
     //       sszHash(parent_state).toHex());
     // }
     // // print all signed_block.message's fields
-    // fmt::println("Signed block: slot {}, proposer_index {}, parent_root {}, state_root {}",
+    // fmt::println("Signed block: slot {}, proposer_index {}, parent_root {},
+    // state_root {}",
     //              signed_block.message.slot,
     //              signed_block.message.proposer_index,
     //              signed_block.message.parent_root.toHex(),
     //              signed_block.message.state_root.toHex());
     // // print all signed_block.message.body's attestations
     // for (auto &attestation : signed_block.message.body.attestations) {
-    //   fmt::println("  Attestation: validator_id {}, source(slot {}, root {}), target(slot {}, root {})",
+    //   fmt::println("  Attestation: validator_id {}, source(slot {}, root {}),
+    //   target(slot {}, root {})",
     //                attestation.data.validator_id,
     //                attestation.data.source.slot,
     //                attestation.data.source.root.toHex(),

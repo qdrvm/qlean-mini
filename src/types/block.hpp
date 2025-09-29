@@ -46,4 +46,6 @@ namespace lean {
       return {slot, hash()};
     }
   };
+
+  using AnchorBlock = qtils::Tagged<Block, struct AnchorBlockTag>;
 }  // namespace lean

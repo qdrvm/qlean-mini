@@ -10,7 +10,9 @@
 #include <qtils/outcome.hpp>
 
 #include "app/impl/chain_spec_impl.hpp"
+#include "types/block.hpp"
 #include "types/slot.hpp"
+#include "types/state.hpp"
 
 namespace lean {
   struct Block;
@@ -52,8 +54,8 @@ namespace lean {
       abort();
     }
 
-    static State generateGenesisState(const Config &config);
-    static Block genesisBlock(const State &state);
+    static AnchorState generateGenesisState(const Config &config);
+    static AnchorBlock genesisBlock(const State &state);
 
     /**
      * Apply block to parent state.

@@ -17,17 +17,7 @@ namespace lean::messages {
     bool epoch_change;
   };
 
-  struct SlotIntervalOneStarted {
-    Slot slot;
-    Epoch epoch;
-  };
-
-  struct SlotIntervalTwoStarted {
-    Slot slot;
-    Epoch epoch;
-  };
-
-  struct SlotIntervalThreeStarted {
+  struct SlotIntervalStarted {
     Slot slot;
     Epoch epoch;
   };

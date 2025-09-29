@@ -40,21 +40,26 @@ namespace lean {
       abort();
     }
 
-    ForkChoiceStore(State anchor_state, Block anchor_block, 
-                    std::shared_ptr<clock::SystemClock> clock);
+    ForkChoiceStore(const AnchorState &anchor_state,
+                    const AnchorBlock &anchor_block,
+                    qtils::SharedRef<clock::SystemClock> clock,
+                    qtils::SharedRef<log::LoggingSystem> logging_system);
 
     // Test constructor - only for use in tests
-    ForkChoiceStore(std::shared_ptr<clock::SystemClock> clock,
-                    Config config = {},
-                    BlockHash head = {},
-                    BlockHash safe_target = {},
-                    Checkpoint latest_justified = {},
-                    Checkpoint latest_finalized = {},
-                    Blocks blocks = {},
-                    std::unordered_map<BlockHash, State> states = {},
-                    Votes latest_known_votes = {},
-                    // std::unordered_map<ValidatorIndex, SignedVote> signed_votes = {},
-                    Votes latest_new_votes = {});
+    ForkChoiceStore(
+        uint64_t now_sec,
+        qtils::SharedRef<log::LoggingSystem> logging_system,
+        Config config = {},
+        BlockHash head = {},
+        BlockHash safe_target = {},
+        Checkpoint latest_justified = {},
+        Checkpoint latest_finalized = {},
+        Blocks blocks = {},
+        std::unordered_map<BlockHash, State> states = {},
+        Votes latest_known_votes = {},
+        // std::unordered_map<ValidatorIndex, SignedVote> signed_votes = {},
+        Votes latest_new_votes = {},
+        ValidatorIndex validator_index = 0);
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -82,13 +87,23 @@ namespace lean {
     Slot getHeadSlot() const;
     const Config &getConfig() const;
     Checkpoint getLatestFinalized() const;
-    
+
     // Test helper methods
-    BlockHash getSafeTarget() const { return safe_target_; }
-    const Blocks& getBlocks() const { return blocks_; }
-    const Votes& getLatestNewVotes() const { return latest_new_votes_; }
-    const Votes& getLatestKnownVotes() const { return latest_known_votes_; }
-    Votes& getLatestNewVotesRef() { return latest_new_votes_; }
+    BlockHash getSafeTarget() const {
+      return safe_target_;
+    }
+    const Blocks &getBlocks() const {
+      return blocks_;
+    }
+    const Votes &getLatestNewVotes() const {
+      return latest_new_votes_;
+    }
+    const Votes &getLatestKnownVotes() const {
+      return latest_known_votes_;
+    }
+    Votes &getLatestNewVotesRef() {
+      return latest_new_votes_;
+    }
 
     /**
      * Calculates the target checkpoint for a vote based on the head, safe
@@ -113,7 +128,8 @@ namespace lean {
      *   slot: Target slot number for block production
      *   validator_index: Index of validator authorized to propose this block
      */
-    outcome::result<Block> produceBlock(Slot slot, ValidatorIndex validator_index);
+    outcome::result<Block> produceBlock(Slot slot,
+                                        ValidatorIndex validator_index);
 
     // Validate incoming attestation before processing.
     // Performs basic validation checks on attestation structure and timing.
@@ -127,9 +143,19 @@ namespace lean {
     // Processes a new block, updates the store, and triggers a head update.
     outcome::result<void> onBlock(Block block);
 
+    // Advance forkchoice store time to given timestamp.
+    // Ticks store forward interval by interval, performing appropriate
+    // actions for each interval type.
+    // Args:
+    //    time: Target time in seconds since genesis.
+    //    has_proposal: Whether node has proposal for current slot.
+    std::vector<std::variant<SignedVote, SignedBlock>> advanceTime(
+        uint64_t now_sec);
+
    private:
     STF stf_;
-    std::shared_ptr<clock::SystemClock> clock_;
+    // std::shared_ptr<clock::SystemClock> clock_;
+    Interval time_;
     Config config_;
     BlockHash head_;
     BlockHash safe_target_;
@@ -139,6 +165,8 @@ namespace lean {
     std::unordered_map<BlockHash, State> states_;
     Votes latest_known_votes_;
     Votes latest_new_votes_;
+    const ValidatorIndex validator_index_;
+    log::Logger logger_;
   };
 
   BlockHash getForkChoiceHead(const ForkChoiceStore::Blocks &blocks,

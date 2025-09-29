@@ -6,6 +6,8 @@
 
 #include "modules/production/production.hpp"
 
+#include <qtils/visit_in_place.hpp>
+
 #include "blockchain/block_tree.hpp"
 #include "crypto/hasher.hpp"
 #include "modules/shared/networking_types.tmp.hpp"
@@ -20,13 +22,15 @@ namespace lean::modules {
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       std::shared_ptr<ForkChoiceStore> fork_choice_store,
-      qtils::SharedRef<crypto::Hasher> hasher)
+      qtils::SharedRef<crypto::Hasher> hasher,
+      qtils::SharedRef<clock::SystemClock> clock)
       : loader_(loader),
         logsys_(std::move(logging_system)),
         logger_(logsys_->getLogger("ProductionModule", "production_module")),
         block_tree_(std::move(block_tree)),
         fork_choice_store_(std::move(fork_choice_store)),
-        hasher_(std::move(hasher)) {}
+        hasher_(std::move(hasher)),
+        clock_(std::move(clock)) {}
 
   void ProductionModuleImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");
@@ -36,98 +40,38 @@ namespace lean::modules {
     SL_INFO(logger_, "Loading is finished");
   }
 
-  void ProductionModuleImpl::on_slot_started(
-      std::shared_ptr<const messages::SlotStarted> msg) {
-    if (msg->epoch_change) {
-      SL_INFO(logger_, "Epoch changed to {}", msg->epoch);
+  void ProductionModuleImpl::on_slot_interval_started(
+      std::shared_ptr<const messages::SlotIntervalStarted> msg) {
+    // advance fork choice store to current time
+    auto res = fork_choice_store_->advanceTime(clock_->nowSec());
+
+    // dispatch all votes and blocks produced during advance time
+    for (auto &vote_or_block : res) {
+      qtils::visit_in_place(
+          vote_or_block,
+          [&](const SignedVote &v) {
+            SL_INFO(logger_,
+                    "Produced vote for target {}@{}",
+                    v.data.target.slot,
+                    v.data.target.root);
+            loader_.dispatchSendSignedVote(
+                std::make_shared<messages::SendSignedVote>(v));
+          },
+          [&](const SignedBlock &v) {
+            SL_INFO(logger_,
+                    "Produced block for slot {} with parent {} state {}",
+                    v.message.slot,
+                    v.message.parent_root,
+                    v.message.state_root);
+            loader_.dispatchSendSignedBlock(
+                std::make_shared<messages::SendSignedBlock>(v));
+            auto res = block_tree_->addBlock(v.message);
+            if (!res.has_value()) {
+              SL_ERROR(
+                  logger_, "Failed to add produced block: {}", res.error());
+            }
+          });
     }
-
-    auto producer_index =
-        msg->slot % fork_choice_store_->getConfig().num_validators;
-    auto is_producer = getPeerIndex() == producer_index;
-
-    SL_INFO(logger_,
-            "Slot {} is started{}",
-            msg->slot,
-            is_producer ? " - I'm a producer" : "");
-
-    if (is_producer) {
-      fork_choice_store_->acceptNewVotes();
-
-      auto res = fork_choice_store_->produceBlock(msg->slot, producer_index);
-      if (!res.has_value()) {
-        SL_ERROR(logger_,
-                 "Failed to produce block for slot {}: {}",
-                 msg->slot,
-                 res.error());
-        return;
-      }
-      auto new_block = res.value();
-
-      SignedBlock new_signed_block{
-          .message = new_block, .signature = qtils::ByteArr<32>{0}
-          // signature with zero bytes for now
-      };
-
-      SL_INFO(logger_,
-              "Produced block for slot {} with parent {} state {}",
-              msg->slot,
-              new_block.parent_root,
-              new_signed_block.message.state_root);
-
-      loader_.dispatchSendSignedBlock(
-          std::make_shared<messages::SendSignedBlock>(new_signed_block));
-    }
-  }
-  void ProductionModuleImpl::on_slot_interval_one_started(
-      std::shared_ptr<const messages::SlotIntervalOneStarted> msg) {
-    SL_INFO(logger_, "Slot interval one started on slot {}", msg->slot);
-    auto head_root = fork_choice_store_->getHead();
-    Checkpoint head{.root = head_root,
-                    .slot = fork_choice_store_->getBlockSlot(head_root)};
-    auto target = fork_choice_store_->getVoteTarget();
-    auto source = fork_choice_store_->getLatestJustified();
-    SL_INFO(logger_,
-            "For slot {}: head is {}@{}, target is {}@{}, source is {}@{}",
-            msg->slot,
-            head.slot,
-            head.root,
-            target.slot,
-            target.root,
-            source->slot,
-            source->root);
-    SignedVote signed_vote{
-        .data =
-            Vote{
-                .validator_id = getPeerIndex(),
-                .slot = msg->slot,
-                .head = head,
-                .target = target,
-                .source = *source,
-            },
-        .signature = qtils::ByteArr<32>{0}  // signature with zero bytes for now
-    };
-
-    // Dispatching send signed vote only broadcasts to other peers. Current peer
-    // should process attestation directly
-    auto res = fork_choice_store_->processAttestation(signed_vote, false);
-    BOOST_ASSERT_MSG(res.has_value(), "Produced vote should be valid");
-    SL_INFO(logger_,
-            "Produced vote for target {}@{}",
-            signed_vote.data.target.slot,
-            signed_vote.data.target.root);
-    loader_.dispatchSendSignedVote(
-        std::make_shared<messages::SendSignedVote>(signed_vote));
-  }
-  void ProductionModuleImpl::on_slot_interval_two_started(
-      std::shared_ptr<const messages::SlotIntervalTwoStarted> msg) {
-    SL_INFO(logger_, "Slot interval two started on slot {}", msg->slot);
-    fork_choice_store_->updateSafeTarget();
-  }
-  void ProductionModuleImpl::on_slot_interval_three_started(
-      std::shared_ptr<const messages::SlotIntervalThreeStarted> msg) {
-    SL_INFO(logger_, "Slot interval three started on slot {}", msg->slot);
-    fork_choice_store_->acceptNewVotes();
   }
 
   void ProductionModuleImpl::on_leave_update(

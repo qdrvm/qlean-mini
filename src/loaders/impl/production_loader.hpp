@@ -27,6 +27,7 @@ namespace lean::loaders {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<crypto::Hasher> hasher_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<clock::SystemClock> clock_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
 
@@ -38,16 +39,8 @@ namespace lean::loaders {
         on_slot_started_;
     std::shared_ptr<
         BaseSubscriber<qtils::Empty,
-                       std::shared_ptr<const messages::SlotIntervalOneStarted>>>
-        on_slot_interval_one_started_;
-    std::shared_ptr<
-        BaseSubscriber<qtils::Empty,
-                       std::shared_ptr<const messages::SlotIntervalTwoStarted>>>
-        on_slot_interval_two_started_;
-    std::shared_ptr<BaseSubscriber<
-        qtils::Empty,
-        std::shared_ptr<const messages::SlotIntervalThreeStarted>>>
-        on_slot_interval_three_started_;
+                       std::shared_ptr<const messages::SlotIntervalStarted>>>
+        on_slot_interval_started_;
     std::shared_ptr<
         BaseSubscriber<qtils::Empty, std::shared_ptr<const messages::NewLeaf>>>
         on_leave_update_;
@@ -60,11 +53,13 @@ namespace lean::loaders {
                      qtils::SharedRef<Subscription> se_manager,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
                      qtils::SharedRef<crypto::Hasher> hasher,
-                     qtils::SharedRef<ForkChoiceStore> fork_choice_store)
+                     qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                     qtils::SharedRef<clock::SystemClock> clock)
         : Loader(std::move(logsys), std::move(se_manager)),
           block_tree_(std::move(block_tree)),
           hasher_(std::move(hasher)),
-          fork_choice_store_(std::move(fork_choice_store)) {}
+          fork_choice_store_(std::move(fork_choice_store)),
+          clock_(clock) {}
 
     ProductionLoader(const ProductionLoader &) = delete;
     ProductionLoader &operator=(const ProductionLoader &) = delete;
@@ -80,7 +75,8 @@ namespace lean::loaders {
                                        std::shared_ptr<log::LoggingSystem>,
                                        std::shared_ptr<blockchain::BlockTree>,
                                        qtils::SharedRef<ForkChoiceStore>,
-                                       std::shared_ptr<crypto::Hasher>>(
+                                       std::shared_ptr<crypto::Hasher>,
+                                       std::shared_ptr<clock::SystemClock>>(
                   "query_module_instance");
 
       if (not module_accessor) {
@@ -88,7 +84,7 @@ namespace lean::loaders {
       }
 
       auto module_internal = (*module_accessor)(
-          *this, logsys_, block_tree_, fork_choice_store_, hasher_);
+          *this, logsys_, block_tree_, fork_choice_store_, hasher_, clock_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::create<
           EventTypes::ProductionIsLoaded>(
@@ -110,48 +106,15 @@ namespace lean::loaders {
             }
           });
 
-      on_slot_started_ =
-          se::SubscriberCreator<qtils::Empty,
-                                std::shared_ptr<const messages::SlotStarted>>::
-              create<EventTypes::SlotStarted>(
-                  *se_manager_,
-                  SubscriptionEngineHandlers::kTest,
-                  [module_internal](auto &, auto msg) {
-                    if (auto m = module_internal.lock()) {
-                      m->on_slot_started(std::move(msg));
-                    }
-                  });
-      on_slot_interval_one_started_ = se::SubscriberCreator<
+      on_slot_interval_started_ = se::SubscriberCreator<
           qtils::Empty,
-          std::shared_ptr<const messages::SlotIntervalOneStarted>>::
-          create<EventTypes::SlotIntervalOneStarted>(
+          std::shared_ptr<const messages::SlotIntervalStarted>>::
+          create<EventTypes::SlotIntervalStarted>(
               *se_manager_,
               SubscriptionEngineHandlers::kTest,
               [module_internal](auto &, auto msg) {
                 if (auto m = module_internal.lock()) {
-                  m->on_slot_interval_one_started(std::move(msg));
-                }
-              });
-      on_slot_interval_two_started_ = se::SubscriberCreator<
-          qtils::Empty,
-          std::shared_ptr<const messages::SlotIntervalTwoStarted>>::
-          create<EventTypes::SlotIntervalTwoStarted>(
-              *se_manager_,
-              SubscriptionEngineHandlers::kTest,
-              [module_internal](auto &, auto msg) {
-                if (auto m = module_internal.lock()) {
-                  m->on_slot_interval_two_started(std::move(msg));
-                }
-              });
-      on_slot_interval_three_started_ = se::SubscriberCreator<
-          qtils::Empty,
-          std::shared_ptr<const messages::SlotIntervalThreeStarted>>::
-          create<EventTypes::SlotIntervalThreeStarted>(
-              *se_manager_,
-              SubscriptionEngineHandlers::kTest,
-              [module_internal](auto &, auto msg) {
-                if (auto m = module_internal.lock()) {
-                  m->on_slot_interval_three_started(std::move(msg));
+                  m->on_slot_interval_started(std::move(msg));
                 }
               });
 
