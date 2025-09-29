@@ -187,11 +187,12 @@ int main(int argc, const char **argv, const char **env) {
 
   // set genesis config. Genesis time should be next multiple of 12 seconds
   // since epoch (in ms)
+  constexpr uint64_t GENESIS_INTERVAL_MS = 12'000; // 12 seconds in milliseconds
   uint64_t genesis_time =
       std::chrono::duration_cast<std::chrono::milliseconds>(
           std::chrono::system_clock::now().time_since_epoch())
           .count();
-  genesis_time += 12000 - (genesis_time % 12000); // 1758719218000
+  genesis_time += GENESIS_INTERVAL_MS - (genesis_time % GENESIS_INTERVAL_MS);
 
   lean::Config genesis_config{.num_validators = 3,
                               .genesis_time = genesis_time};

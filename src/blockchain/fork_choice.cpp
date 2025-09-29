@@ -78,8 +78,8 @@ namespace lean {
   }
 
   Slot ForkChoiceStore::getCurrentSlot() {
-    // get current slot by dividing current time (in ms) by
-    // SLOT_DURATION_MS
+    // Calculate the current slot based on the elapsed time since genesis.
+    // Each slot is SLOT_DURATION_MS milliseconds long.
     uint64_t now = clock_->nowMsec();
     Slot current_slot = (now - config_.genesis_time) / SLOT_DURATION_MS;
     return current_slot;
