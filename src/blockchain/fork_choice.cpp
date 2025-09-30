@@ -87,7 +87,8 @@ namespace lean {
   BlockHash ForkChoiceStore::getHead() {
     return head_;
   }
-  State ForkChoiceStore::getState(const BlockHash &block_hash) const {
+
+  const State &ForkChoiceStore::getState(const BlockHash &block_hash) const {
     auto it = states_.find(block_hash);
     if (it == states_.end()) {
       throw std::out_of_range("No state for block hash");
@@ -99,7 +100,11 @@ namespace lean {
     return blocks_.contains(hash);
   }
 
-  Slot ForkChoiceStore::getBlockSlot(const BlockHash &block_hash) const {
+  std::optional<Slot> ForkChoiceStore::getBlockSlot(
+      const BlockHash &block_hash) const {
+    if (not blocks_.contains(block_hash)) {
+      return std::nullopt;
+    }
     return blocks_.at(block_hash).slot;
   }
 
@@ -182,6 +187,12 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
       const SignedVote &signed_vote) {
+    SL_INFO(logger_,
+            "Validating attestation for target {}@{}, source {}@{}",
+            signed_vote.data.target.slot,
+            signed_vote.data.target.root,
+            signed_vote.data.source.slot,
+            signed_vote.data.source.root);
     auto &vote = signed_vote.data;
 
     // Validate vote targets exist in store
@@ -335,7 +346,10 @@ namespace lean {
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
         // Interval one actions
         auto head_root = getHead();
-        Checkpoint head{.root = head_root, .slot = getBlockSlot(head_root)};
+        auto head_slot = getBlockSlot(head_root);
+        BOOST_ASSERT_MSG(head_slot.has_value(),
+                         "Head block must have a valid slot");
+        Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getVoteTarget();
         auto source = getLatestJustified();
         SL_INFO(logger_,
@@ -473,6 +487,8 @@ namespace lean {
     latest_finalized_ = Checkpoint::from(anchor_block);
 
     blocks_.emplace(anchor_root, std::move(anchor_block));
+    SL_INFO(
+        logger_, "Anchor block {} at slot {}", anchor_root, anchor_block.slot);
     states_.emplace(anchor_root, std::move(anchor_state));
   }
 

@@ -83,10 +83,10 @@ namespace lean {
     Slot getCurrentSlot();
 
     BlockHash getHead();
-    State getState(const BlockHash &block_hash) const;
+    const State &getState(const BlockHash &block_hash) const;
 
     bool hasBlock(const BlockHash &hash) const;
-    Slot getBlockSlot(const BlockHash &block_hash) const;
+    std::optional<Slot> getBlockSlot(const BlockHash &block_hash) const;
     Slot getHeadSlot() const;
     const Config &getConfig() const;
     Checkpoint getLatestFinalized() const;

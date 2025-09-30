@@ -6,12 +6,12 @@
 
 #include "blockchain/impl/fc_block_tree.hpp"
 
+#include "blockchain/block_tree_error.hpp"
 #include "types/signed_block.hpp"
 
 namespace lean::blockchain {
   FCBlockTree::FCBlockTree(qtils::SharedRef<ForkChoiceStore> fork_choice_store)
-      : fork_choice_store_(std::move(fork_choice_store)) {
-  }
+      : fork_choice_store_(std::move(fork_choice_store)) {}
 
   const BlockHash &FCBlockTree::getGenesisBlockHash() const {
     throw std::runtime_error("FCBlockTree::getGenesisBlockHash()");
@@ -80,9 +80,8 @@ namespace lean::blockchain {
   }
 
   BlockIndex FCBlockTree::bestBlock() const {
-    return BlockIndex{
-        .slot = fork_choice_store_->getHeadSlot(),
-        .hash = fork_choice_store_->getHead()};
+    return BlockIndex{.slot = fork_choice_store_->getHeadSlot(),
+                      .hash = fork_choice_store_->getHead()};
   }
 
   outcome::result<BlockIndex> FCBlockTree::getBestContaining(
@@ -116,6 +115,10 @@ namespace lean::blockchain {
 
   outcome::result<Slot> FCBlockTree::getNumberByHash(
       const BlockHash &block_hash) const {
-    return fork_choice_store_->getBlockSlot(block_hash);
+    auto opt = fork_choice_store_->getBlockSlot(block_hash);
+    if (not opt.has_value()) {
+      return BlockTreeError::HEADER_NOT_FOUND;
+    }
+    return opt.value();
   }
 }  // namespace lean::blockchain
