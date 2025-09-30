@@ -106,6 +106,7 @@ namespace lean::app {
         ("modules_dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to nodes.yaml file containing boot node ENRs.")
         ("name,n", po::value<std::string>(), "Set name of node.")
+        ("node_id", po::value<std::string>(), "Node id from validators.yaml")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
           "Syntax: <target>=<level>, e.g., -llibp2p=off.\n"
@@ -245,6 +246,16 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
+          auto node_id = section["node_id"];
+          if (node_id.IsDefined()) {
+            if (node_id.IsScalar()) {
+              auto value = node_id.as<std::string>();
+              config_->node_id_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.node_id' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
           auto base_path = section["base_path"];
           if (base_path.IsDefined()) {
             if (base_path.IsScalar()) {
@@ -314,6 +325,10 @@ namespace lean::app {
     find_argument<std::string>(
         cli_values_map_, "name", [&](const std::string &value) {
           config_->name_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "node_id", [&](const std::string &value) {
+          config_->node_id_ = value;
         });
     find_argument<std::string>(
         cli_values_map_, "base_path", [&](const std::string &value) {
