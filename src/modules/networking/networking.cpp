@@ -192,8 +192,6 @@ namespace lean::modules {
                   "Received vote for target {}@{}",
                   signed_vote.data.target.slot,
                   signed_vote.data.target.root);
-          // self->loader_.dispatchSignedVoteReceived(
-          //     std::make_shared<messages::SignedVoteReceived>(std::move(vote)));
         });
 
     if (sample_peer.index != 0) {
@@ -229,11 +227,6 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
-      // auto msg = encode(message->notification);
-      // SL_INFO(self->logger_,
-      //         "Gossiping block {} size {}",
-      //         message->notification.message.slot,
-      //         msg.value().toHex());
       self->gossip_blocks_topic_->publish(
           encodeSszSnappy(message->notification));
     });
@@ -259,10 +252,6 @@ namespace lean::modules {
             if (auto uncompressed_res = snappyUncompress(raw)) {
               auto &uncompressed = uncompressed_res.value();
               if (auto r = decode<T>(uncompressed)) {
-                // SL_INFO(logger_,
-                //         "Received gossiped {}, uncompressed {}",
-                //         type,
-                //         uncompressed.toHex());
                 f(std::move(r.value()));
               }
             }
@@ -318,7 +307,10 @@ namespace lean::modules {
   void NetworkingImpl::receiveBlock(std::optional<libp2p::PeerId> from_peer,
                                     SignedBlock &&signed_block) {
     auto slot_hash = signed_block.message.slotHash();
-    SL_DEBUG(logger_, "receiveBlock slot {} hash {}", slot_hash.slot, slot_hash.hash);
+    SL_DEBUG(logger_,
+             "receiveBlock slot {} hash {}",
+             slot_hash.slot,
+             slot_hash.hash);
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
       while (not queue.empty()) {

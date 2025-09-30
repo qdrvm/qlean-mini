@@ -120,10 +120,6 @@ namespace lean {
     return latest_finalized_;
   }
 
-  void ForkChoiceStore::addBlock(const Block &block) {
-    blocks_.emplace(block.hash(), block);
-  }
-
 
   Checkpoint ForkChoiceStore::getVoteTarget() const {
     // Start from head as target candidate
@@ -330,7 +326,7 @@ namespace lean {
                      res.error());
             continue;
           }
-          auto new_block = res.value();
+          const auto &new_block = res.value();
 
           SignedBlock new_signed_block{.message = new_block,
                                        .signature = qtils::ByteArr<32>{0}};
@@ -340,8 +336,7 @@ namespace lean {
                   current_slot,
                   new_block.parent_root,
                   new_signed_block.message.state_root);
-
-          result.push_back(std::move(new_signed_block));
+          result.emplace_back(std::move(new_signed_block));
         }
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
         // Interval one actions
@@ -380,7 +375,7 @@ namespace lean {
                 "Produced vote for target {}@{}",
                 signed_vote.data.target.slot,
                 signed_vote.data.target.root);
-        result.push_back(std::move(signed_vote));
+        result.emplace_back(std::move(signed_vote));
       } else if (time_ % INTERVALS_PER_SLOT == 2) {
         // Interval two actions
         SL_INFO(logger_,

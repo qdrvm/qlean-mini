@@ -108,7 +108,6 @@ namespace lean {
       return latest_new_votes_;
     }
 
-    void addBlock(const Block &block);
     /**
      * Calculates the target checkpoint for a vote based on the head, safe
      * target, and latest finalized state.
