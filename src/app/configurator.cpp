@@ -104,6 +104,7 @@ namespace lean::app {
         ("config,c", po::value<std::string>(),  "Optional. Filepath to load configuration from. Overrides default configuration values.")
         ("spec_file", po::value<std::string>(), "Set path to spec file.")
         ("modules_dir", po::value<std::string>(), "Set path to directory containing modules.")
+        ("bootnodes", po::value<std::string>(), "Set path to nodes.yaml file containing boot node ENRs.")
         ("name,n", po::value<std::string>(), "Set name of node.")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
@@ -274,6 +275,16 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
+          auto bootnodes_file = section["bootnodes"];
+          if (bootnodes_file.IsDefined()) {
+            if (bootnodes_file.IsScalar()) {
+              auto value = bootnodes_file.as<std::string>();
+              config_->bootnodes_file_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.bootnodes' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
         } else {
           file_errors_ << "E: Section 'general' defined, but is not map\n";
           file_has_error_ = true;
@@ -316,6 +327,10 @@ namespace lean::app {
         cli_values_map_, "spec_file", [&](const std::string &value) {
           config_->spec_file_ = value;
         });
+    find_argument<std::string>(
+        cli_values_map_, "bootnodes", [&](const std::string &value) {
+          config_->bootnodes_file_ = value;
+        });
     if (fail) {
       return Error::CliArgsParseFailed;
     }
@@ -355,6 +370,16 @@ namespace lean::app {
                "The 'spec_file' does not exist or is not a file: {}",
                config_->spec_file_.c_str());
       return Error::InvalidValue;
+    }
+
+    if (not config_->bootnodes_file_.empty()) {
+      config_->bootnodes_file_ = make_absolute(config_->bootnodes_file_);
+      if (not is_regular_file(config_->bootnodes_file_)) {
+        SL_ERROR(logger_,
+                 "The 'bootnodes' file does not exist or is not a file: {}",
+                 config_->bootnodes_file_.c_str());
+        return Error::InvalidValue;
+      }
     }
 
     return outcome::success();

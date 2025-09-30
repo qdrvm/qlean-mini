@@ -2,7 +2,7 @@ general:
   name: NameFromConfig
   base_path: /tmp/lean_eth_node
   modules_dir: modules
-  spec_file: jamduna-spec.json
+  spec_file: /Users/taisei/dev/qlean-mini/example/jamduna-spec.json
 
 database:
   directory: db
@@ -24,7 +24,7 @@ logging:
   groups:
     - name: main
       sink: console
-      level: trace
+      level: info
       is_fallback: true
       children:
         - name: lean

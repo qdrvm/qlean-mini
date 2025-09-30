@@ -328,9 +328,9 @@ namespace lean::enr {
     BOOST_OUTCOME_TRY(enr.public_key,
                       kv_secp256k1->second.bytes_n<Secp256k1PublicKey>());
 
-    auto kv_udp = kv.find("udp");
-    if (kv_udp != kv.end()) {
-      BOOST_OUTCOME_TRY(enr.port, kv_udp->second.uint<Port>());
+    auto kv_quic = kv.find("quic");
+    if (kv_quic != kv.end()) {
+      BOOST_OUTCOME_TRY(enr.port, kv_quic->second.uint<Port>());
     }
 
     return enr;

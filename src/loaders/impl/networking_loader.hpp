@@ -21,6 +21,10 @@ namespace lean::blockchain {
   class BlockTree;
 }  // namespace lean::blockchain
 
+namespace lean::app {
+  class ChainSpec;
+}  // namespace lean::app
+
 namespace lean::loaders {
 
   class NetworkingLoader final
@@ -30,6 +34,7 @@ namespace lean::loaders {
     log::Logger logger_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<app::ChainSpec> chain_spec_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
 
@@ -48,11 +53,13 @@ namespace lean::loaders {
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
                      std::shared_ptr<Subscription> se_manager,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
-                     qtils::SharedRef<ForkChoiceStore> fork_choice_store)
+                     qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                     qtils::SharedRef<app::ChainSpec> chain_spec)
         : Loader(std::move(logsys), std::move(se_manager)),
           logger_(logsys_->getLogger("Networking", "networking_module")),
           block_tree_{std::move(block_tree)},
-          fork_choice_store_{std::move(fork_choice_store)} {}
+          fork_choice_store_{std::move(fork_choice_store)},
+          chain_spec_{std::move(chain_spec)} {}
 
     NetworkingLoader(const NetworkingLoader &) = delete;
     NetworkingLoader &operator=(const NetworkingLoader &) = delete;
@@ -67,7 +74,8 @@ namespace lean::loaders {
                                        modules::NetworkingLoader &,
                                        std::shared_ptr<log::LoggingSystem>,
                                        qtils::SharedRef<blockchain::BlockTree>,
-                                       qtils::SharedRef<ForkChoiceStore>>(
+                                       qtils::SharedRef<ForkChoiceStore>,
+                                       qtils::SharedRef<app::ChainSpec>>(
                   "query_module_instance");
 
       if (not module_accessor) {
@@ -75,7 +83,7 @@ namespace lean::loaders {
       }
 
       auto module_internal =
-          (*module_accessor)(*this, logsys_, block_tree_, fork_choice_store_);
+          (*module_accessor)(*this, logsys_, block_tree_, fork_choice_store_, chain_spec_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::template create<
           EventTypes::NetworkingIsLoaded>(

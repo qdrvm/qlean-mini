@@ -37,6 +37,7 @@ namespace lean::app {
     [[nodiscard]] virtual const std::filesystem::path &basePath() const;
     [[nodiscard]] virtual const std::filesystem::path &specFile() const;
     [[nodiscard]] virtual const std::filesystem::path &modulesDir() const;
+    [[nodiscard]] virtual const std::filesystem::path &bootnodesFile() const;
 
     [[nodiscard]] virtual const DatabaseConfig &database() const;
 
@@ -50,6 +51,7 @@ namespace lean::app {
     std::filesystem::path base_path_;
     std::filesystem::path spec_file_;
     std::filesystem::path modules_dir_;
+    std::filesystem::path bootnodes_file_;
 
     DatabaseConfig database_;
     MetricsConfig metrics_;
