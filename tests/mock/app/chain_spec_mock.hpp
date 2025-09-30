@@ -8,6 +8,7 @@
 
 #include <gmock/gmock.h>
 
+#include "app/bootnodes.hpp"
 #include "app/chain_spec.hpp"
 
 namespace lean::app {
@@ -16,8 +17,8 @@ namespace lean::app {
    public:
     MOCK_METHOD(const std::string &, id, (), (const, override));
 
-    MOCK_METHOD(const std::vector<NodeAddress> &,
-                bootNodes,
+    MOCK_METHOD(const app::Bootnodes &,
+                getBootnodes,
                 (),
                 (const, override));
 

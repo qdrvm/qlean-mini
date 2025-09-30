@@ -39,6 +39,10 @@ namespace lean::app {
     return modules_dir_;
   }
 
+  const std::filesystem::path &Configuration::bootnodesFile() const {
+    return bootnodes_file_;
+  }
+
   const Configuration::DatabaseConfig &Configuration::database() const {
     return database_;
   }

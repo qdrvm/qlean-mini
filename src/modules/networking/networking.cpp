@@ -65,11 +65,13 @@ namespace lean::modules {
       NetworkingLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
-      qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store)
+      qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
+      qtils::SharedRef<app::ChainSpec> chain_spec)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
         block_tree_{std::move(block_tree)},
-        fork_choice_store_{std::move(fork_choice_store)} {
+        fork_choice_store_{std::move(fork_choice_store)},
+        chain_spec_{std::move(chain_spec)} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
     block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }
@@ -99,6 +101,40 @@ namespace lean::modules {
       SL_WARN(logger_, "listen {} error: {}", sample_peer.listen, r.error());
     }
     host->start();
+
+    // Add bootnodes from chain spec
+    const auto &bootnodes = chain_spec_->getBootnodes();
+    if (!bootnodes.empty()) {
+      SL_INFO(logger_,
+              "Adding {} bootnodes to address repository",
+              bootnodes.size());
+
+      auto &address_repo = host->getPeerRepository().getAddressRepository();
+
+      for (const auto &bootnode : bootnodes.getBootnodes()) {
+        std::vector<libp2p::multi::Multiaddress> addresses{bootnode.address};
+
+        // Add bootnode addresses with permanent TTL
+        auto result = address_repo.upsertAddresses(
+            bootnode.peer_id,
+            std::span<const libp2p::multi::Multiaddress>(addresses),
+            libp2p::peer::ttl::kPermanent);
+
+        if (result.has_value()) {
+          SL_DEBUG(logger_,
+                   "Added bootnode: peer={}, address={}",
+                   bootnode.peer_id,
+                   bootnode.address.getStringAddress());
+        } else {
+          SL_WARN(logger_,
+                  "Failed to add bootnode: peer={}, error={}",
+                  bootnode.peer_id,
+                  result.error());
+        }
+      }
+    } else {
+      SL_DEBUG(logger_, "No bootnodes configured");
+    }
 
     auto on_peer_connected =
         [weak_self{weak_from_this()}](

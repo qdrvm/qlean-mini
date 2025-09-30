@@ -11,6 +11,7 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <qtils/enum_error_code.hpp>
 
+#include "app/bootnodes.hpp"
 #include "app/chain_spec.hpp"
 #include "log/logger.hpp"
 
@@ -39,8 +40,8 @@ namespace lean::app {
       return id_;
     }
 
-    const std::vector<NodeAddress> &bootNodes() const override {
-      return boot_nodes_;
+    const app::Bootnodes &getBootnodes() const override {
+      return bootnodes_;
     }
 
     const qtils::ByteVec &genesisHeader() const override {
@@ -71,8 +72,9 @@ namespace lean::app {
     }
 
     log::Logger log_;
+    qtils::SharedRef<Configuration> app_config_;
     std::string id_;
-    std::vector<NodeAddress> boot_nodes_;
+    app::Bootnodes bootnodes_;
     qtils::ByteVec genesis_header_;
     std::map<qtils::ByteVec, qtils::ByteVec> genesis_state_;
   };
