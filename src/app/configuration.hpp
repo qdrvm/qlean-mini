@@ -34,6 +34,7 @@ namespace lean::app {
 
     [[nodiscard]] virtual const std::string &nodeVersion() const;
     [[nodiscard]] virtual const std::string &nodeName() const;
+    [[nodiscard]] virtual const std::string &nodeId() const;
     [[nodiscard]] virtual const std::filesystem::path &basePath() const;
     [[nodiscard]] virtual const std::filesystem::path &specFile() const;
     [[nodiscard]] virtual const std::filesystem::path &modulesDir() const;
@@ -48,6 +49,7 @@ namespace lean::app {
 
     std::string version_;
     std::string name_;
+    std::string node_id_;
     std::filesystem::path base_path_;
     std::filesystem::path spec_file_;
     std::filesystem::path modules_dir_;
