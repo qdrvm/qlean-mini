@@ -10,6 +10,7 @@
 #include <unordered_map>
 
 #include <boost/assert.hpp>
+#include <boost/di.hpp>
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
@@ -45,20 +46,23 @@ namespace lean {
                     qtils::SharedRef<clock::SystemClock> clock,
                     qtils::SharedRef<log::LoggingSystem> logging_system);
 
+    BOOST_DI_INJECT_TRAITS(const AnchorState &,
+                           const AnchorBlock &,
+                           qtils::SharedRef<clock::SystemClock>,
+                           qtils::SharedRef<log::LoggingSystem>);
     // Test constructor - only for use in tests
-    ForkChoiceStore(
-        uint64_t now_sec,
-        qtils::SharedRef<log::LoggingSystem> logging_system,
-        Config config = {},
-        BlockHash head = {},
-        BlockHash safe_target = {},
-        Checkpoint latest_justified = {},
-        Checkpoint latest_finalized = {},
-        Blocks blocks = {},
-        std::unordered_map<BlockHash, State> states = {},
-        Votes latest_known_votes = {},
-        Votes latest_new_votes = {},
-        ValidatorIndex validator_index = 0);
+    ForkChoiceStore(uint64_t now_sec,
+                    qtils::SharedRef<log::LoggingSystem> logging_system,
+                    Config config = {},
+                    BlockHash head = {},
+                    BlockHash safe_target = {},
+                    Checkpoint latest_justified = {},
+                    Checkpoint latest_finalized = {},
+                    Blocks blocks = {},
+                    std::unordered_map<BlockHash, State> states = {},
+                    Votes latest_known_votes = {},
+                    Votes latest_new_votes = {},
+                    ValidatorIndex validator_index = 0);
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -104,6 +108,7 @@ namespace lean {
       return latest_new_votes_;
     }
 
+    void addBlock(const Block &block);
     /**
      * Calculates the target checkpoint for a vote based on the head, safe
      * target, and latest finalized state.
@@ -153,7 +158,6 @@ namespace lean {
 
    private:
     STF stf_;
-    // std::shared_ptr<clock::SystemClock> clock_;
     Interval time_;
     Config config_;
     BlockHash head_;

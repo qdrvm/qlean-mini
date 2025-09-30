@@ -41,7 +41,8 @@ namespace lean::blockchain {
   }
 
   outcome::result<void> FCBlockTree::addBlock(const Block &block) {
-    throw std::runtime_error("FCBlockTree::addBlock()");
+    fork_choice_store_->addBlock(block);
+    return outcome::success();
   }
 
   outcome::result<void> FCBlockTree::removeLeaf(const BlockHash &block_hash) {

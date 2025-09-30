@@ -50,19 +50,10 @@ namespace lean::modules {
       qtils::visit_in_place(
           vote_or_block,
           [&](const SignedVote &v) {
-            SL_INFO(logger_,
-                    "Produced vote for target {}@{}",
-                    v.data.target.slot,
-                    v.data.target.root);
             loader_.dispatchSendSignedVote(
                 std::make_shared<messages::SendSignedVote>(v));
           },
           [&](const SignedBlock &v) {
-            SL_INFO(logger_,
-                    "Produced block for slot {} with parent {} state {}",
-                    v.message.slot,
-                    v.message.parent_root,
-                    v.message.state_root);
             loader_.dispatchSendSignedBlock(
                 std::make_shared<messages::SendSignedBlock>(v));
             auto res = block_tree_->addBlock(v.message);

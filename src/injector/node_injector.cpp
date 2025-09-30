@@ -29,6 +29,7 @@
 #include "app/impl/watchdog.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/block_tree_impl.hpp"
+#include "blockchain/impl/fc_block_tree.hpp"
 #include "blockchain/impl/genesis_block_header_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
@@ -62,17 +63,6 @@ namespace {
     return boost::di::bind<T>().to(std::move(c))[boost::di::override];
   }
 
-  template <typename Injector>
-  std::shared_ptr<ForkChoiceStore> get_fork_choice_store(
-      const Injector &injector) {
-    auto config = injector.template create<std::shared_ptr<Config>>();
-    return std::make_shared<ForkChoiceStore>(
-        injector.template create<AnchorState>(),
-        injector.template create<AnchorBlock>(),
-        injector.template create<qtils::SharedRef<clock::SystemClock>>(),
-        injector.template create<qtils::SharedRef<log::LoggingSystem>>());
-  }
-
   using injector::bind_by_lambda;
 
   template <typename... Ts>
@@ -100,9 +90,6 @@ namespace {
           };
         }),
         di::bind<Config>.to(genesis_config),
-        bind_by_lambda<ForkChoiceStore>([](const auto& injector) {
-          return get_fork_choice_store(injector);
-        }),
         di::bind<storage::BufferStorage>.to<storage::InMemoryStorage>(),
         //di::bind<storage::SpacedStorage>.to<storage::InMemorySpacedStorage>(),
         di::bind<storage::SpacedStorage>.to<storage::RocksDb>(),
@@ -111,7 +98,7 @@ namespace {
         di::bind<blockchain::GenesisBlockHeader>.to<blockchain::GenesisBlockHeaderImpl>(),
         di::bind<blockchain::BlockStorage>.to<blockchain::BlockStorageImpl>(),
         di::bind<app::Timeline>.to<app::TimelineImpl>(),
-        di::bind<blockchain::BlockTree>.to<blockchain::BlockTreeImpl>(),
+        di::bind<blockchain::BlockTree>.to<blockchain::FCBlockTree>(),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);

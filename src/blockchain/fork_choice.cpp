@@ -115,6 +115,11 @@ namespace lean {
     return latest_finalized_;
   }
 
+  void ForkChoiceStore::addBlock(const Block &block) {
+    blocks_.emplace(block.hash(), block);
+  }
+
+
   Checkpoint ForkChoiceStore::getVoteTarget() const {
     // Start from head as target candidate
     auto target_block_root = head_;
