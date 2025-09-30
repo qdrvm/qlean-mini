@@ -35,14 +35,21 @@ MODULE_C_API std::weak_ptr<lean::modules::Networking> query_module_instance(
     std::shared_ptr<lean::log::LoggingSystem> logsys,
     qtils::SharedRef<lean::blockchain::BlockTree> block_tree,
     qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
-    qtils::SharedRef<lean::app::ChainSpec> chain_spec) {
+    qtils::SharedRef<lean::app::ChainSpec> chain_spec,
+    qtils::SharedRef<lean::ValidatorRegistry> validator_registry) {
   if (!module_instance) {
     BOOST_ASSERT(logsys);
     BOOST_ASSERT(block_tree);
     BOOST_ASSERT(fork_choice_store);
     BOOST_ASSERT(chain_spec);
+    BOOST_ASSERT(validator_registry);
     module_instance = lean::modules::NetworkingImpl::create_shared(
-        loader, std::move(logsys), block_tree, fork_choice_store, chain_spec);
+        loader,
+        std::move(logsys),
+        block_tree,
+        fork_choice_store,
+        chain_spec,
+        validator_registry);
   }
   return module_instance;
 }

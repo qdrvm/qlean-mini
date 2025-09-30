@@ -22,6 +22,8 @@ namespace lean::app {
     MOCK_METHOD(const std::filesystem::path&, basePath, (), (const, override));
     MOCK_METHOD(const std::filesystem::path&, specFile, (), (const, override));
     MOCK_METHOD(const std::filesystem::path&, modulesDir, (), (const, override));
+    MOCK_METHOD(const std::filesystem::path&, bootnodesFile, (), (const, override));
+    MOCK_METHOD(const std::filesystem::path&, validatorRegistryPath, (), (const, override));
 
     MOCK_METHOD(const DatabaseConfig &, database, (), (const, override));
 

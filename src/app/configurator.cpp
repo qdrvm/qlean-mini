@@ -105,6 +105,9 @@ namespace lean::app {
         ("spec_file", po::value<std::string>(), "Set path to spec file.")
         ("modules_dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to nodes.yaml file containing boot node ENRs.")
+        ("validator_registry_path",
+         po::value<std::string>(),
+         "Set path to validators.yaml file containing validator registry.")
         ("name,n", po::value<std::string>(), "Set name of node.")
         ("node_id", po::value<std::string>(), "Node id from validators.yaml")
         ("log,l", po::value<std::vector<std::string>>(),
@@ -296,6 +299,17 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
+          auto validator_registry_path = section["validator_registry_path"];
+          if (validator_registry_path.IsDefined()) {
+            if (validator_registry_path.IsScalar()) {
+              auto value = validator_registry_path.as<std::string>();
+              config_->validator_registry_path_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.validator_registry_path' must "
+                              "be scalar\n";
+              file_has_error_ = true;
+            }
+          }
         } else {
           file_errors_ << "E: Section 'general' defined, but is not map\n";
           file_has_error_ = true;
@@ -346,6 +360,11 @@ namespace lean::app {
         cli_values_map_, "bootnodes", [&](const std::string &value) {
           config_->bootnodes_file_ = value;
         });
+    find_argument<std::string>(cli_values_map_,
+                               "validator_registry_path",
+                               [&](const std::string &value) {
+                                 config_->validator_registry_path_ = value;
+                               });
     if (fail) {
       return Error::CliArgsParseFailed;
     }
@@ -393,6 +412,18 @@ namespace lean::app {
         SL_ERROR(logger_,
                  "The 'bootnodes' file does not exist or is not a file: {}",
                  config_->bootnodes_file_.c_str());
+        return Error::InvalidValue;
+      }
+    }
+
+    if (not config_->validator_registry_path_.empty()) {
+      config_->validator_registry_path_ =
+          make_absolute(config_->validator_registry_path_);
+      if (not is_regular_file(config_->validator_registry_path_)) {
+        SL_ERROR(
+            logger_,
+            "The 'validator_registry_path' does not exist or is not a file: {}",
+            config_->validator_registry_path_.c_str());
         return Error::InvalidValue;
       }
     }

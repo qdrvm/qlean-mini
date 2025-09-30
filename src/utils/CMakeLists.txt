@@ -11,3 +11,13 @@ target_link_libraries(fd_limit
     Boost::boost
     logger
 )
+
+add_library(validator_registry
+    validator_registry.cpp
+)
+target_link_libraries(validator_registry
+    yaml-cpp::yaml-cpp
+    logger
+    fmt::fmt
+    app_configuration
+)

@@ -25,7 +25,6 @@
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
 #include "modules/networking/types.hpp"
-#include "utils/__debug_env.hpp"
 #include "utils/sample_peer.hpp"
 
 namespace lean::modules {
@@ -66,12 +65,14 @@ namespace lean::modules {
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
-      qtils::SharedRef<app::ChainSpec> chain_spec)
+      qtils::SharedRef<app::ChainSpec> chain_spec,
+      qtils::SharedRef<ValidatorRegistry> validator_registry)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)},
-        chain_spec_{std::move(chain_spec)} {
+        chain_spec_{std::move(chain_spec)},
+        validator_registry_{std::move(validator_registry)} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
     block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }
@@ -86,7 +87,7 @@ namespace lean::modules {
   void NetworkingImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");
 
-    SamplePeer sample_peer{getPeerIndex()};
+  SamplePeer sample_peer{validator_registry_->currentValidatorIndex()};
 
     auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
         libp2p::injector::useKeyPair(sample_peer.keypair),
