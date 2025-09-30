@@ -57,7 +57,6 @@ namespace lean {
         Blocks blocks = {},
         std::unordered_map<BlockHash, State> states = {},
         Votes latest_known_votes = {},
-        // std::unordered_map<ValidatorIndex, SignedVote> signed_votes = {},
         Votes latest_new_votes = {},
         ValidatorIndex validator_index = 0);
 

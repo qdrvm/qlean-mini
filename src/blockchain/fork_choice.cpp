@@ -218,7 +218,6 @@ namespace lean {
       const SignedVote &signed_vote, bool is_from_block) {
     // Validate attestation structure and constraints
     BOOST_OUTCOME_TRY(validateAttestation(signed_vote));
-    // signed_votes_[signed_vote.data.validator_id] = signed_vote;
 
     auto &validator_id = signed_vote.data.validator_id;
     auto &vote = signed_vote.data;
@@ -337,24 +336,22 @@ namespace lean {
         SL_INFO(logger_,
                 "For slot {}: head is {}@{}, target is {}@{}, source is {}@{}",
                 current_slot,
-                head.slot,
                 head.root,
-                target.slot,
+                head.slot,
                 target.root,
-                source->slot,
-                source->root);
-        SignedVote signed_vote{
-            .data =
-                Vote{
-                    .validator_id = validator_index_,
-                    .slot = current_slot,
-                    .head = head,
-                    .target = target,
-                    .source = *source,
-                },
-            .signature = qtils::ByteArr<32>{0}
-            // signature with zero bytes for now
-        };
+                target.slot,
+                source->root,
+                source->slot);
+        SignedVote signed_vote{.data =
+                                   Vote{
+                                       .validator_id = validator_index_,
+                                       .slot = current_slot,
+                                       .head = head,
+                                       .target = target,
+                                       .source = *source,
+                                   },
+                               // signature with zero bytes for now
+                               .signature = qtils::ByteArr<32>{0}};
 
         // Dispatching send signed vote only broadcasts to other peers. Current
         // peer should process attestation directly

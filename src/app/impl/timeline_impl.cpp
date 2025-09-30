@@ -102,29 +102,29 @@ namespace lean::app {
     // trigger interval 0 immediately
     se_manager_->notify(EventTypes::SlotIntervalStarted,
                         std::make_shared<const messages::SlotIntervalStarted>(
-                            msg->slot, msg->epoch));
+                            0, msg->slot, msg->epoch));
 
     // schedule other intervals and next slot
     auto time_to_interval_1 = ms_to_abs(abs_interval1);
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_1),
         EventTypes::SlotIntervalStarted,
-        std::make_shared<const messages::SlotIntervalStarted>(msg->slot,
-                                                              msg->epoch));
+        std::make_shared<const messages::SlotIntervalStarted>(
+            1, msg->slot, msg->epoch));
 
     auto time_to_interval_2 = ms_to_abs(abs_interval2);
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_2),
         EventTypes::SlotIntervalStarted,
-        std::make_shared<const messages::SlotIntervalStarted>(msg->slot,
-                                                              msg->epoch));
+        std::make_shared<const messages::SlotIntervalStarted>(
+            2, msg->slot, msg->epoch));
 
     auto time_to_interval_3 = ms_to_abs(abs_interval3);
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_interval_3),
         EventTypes::SlotIntervalStarted,
-        std::make_shared<const messages::SlotIntervalStarted>(msg->slot,
-                                                              msg->epoch));
+        std::make_shared<const messages::SlotIntervalStarted>(
+            3, msg->slot, msg->epoch));
 
     const auto next_slot_abs =
         config_->genesis_time + SLOT_DURATION_MS * (msg->slot + 1);

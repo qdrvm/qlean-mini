@@ -18,6 +18,7 @@ namespace lean::messages {
   };
 
   struct SlotIntervalStarted {
+    Interval interval;
     Slot slot;
     Epoch epoch;
   };

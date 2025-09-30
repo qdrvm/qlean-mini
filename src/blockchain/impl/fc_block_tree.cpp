@@ -9,9 +9,8 @@
 #include "types/signed_block.hpp"
 
 namespace lean::blockchain {
-  FCBlockTree::FCBlockTree(std::shared_ptr<ForkChoiceStore> fork_choice_store)
+  FCBlockTree::FCBlockTree(qtils::SharedRef<ForkChoiceStore> fork_choice_store)
       : fork_choice_store_(std::move(fork_choice_store)) {
-    BOOST_ASSERT(fork_choice_store_);
   }
 
   const BlockHash &FCBlockTree::getGenesisBlockHash() const {

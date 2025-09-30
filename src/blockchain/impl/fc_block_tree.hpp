@@ -15,7 +15,7 @@ namespace lean::blockchain {
 
   class FCBlockTree final : public BlockTree {
    public:
-    FCBlockTree(std::shared_ptr<ForkChoiceStore> fork_choice_store);
+    FCBlockTree(qtils::SharedRef<ForkChoiceStore> fork_choice_store);
 
     ~FCBlockTree() override = default;
 

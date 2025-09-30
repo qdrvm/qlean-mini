@@ -14,9 +14,7 @@
 #include "se/subscription.hpp"
 
 namespace lean::messages {
-  struct SlotIntervalThreeStarted;
-  struct SlotIntervalTwoStarted;
-  struct SlotIntervalOneStarted;
+  struct SlotIntervalStarted;
 }  // namespace lean::messages
 namespace lean::loaders {
 
