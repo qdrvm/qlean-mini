@@ -42,8 +42,6 @@ namespace {
                std::shared_ptr<Configuration> appcfg,
                std::shared_ptr<lean::Config> genesis_cfg) {
     auto injector = std::make_unique<NodeInjector>(logsys, appcfg, genesis_cfg);
-    auto fc_store = injector->injectForkChoiceStore();
-    BOOST_ASSERT(fc_store);
 
     // Load modules
     std::deque<std::unique_ptr<lean::loaders::Loader>> loaders;
@@ -194,7 +192,7 @@ int main(int argc, const char **argv, const char **env) {
           .count();
   genesis_time += GENESIS_INTERVAL_MS - (genesis_time % GENESIS_INTERVAL_MS);
 
-  lean::Config genesis_config{.num_validators = 3,
+  lean::Config genesis_config{.num_validators = 4,
                               .genesis_time = genesis_time};
 
   int exit_code;
