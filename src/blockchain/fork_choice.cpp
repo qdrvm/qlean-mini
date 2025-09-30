@@ -6,10 +6,11 @@
 
 #include "blockchain/fork_choice.hpp"
 
+#include <filesystem>
 #include <ranges>
+#include <stdexcept>
 
 #include "types/signed_block.hpp"
-#include "utils/__debug_env.hpp"
 
 namespace lean {
   void ForkChoiceStore::updateSafeTarget() {
@@ -462,10 +463,25 @@ namespace lean {
       const AnchorState &anchor_state,
       const AnchorBlock &anchor_block,
       qtils::SharedRef<clock::SystemClock> clock,
-      qtils::SharedRef<log::LoggingSystem> logging_system)
-      : validator_index_(getPeerIndex()),
+      qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<ValidatorRegistry> validator_registry)
+      : validator_registry_(validator_registry),
+        validator_index_(validator_registry_->currentValidatorIndex()),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")) {
+    if (not validator_registry_->hasCurrentValidatorIndex()) {
+      const auto &node_id = validator_registry_->currentNodeId();
+      const auto registry_path_str =
+          validator_registry_->registryPath().empty()
+              ? std::string{"<not provided>"}
+              : validator_registry_->registryPath().string();
+      SL_WARN(logger_,
+              "Validator index for node '{}' is not defined in registry '{}'; "
+              "defaulting to {}",
+              node_id.empty() ? "<unset>" : node_id.c_str(),
+              registry_path_str,
+              validator_index_);
+    }
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
@@ -500,7 +516,8 @@ namespace lean {
       std::unordered_map<BlockHash, State> states,
       Votes latest_known_votes,
       Votes latest_new_votes,
-      ValidatorIndex validator_index)
+      ValidatorIndex validator_index,
+      std::shared_ptr<ValidatorRegistry> validator_registry)
       : time_(now_sec / SECONDS_PER_INTERVAL),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
@@ -513,5 +530,11 @@ namespace lean {
         states_(std::move(states)),
         latest_known_votes_(std::move(latest_known_votes)),
         latest_new_votes_(std::move(latest_new_votes)),
-        validator_index_(validator_index) {}
+        validator_registry_(std::move(validator_registry)),
+        validator_index_(validator_index) {
+    if (validator_registry_ == nullptr) {
+      validator_registry_ = std::make_shared<ValidatorRegistry>(
+          logging_system, app::Configuration{});
+    }
+  }
 }  // namespace lean

@@ -47,6 +47,10 @@ namespace lean::app {
     return bootnodes_file_;
   }
 
+  const std::filesystem::path &Configuration::validatorRegistryPath() const {
+    return validator_registry_path_;
+  }
+
   const Configuration::DatabaseConfig &Configuration::database() const {
     return database_;
   }

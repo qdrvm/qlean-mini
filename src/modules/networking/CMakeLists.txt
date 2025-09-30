@@ -22,4 +22,5 @@ add_lean_module(networking
     soralog::soralog
     blockchain
     sszpp
+    validator_registry
 )

@@ -16,6 +16,7 @@
 #include <qtils/create_smart_pointer_macros.hpp>
 #include <qtils/shared_ref.hpp>
 #include <utils/ctor_limiters.hpp>
+#include <utils/validator_registry.hpp>
 
 namespace boost::asio {
   class io_context;
@@ -55,7 +56,8 @@ namespace lean::modules {
                    qtils::SharedRef<log::LoggingSystem> logging_system,
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
                    qtils::SharedRef<ForkChoiceStore> fork_choice_store,
-                   qtils::SharedRef<app::ChainSpec> chain_spec);
+                   qtils::SharedRef<app::ChainSpec> chain_spec,
+                   qtils::SharedRef<ValidatorRegistry> validator_registry);
 
    public:
     CREATE_SHARED_METHOD(NetworkingImpl);
@@ -87,6 +89,7 @@ namespace lean::modules {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
+  qtils::SharedRef<ValidatorRegistry> validator_registry_;
     std::shared_ptr<void> injector_;
     std::shared_ptr<boost::asio::io_context> io_context_;
     std::optional<std::thread> io_thread_;
