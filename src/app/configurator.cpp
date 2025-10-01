@@ -104,6 +104,7 @@ namespace lean::app {
         ("base_path", po::value<std::string>(), "Set base path. All relative paths will be resolved based on this path.")
         ("config,c", po::value<std::string>(),  "Optional. Filepath to load configuration from. Overrides default configuration values.")
         ("spec_file", po::value<std::string>(), "Set path to spec file.")
+        ("genesis", po::value<std::string>(), "Set path to genesis config.yaml file.")
         ("modules_dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to nodes.yaml file containing boot node ENRs.")
         ("validator_registry_path",
@@ -296,6 +297,16 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
+          auto genesis = section["genesis"];
+          if (genesis.IsDefined()) {
+            if (genesis.IsScalar()) {
+              auto value = genesis.as<std::string>();
+              config_->genesis_config_path_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.genesis' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
           auto modules_dir = section["modules_dir"];
           if (modules_dir.IsDefined()) {
             if (modules_dir.IsScalar()) {
@@ -384,6 +395,10 @@ namespace lean::app {
           config_->spec_file_ = value;
         });
     find_argument<std::string>(
+        cli_values_map_, "genesis", [&](const std::string &value) {
+          config_->genesis_config_path_ = value;
+        });
+    find_argument<std::string>(
         cli_values_map_, "bootnodes", [&](const std::string &value) {
           config_->bootnodes_file_ = value;
         });
@@ -453,6 +468,20 @@ namespace lean::app {
             config_->validator_registry_path_.c_str());
         return Error::InvalidValue;
       }
+    }
+
+    if (config_->genesis_config_path_.empty()) {
+      SL_ERROR(logger_, "The 'genesis' path must be provided");
+      return Error::InvalidValue;
+    }
+
+    config_->genesis_config_path_ =
+        make_absolute(config_->genesis_config_path_);
+    if (not is_regular_file(config_->genesis_config_path_)) {
+      SL_ERROR(logger_,
+               "The 'genesis' file does not exist or is not a file: {}",
+               config_->genesis_config_path_.c_str());
+      return Error::InvalidValue;
     }
 
     return outcome::success();
