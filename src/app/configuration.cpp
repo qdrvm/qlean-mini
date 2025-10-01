@@ -51,6 +51,10 @@ namespace lean::app {
     return validator_registry_path_;
   }
 
+  const std::filesystem::path &Configuration::genesisConfigPath() const {
+    return genesis_config_path_;
+  }
+
   const std::optional<std::string> &Configuration::nodeKeyHex() const {
     return node_key_hex_;
   }
