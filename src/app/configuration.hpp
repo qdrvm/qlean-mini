@@ -6,6 +6,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 
 #include <boost/asio/ip/tcp.hpp>
@@ -41,6 +42,7 @@ namespace lean::app {
     [[nodiscard]] virtual const std::filesystem::path &bootnodesFile() const;
     [[nodiscard]] virtual const std::filesystem::path &validatorRegistryPath()
         const;
+    [[nodiscard]] virtual const std::optional<std::string> &nodeKeyHex() const;
 
     [[nodiscard]] virtual const DatabaseConfig &database() const;
 
@@ -57,6 +59,7 @@ namespace lean::app {
     std::filesystem::path modules_dir_;
     std::filesystem::path bootnodes_file_;
     std::filesystem::path validator_registry_path_;
+    std::optional<std::string> node_key_hex_;
 
     DatabaseConfig database_;
     MetricsConfig metrics_;

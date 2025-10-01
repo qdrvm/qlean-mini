@@ -7,14 +7,21 @@
 
 #include "modules/networking/networking.hpp"
 
+#include <format>
+#include <memory>
+#include <stdexcept>
+
+#include <app/configuration.hpp>
 #include <blockchain/fork_choice.hpp>
 #include <boost/endian/conversion.hpp>
 #include <libp2p/basic/read_varint.hpp>
 #include <libp2p/basic/write_varint.hpp>
 #include <libp2p/coro/spawn.hpp>
+#include <libp2p/crypto/key_marshaller.hpp>
 #include <libp2p/crypto/sha/sha256.hpp>
 #include <libp2p/host/basic_host.hpp>
 #include <libp2p/injector/host_injector.hpp>
+#include <libp2p/peer/identity_manager.hpp>
 #include <libp2p/protocol/gossip/gossip.hpp>
 #include <libp2p/transport/quic/transport.hpp>
 #include <qtils/to_shared_ptr.hpp>
@@ -22,6 +29,7 @@
 #include "blockchain/block_tree.hpp"
 #include "blockchain/impl/fc_block_tree.hpp"
 #include "modules/networking/block_request_protocol.hpp"
+#include "modules/networking/get_node_key.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
 #include "modules/networking/types.hpp"
@@ -66,12 +74,14 @@ namespace lean::modules {
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
       qtils::SharedRef<app::ChainSpec> chain_spec,
+      qtils::SharedRef<app::Configuration> config,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)},
         chain_spec_{std::move(chain_spec)},
+        config_{std::move(config)},
         validator_registry_{std::move(validator_registry)} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
     block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
@@ -87,7 +97,42 @@ namespace lean::modules {
   void NetworkingImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");
 
-  SamplePeer sample_peer{validator_registry_->currentValidatorIndex()};
+    SamplePeer sample_peer{validator_registry_->currentValidatorIndex()};
+
+    // Determine the keypair: from config if valid, otherwise random
+    libp2p::crypto::KeyPair keypair;
+    if (auto &node_key_hex = config_->nodeKeyHex(); node_key_hex.has_value()) {
+      auto keypair_res = keyPairFromPrivateKeyHex(*node_key_hex);
+      if (keypair_res.has_value()) {
+        keypair = std::move(keypair_res.value());
+      } else {
+        SL_CRITICAL(logger_,
+                    "Failed to parse node key from --node-key: {}, generating "
+                    "a random one",
+                    keypair_res.error().message());
+        keypair = randomKeyPair();
+      }
+    } else {
+      keypair = randomKeyPair();
+    }
+    sample_peer.keypair = std::move(keypair);
+
+    // Always set up identity and peer info
+    libp2p::peer::IdentityManager identity_manager{
+        sample_peer.keypair,
+        std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(nullptr)};
+    auto peer_id = identity_manager.getId();
+
+    auto connect_res = libp2p::multi::Multiaddress::create(
+        std::format("{}/p2p/{}",
+                    sample_peer.listen.getStringAddress(),
+                    peer_id.toBase58()));
+
+    sample_peer.peer_id = peer_id;
+    sample_peer.connect = connect_res.value();
+    sample_peer.connect_info = {peer_id, {sample_peer.connect}};
+
+    SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
 
     auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
         libp2p::injector::useKeyPair(sample_peer.keypair),

@@ -14,6 +14,7 @@
 #include <string>
 #include <string_view>
 
+#include <boost/algorithm/string/trim.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core/error.hpp>
 #include <boost/program_options.hpp>
@@ -110,6 +111,7 @@ namespace lean::app {
          "Set path to validators.yaml file containing validator registry.")
         ("name,n", po::value<std::string>(), "Set name of node.")
         ("node_id", po::value<std::string>(), "Node id from validators.yaml")
+        ("node_key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
           "Syntax: <target>=<level>, e.g., -llibp2p=off.\n"
@@ -259,6 +261,21 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
+          auto node_key = section["node_key"];
+          if (node_key.IsDefined()) {
+            if (node_key.IsScalar()) {
+              auto value = node_key.as<std::string>();
+              boost::trim(value);
+              if (value.empty()) {
+                config_->node_key_hex_.reset();
+              } else {
+                config_->node_key_hex_ = value;
+              }
+            } else {
+              file_errors_ << "E: Value 'general.node_key' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
           auto base_path = section["base_path"];
           if (base_path.IsDefined()) {
             if (base_path.IsScalar()) {
@@ -343,6 +360,16 @@ namespace lean::app {
     find_argument<std::string>(
         cli_values_map_, "node_id", [&](const std::string &value) {
           config_->node_id_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "node_key", [&](const std::string &value) {
+          auto trimmed = value;
+          boost::trim(trimmed);
+          if (trimmed.empty()) {
+            config_->node_key_hex_.reset();
+          } else {
+            config_->node_key_hex_ = trimmed;
+          }
         });
     find_argument<std::string>(
         cli_values_map_, "base_path", [&](const std::string &value) {

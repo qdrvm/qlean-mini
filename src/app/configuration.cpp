@@ -51,6 +51,10 @@ namespace lean::app {
     return validator_registry_path_;
   }
 
+  const std::optional<std::string> &Configuration::nodeKeyHex() const {
+    return node_key_hex_;
+  }
+
   const Configuration::DatabaseConfig &Configuration::database() const {
     return database_;
   }

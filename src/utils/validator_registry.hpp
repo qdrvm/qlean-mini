@@ -30,6 +30,11 @@ namespace lean {
     ValidatorRegistry(qtils::SharedRef<log::LoggingSystem> logging_system,
                       const app::Configuration &config);
 
+    static ValidatorRegistry createForTesting(
+        qtils::SharedRef<log::LoggingSystem> logging_system,
+        std::filesystem::path registry_path,
+        std::string current_node_id);
+
     [[nodiscard]] const std::filesystem::path &registryPath() const;
 
     [[nodiscard]] std::optional<std::string> nodeIdByIndex(
@@ -45,6 +50,10 @@ namespace lean {
     [[nodiscard]] const std::string &currentNodeId() const;
 
    private:
+    ValidatorRegistry(qtils::SharedRef<log::LoggingSystem> logging_system,
+                    std::filesystem::path registry_path,
+                    std::string current_node_id);
+
     void loadRegistry();
 
     log::Logger logger_;
