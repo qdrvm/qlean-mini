@@ -46,7 +46,7 @@ namespace lean {
     std::string trimmed{hex};
     boost::trim(trimmed);
     libp2p::crypto::secp256k1::KeyPair keypair;
-    BOOST_OUTCOME_TRY(qtils::unhex0x(keypair.private_key, trimmed));
+    BOOST_OUTCOME_TRY(qtils::unhex0x(keypair.private_key, trimmed, true));
     BOOST_OUTCOME_TRY(keypair.public_key,
                       detail::secp256k1Provider().derive(keypair.private_key));
     return detail::toKeyPair(keypair);
