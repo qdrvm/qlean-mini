@@ -347,7 +347,7 @@ namespace lean::enr {
     rlp.bytes(enr.ip.value());
     rlp.str("secp256k1");
     rlp.bytes(enr.public_key);
-    rlp.str("udp");
+    rlp.str("quic");
     rlp.uint(enr.port.value());
     return "enr:" + cppcodec::base64_url_unpadded::encode(rlp.list());
   }
