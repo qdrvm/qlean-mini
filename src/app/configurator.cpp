@@ -101,18 +101,17 @@ namespace lean::app {
     general_options.add_options()
         ("help,h", "Show this help message.")
         ("version,v", "Show version information.")
-        ("base_path", po::value<std::string>(), "Set base path. All relative paths will be resolved based on this path.")
+        ("base-path", po::value<std::string>(), "Set base path. All relative paths will be resolved based on this path.")
         ("config,c", po::value<std::string>(),  "Optional. Filepath to load configuration from. Overrides default configuration values.")
-        ("spec_file", po::value<std::string>(), "Set path to spec file.")
         ("genesis", po::value<std::string>(), "Set path to genesis config.yaml file.")
-        ("modules_dir", po::value<std::string>(), "Set path to directory containing modules.")
+        ("modules-dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to nodes.yaml file containing boot node ENRs.")
-        ("validator_registry_path",
+        ("validator-registry-path",
          po::value<std::string>(),
          "Set path to validators.yaml file containing validator registry.")
         ("name,n", po::value<std::string>(), "Set name of node.")
-        ("node_id", po::value<std::string>(), "Node id from validators.yaml")
-        ("node_key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
+        ("node-id", po::value<std::string>(), "Node id from validators.yaml")
+        ("node-key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
           "Syntax: <target>=<level>, e.g., -llibp2p=off.\n"
@@ -252,7 +251,7 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
-          auto node_id = section["node_id"];
+          auto node_id = section["node-id"];
           if (node_id.IsDefined()) {
             if (node_id.IsScalar()) {
               auto value = node_id.as<std::string>();
@@ -262,7 +261,7 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
-          auto node_key = section["node_key"];
+          auto node_key = section["node-key"];
           if (node_key.IsDefined()) {
             if (node_key.IsScalar()) {
               auto value = node_key.as<std::string>();
@@ -277,23 +276,13 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
-          auto base_path = section["base_path"];
+          auto base_path = section["base-path"];
           if (base_path.IsDefined()) {
             if (base_path.IsScalar()) {
               auto value = base_path.as<std::string>();
               config_->base_path_ = value;
             } else {
-              file_errors_ << "E: Value 'general.base_path' must be scalar\n";
-              file_has_error_ = true;
-            }
-          }
-          auto spec_file = section["spec_file"];
-          if (spec_file.IsDefined()) {
-            if (spec_file.IsScalar()) {
-              auto value = spec_file.as<std::string>();
-              config_->spec_file_ = value;
-            } else {
-              file_errors_ << "E: Value 'general.spec_file' must be scalar\n";
+              file_errors_ << "E: Value 'general.base-path' must be scalar\n";
               file_has_error_ = true;
             }
           }
@@ -307,7 +296,7 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
-          auto modules_dir = section["modules_dir"];
+          auto modules_dir = section["modules-dir"];
           if (modules_dir.IsDefined()) {
             if (modules_dir.IsScalar()) {
               auto value = modules_dir.as<std::string>();
@@ -327,7 +316,7 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
-          auto validator_registry_path = section["validator_registry_path"];
+          auto validator_registry_path = section["validator-registry-path"];
           if (validator_registry_path.IsDefined()) {
             if (validator_registry_path.IsScalar()) {
               auto value = validator_registry_path.as<std::string>();
@@ -369,11 +358,11 @@ namespace lean::app {
           config_->name_ = value;
         });
     find_argument<std::string>(
-        cli_values_map_, "node_id", [&](const std::string &value) {
+        cli_values_map_, "node-id", [&](const std::string &value) {
           config_->node_id_ = value;
         });
     find_argument<std::string>(
-        cli_values_map_, "node_key", [&](const std::string &value) {
+        cli_values_map_, "node-key", [&](const std::string &value) {
           auto trimmed = value;
           boost::trim(trimmed);
           if (trimmed.empty()) {
@@ -383,16 +372,12 @@ namespace lean::app {
           }
         });
     find_argument<std::string>(
-        cli_values_map_, "base_path", [&](const std::string &value) {
+        cli_values_map_, "base-path", [&](const std::string &value) {
           config_->base_path_ = value;
         });
     find_argument<std::string>(
-        cli_values_map_, "modules_dir", [&](const std::string &value) {
+        cli_values_map_, "modules-dir", [&](const std::string &value) {
           config_->modules_dir_ = value;
-        });
-    find_argument<std::string>(
-        cli_values_map_, "spec_file", [&](const std::string &value) {
-          config_->spec_file_ = value;
         });
     find_argument<std::string>(
         cli_values_map_, "genesis", [&](const std::string &value) {
@@ -403,7 +388,7 @@ namespace lean::app {
           config_->bootnodes_file_ = value;
         });
     find_argument<std::string>(cli_values_map_,
-                               "validator_registry_path",
+                               "validator-registry-path",
                                [&](const std::string &value) {
                                  config_->validator_registry_path_ = value;
                                });
@@ -437,14 +422,6 @@ namespace lean::app {
       SL_ERROR(logger_,
                "The 'modules_dir' does not exist or is not a directory: {}",
                config_->modules_dir_.c_str());
-      return Error::InvalidValue;
-    }
-
-    config_->spec_file_ = make_absolute(config_->spec_file_);
-    if (not is_regular_file(config_->spec_file_)) {
-      SL_ERROR(logger_,
-               "The 'spec_file' does not exist or is not a file: {}",
-               config_->spec_file_.c_str());
       return Error::InvalidValue;
     }
 

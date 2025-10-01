@@ -35,10 +35,6 @@ namespace lean::app {
     return base_path_;
   }
 
-  const std::filesystem::path &Configuration::specFile() const {
-    return spec_file_;
-  }
-
   const std::filesystem::path &Configuration::modulesDir() const {
     return modules_dir_;
   }

@@ -2,7 +2,6 @@ general:
   name: NameFromConfig
   base_path: /tmp/lean_eth_node
   modules_dir: modules
-  spec_file: /Users/taisei/dev/qlean-mini/example/jamduna-spec.json
 
 database:
   directory: db

@@ -8,7 +8,6 @@
 
 #include <filesystem>
 
-#include <boost/property_tree/json_parser.hpp>
 #include <qtils/enum_error_code.hpp>
 
 #include "app/bootnodes.hpp"
@@ -36,47 +35,17 @@ namespace lean::app {
     ChainSpecImpl(qtils::SharedRef<log::LoggingSystem> logsys,
                   qtils::SharedRef<Configuration> app_config);
 
-    const std::string &id() const override {
-      return id_;
-    }
-
     const app::Bootnodes &getBootnodes() const override {
       return bootnodes_;
     }
 
-    const qtils::ByteVec &genesisHeader() const override {
-      return genesis_header_;
-    }
-
-    const std::map<qtils::ByteVec, qtils::ByteVec> &genesisState()
-        const override {
-      return genesis_state_;
-    }
-
    private:
-    outcome::result<void> loadFromJson(const std::filesystem::path &file_path);
-    outcome::result<void> loadFields(const boost::property_tree::ptree &tree);
-    outcome::result<void> loadGenesis(const boost::property_tree::ptree &tree);
-    outcome::result<void> loadBootNodes(
-        const boost::property_tree::ptree &tree);
-
-    template <typename T>
-    outcome::result<std::decay_t<T>> ensure(std::string_view entry_name,
-                                            boost::optional<T> opt_entry) {
-      if (not opt_entry) {
-        log_->error("Required '{}' entry not found in the chain spec",
-                    entry_name);
-        return Error::MISSING_ENTRY;
-      }
-      return opt_entry.value();
-    }
+    outcome::result<void> load();
+    outcome::result<void> loadBootNodes();
 
     log::Logger log_;
     qtils::SharedRef<Configuration> app_config_;
-    std::string id_;
     app::Bootnodes bootnodes_;
-    qtils::ByteVec genesis_header_;
-    std::map<qtils::ByteVec, qtils::ByteVec> genesis_state_;
   };
 
 }  // namespace lean::app
