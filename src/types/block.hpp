@@ -10,7 +10,7 @@
 #include "types/block_header.hpp"
 
 namespace lean {
-  struct Block : ssz::ssz_container {
+  struct Block : ssz::ssz_variable_size_container {
     uint64_t slot;
     uint64_t proposer_index;
     qtils::ByteArr<32> parent_root;
@@ -29,11 +29,12 @@ namespace lean {
       return header;
     }
 
-    std::optional<BlockHash> hash_cached;
+    mutable std::optional<BlockHash> hash_cached;
     const BlockHash &hash() const {
-      return hash_cached.value();
+      return hash_cached.has_value() ? hash_cached.value()
+                                     : (setHash(), hash_cached.value());
     }
-    void setHash() {
+    void setHash() const {
       auto header = getHeader();
       header.updateHash();
       auto hash = header.hash();
@@ -45,4 +46,6 @@ namespace lean {
       return {slot, hash()};
     }
   };
+
+  using AnchorBlock = qtils::Tagged<Block, struct AnchorBlockTag>;
 }  // namespace lean

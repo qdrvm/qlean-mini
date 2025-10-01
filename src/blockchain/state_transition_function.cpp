@@ -7,6 +7,7 @@
 #include "blockchain/state_transition_function.hpp"
 
 #include <boost/assert.hpp>
+#include <soralog/macro.hpp>
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "types/signed_block.hpp"
@@ -69,17 +70,36 @@ namespace lean {
     }
   }
 
-  State STF::generateGenesisState(const Config &config) const {
+  AnchorState STF::generateGenesisState(const Config &config) {
     BlockHeader header;
+    header.slot = 0;
+    header.proposer_index = 0;
+    header.parent_root = kZeroHash;
+    header.state_root = kZeroHash;
     header.body_root = sszHash(BlockBody{});
-    return State{
-        .config = config,
-        .latest_block_header = header,
-    };
+
+    AnchorState result;
+    result.config = config;
+    result.slot = 0;
+    result.latest_block_header = header;
+    result.latest_justified = Checkpoint{.root = kZeroHash, .slot = 0};
+    result.latest_finalized = Checkpoint{.root = kZeroHash, .slot = 0};
+    // result.historical_block_hashes;
+    // result.justified_slots;
+    // result.justifications_roots;
+    // result.justifications_validators;
+
+    return result;
   }
 
-  Block STF::genesisBlock(const State &state) const {
-    return Block{.state_root = sszHash(state)};
+  AnchorBlock STF::genesisBlock(const State &state) {
+    AnchorBlock result;
+    result.slot = state.slot;
+    result.proposer_index = 0;
+    result.parent_root = kZeroHash;
+    result.state_root = sszHash(state);
+    result.body = BlockBody{};
+    return result;
   }
 
   outcome::result<State> STF::stateTransition(const SignedBlock &signed_block,

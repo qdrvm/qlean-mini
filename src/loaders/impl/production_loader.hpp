@@ -13,6 +13,9 @@
 #include "modules/production/production.hpp"
 #include "se/subscription.hpp"
 
+namespace lean::messages {
+  struct SlotIntervalStarted;
+}  // namespace lean::messages
 namespace lean::loaders {
 
   class ProductionLoader final
@@ -21,6 +24,8 @@ namespace lean::loaders {
         public modules::ProductionLoader {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<crypto::Hasher> hasher_;
+    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<clock::SystemClock> clock_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
 
@@ -30,6 +35,10 @@ namespace lean::loaders {
         BaseSubscriber<qtils::Empty,
                        std::shared_ptr<const messages::SlotStarted>>>
         on_slot_started_;
+    std::shared_ptr<
+        BaseSubscriber<qtils::Empty,
+                       std::shared_ptr<const messages::SlotIntervalStarted>>>
+        on_slot_interval_started_;
     std::shared_ptr<
         BaseSubscriber<qtils::Empty, std::shared_ptr<const messages::NewLeaf>>>
         on_leave_update_;
@@ -41,10 +50,14 @@ namespace lean::loaders {
     ProductionLoader(qtils::SharedRef<log::LoggingSystem> logsys,
                      qtils::SharedRef<Subscription> se_manager,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
-                     qtils::SharedRef<crypto::Hasher> hasher)
+                     qtils::SharedRef<crypto::Hasher> hasher,
+                     qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                     qtils::SharedRef<clock::SystemClock> clock)
         : Loader(std::move(logsys), std::move(se_manager)),
           block_tree_(std::move(block_tree)),
-          hasher_(std::move(hasher)) {}
+          hasher_(std::move(hasher)),
+          fork_choice_store_(std::move(fork_choice_store)),
+          clock_(clock) {}
 
     ProductionLoader(const ProductionLoader &) = delete;
     ProductionLoader &operator=(const ProductionLoader &) = delete;
@@ -59,15 +72,17 @@ namespace lean::loaders {
                                        modules::ProductionLoader &,
                                        std::shared_ptr<log::LoggingSystem>,
                                        std::shared_ptr<blockchain::BlockTree>,
-                                       std::shared_ptr<crypto::Hasher>>(
+                                       qtils::SharedRef<ForkChoiceStore>,
+                                       std::shared_ptr<crypto::Hasher>,
+                                       std::shared_ptr<clock::SystemClock>>(
                   "query_module_instance");
 
       if (not module_accessor) {
         return;
       }
 
-      auto module_internal =
-          (*module_accessor)(*this, logsys_, block_tree_, hasher_);
+      auto module_internal = (*module_accessor)(
+          *this, logsys_, block_tree_, fork_choice_store_, hasher_, clock_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::create<
           EventTypes::ProductionIsLoaded>(
@@ -89,17 +104,17 @@ namespace lean::loaders {
             }
           });
 
-      on_slot_started_ =
-          se::SubscriberCreator<qtils::Empty,
-                                std::shared_ptr<const messages::SlotStarted>>::
-              create<EventTypes::SlotStarted>(
-                  *se_manager_,
-                  SubscriptionEngineHandlers::kTest,
-                  [module_internal](auto &, auto msg) {
-                    if (auto m = module_internal.lock()) {
-                      m->on_slot_started(std::move(msg));
-                    }
-                  });
+      on_slot_interval_started_ = se::SubscriberCreator<
+          qtils::Empty,
+          std::shared_ptr<const messages::SlotIntervalStarted>>::
+          create<EventTypes::SlotIntervalStarted>(
+              *se_manager_,
+              SubscriptionEngineHandlers::kTest,
+              [module_internal](auto &, auto msg) {
+                if (auto m = module_internal.lock()) {
+                  m->on_slot_interval_started(std::move(msg));
+                }
+              });
 
       on_leave_update_ =
           se::SubscriberCreator<qtils::Empty,
@@ -134,6 +149,11 @@ namespace lean::loaders {
 
     void dispatchSendSignedBlock(
         std::shared_ptr<const messages::SendSignedBlock> message) override {
+      dispatchDerive(*se_manager_, message);
+    }
+
+    void dispatchSendSignedVote(
+        std::shared_ptr<const messages::SendSignedVote> message) override {
       dispatchDerive(*se_manager_, message);
     }
   };

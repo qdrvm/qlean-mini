@@ -29,6 +29,7 @@
 #include "app/impl/watchdog.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/block_tree_impl.hpp"
+#include "blockchain/impl/fc_block_tree.hpp"
 #include "blockchain/impl/genesis_block_header_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
@@ -56,15 +57,22 @@ namespace {
         std::move(c))[boost::di::override];
   }
 
+  // Overload for shared_ptr to bind the underlying type
+  template <typename T>
+  auto useConfig(std::shared_ptr<T> c) {
+    return boost::di::bind<T>().to(std::move(c))[boost::di::override];
+  }
+
   using injector::bind_by_lambda;
 
   template <typename... Ts>
   auto makeApplicationInjector(std::shared_ptr<log::LoggingSystem> logsys,
-                               std::shared_ptr<app::Configuration> config,
+                               std::shared_ptr<app::Configuration> app_config,
+                               std::shared_ptr<Config> genesis_config,
                                Ts &&...args) {
     // clang-format off
     return di::make_injector(
-        di::bind<app::Configuration>.to(config),
+        di::bind<app::Configuration>.to(app_config),
         di::bind<log::LoggingSystem>.to(logsys),
         di::bind<app::StateManager>.to<app::StateManagerImpl>(),
         di::bind<app::Application>.to<app::ApplicationImpl>(),
@@ -81,6 +89,7 @@ namespace {
                   .openmetricsHttpEndpoint()
           };
         }),
+        di::bind<Config>.to(genesis_config),
         di::bind<storage::BufferStorage>.to<storage::InMemoryStorage>(),
         //di::bind<storage::SpacedStorage>.to<storage::InMemorySpacedStorage>(),
         di::bind<storage::SpacedStorage>.to<storage::RocksDb>(),
@@ -89,7 +98,7 @@ namespace {
         di::bind<blockchain::GenesisBlockHeader>.to<blockchain::GenesisBlockHeaderImpl>(),
         di::bind<blockchain::BlockStorage>.to<blockchain::BlockStorageImpl>(),
         di::bind<app::Timeline>.to<app::TimelineImpl>(),
-        di::bind<blockchain::BlockTree>.to<blockchain::BlockTreeImpl>(),
+        di::bind<blockchain::BlockTree>.to<blockchain::FCBlockTree>(),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);
@@ -98,10 +107,18 @@ namespace {
 
   template <typename... Ts>
   auto makeNodeInjector(std::shared_ptr<log::LoggingSystem> logsys,
-                        std::shared_ptr<app::Configuration> config,
+                        std::shared_ptr<app::Configuration> app_config,
+                        std::shared_ptr<Config> genesis_config,
                         Ts &&...args) {
+    AnchorState genesis_state = STF::generateGenesisState(*genesis_config);
+    AnchorBlock genesis_block = STF::genesisBlock(genesis_state);
+
     return di::make_injector<boost::di::extension::shared_config>(
-        makeApplicationInjector(std::move(logsys), std::move(config)),
+        makeApplicationInjector(std::move(logsys),
+                                std::move(app_config),
+                                std::move(genesis_config),
+                                useConfig<AnchorState>(genesis_state),
+                                useConfig<AnchorBlock>(genesis_block)),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);
@@ -113,7 +130,8 @@ namespace lean::injector {
    public:
     using Injector =
         decltype(makeNodeInjector(std::shared_ptr<log::LoggingSystem>(),
-                                  std::shared_ptr<app::Configuration>()));
+                                  std::shared_ptr<app::Configuration>(),
+                                  std::shared_ptr<Config>()));
 
     explicit NodeInjectorImpl(Injector injector)
         : injector_{std::move(injector)} {}
@@ -122,9 +140,12 @@ namespace lean::injector {
   };
 
   NodeInjector::NodeInjector(std::shared_ptr<log::LoggingSystem> logsys,
-                             std::shared_ptr<app::Configuration> config)
+                             std::shared_ptr<app::Configuration> app_config,
+                             std::shared_ptr<Config> genesis_config)
       : pimpl_{std::make_unique<NodeInjectorImpl>(
-            makeNodeInjector(std::move(logsys), std::move(config)))} {}
+            makeNodeInjector(std::move(logsys),
+                             std::move(app_config),
+                             std::move(genesis_config)))} {}
 
   std::shared_ptr<app::Application> NodeInjector::injectApplication() {
     return pimpl_->injector_

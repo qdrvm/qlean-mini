@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include <cstdint>
+#include <concepts>
 
 namespace lean {
-  using Slot = uint64_t;
-  using Interval = uint64_t;
+  auto ceilDiv(const std::integral auto &l, const std::integral auto &r) {
+    return (l + r - 1) / r;
+  }
 }  // namespace lean

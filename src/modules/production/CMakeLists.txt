@@ -14,5 +14,6 @@ add_lean_module(production
   LIBRARIES
     qtils::qtils
     soralog::soralog
+    blockchain
     sszpp
 )

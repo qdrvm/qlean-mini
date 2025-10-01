@@ -8,6 +8,7 @@
 
 #include <thread>
 
+#include <blockchain/fork_choice.hpp>
 #include <libp2p/event/bus.hpp>
 #include <log/logger.hpp>
 #include <modules/networking/interfaces.hpp>
@@ -47,7 +48,8 @@ namespace lean::modules {
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
     NetworkingImpl(NetworkingLoader &loader,
                    qtils::SharedRef<log::LoggingSystem> logging_system,
-                   qtils::SharedRef<blockchain::BlockTree> block_tree);
+                   qtils::SharedRef<blockchain::BlockTree> block_tree,
+                   qtils::SharedRef<ForkChoiceStore> fork_choice_store);
 
    public:
     CREATE_SHARED_METHOD(NetworkingImpl);
@@ -77,6 +79,7 @@ namespace lean::modules {
     NetworkingLoader &loader_;
     log::Logger logger_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
+    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     std::shared_ptr<void> injector_;
     std::shared_ptr<boost::asio::io_context> io_context_;
     std::optional<std::thread> io_thread_;

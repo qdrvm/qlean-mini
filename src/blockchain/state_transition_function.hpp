@@ -9,7 +9,10 @@
 #include <qtils/enum_error_code.hpp>
 #include <qtils/outcome.hpp>
 
+#include "app/impl/chain_spec_impl.hpp"
+#include "types/block.hpp"
 #include "types/slot.hpp"
+#include "types/state.hpp"
 
 namespace lean {
   struct Block;
@@ -51,8 +54,8 @@ namespace lean {
       abort();
     }
 
-    State generateGenesisState(const Config &config) const;
-    Block genesisBlock(const State &state) const;
+    static AnchorState generateGenesisState(const Config &config);
+    static AnchorBlock genesisBlock(const State &state);
 
     /**
      * Apply block to parent state.
@@ -62,10 +65,11 @@ namespace lean {
                                            const State &parent_state,
                                            bool check_state_root) const;
 
-   private:
     outcome::result<void> processSlots(State &state, Slot slot) const;
-    void processSlot(State &state) const;
     outcome::result<void> processBlock(State &state, const Block &block) const;
+
+   private:
+    void processSlot(State &state) const;
     outcome::result<void> processBlockHeader(State &state,
                                              const Block &block) const;
     outcome::result<void> processOperations(State &state,

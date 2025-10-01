@@ -6,6 +6,8 @@
 
 #include "modules/production/production.hpp"
 
+#include <qtils/visit_in_place.hpp>
+
 #include "blockchain/block_tree.hpp"
 #include "crypto/hasher.hpp"
 #include "modules/shared/networking_types.tmp.hpp"
@@ -19,12 +21,16 @@ namespace lean::modules {
       ProductionLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
-      qtils::SharedRef<crypto::Hasher> hasher)
+      std::shared_ptr<ForkChoiceStore> fork_choice_store,
+      qtils::SharedRef<crypto::Hasher> hasher,
+      qtils::SharedRef<clock::SystemClock> clock)
       : loader_(loader),
         logsys_(std::move(logging_system)),
         logger_(logsys_->getLogger("ProductionModule", "production_module")),
         block_tree_(std::move(block_tree)),
-        hasher_(std::move(hasher)) {}
+        fork_choice_store_(std::move(fork_choice_store)),
+        hasher_(std::move(hasher)),
+        clock_(std::move(clock)) {}
 
   void ProductionModuleImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");
@@ -34,44 +40,28 @@ namespace lean::modules {
     SL_INFO(logger_, "Loading is finished");
   }
 
-  void ProductionModuleImpl::on_slot_started(
-      std::shared_ptr<const messages::SlotStarted> msg) {
-    if (msg->epoch_change) {
-      SL_INFO(logger_, "Epoch changed to {}", msg->epoch);
-    }
+  void ProductionModuleImpl::on_slot_interval_started(
+      std::shared_ptr<const messages::SlotIntervalStarted> msg) {
+    // advance fork choice store to current time
+    auto res = fork_choice_store_->advanceTime(clock_->nowSec());
 
-    auto producer_index = msg->slot % getValidatorCount();
-    auto is_producer = getPeerIndex() == producer_index;
-
-    SL_INFO(logger_,
-            "Slot {} is started{}",
-            msg->slot,
-            is_producer ? " - I'm a producer" : "");
-
-    if (is_producer) {
-      auto parent_hash = block_tree_->bestBlock().hash;
-      // Produce block
-      Block block;
-      block.slot = msg->slot;
-      block.proposer_index = producer_index;
-      block.parent_root = parent_hash;
-      // block.state_root = ;
-
-      // Add a block into the block tree
-      auto res = block_tree_->addBlock(block);
-      if (res.has_error()) {
-        SL_ERROR(
-            logger_, "Could not add block to the block tree: {}", res.error());
-        return;
-      }
-
-      // Notify subscribers
-      loader_.dispatch_block_produced(std::make_shared<const Block>(block));
-
-      // TODO(turuslan): signature
-      loader_.dispatchSendSignedBlock(
-          std::make_shared<messages::SendSignedBlock>(
-              SignedBlock{.message = block}));
+    // dispatch all votes and blocks produced during advance time
+    for (auto &vote_or_block : res) {
+      qtils::visit_in_place(
+          vote_or_block,
+          [&](const SignedVote &v) {
+            loader_.dispatchSendSignedVote(
+                std::make_shared<messages::SendSignedVote>(v));
+          },
+          [&](const SignedBlock &v) {
+            loader_.dispatchSendSignedBlock(
+                std::make_shared<messages::SendSignedBlock>(v));
+            auto res = block_tree_->addBlock(v.message);
+            if (!res.has_value()) {
+              SL_ERROR(
+                  logger_, "Failed to add produced block: {}", res.error());
+            }
+          });
     }
   }
 

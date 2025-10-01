@@ -11,8 +11,8 @@
 namespace lean {
 
   struct Vote : public ssz::ssz_container {
-    uint64_t validator_id;
-    uint64_t slot;
+    uint64_t validator_id = 0;
+    uint64_t slot = 0;
     Checkpoint head;
     Checkpoint target;
     Checkpoint source;

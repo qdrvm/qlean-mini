@@ -12,7 +12,7 @@
 #include "types/constants.hpp"
 
 namespace lean {
-  struct State : ssz::ssz_container {
+  struct State : ssz::ssz_variable_size_container {
     Config config;
     Slot slot;
     BlockHeader latest_block_header;
@@ -39,4 +39,6 @@ namespace lean {
              justifications_roots,
              justifications_validators);
   };
+
+  using AnchorState = qtils::Tagged<State, struct AnchorStateTag>;
 }  // namespace lean
