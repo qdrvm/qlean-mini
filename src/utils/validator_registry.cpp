@@ -18,6 +18,26 @@ namespace lean {
     loadRegistry();
   }
 
+  ValidatorRegistry ValidatorRegistry::createForTesting(
+      qtils::SharedRef<log::LoggingSystem> logging_system,
+      std::filesystem::path registry_path,
+      std::string current_node_id) {
+    return ValidatorRegistry(std::move(logging_system),
+                             std::move(registry_path),
+                             std::move(current_node_id));
+  }
+
+  ValidatorRegistry::ValidatorRegistry(
+      qtils::SharedRef<log::LoggingSystem> logging_system,
+      std::filesystem::path registry_path,
+      std::string current_node_id)
+      : logger_(logging_system->getLogger("ValidatorRegistry",
+                                          "validator_registry")),
+        registry_path_(std::move(registry_path)),
+        current_node_id_(std::move(current_node_id)) {
+    loadRegistry();
+  }
+
   const std::filesystem::path &ValidatorRegistry::registryPath() const {
     return registry_path_;
   }

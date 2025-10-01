@@ -89,7 +89,7 @@ TEST(BootnodeTest, EmptyBootnodes) {
  */
 TEST(BootnodeTest, ENRParsing) {
   // Valid ENR from the ENR test suite
-  std::string test_enr = "enr:-Ku4QHqVeJ8PPICcWk1vSn_XcSkjOkNiTg6Fmii5j6vUQgvzMc9L1goFnLKgXqBJspJjIsB91LTOleFmyWWrFVATGngBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpC1MD8qAAAAAP__________gmlkgnY0gmlwhAMRHkWJc2VjcDI1NmsxoQKLVXFOhp2uX6jeT0DvvDpPcU8FWMjQdR4wMuORMhpX24N1ZHCCIyg";
+  std::string test_enr = "enr:-IW4QHcpC4AgOv7WXk1V8E56DDAy6KJ09VMOxSTUwgOqkLF6YihJc5Eoeo4UX1bm9H39Xl-831fomuqR3TZzB3S2IPoBgmlkgnY0gmlwhH8AAAGEcXVpY4InEIlzZWNwMjU2azGhA21sqsJIr5b2r6f5BPVQJToPPvP1qi_mg4qVshZpFGji";
   
   // Test ENR parsing directly
   auto enr_result = lean::enr::decode(test_enr);

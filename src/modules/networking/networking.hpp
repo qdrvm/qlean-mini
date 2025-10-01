@@ -28,6 +28,7 @@ namespace lean::blockchain {
 
 namespace lean::app {
   class ChainSpec;
+  class Configuration;
 }  // namespace lean::app
 
 namespace libp2p::protocol::gossip {
@@ -57,6 +58,7 @@ namespace lean::modules {
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
                    qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
+                   qtils::SharedRef<app::Configuration> config,
                    qtils::SharedRef<ValidatorRegistry> validator_registry);
 
    public:
@@ -89,7 +91,8 @@ namespace lean::modules {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
-  qtils::SharedRef<ValidatorRegistry> validator_registry_;
+    qtils::SharedRef<app::Configuration> config_;
+    qtils::SharedRef<ValidatorRegistry> validator_registry_;
     std::shared_ptr<void> injector_;
     std::shared_ptr<boost::asio::io_context> io_context_;
     std::optional<std::thread> io_thread_;

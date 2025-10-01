@@ -24,6 +24,7 @@ namespace lean::blockchain {
 
 namespace lean::app {
   class ChainSpec;
+  class Configuration;
 }  // namespace lean::app
 
 namespace lean::loaders {
@@ -36,6 +37,7 @@ namespace lean::loaders {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
+    qtils::SharedRef<app::Configuration> app_config_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
@@ -57,12 +59,14 @@ namespace lean::loaders {
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
                      qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                      qtils::SharedRef<app::ChainSpec> chain_spec,
+                     qtils::SharedRef<app::Configuration> app_config,
                      qtils::SharedRef<ValidatorRegistry> validator_registry)
         : Loader(std::move(logsys), std::move(se_manager)),
           logger_(logsys_->getLogger("Networking", "networking_module")),
           block_tree_{std::move(block_tree)},
           fork_choice_store_{std::move(fork_choice_store)},
           chain_spec_{std::move(chain_spec)},
+          app_config_{std::move(app_config)},
           validator_registry_{std::move(validator_registry)} {}
 
     NetworkingLoader(const NetworkingLoader &) = delete;
@@ -79,7 +83,8 @@ namespace lean::loaders {
                                        std::shared_ptr<log::LoggingSystem>,
                                        qtils::SharedRef<blockchain::BlockTree>,
                                        qtils::SharedRef<ForkChoiceStore>,
-                                       qtils::SharedRef<app::ChainSpec>,
+                     qtils::SharedRef<app::ChainSpec>,
+                     qtils::SharedRef<app::Configuration>,
                                        qtils::SharedRef<ValidatorRegistry>>(
                   "query_module_instance");
 
@@ -87,12 +92,13 @@ namespace lean::loaders {
         return;
       }
 
-      auto module_internal = (*module_accessor)(*this,
-                                                logsys_,
-                                                block_tree_,
-                                                fork_choice_store_,
-                                                chain_spec_,
-                                                validator_registry_);
+  auto module_internal = (*module_accessor)(*this,
+                logsys_,
+                block_tree_,
+                fork_choice_store_,
+                chain_spec_,
+                app_config_,
+                validator_registry_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::template create<
           EventTypes::NetworkingIsLoaded>(
