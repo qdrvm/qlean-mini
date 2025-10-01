@@ -21,6 +21,7 @@
 #include "log/logger.hpp"
 #include "modules/module_loader.hpp"
 #include "se/subscription.hpp"
+#include "types/config.hpp"
 
 using std::string_view_literals::operator""sv;
 
@@ -38,8 +39,9 @@ namespace {
   using lean::log::LoggingSystem;
 
   int run_node(std::shared_ptr<LoggingSystem> logsys,
-               std::shared_ptr<Configuration> appcfg) {
-    auto injector = std::make_unique<NodeInjector>(logsys, appcfg);
+               std::shared_ptr<Configuration> appcfg,
+               std::shared_ptr<lean::Config> genesis_cfg) {
+    auto injector = std::make_unique<NodeInjector>(logsys, appcfg, genesis_cfg);
 
     // Load modules
     std::deque<std::unique_ptr<lean::loaders::Loader>> loaders;
@@ -182,7 +184,7 @@ int main(int argc, const char **argv, const char **env) {
   }
 
   // Setup config
-  auto configuration = ({
+  auto app_configuration = ({
     auto logger = logging_system->getLogger("Configurator", "lean");
 
     auto config_res = app_configurator->calculateConfig(logger);
@@ -197,6 +199,18 @@ int main(int argc, const char **argv, const char **env) {
     config_res.value();
   });
 
+  // set genesis config. Genesis time should be next multiple of 12 seconds
+  // since epoch (in ms)
+  constexpr uint64_t GENESIS_INTERVAL_MS = 12'000; // 12 seconds in milliseconds
+  uint64_t genesis_time =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count();
+  genesis_time += GENESIS_INTERVAL_MS - (genesis_time % GENESIS_INTERVAL_MS);
+
+  lean::Config genesis_config{.num_validators = 4,
+                              .genesis_time = genesis_time};
+
   int exit_code;
 
   {
@@ -204,7 +218,9 @@ int main(int argc, const char **argv, const char **env) {
 
     if (name.substr(0, 1) == "-") {
       // The first argument isn't subcommand, run as node
-      exit_code = run_node(logging_system, configuration);
+      exit_code = run_node(logging_system,
+                           app_configuration,
+                           std::make_shared<lean::Config>(genesis_config));
     }
 
     // else if (false and name == "subcommand-1"s) {

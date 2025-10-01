@@ -12,6 +12,7 @@
 
 namespace lean::messages {
   struct SlotStarted;
+  struct SlotIntervalStarted;
   struct Finalized;
   struct NewLeaf;
 }  // namespace lean::messages
@@ -28,6 +29,9 @@ namespace lean::modules {
 
     virtual void dispatchSendSignedBlock(
         std::shared_ptr<const messages::SendSignedBlock> message) = 0;
+
+    virtual void dispatchSendSignedVote(
+        std::shared_ptr<const messages::SendSignedVote> message) = 0;
   };
 
   struct ProductionModule {
@@ -35,8 +39,8 @@ namespace lean::modules {
     virtual void on_loaded_success() = 0;
     virtual void on_loading_is_finished() = 0;
 
-    virtual void on_slot_started(
-        std::shared_ptr<const messages::SlotStarted>) = 0;
+    virtual void on_slot_interval_started(
+        std::shared_ptr<const messages::SlotIntervalStarted>) = 0;
 
     virtual void on_leave_update(std::shared_ptr<const messages::NewLeaf>) = 0;
 

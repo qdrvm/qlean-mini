@@ -16,13 +16,13 @@ namespace lean {
     SSZ_CONT(finalized, head);
   };
 
-  struct BlockRequest : ssz::ssz_container {
+  struct BlockRequest : ssz::ssz_variable_size_container {
     ssz::list<BlockHash, MAX_REQUEST_BLOCKS> blocks;
 
     SSZ_CONT(blocks);
   };
 
-  struct BlockResponse : ssz::ssz_container {
+  struct BlockResponse : ssz::ssz_variable_size_container {
     ssz::list<SignedBlock, MAX_REQUEST_BLOCKS> blocks;
 
     SSZ_CONT(blocks);

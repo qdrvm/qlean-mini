@@ -1,3 +1,10 @@
+[Spec](https://github.com/leanEthereum/leanSpec) uses names like
+`get_vote_target`,\
+but they should be converted to `getVoteTarget`.\
+Yes, text search doesn't work.
+
+---
+
 Module system uses subscriptions and messages.\
 For example:
 

@@ -84,6 +84,7 @@ namespace lean {
 
     /// New slot started
     SlotStarted,
+    SlotIntervalStarted,
 
     /// Used by `DeriveEventType::get`
     Derive,

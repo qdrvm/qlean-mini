@@ -7,6 +7,7 @@
 
 #include "modules/networking/networking.hpp"
 
+#include <blockchain/fork_choice.hpp>
 #include <boost/endian/conversion.hpp>
 #include <libp2p/basic/read_varint.hpp>
 #include <libp2p/basic/write_varint.hpp>
@@ -19,6 +20,7 @@
 #include <qtils/to_shared_ptr.hpp>
 
 #include "blockchain/block_tree.hpp"
+#include "blockchain/impl/fc_block_tree.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
@@ -62,11 +64,14 @@ namespace lean::modules {
   NetworkingImpl::NetworkingImpl(
       NetworkingLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
-      qtils::SharedRef<blockchain::BlockTree> block_tree)
+      qtils::SharedRef<blockchain::BlockTree> block_tree,
+      qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
-        block_tree_{std::move(block_tree)} {
+        block_tree_{std::move(block_tree)},
+        fork_choice_store_{std::move(fork_choice_store)} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
+    block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }
 
   NetworkingImpl::~NetworkingImpl() {
@@ -175,13 +180,18 @@ namespace lean::modules {
           self->receiveBlock(std::nullopt, std::move(block));
         });
     gossip_votes_topic_ = gossipSubscribe<SignedVote>(
-        "vote", [weak_self{weak_from_this()}](SignedVote &&vote) {
+        "vote", [weak_self{weak_from_this()}](SignedVote &&signed_vote) {
           auto self = weak_self.lock();
           if (not self) {
             return;
           }
-          self->loader_.dispatchSignedVoteReceived(
-              std::make_shared<messages::SignedVoteReceived>(std::move(vote)));
+          auto res =
+              self->fork_choice_store_->processAttestation(signed_vote, false);
+          BOOST_ASSERT_MSG(res.has_value(), "Gossiped vote should be valid");
+          SL_INFO(self->logger_,
+                  "Received vote for target {}@{}",
+                  signed_vote.data.target.slot,
+                  signed_vote.data.target.root);
         });
 
     if (sample_peer.index != 0) {
@@ -234,18 +244,19 @@ namespace lean::modules {
   std::shared_ptr<libp2p::protocol::gossip::Topic>
   NetworkingImpl::gossipSubscribe(std::string_view type, auto f) {
     auto topic = gossip_->subscribe(gossipTopic(type));
-    libp2p::coroSpawn(*io_context_,
-                      [topic, f{std::move(f)}]() -> libp2p::Coro<void> {
-                        while (auto raw_result = co_await topic->receive()) {
-                          auto &raw = raw_result.value();
-                          if (auto uncompressed_res = snappyUncompress(raw)) {
-                            auto &uncompressed = uncompressed_res.value();
-                            if (auto r = decode<T>(uncompressed)) {
-                              f(std::move(r.value()));
-                            }
-                          }
-                        }
-                      });
+    libp2p::coroSpawn(
+        *io_context_,
+        [this, type, topic, f{std::move(f)}]() -> libp2p::Coro<void> {
+          while (auto raw_result = co_await topic->receive()) {
+            auto &raw = raw_result.value();
+            if (auto uncompressed_res = snappyUncompress(raw)) {
+              auto &uncompressed = uncompressed_res.value();
+              if (auto r = decode<T>(uncompressed)) {
+                f(std::move(r.value()));
+              }
+            }
+          }
+        });
     return topic;
   }
 
@@ -294,9 +305,12 @@ namespace lean::modules {
 
   // TODO(turuslan): detect finalized change
   void NetworkingImpl::receiveBlock(std::optional<libp2p::PeerId> from_peer,
-                                    SignedBlock &&block) {
-    auto slot_hash = block.message.slotHash();
-    SL_TRACE(logger_, "receiveBlock {}", slot_hash.slot);
+                                    SignedBlock &&signed_block) {
+    auto slot_hash = signed_block.message.slotHash();
+    SL_DEBUG(logger_,
+             "receiveBlock slot {} hash {}",
+             slot_hash.slot,
+             slot_hash.hash);
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
       while (not queue.empty()) {
@@ -309,7 +323,7 @@ namespace lean::modules {
         }
       }
     };
-    auto parent_hash = block.message.parent_root;
+    auto parent_hash = signed_block.message.parent_root;
     if (block_cache_.contains(slot_hash.hash)) {
       SL_TRACE(logger_, "receiveBlock {} => ignore cached", slot_hash.slot);
       return;
@@ -326,19 +340,22 @@ namespace lean::modules {
       return;
     }
     if (block_tree_->has(parent_hash)) {
-      std::vector<SignedBlock> blocks{std::move(block)};
+      std::vector<SignedBlock> blocks{std::move(signed_block)};
       remove([&](const BlockHash &block_hash) {
         blocks.emplace_back(block_cache_.extract(block_hash).mapped());
       });
       std::string __s;
       for (auto &block : blocks) {
         __s += std::format(" {}", block.message.slot);
+        auto res = fork_choice_store_->onBlock(block.message);
+        BOOST_ASSERT_MSG(res.has_value(),
+                         "Fork choice store should accept imported block");
       }
-      SL_TRACE(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
+      SL_INFO(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
       block_tree_->import(std::move(blocks));
       return;
     }
-    block_cache_.emplace(slot_hash.hash, std::move(block));
+    block_cache_.emplace(slot_hash.hash, std::move(signed_block));
     block_children_.emplace(parent_hash, slot_hash.hash);
     if (block_cache_.contains(parent_hash)) {
       SL_TRACE(logger_, "receiveBlock {} => has parent", slot_hash.slot);

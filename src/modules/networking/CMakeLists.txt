@@ -20,5 +20,6 @@ add_lean_module(networking
     qtils::qtils
     Snappy::snappy
     soralog::soralog
+    blockchain
     sszpp
 )

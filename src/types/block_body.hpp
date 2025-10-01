@@ -13,9 +13,10 @@
 
 namespace lean {
 
-  struct BlockBody : ssz::ssz_container {
+  using Attestations = ssz::list<SignedVote, VALIDATOR_REGISTRY_LIMIT>;
+  struct BlockBody : ssz::ssz_variable_size_container {
     /// @note votes will be replaced by aggregated attestations.
-    ssz::list<SignedVote, VALIDATOR_REGISTRY_LIMIT> attestations;
+    Attestations attestations;
 
     SSZ_CONT(attestations);
   };
