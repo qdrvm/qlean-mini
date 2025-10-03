@@ -309,7 +309,14 @@ namespace lean::modules {
           }
           auto res =
               self->fork_choice_store_->processAttestation(signed_vote, false);
-          BOOST_ASSERT_MSG(res.has_value(), "Gossiped vote should be valid");
+          if (not res.has_value()) {
+            SL_WARN(self->logger_,
+                    "Error processing vote for target {}@{}: {}",
+                    signed_vote.data.target.slot,
+                    signed_vote.data.target.root,
+                    res.error());
+            return;
+          }
           SL_INFO(self->logger_,
                   "Received vote for target {}@{}",
                   signed_vote.data.target.slot,
@@ -450,8 +457,14 @@ namespace lean::modules {
       for (auto &block : blocks) {
         __s += std::format(" {}", block.message.slot);
         auto res = fork_choice_store_->onBlock(block.message);
-        BOOST_ASSERT_MSG(res.has_value(),
-                         "Fork choice store should accept imported block");
+        if (not res.has_value()) {
+          SL_WARN(logger_,
+                  "Error importing block {}@{}: {}",
+                  block.message.hash(),
+                  block.message.slot,
+                  res.error());
+          return;
+        }
       }
       SL_INFO(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
       block_tree_->import(std::move(blocks));
