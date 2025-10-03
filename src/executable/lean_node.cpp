@@ -245,9 +245,7 @@ int main(int argc, const char **argv, const char **env) {
   {
     // print genesis time in human-readable format
     std::time_t genesis_time_t =
-        static_cast<std::time_t>(genesis_config->genesis_time > 10000000000ull
-                                     ? genesis_config->genesis_time / 1000
-                                     : genesis_config->genesis_time);
+        static_cast<std::time_t>(genesis_config->genesis_time);
     std::tm *gmt = std::gmtime(&genesis_time_t);
     char time_str[32];
     std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", gmt);
