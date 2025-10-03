@@ -17,6 +17,7 @@
 #include "app/application.hpp"
 #include "app/configuration.hpp"
 #include "app/configurator.hpp"
+#include "executable/cmd_generate_genesis.hpp"
 #include "executable/cmd_key_generate_node_key.hpp"
 #include "injector/node_injector.hpp"
 #include "loaders/loader.hpp"
@@ -136,6 +137,22 @@ int main(int argc, const char **argv, const char **env) {
     }
     std::println(std::cerr, "Expected one of following commands:");
     std::println(std::cerr, "  qlean key generate-node-key");
+    return EXIT_FAILURE;
+  }
+  if (getArg(1) == "generate-genesis") {
+    if (auto arg_2 = getArg(2)) {
+      std::filesystem::path genesis_directory{*arg_2};
+      if (auto arg_3 = getArg(3)) {
+        size_t validator_count = std::stoul(std::string{*arg_3});
+        if (validator_count != 0) {
+          cmdGenerateGenesis(genesis_directory, validator_count);
+          return EXIT_SUCCESS;
+        }
+      }
+    }
+    std::println(
+        std::cerr,
+        "Usage: qlean generate-genesis (genesis_directory) (validator_count)");
     return EXIT_FAILURE;
   }
 
