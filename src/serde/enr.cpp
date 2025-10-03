@@ -280,10 +280,10 @@ namespace lean::enr {
     auto &ip = this->ip.value();
     return libp2p::Multiaddress::create(
                std::format("/ip4/{}.{}.{}.{}/udp/{}/quic-v1/p2p/{}",
-                           ip[3],
-                           ip[2],
-                           ip[1],
                            ip[0],
+                           ip[1],
+                           ip[2],
+                           ip[3],
                            port.value(),
                            peerId().toBase58()))
         .value();

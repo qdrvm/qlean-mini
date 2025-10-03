@@ -51,6 +51,10 @@ namespace lean::app {
     return genesis_config_path_;
   }
 
+  const std::optional<std::string> &Configuration::listenMultiaddr() const {
+    return listen_multiaddr_;
+  }
+
   const std::optional<std::string> &Configuration::nodeKeyHex() const {
     return node_key_hex_;
   }

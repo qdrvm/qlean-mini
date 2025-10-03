@@ -298,7 +298,7 @@ namespace lean {
 
   std::vector<std::variant<SignedVote, SignedBlock>>
   ForkChoiceStore::advanceTime(uint64_t now_sec) {
-    auto time_since_genesis = now_sec - config_.genesis_time / 1000;
+    auto time_since_genesis = now_sec - config_.genesis_time;
 
     std::vector<std::variant<SignedVote, SignedBlock>> result{};
     while (time_ < time_since_genesis) {
@@ -488,7 +488,7 @@ namespace lean {
     config_ = anchor_state.config;
     auto now_sec = clock->nowSec();
     time_ = now_sec > config_.genesis_time
-              ? (now_sec - config_.genesis_time / 1000) / SECONDS_PER_INTERVAL
+              ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
               : 0;
     head_ = anchor_root;
     safe_target_ = anchor_root;

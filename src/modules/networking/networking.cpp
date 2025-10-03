@@ -143,8 +143,30 @@ namespace lean::modules {
 
     auto host = injector->create<std::shared_ptr<libp2p::host::BasicHost>>();
 
-    if (auto r = host->listen(sample_peer.listen); not r.has_value()) {
-      SL_WARN(logger_, "listen {} error: {}", sample_peer.listen, r.error());
+    if (auto &listen_addr = config_->listenMultiaddr();
+        listen_addr.has_value()) {
+      auto listen_res = libp2p::multi::Multiaddress::create(*listen_addr);
+      if (listen_res.has_value()) {
+        sample_peer.listen = listen_res.value();
+        if (auto r = host->listen(sample_peer.listen); not r.has_value()) {
+          SL_INFO(logger_,
+                  "Listening address configured via --listen-addr: {}",
+                  sample_peer.listen.getStringAddress());
+        } else {
+          SL_INFO(logger_,
+                  "Listening on {}",
+                  sample_peer.listen.getStringAddress());
+        }
+      } else {
+        SL_CRITICAL(logger_,
+                    "Invalid listen multiaddress '{}': {}",
+                    *listen_addr,
+                    listen_res.error().message());
+        std::exit(1);
+      }
+    } else {
+      SL_CRITICAL(logger_, "No listen multiaddress configured");
+      std::exit(1);
     }
     host->start();
 
@@ -177,6 +199,24 @@ namespace lean::modules {
                   bootnode.peer_id,
                   result.error());
         }
+        libp2p::PeerInfo peer_info{.id = bootnode.peer_id,
+                                   .addresses = addresses};
+        libp2p::coroSpawn(*io_context_,
+                          [weak_self{weak_from_this()},
+                           host,
+                           peer_info]() -> libp2p::Coro<void> {
+                            if (auto r = co_await host->connect(peer_info);
+                                not r.has_value()) {
+                              auto self = weak_self.lock();
+                              if (not self) {
+                                co_return;
+                              }
+                              SL_WARN(self->logger_,
+                                      "connect {} error: {}",
+                                      peer_info.id,
+                                      r.error());
+                            }
+                          });
       }
     } else {
       SL_DEBUG(logger_, "No bootnodes configured");
@@ -275,26 +315,6 @@ namespace lean::modules {
                   signed_vote.data.target.slot,
                   signed_vote.data.target.root);
         });
-
-    if (sample_peer.index != 0) {
-      libp2p::coroSpawn(
-          *io_context_,
-          [weak_self{weak_from_this()}, host]() -> libp2p::Coro<void> {
-            SamplePeer sample_peer{0};
-
-            if (auto r = co_await host->connect(sample_peer.connect_info);
-                not r.has_value()) {
-              auto self = weak_self.lock();
-              if (not self) {
-                co_return;
-              }
-              SL_WARN(self->logger_,
-                      "connect {} error: {}",
-                      sample_peer.connect,
-                      r.error());
-            }
-          });
-    }
 
     io_thread_.emplace([io_context{io_context_}] {
       auto work_guard = boost::asio::make_work_guard(*io_context);

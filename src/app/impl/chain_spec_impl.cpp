@@ -83,7 +83,7 @@ namespace lean::app {
         auto multiaddr = entry.enr.connectAddress();
 
         bootnode_infos.emplace_back(std::move(multiaddr), std::move(peer_id));
-        SL_DEBUG(log_,
+        SL_INFO(log_,
                  "Added boot node: {} -> peer={}, address={}",
                  entry.raw,
                  bootnode_infos.back().peer_id,

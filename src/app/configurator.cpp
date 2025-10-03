@@ -104,6 +104,7 @@ namespace lean::app {
         ("base-path", po::value<std::string>(), "Set base path. All relative paths will be resolved based on this path.")
         ("config,c", po::value<std::string>(),  "Optional. Filepath to load configuration from. Overrides default configuration values.")
         ("genesis", po::value<std::string>(), "Set path to genesis config.yaml file.")
+        ("listen-addr", po::value<std::string>(), "Set libp2p listen multiaddress.")
         ("modules-dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to nodes.yaml file containing boot node ENRs.")
         ("validator-registry-path",
@@ -349,6 +350,21 @@ groups:
               file_has_error_ = true;
             }
           }
+          auto listen_addr = section["listen-addr"];
+          if (listen_addr.IsDefined()) {
+            if (listen_addr.IsScalar()) {
+              auto value = listen_addr.as<std::string>();
+              boost::trim(value);
+              if (value.empty()) {
+                config_->listen_multiaddr_.reset();
+              } else {
+                config_->listen_multiaddr_ = value;
+              }
+            } else {
+              file_errors_ << "E: Value 'general.listen_addr' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
           auto bootnodes_file = section["bootnodes"];
           if (bootnodes_file.IsDefined()) {
             if (bootnodes_file.IsScalar()) {
@@ -421,6 +437,16 @@ groups:
     find_argument<std::string>(
         cli_values_map_, "modules-dir", [&](const std::string &value) {
           config_->modules_dir_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "listen-addr", [&](const std::string &value) {
+          auto trimmed = value;
+          boost::trim(trimmed);
+          if (trimmed.empty()) {
+            config_->listen_multiaddr_.reset();
+          } else {
+            config_->listen_multiaddr_ = trimmed;
+          }
         });
     find_argument<std::string>(
         cli_values_map_, "genesis", [&](const std::string &value) {
