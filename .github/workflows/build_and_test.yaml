@@ -23,6 +23,7 @@ env:
   RUSTUP_HOME: ~/.rustup
   CACHE_PATH: |
     ~/.cargo
+    ~/.rustup
     ~/.hunter
     ~/.cache/pip
     ~/.cache/vcpkg
@@ -44,12 +45,6 @@ jobs:
         with:
           submodules: true
           fetch-depth: 0
-
-      - name: "Set up Rust"
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
 
       - name: "Restore cache dependencies"
         id: cache-restore

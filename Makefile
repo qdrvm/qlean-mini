@@ -14,6 +14,9 @@ endif
 
 OS_TYPE := $(shell bash -c 'source $(CI_DIR)/scripts/detect_os.sh && detect_os')
 
+DOCKER_IMAGE ?= qlean-mini:latest
+DOCKER_PLATFORM ?= linux/amd64
+
 
 all: init_all configure build test
 
@@ -38,11 +41,11 @@ configure:
 	@echo "=== Configuring..."
 	export PATH="$$HOME/.cargo/bin:$$PATH" && \
 	source $$HOME/.cargo/env 2>/dev/null || true && \
-	VCPKG_ROOT=$(VCPKG) cmake --preset=default -DPython3_EXECUTABLE="$(VENV)/bin/python3" -B $(BUILD) $(PROJECT)
+	VCPKG_ROOT=$(VCPKG) cmake -G Ninja --preset=default -DPython3_EXECUTABLE="$(VENV)/bin/python3" -B $(BUILD) $(PROJECT)
 
 build:
 	@echo "=== Building..."
-	cmake --build $(BUILD) 
+	cmake --build $(BUILD) --parallel
 
 test:
 	@echo "=== Testing..."
@@ -52,4 +55,66 @@ clean_all:
 	@echo "=== Cleaning..."
 	rm -rf $(VENV) $(BUILD) $(VCPKG)	
 
-.PHONY: all init_all os init init_py init_vcpkg configure build test clean_all
+# ==================== Docker Commands ====================
+
+docker_build_builder:
+	@echo "=== [Stage 1/2] Building Docker BUILDER image (init + configure + build) ==="
+	@echo "=== Using build args from .ci/.env ==="
+	@echo "  - CMAKE_VERSION=$(CMAKE_VERSION)"
+	@echo "  - GCC_VERSION=$(GCC_VERSION)"
+	@echo "  - RUST_VERSION=$(RUST_VERSION)"
+	@echo "  - DEBIAN_FRONTEND=$(DEBIAN_FRONTEND)"
+	@echo ""
+	DOCKER_BUILDKIT=1 docker build \
+		--build-arg CMAKE_VERSION=$(CMAKE_VERSION) \
+		--build-arg GCC_VERSION=$(GCC_VERSION) \
+		--build-arg RUST_VERSION=$(RUST_VERSION) \
+		--build-arg DEBIAN_FRONTEND=$(DEBIAN_FRONTEND) \
+		--target builder \
+		--progress=plain \
+		-t $(DOCKER_IMAGE)-builder .
+	@echo ""
+	@echo "✓ Builder image built: $(DOCKER_IMAGE)-builder"
+
+docker_build_runtime:
+	@echo "=== [Stage 2/2] Building Docker RUNTIME image (final) ==="
+	@echo "=== Using existing builder image: $(DOCKER_IMAGE)-builder ==="
+	@echo ""
+	DOCKER_BUILDKIT=1 docker build \
+		-f Dockerfile.runtime \
+		--progress=plain \
+		-t $(DOCKER_IMAGE) .
+	@echo ""
+	@echo "✓ Runtime image built: $(DOCKER_IMAGE)"
+
+docker_build: docker_build_runtime
+
+docker_build_all: docker_build_builder docker_build_runtime
+	@echo ""
+	@echo "=== ✓ All Docker images built successfully ==="
+	@echo "  - Builder: $(DOCKER_IMAGE)-builder"
+	@echo "  - Runtime: $(DOCKER_IMAGE)"
+
+docker_run:
+	@echo "=== Running Docker image $(DOCKER_IMAGE) ==="
+	@echo "Note: --modules-dir is already set in ENTRYPOINT"
+	@echo ""
+	@echo "Usage examples:"
+	@echo "  make docker_run                              # Show help"
+	@echo "  make docker_run ARGS='--version'             # Show version"
+	@echo "  make docker_run ARGS='--base-path /work ...' # Run with custom args"
+	@echo ""
+	docker run --rm -it $(DOCKER_IMAGE) $(ARGS)
+
+docker_clean:
+	@echo "=== Cleaning Docker images ==="
+	docker rmi -f $(DOCKER_IMAGE) $(DOCKER_IMAGE)-builder 2>/dev/null || true
+	@echo "✓ Docker images cleaned"
+
+docker_inspect:
+	@echo "=== Docker images info ==="
+	@docker images | grep qlean-mini || echo "No qlean-mini images found"
+
+.PHONY: all init_all os init init_py init_vcpkg configure build test clean_all \
+	docker_build_builder docker_build_runtime docker_build docker_build_all \
+	docker_run docker_clean docker_inspect
