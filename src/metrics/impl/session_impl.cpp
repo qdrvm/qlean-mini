@@ -69,6 +69,7 @@ namespace lean::metrics {
       }
 
       stop();
+      return;
     }
 
     handleRequest(parser_->release());
