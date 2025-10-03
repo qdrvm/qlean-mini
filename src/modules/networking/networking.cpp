@@ -33,7 +33,6 @@
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
 #include "modules/networking/types.hpp"
-#include "utils/sample_peer.hpp"
 
 namespace lean::modules {
   // TODO(turuslan): gossip [from,seqno,signature,key]=None
@@ -97,8 +96,6 @@ namespace lean::modules {
   void NetworkingImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");
 
-    SamplePeer sample_peer{validator_registry_->currentValidatorIndex()};
-
     // Determine the keypair: from config if valid, otherwise random
     libp2p::crypto::KeyPair keypair;
     if (auto &node_key_hex = config_->nodeKeyHex(); node_key_hex.has_value()) {
@@ -115,27 +112,17 @@ namespace lean::modules {
     } else {
       keypair = randomKeyPair();
     }
-    sample_peer.keypair = std::move(keypair);
 
     // Always set up identity and peer info
     libp2p::peer::IdentityManager identity_manager{
-        sample_peer.keypair,
+        keypair,
         std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(nullptr)};
     auto peer_id = identity_manager.getId();
-
-    auto connect_res = libp2p::multi::Multiaddress::create(
-        std::format("{}/p2p/{}",
-                    sample_peer.listen.getStringAddress(),
-                    peer_id.toBase58()));
-
-    sample_peer.peer_id = peer_id;
-    sample_peer.connect = connect_res.value();
-    sample_peer.connect_info = {peer_id, {sample_peer.connect}};
 
     SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
 
     auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
-        libp2p::injector::useKeyPair(sample_peer.keypair),
+        libp2p::injector::useKeyPair(keypair),
         libp2p::injector::useTransportAdaptors<
             libp2p::transport::QuicTransport>()));
     injector_ = injector;
@@ -147,15 +134,13 @@ namespace lean::modules {
         listen_addr.has_value()) {
       auto listen_res = libp2p::multi::Multiaddress::create(*listen_addr);
       if (listen_res.has_value()) {
-        sample_peer.listen = listen_res.value();
-        if (auto r = host->listen(sample_peer.listen); not r.has_value()) {
+        auto listen = listen_res.value();
+        if (auto r = host->listen(listen); not r.has_value()) {
           SL_INFO(logger_,
                   "Listening address configured via --listen-addr: {}",
-                  sample_peer.listen.getStringAddress());
+                  listen);
         } else {
-          SL_INFO(logger_,
-                  "Listening on {}",
-                  sample_peer.listen.getStringAddress());
+          SL_INFO(logger_, "Listening on {}", listen);
         }
       } else {
         SL_CRITICAL(logger_,
@@ -165,8 +150,7 @@ namespace lean::modules {
         std::exit(1);
       }
     } else {
-      SL_CRITICAL(logger_, "No listen multiaddress configured");
-      std::exit(1);
+      SL_WARN(logger_, "No listen multiaddress configured");
     }
     host->start();
 
@@ -180,6 +164,9 @@ namespace lean::modules {
       auto &address_repo = host->getPeerRepository().getAddressRepository();
 
       for (const auto &bootnode : bootnodes.getBootnodes()) {
+        if (bootnode.peer_id == peer_id) {
+          continue;
+        }
         std::vector<libp2p::multi::Multiaddress> addresses{bootnode.address};
 
         // Add bootnode addresses with permanent TTL
