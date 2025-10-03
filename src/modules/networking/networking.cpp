@@ -24,6 +24,7 @@
 #include <libp2p/peer/identity_manager.hpp>
 #include <libp2p/protocol/gossip/gossip.hpp>
 #include <libp2p/transport/quic/transport.hpp>
+#include <libp2p/transport/tcp/tcp_util.hpp>
 #include <qtils/to_shared_ptr.hpp>
 
 #include "blockchain/block_tree.hpp"
@@ -130,13 +131,40 @@ namespace lean::modules {
 
     auto host = injector->create<std::shared_ptr<libp2p::host::BasicHost>>();
 
+    bool has_enr_listen_address = false;
+    const auto &bootnodes = chain_spec_->getBootnodes();
+    for (auto &bootnode : bootnodes.getBootnodes()) {
+      if (bootnode.peer_id != peer_id) {
+        continue;
+      }
+      has_enr_listen_address = true;
+      auto info_res = libp2p::transport::detail::asQuic(bootnode.address);
+      if (not info_res.has_value()) {
+        SL_WARN(logger_, "Incompatible enr address {}", bootnode.address);
+        continue;
+      }
+      auto port = info_res.value().port;
+      auto enr_listen_address =
+          libp2p::multi::Multiaddress::create(
+              std::format("/ip4/0.0.0.0/udp/{}/quic-v1", port))
+              .value();
+      if (auto r = host->listen(enr_listen_address); not r.has_value()) {
+        SL_WARN(logger_,
+                "Error listening on enr address {}: {}",
+                enr_listen_address,
+                r.error());
+      } else {
+        SL_INFO(logger_, "Listening on {}", enr_listen_address);
+      }
+    }
+
     if (auto &listen_addr = config_->listenMultiaddr();
         listen_addr.has_value()) {
       auto listen_res = libp2p::multi::Multiaddress::create(*listen_addr);
       if (listen_res.has_value()) {
         auto listen = listen_res.value();
         if (auto r = host->listen(listen); not r.has_value()) {
-          SL_INFO(logger_,
+          SL_WARN(logger_,
                   "Listening address configured via --listen-addr: {}",
                   listen);
         } else {
@@ -149,13 +177,12 @@ namespace lean::modules {
                     listen_res.error().message());
         std::exit(1);
       }
-    } else {
+    } else if (not has_enr_listen_address) {
       SL_WARN(logger_, "No listen multiaddress configured");
     }
     host->start();
 
     // Add bootnodes from chain spec
-    const auto &bootnodes = chain_spec_->getBootnodes();
     if (!bootnodes.empty()) {
       SL_INFO(logger_,
               "Adding {} bootnodes to address repository",
