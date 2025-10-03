@@ -102,6 +102,7 @@ namespace lean::app {
         ("help,h", "Show this help message.")
         ("version,v", "Show version information.")
         ("base-path", po::value<std::string>(), "Set base path. All relative paths will be resolved based on this path.")
+        ("data-dir", po::value<std::string>(), "Alias for \"--base-path\".")
         ("config,c", po::value<std::string>(),  "Optional. Filepath to load configuration from. Overrides default configuration values.")
         ("genesis", po::value<std::string>(), "Set path to genesis config.yaml file.")
         ("listen-addr", po::value<std::string>(), "Set libp2p listen multiaddress.")
@@ -432,6 +433,10 @@ groups:
         });
     find_argument<std::string>(
         cli_values_map_, "base-path", [&](const std::string &value) {
+          config_->base_path_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "data-dir", [&](const std::string &value) {
           config_->base_path_ = value;
         });
     find_argument<std::string>(
