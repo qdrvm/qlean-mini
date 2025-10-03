@@ -105,6 +105,9 @@ namespace {
 }  // namespace
 
 int main(int argc, const char **argv, const char **env) {
+  setlinebuf(stdout);
+  setlinebuf(stderr);
+
   soralog::util::setThreadName("lean-node");
 
   auto getArg = [&](size_t i) {
