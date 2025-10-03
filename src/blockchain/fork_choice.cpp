@@ -184,12 +184,12 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
       const SignedVote &signed_vote) {
-    SL_INFO(logger_,
-            "Validating attestation for target {}@{}, source {}@{}",
-            signed_vote.data.target.slot,
-            signed_vote.data.target.root,
-            signed_vote.data.source.slot,
-            signed_vote.data.source.root);
+    SL_TRACE(logger_,
+             "Validating attestation for target {}@{}, source {}@{}",
+             signed_vote.data.target.slot,
+             signed_vote.data.target.root,
+             signed_vote.data.source.slot,
+             signed_vote.data.source.root);
     auto &vote = signed_vote.data;
 
     // Validate vote targets exist in store
