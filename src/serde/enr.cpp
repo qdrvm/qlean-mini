@@ -337,7 +337,7 @@ namespace lean::enr {
   }
 
   std::string encode(const Secp256k1PublicKey &public_key, Port port) {
-    Enr enr{Secp256k1Signature{}, 1, public_key, Ip{1, 0, 0, 127}, port};
+    Enr enr{Secp256k1Signature{}, 1, public_key, Ip{127, 0, 0, 1}, port};
     rlp::Encoder rlp;
     rlp.bytes(enr.signature);
     rlp.uint(enr.sequence);
