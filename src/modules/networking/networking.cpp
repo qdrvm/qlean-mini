@@ -104,10 +104,10 @@ namespace lean::modules {
         keypair = std::move(keypair_res.value());
       } else {
         SL_CRITICAL(logger_,
-                    "Failed to parse node key from --node-key: {}, generating "
-                    "a random one",
+                    "Failed to parse node key from --node-key \"{}\": {}",
+                    node_key_hex.value(),
                     keypair_res.error().message());
-        keypair = randomKeyPair();
+        exit(EXIT_FAILURE);
       }
     } else {
       keypair = randomKeyPair();

@@ -42,11 +42,17 @@ namespace lean {
   }  // namespace detail
 
   inline outcome::result<libp2p::crypto::KeyPair> keyPairFromPrivateKeyHex(
-      std::string_view hex) {
-    std::string trimmed{hex};
-    boost::trim(trimmed);
+      std::string_view hex_or_path) {
+    std::string hex{hex_or_path};
+    boost::trim(hex);
     libp2p::crypto::secp256k1::KeyPair keypair;
-    BOOST_OUTCOME_TRY(qtils::unhex0x(keypair.private_key, trimmed, true));
+    auto unhex_result = qtils::unhex0x(keypair.private_key, hex, true);
+    if (not unhex_result.has_value() and std::filesystem::exists(hex_or_path)) {
+      BOOST_OUTCOME_TRY(hex, qtils::readText(hex_or_path));
+      boost::trim(hex);
+      unhex_result = qtils::unhex0x(keypair.private_key, hex, true);
+    }
+    BOOST_OUTCOME_TRY(unhex_result);
     BOOST_OUTCOME_TRY(keypair.public_key,
                       detail::secp256k1Provider().derive(keypair.private_key));
     return detail::toKeyPair(keypair);
@@ -55,15 +61,5 @@ namespace lean {
   inline libp2p::crypto::KeyPair randomKeyPair() {
     auto keypair = detail::secp256k1Provider().generate().value();
     return detail::toKeyPair(keypair);
-  }
-
-  inline outcome::result<libp2p::crypto::KeyPair> getNodeKey(
-      const std::filesystem::path &path) {
-    if (std::filesystem::exists(path)) {
-      BOOST_OUTCOME_TRY(auto hex, qtils::readText(path));
-      return keyPairFromPrivateKeyHex(hex);
-    }
-    BOOST_OUTCOME_TRY(auto generated, detail::secp256k1Provider().generate());
-    return detail::toKeyPair(generated);
   }
 }  // namespace lean
