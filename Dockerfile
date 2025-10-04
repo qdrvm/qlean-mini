@@ -29,6 +29,8 @@ RUN set -eux; \
     chmod +x .ci/scripts/*.sh; \
     # System dependencies and Rust via init.sh
     ./.ci/scripts/init.sh; \
+    # Clean up any existing venv that might have incompatible Python version
+    rm -rf ${VENV}; \
     # Python venv and cmake via init_py
     make init_py
 
@@ -41,6 +43,8 @@ RUN --mount=type=cache,target=/qlean-mini/.vcpkg,id=vcpkg-full \
     if [ ! -f "/qlean-mini/.vcpkg/vcpkg" ]; then \
       make init_vcpkg; \
     fi; \
+    # Clean build directory to avoid CMake cache path mismatch
+    rm -rf ${BUILD}; \
     make configure; \
     make build; \
     # Collect artifacts
