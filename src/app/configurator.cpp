@@ -470,28 +470,57 @@ groups:
       return Error::CliArgsParseFailed;
     }
 
-    // Check values
-    if (not config_->base_path_.is_absolute()) {
-      SL_ERROR(logger_,
-               "The 'base_path' must be defined as absolute: {}",
-               config_->base_path_.c_str());
-      return Error::InvalidValue;
+    // Resolve base_path_ to an absolute path (relative to config file dir or CWD)
+    {
+      std::filesystem::path resolved = config_->base_path_;
+      if (not resolved.is_absolute()) {
+        if (auto cfg = find_argument<std::string>(cli_values_map_, "config");
+            cfg.has_value()) {
+          resolved = weakly_canonical(
+              std::filesystem::path(*cfg).parent_path() / resolved);
+        } else {
+          resolved = weakly_canonical(std::filesystem::current_path() /
+                                      resolved);
+        }
+      } else {
+        resolved = weakly_canonical(resolved);
+      }
+      config_->base_path_ = std::move(resolved);
     }
+
+    // Validate base_path_ exists and is a directory
     if (not is_directory(config_->base_path_)) {
       SL_ERROR(logger_,
                "The 'base_path' does not exist or is not a directory: {}",
                config_->base_path_.c_str());
       return Error::InvalidValue;
     }
-    current_path(config_->base_path_);
 
-    auto make_absolute = [&](const std::filesystem::path &path) {
-      return weakly_canonical(config_->base_path_.is_absolute()
-                                  ? path
-                                  : (config_->base_path_ / path));
+    // Helper to resolve general paths: if provided via CLI -> relative to CWD,
+    // else if provided via config file -> relative to config file dir,
+    // else fallback to CWD. Always normalize.
+    auto resolve_relative = [&](const std::filesystem::path &path,
+                                const char *cli_option_name) {
+      if (path.is_absolute()) {
+        return weakly_canonical(path);
+      }
+      // Was this option passed explicitly on CLI?
+      if (find_argument<std::string>(cli_values_map_, cli_option_name)
+              .has_value()) {
+        return weakly_canonical(std::filesystem::current_path() / path);
+      }
+      // Otherwise, prefer resolving relative to config file location if present
+      if (auto cfg = find_argument<std::string>(cli_values_map_, "config");
+          cfg.has_value()) {
+        return weakly_canonical(
+            std::filesystem::path(*cfg).parent_path() / path);
+      }
+      // Fallback: current working directory
+      return weakly_canonical(std::filesystem::current_path() / path);
     };
 
-    config_->modules_dir_ = make_absolute(config_->modules_dir_);
+  config_->modules_dir_ =
+    resolve_relative(config_->modules_dir_, "modules-dir");
     if (not is_directory(config_->modules_dir_)) {
       SL_ERROR(logger_,
                "The 'modules_dir' does not exist or is not a directory: {}",
@@ -500,7 +529,8 @@ groups:
     }
 
     if (not config_->bootnodes_file_.empty()) {
-      config_->bootnodes_file_ = make_absolute(config_->bootnodes_file_);
+    config_->bootnodes_file_ =
+      resolve_relative(config_->bootnodes_file_, "bootnodes");
       if (not is_regular_file(config_->bootnodes_file_)) {
         SL_ERROR(logger_,
                  "The 'bootnodes' file does not exist or is not a file: {}",
@@ -510,8 +540,8 @@ groups:
     }
 
     if (not config_->validator_registry_path_.empty()) {
-      config_->validator_registry_path_ =
-          make_absolute(config_->validator_registry_path_);
+    config_->validator_registry_path_ = resolve_relative(
+      config_->validator_registry_path_, "validator-registry-path");
       if (not is_regular_file(config_->validator_registry_path_)) {
         SL_ERROR(
             logger_,
@@ -526,8 +556,8 @@ groups:
       return Error::InvalidValue;
     }
 
-    config_->genesis_config_path_ =
-        make_absolute(config_->genesis_config_path_);
+  config_->genesis_config_path_ =
+    resolve_relative(config_->genesis_config_path_, "genesis");
     if (not is_regular_file(config_->genesis_config_path_)) {
       SL_ERROR(logger_,
                "The 'genesis' file does not exist or is not a file: {}",
@@ -607,11 +637,10 @@ groups:
       return Error::CliArgsParseFailed;
     }
 
-    // Check values
+    // Resolve database path against base_path_ when relative
     auto make_absolute = [&](const std::filesystem::path &path) {
-      return weakly_canonical(config_->base_path_.is_absolute()
-                                  ? path
-                                  : (config_->base_path_ / path));
+      return weakly_canonical(path.is_absolute() ? path
+                                                 : (config_->base_path_ / path));
     };
 
     config_->database_.directory = make_absolute(config_->database_.directory);
