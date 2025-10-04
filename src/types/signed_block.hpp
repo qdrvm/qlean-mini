@@ -12,7 +12,7 @@
 
 namespace lean {
 
-  struct SignedBlock : ssz::ssz_container {
+  struct SignedBlock : ssz::ssz_variable_size_container {
     Block message;
     qtils::ByteArr<32> signature;
 

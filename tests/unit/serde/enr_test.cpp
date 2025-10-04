@@ -56,8 +56,8 @@ TEST(EnrTest, EncodeDecodeRoundTrip) {
 
   // IP and port present and correct
   ASSERT_TRUE(enr.ip.has_value());
-  // encode() uses Ip{1,0,0,127}
-  Ip expected_ip{1, 0, 0, 127};
+  // encode() uses Ip{127, 0, 0, 1}
+  Ip expected_ip{127, 0, 0, 1};
   EXPECT_EQ(enr.ip.value(), expected_ip);
 
   ASSERT_TRUE(enr.port.has_value());
@@ -94,7 +94,7 @@ TEST(EnrTest, DecodeGivenEnrAddress) {
   // Provided ENR string from user request
   // clang-format off
   std::string_view addr =
-      "enr:-Ku4QHqVeJ8PPICcWk1vSn_XcSkjOkNiTg6Fmii5j6vUQgvzMc9L1goFnLKgXqBJspJjIsB91LTOleFmyWWrFVATGngBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpC1MD8qAAAAAP__________gmlkgnY0gmlwhAMRHkWJc2VjcDI1NmsxoQKLVXFOhp2uX6jeT0DvvDpPcU8FWMjQdR4wMuORMhpX24N1ZHCCIyg";
+      "enr:-IW4QHcpC4AgOv7WXk1V8E56DDAy6KJ09VMOxSTUwgOqkLF6YihJc5Eoeo4UX1bm9H39Xl-831fomuqR3TZzB3S2IPoBgmlkgnY0gmlwhH8AAAGEcXVpY4InEIlzZWNwMjU2azGhA21sqsJIr5b2r6f5BPVQJToPPvP1qi_mg4qVshZpFGji";
   // clang-format on
 
   ASSERT_OUTCOME_SUCCESS(enr, lean::enr::decode(addr));
@@ -104,12 +104,12 @@ TEST(EnrTest, DecodeGivenEnrAddress) {
 
   // IP should be present and equal to 3.17.30.69
   ASSERT_TRUE(enr.ip.has_value());
-  Ip expected_ip{3, 17, 30, 69};
+  Ip expected_ip{127, 0, 0, 1};
   EXPECT_EQ(enr.ip.value(), expected_ip);
 
-  // UDP port should be present; expected commonly used 9000
+  // UDP port should be present; expected 10000
   ASSERT_TRUE(enr.port.has_value());
-  EXPECT_EQ(enr.port.value(), static_cast<Port>(9000));
+  EXPECT_EQ(enr.port.value(), static_cast<Port>(10000));
 
   // Public key must be compressed secp256k1 (33 bytes) with a valid prefix
   EXPECT_EQ(enr.public_key.size(), 33u);

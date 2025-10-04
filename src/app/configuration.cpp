@@ -27,16 +27,36 @@ namespace lean::app {
     return name_;
   }
 
+  const std::string &Configuration::nodeId() const {
+    return node_id_;
+  }
+
   const std::filesystem::path &Configuration::basePath() const {
     return base_path_;
   }
 
-  const std::filesystem::path &Configuration::specFile() const {
-    return spec_file_;
-  }
-
   const std::filesystem::path &Configuration::modulesDir() const {
     return modules_dir_;
+  }
+
+  const std::filesystem::path &Configuration::bootnodesFile() const {
+    return bootnodes_file_;
+  }
+
+  const std::filesystem::path &Configuration::validatorRegistryPath() const {
+    return validator_registry_path_;
+  }
+
+  const std::filesystem::path &Configuration::genesisConfigPath() const {
+    return genesis_config_path_;
+  }
+
+  const std::optional<std::string> &Configuration::listenMultiaddr() const {
+    return listen_multiaddr_;
+  }
+
+  const std::optional<std::string> &Configuration::nodeKeyHex() const {
+    return node_key_hex_;
   }
 
   const Configuration::DatabaseConfig &Configuration::database() const {

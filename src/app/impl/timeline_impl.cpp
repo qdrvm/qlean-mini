@@ -49,12 +49,11 @@ namespace lean::app {
 
   void TimelineImpl::start() {
     auto now = clock_->nowMsec();
-    auto next_slot = now > config_->genesis_time  // somehow now could be less
-                                                  // than genesis time
-                       ? (now - config_->genesis_time) / SLOT_DURATION_MS + 1
+    auto next_slot = now > config_->genesis_time * 1000
+                       ? (now - config_->genesis_time * 1000) / SLOT_DURATION_MS + 1
                        : 1;
     auto time_to_next_slot =
-        config_->genesis_time + SLOT_DURATION_MS * next_slot - now;
+        config_->genesis_time * 1000 + SLOT_DURATION_MS * next_slot - now;
     if (time_to_next_slot < SLOT_DURATION_MS / 2) {
       ++next_slot;
       time_to_next_slot += SLOT_DURATION_MS;
@@ -81,14 +80,14 @@ namespace lean::app {
     }
 
     auto now = clock_->nowMsec();
-    auto next_slot = (now - config_->genesis_time) / SLOT_DURATION_MS + 1;
+    auto next_slot = (now - config_->genesis_time * 1000) / SLOT_DURATION_MS + 1;
     auto time_to_next_slot =
-        config_->genesis_time + SLOT_DURATION_MS * next_slot - now;
+        config_->genesis_time * 1000 + SLOT_DURATION_MS * next_slot - now;
 
     SL_INFO(logger_, "Next slot is {} in {}ms", next_slot, time_to_next_slot);
 
     const auto slot_start_abs =
-        config_->genesis_time
+        config_->genesis_time * 1000
         + SLOT_DURATION_MS * msg->slot;  // in milliseconds
 
     auto abs_interval1 = slot_start_abs + SECONDS_PER_INTERVAL * 1000;
@@ -127,7 +126,7 @@ namespace lean::app {
             3, msg->slot, msg->epoch));
 
     const auto next_slot_abs =
-        config_->genesis_time + SLOT_DURATION_MS * (msg->slot + 1);
+        config_->genesis_time * 1000 + SLOT_DURATION_MS * (msg->slot + 1);
     auto time_to_next_slot_abs = ms_to_abs(next_slot_abs);
     se_manager_->notifyDelayed(
         std::chrono::milliseconds(time_to_next_slot_abs),

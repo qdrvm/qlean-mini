@@ -12,6 +12,17 @@
 #    logger_for_tests
 #    )
 
+addtest(bootnodes_test
+    bootnodes_test.cpp
+    )
+target_link_libraries(bootnodes_test
+    bootnodes
+    chain_spec
+    enr
+    logger_for_tests
+    p2p::libp2p
+    )
+
 addtest(app_state_manager_test
     state_manager_test.cpp
     )

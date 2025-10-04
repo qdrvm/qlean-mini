@@ -52,14 +52,25 @@ target_link_libraries(app_state_manager
     logger
 )
 
+add_library(bootnodes SHARED
+    bootnodes.cpp
+)
+target_link_libraries(bootnodes
+    p2p::libp2p
+)
+
 add_library(chain_spec SHARED
     impl/chain_spec_impl.cpp
 )
 target_link_libraries(chain_spec
+    bootnodes
+    enr
     logger
     Boost::property_tree
     app_configuration
     sszpp
+    p2p::libp2p
+    yaml-cpp::yaml-cpp
 )
 
 add_library(application SHARED
