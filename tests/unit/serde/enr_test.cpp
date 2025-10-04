@@ -56,8 +56,8 @@ TEST(EnrTest, EncodeDecodeRoundTrip) {
 
   // IP and port present and correct
   ASSERT_TRUE(enr.ip.has_value());
-  // encode() uses Ip{1,0,0,127}
-  Ip expected_ip{1, 0, 0, 127};
+  // encode() uses Ip{127, 0, 0, 1}
+  Ip expected_ip{127, 0, 0, 1};
   EXPECT_EQ(enr.ip.value(), expected_ip);
 
   ASSERT_TRUE(enr.port.has_value());
