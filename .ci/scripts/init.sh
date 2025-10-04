@@ -15,6 +15,7 @@ main() {
       apt update && apt install -y  $LINUX_PACKAGES
       update-alternatives --install /usr/bin/gcc          gcc          /usr/bin/gcc-$GCC_VERSION 90
       update-alternatives --install /usr/bin/g++          g++          /usr/bin/g++-$GCC_VERSION 90
+      update-alternatives --install /usr/bin/python3      python3      /usr/bin/python3.12 90
       # Install Rust via rustup
       if ! command -v rustup >/dev/null 2>&1; then
         echo "=== Installing Rust ${RUST_VERSION} via rustup..."
