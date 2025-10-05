@@ -124,12 +124,17 @@ namespace lean::modules {
 
     SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
 
-  auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
-    libp2p::injector::useKeyPair(keypair),
-    libp2p::injector::useTransportAdaptors<
-      libp2p::transport::QuicTransport>(),
-    boost::di::bind<libp2p::crypto::random::RandomGenerator>.to<libp2p::crypto::random::BoostRandomGenerator>()
-  ));
+    libp2p::protocol::gossip::Config gossip_config;
+    gossip_config.validation_mode =
+        libp2p::protocol::gossip::ValidationMode::Anonymous;
+    gossip_config.message_authenticity =
+        libp2p::protocol::gossip::MessageAuthenticity::Anonymous;
+    auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
+        libp2p::injector::useKeyPair(keypair),
+        libp2p::injector::useGossipConfig(std::move(gossip_config)),
+        libp2p::injector::useTransportAdaptors<
+            libp2p::transport::QuicTransport>(),
+        boost::di::bind<libp2p::crypto::random::RandomGenerator>.to<libp2p::crypto::random::BoostRandomGenerator>()));
     injector_ = injector;
     io_context_ = injector->create<std::shared_ptr<boost::asio::io_context>>();
 
@@ -138,6 +143,7 @@ namespace lean::modules {
     bool has_enr_listen_address = false;
     const auto &bootnodes = chain_spec_->getBootnodes();
     for (auto &bootnode : bootnodes.getBootnodes()) {
+      continue;
       if (bootnode.peer_id != peer_id) {
         continue;
       }
@@ -195,6 +201,7 @@ namespace lean::modules {
       auto &address_repo = host->getPeerRepository().getAddressRepository();
 
       for (const auto &bootnode : bootnodes.getBootnodes()) {
+        continue;
         if (bootnode.peer_id == peer_id) {
           continue;
         }
