@@ -345,10 +345,10 @@ namespace lean::enr {
     rlp.str("v4");
     rlp.str("ip");
     rlp.bytes(enr.ip.value());
-    rlp.str("secp256k1");
-    rlp.bytes(enr.public_key);
     rlp.str("quic");
     rlp.uint(enr.port.value());
+    rlp.str("secp256k1");
+    rlp.bytes(enr.public_key);
     return "enr:" + cppcodec::base64_url_unpadded::encode(rlp.list());
   }
 }  // namespace lean::enr
