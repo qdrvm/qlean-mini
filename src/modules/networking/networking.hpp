@@ -8,9 +8,9 @@
 
 #include <thread>
 
+#include <app/chain_spec.hpp>
 #include <blockchain/fork_choice.hpp>
 #include <libp2p/event/bus.hpp>
-#include <app/chain_spec.hpp>
 #include <log/logger.hpp>
 #include <modules/networking/interfaces.hpp>
 #include <qtils/create_smart_pointer_macros.hpp>
@@ -18,6 +18,10 @@
 #include <utils/ctor_limiters.hpp>
 #include <utils/validator_registry.hpp>
 
+namespace libp2p::protocol {
+  class Ping;
+  class Identify;
+}
 namespace boost::asio {
   class io_context;
 }  // namespace boost::asio
@@ -101,6 +105,8 @@ namespace lean::modules {
     std::shared_ptr<StatusProtocol> status_protocol_;
     std::shared_ptr<BlockRequestProtocol> block_request_protocol_;
     std::shared_ptr<libp2p::protocol::gossip::Gossip> gossip_;
+    std::shared_ptr<libp2p::protocol::Ping> ping_;
+    std::shared_ptr<libp2p::protocol::Identify> identify_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_blocks_topic_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
     std::unordered_map<BlockHash, SignedBlock> block_cache_;

@@ -23,6 +23,8 @@
 #include <libp2p/injector/host_injector.hpp>
 #include <libp2p/peer/identity_manager.hpp>
 #include <libp2p/protocol/gossip/gossip.hpp>
+#include <libp2p/protocol/identify.hpp>
+#include <libp2p/protocol/ping.hpp>
 #include <libp2p/transport/quic/transport.hpp>
 #include <libp2p/transport/tcp/tcp_util.hpp>
 #include <qtils/to_shared_ptr.hpp>
@@ -122,10 +124,12 @@ namespace lean::modules {
 
     SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
 
-    auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
-        libp2p::injector::useKeyPair(keypair),
-        libp2p::injector::useTransportAdaptors<
-            libp2p::transport::QuicTransport>()));
+  auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
+    libp2p::injector::useKeyPair(keypair),
+    libp2p::injector::useTransportAdaptors<
+      libp2p::transport::QuicTransport>(),
+    boost::di::bind<libp2p::crypto::random::RandomGenerator>.to<libp2p::crypto::random::BoostRandomGenerator>()
+  ));
     injector_ = injector;
     io_context_ = injector->create<std::shared_ptr<boost::asio::io_context>>();
 
@@ -304,7 +308,12 @@ namespace lean::modules {
 
     gossip_ =
         injector->create<std::shared_ptr<libp2p::protocol::gossip::Gossip>>();
+    ping_ = injector->create<std::shared_ptr<libp2p::protocol::Ping>>();
+    identify_ = injector->create<std::shared_ptr<libp2p::protocol::Identify>>();
+
     gossip_->start();
+    ping_->start();
+    identify_->start();
 
     gossip_blocks_topic_ = gossipSubscribe<SignedBlock>(
         "block", [weak_self{weak_from_this()}](SignedBlock &&block) {
