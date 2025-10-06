@@ -15,7 +15,7 @@ namespace lean {
     /// @note The signature type is still to be determined so Bytes32 is used in
     /// the interim. The actual signature size is expected to be a lot larger
     /// (~3 KiB).
-    qtils::ByteArr<32> signature;
+    qtils::ByteArr<4000> signature;
 
     SSZ_CONT(data, signature);
   };
