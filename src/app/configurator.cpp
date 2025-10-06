@@ -470,17 +470,18 @@ groups:
       return Error::CliArgsParseFailed;
     }
 
-    // Resolve base_path_ to an absolute path (relative to config file dir or CWD)
+    // Resolve base_path_ to an absolute path (relative to config file dir or
+    // CWD)
     {
       std::filesystem::path resolved = config_->base_path_;
       if (not resolved.is_absolute()) {
         if (auto cfg = find_argument<std::string>(cli_values_map_, "config");
             cfg.has_value()) {
-          resolved = weakly_canonical(
-              std::filesystem::path(*cfg).parent_path() / resolved);
+          resolved = weakly_canonical(std::filesystem::path(*cfg).parent_path()
+                                      / resolved);
         } else {
-          resolved = weakly_canonical(std::filesystem::current_path() /
-                                      resolved);
+          resolved =
+              weakly_canonical(std::filesystem::current_path() / resolved);
         }
       } else {
         resolved = weakly_canonical(resolved);
@@ -512,15 +513,15 @@ groups:
       // Otherwise, prefer resolving relative to config file location if present
       if (auto cfg = find_argument<std::string>(cli_values_map_, "config");
           cfg.has_value()) {
-        return weakly_canonical(
-            std::filesystem::path(*cfg).parent_path() / path);
+        return weakly_canonical(std::filesystem::path(*cfg).parent_path()
+                                / path);
       }
       // Fallback: current working directory
       return weakly_canonical(std::filesystem::current_path() / path);
     };
 
-  config_->modules_dir_ =
-    resolve_relative(config_->modules_dir_, "modules-dir");
+    config_->modules_dir_ =
+        resolve_relative(config_->modules_dir_, "modules-dir");
     if (not is_directory(config_->modules_dir_)) {
       SL_ERROR(logger_,
                "The 'modules_dir' does not exist or is not a directory: {}",
@@ -529,8 +530,8 @@ groups:
     }
 
     if (not config_->bootnodes_file_.empty()) {
-    config_->bootnodes_file_ =
-      resolve_relative(config_->bootnodes_file_, "bootnodes");
+      config_->bootnodes_file_ =
+          resolve_relative(config_->bootnodes_file_, "bootnodes");
       if (not is_regular_file(config_->bootnodes_file_)) {
         SL_ERROR(logger_,
                  "The 'bootnodes' file does not exist or is not a file: {}",
@@ -540,8 +541,8 @@ groups:
     }
 
     if (not config_->validator_registry_path_.empty()) {
-    config_->validator_registry_path_ = resolve_relative(
-      config_->validator_registry_path_, "validator-registry-path");
+      config_->validator_registry_path_ = resolve_relative(
+          config_->validator_registry_path_, "validator-registry-path");
       if (not is_regular_file(config_->validator_registry_path_)) {
         SL_ERROR(
             logger_,
@@ -556,8 +557,8 @@ groups:
       return Error::InvalidValue;
     }
 
-  config_->genesis_config_path_ =
-    resolve_relative(config_->genesis_config_path_, "genesis");
+    config_->genesis_config_path_ =
+        resolve_relative(config_->genesis_config_path_, "genesis");
     if (not is_regular_file(config_->genesis_config_path_)) {
       SL_ERROR(logger_,
                "The 'genesis' file does not exist or is not a file: {}",
@@ -639,8 +640,8 @@ groups:
 
     // Resolve database path against base_path_ when relative
     auto make_absolute = [&](const std::filesystem::path &path) {
-      return weakly_canonical(path.is_absolute() ? path
-                                                 : (config_->base_path_ / path));
+      return weakly_canonical(
+          path.is_absolute() ? path : (config_->base_path_ / path));
     };
 
     config_->database_.directory = make_absolute(config_->database_.directory);
