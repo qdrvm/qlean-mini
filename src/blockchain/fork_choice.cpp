@@ -333,10 +333,11 @@ namespace lean {
           SignedBlock new_signed_block{.message = new_block};
 
           SL_INFO(logger_,
-                  "Produced block for slot {} with parent {} state {}",
+                  "Produced block for slot {} with parent {} state {} hash {}",
                   current_slot,
                   new_block.parent_root,
-                  new_signed_block.message.state_root);
+                  new_signed_block.message.state_root,
+                  new_signed_block.message.hash());
           result.emplace_back(std::move(new_signed_block));
         }
       } else if (time_ % INTERVALS_PER_SLOT == 1) {

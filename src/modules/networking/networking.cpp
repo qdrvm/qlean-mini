@@ -448,9 +448,10 @@ namespace lean::modules {
                                     SignedBlock &&signed_block) {
     auto slot_hash = signed_block.message.slotHash();
     SL_DEBUG(logger_,
-             "receiveBlock slot {} hash {}",
+             "receiveBlock slot {} hash {} parent {}",
              slot_hash.slot,
-             slot_hash.hash);
+             slot_hash.hash,
+             signed_block.message.parent_root);
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
       while (not queue.empty()) {
