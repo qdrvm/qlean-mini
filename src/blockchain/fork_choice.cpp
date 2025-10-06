@@ -280,8 +280,9 @@ namespace lean {
     // chain if not available before adding block to forkchoice
 
     // Get post state from STF (State Transition Function)
-    auto state =
-        stf_.stateTransition({.message = block}, parent_state, true).value();
+    BOOST_OUTCOME_TRY(
+        auto state,
+        stf_.stateTransition({.message = block}, parent_state, true));
     blocks_.emplace(block_hash, block);
     states_.emplace(block_hash, std::move(state));
 
