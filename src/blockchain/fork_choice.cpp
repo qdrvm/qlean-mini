@@ -343,8 +343,13 @@ namespace lean {
         // Interval one actions
         auto head_root = getHead();
         auto head_slot = getBlockSlot(head_root);
-        BOOST_ASSERT_MSG(head_slot.has_value(),
-                         "Head block must have a valid slot");
+        if (not head_slot.has_value()) {
+          SL_ERROR(logger_,
+                   "Head block {} not found in store",
+                   head_root);
+          time_ += 1;
+          continue;
+        }
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getVoteTarget();
         auto source = getLatestJustified();
@@ -371,7 +376,14 @@ namespace lean {
         // Dispatching send signed vote only broadcasts to other peers. Current
         // peer should process attestation directly
         auto res = processAttestation(signed_vote, false);
-        BOOST_ASSERT_MSG(res.has_value(), "Produced vote should be valid");
+        if (not res.has_value()) {
+          SL_ERROR(logger_,
+                   "Failed to process attestation for slot {}: {}",
+                   current_slot,
+                   res.error());
+          time_ += 1;
+          continue;
+        }
         SL_INFO(logger_,
                 "Produced vote for target {}@{}",
                 signed_vote.data.target.slot,
