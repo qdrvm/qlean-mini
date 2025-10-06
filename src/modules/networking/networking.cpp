@@ -133,8 +133,7 @@ namespace lean::modules {
         libp2p::injector::useKeyPair(keypair),
         libp2p::injector::useGossipConfig(std::move(gossip_config)),
         libp2p::injector::useTransportAdaptors<
-            libp2p::transport::QuicTransport>(),
-        boost::di::bind<libp2p::crypto::random::RandomGenerator>.to<libp2p::crypto::random::BoostRandomGenerator>()));
+            libp2p::transport::QuicTransport>()));
     injector_ = injector;
     io_context_ = injector->create<std::shared_ptr<boost::asio::io_context>>();
 
