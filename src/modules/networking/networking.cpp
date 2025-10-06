@@ -142,7 +142,6 @@ namespace lean::modules {
     bool has_enr_listen_address = false;
     const auto &bootnodes = chain_spec_->getBootnodes();
     for (auto &bootnode : bootnodes.getBootnodes()) {
-      continue;
       if (bootnode.peer_id != peer_id) {
         continue;
       }
@@ -200,7 +199,6 @@ namespace lean::modules {
       auto &address_repo = host->getPeerRepository().getAddressRepository();
 
       for (const auto &bootnode : bootnodes.getBootnodes()) {
-        continue;
         if (bootnode.peer_id == peer_id) {
           continue;
         }
