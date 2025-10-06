@@ -329,8 +329,7 @@ namespace lean {
           }
           const auto &new_block = res.value();
 
-          SignedBlock new_signed_block{.message = new_block,
-                                       .signature = qtils::ByteArr<32>{0}};
+          SignedBlock new_signed_block{.message = new_block};
 
           SL_INFO(logger_,
                   "Produced block for slot {} with parent {} state {}",
@@ -357,16 +356,16 @@ namespace lean {
                 target.slot,
                 source->root,
                 source->slot);
-        SignedVote signed_vote{.data =
-                                   Vote{
-                                       .validator_id = validator_index_,
-                                       .slot = current_slot,
-                                       .head = head,
-                                       .target = target,
-                                       .source = *source,
-                                   },
-                               // signature with zero bytes for now
-                               .signature = qtils::ByteArr<32>{0}};
+        SignedVote signed_vote{
+            .data =
+                Vote{
+                    .validator_id = validator_index_,
+                    .slot = current_slot,
+                    .head = head,
+                    .target = target,
+                    .source = *source,
+                },
+        };
 
         // Dispatching send signed vote only broadcasts to other peers. Current
         // peer should process attestation directly
