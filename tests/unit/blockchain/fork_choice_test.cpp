@@ -33,9 +33,9 @@ lean::BlockHash testHash(std::string_view s) {
 
 SignedVote makeVote(const Block &source, const Block &target) {
   return SignedVote{
+      .validator_id = 0,
       .data =
           {
-              .validator_id = 0,
               .slot = target.slot,
               .head = Checkpoint::from(target),
               .target = Checkpoint::from(target),
@@ -241,9 +241,9 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
 
   ForkChoiceStore::Votes votes;
   votes[0] = SignedVote{
+      .validator_id = 0,
       .data =
           {
-              .validator_id = 0,
               .slot = target.slot,
               .head = Checkpoint::from(target),
               .target = Checkpoint::from(target),
@@ -278,9 +278,9 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
 
   ForkChoiceStore::Votes votes;
   votes[0] = SignedVote{
+      .validator_id = 0,
       .data =
           {
-              .validator_id = 0,
               .slot = target.slot,
               .head = Checkpoint::from(target),
               .target = Checkpoint::from(target),
@@ -304,9 +304,9 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
   ForkChoiceStore::Votes votes;
   for (int i = 0; i < 3; ++i) {
     votes[i] = SignedVote{
+        .validator_id = static_cast<uint64_t>(i),
         .data =
             {
-                .validator_id = static_cast<uint64_t>(i),
                 .slot = target.slot,
                 .head = Checkpoint::from(target),
                 .target = Checkpoint::from(target),
@@ -354,9 +354,9 @@ TEST(TestSafeTargetComputation, test_safe_target_with_votes) {
 
   ForkChoiceStore::Votes new_votes;
   new_votes[0] = SignedVote{
+      .validator_id = 0,
       .data =
           {
-              .validator_id = 0,
               .slot = block_1.slot,
               .head = Checkpoint::from(block_1),
               .target = Checkpoint::from(block_1),
@@ -365,9 +365,9 @@ TEST(TestSafeTargetComputation, test_safe_target_with_votes) {
       .signature = {},
   };
   new_votes[1] = SignedVote{
+      .validator_id = 1,
       .data =
           {
-              .validator_id = 1,
               .slot = block_1.slot,
               .head = Checkpoint::from(block_1),
               .target = Checkpoint::from(block_1),

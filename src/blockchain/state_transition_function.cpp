@@ -248,10 +248,10 @@ namespace lean {
         justifications_it->second.resize(VALIDATOR_REGISTRY_LIMIT);
       }
 
-      if (vote.validator_id >= justifications_it->second.size()) {
+      if (signed_vote.validator_id >= justifications_it->second.size()) {
         return Error::INVALID_VOTER;
       }
-      justifications_it->second.at(vote.validator_id) = true;
+      justifications_it->second.at(signed_vote.validator_id) = true;
 
       size_t count = std::ranges::count(justifications_it->second, true);
 

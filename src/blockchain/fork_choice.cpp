@@ -232,7 +232,7 @@ namespace lean {
     // Validate attestation structure and constraints
     BOOST_OUTCOME_TRY(validateAttestation(signed_vote));
 
-    auto &validator_id = signed_vote.data.validator_id;
+    auto &validator_id = signed_vote.validator_id;
     auto &vote = signed_vote.data;
 
     if (is_from_block) {
@@ -357,9 +357,9 @@ namespace lean {
                 source->root,
                 source->slot);
         SignedVote signed_vote{
+            .validator_id = validator_index_,
             .data =
                 Vote{
-                    .validator_id = validator_index_,
                     .slot = current_slot,
                     .head = head,
                     .target = target,
