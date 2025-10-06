@@ -170,13 +170,7 @@ namespace lean {
     block.state_root = sszHash(state);
     block.setHash();
 
-    // Store block and state in forkchoice store
-    auto block_hash = sszHash(block);
-    blocks_.emplace(block_hash, block);
-    states_.emplace(block_hash, std::move(state));
-
-    // update head (not in spec)
-    head_ = block_hash;
+    BOOST_OUTCOME_TRY(onBlock(block));
 
     return block;
   }
