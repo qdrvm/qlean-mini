@@ -130,6 +130,9 @@ namespace lean::modules {
     gossip_config.message_authenticity =
         libp2p::protocol::gossip::MessageAuthenticity::Anonymous;
     gossip_config.message_id_fn = gossipMessageId;
+    gossip_config.protocol_versions.erase(
+        libp2p::protocol::gossip::kProtocolGossipsubv1_2);
+
     auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
         libp2p::injector::useKeyPair(keypair),
         libp2p::injector::useGossipConfig(std::move(gossip_config)),
