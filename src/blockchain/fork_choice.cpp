@@ -345,9 +345,7 @@ namespace lean {
         auto head_root = getHead();
         auto head_slot = getBlockSlot(head_root);
         if (not head_slot.has_value()) {
-          SL_ERROR(logger_,
-                   "Head block {} not found in store",
-                   head_root);
+          SL_ERROR(logger_, "Head block {} not found in store", head_root);
           time_ += 1;
           continue;
         }
