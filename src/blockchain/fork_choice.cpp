@@ -171,7 +171,7 @@ namespace lean {
     block.setHash();
 
     // Store block and state in forkchoice store
-    auto block_hash = block.hash();
+    auto block_hash = sszHash(block);
     blocks_.emplace(block_hash, block);
     states_.emplace(block_hash, std::move(state));
 
@@ -268,8 +268,8 @@ namespace lean {
   }
 
   outcome::result<void> ForkChoiceStore::onBlock(Block block) {
-    block.setHash();
-    auto block_hash = block.hash();
+    // block.setHash();
+    auto block_hash = sszHash(block);
     // If the block is already known, ignore it
     if (blocks_.contains(block_hash)) {
       return outcome::success();
@@ -484,7 +484,7 @@ namespace lean {
     }
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
-    auto anchor_root = anchor_block.hash();
+    auto anchor_root = sszHash(anchor_block);
     config_ = anchor_state.config;
     auto now_sec = clock->nowSec();
     time_ = now_sec > config_.genesis_time
