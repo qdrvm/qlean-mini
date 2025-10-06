@@ -262,8 +262,8 @@ namespace lean {
   }
 
   outcome::result<void> ForkChoiceStore::onBlock(Block block) {
-    // block.setHash();
-    auto block_hash = sszHash(block);
+    block.setHash();
+    auto block_hash = block.hash();
     // If the block is already known, ignore it
     if (blocks_.contains(block_hash)) {
       return outcome::success();
@@ -489,7 +489,7 @@ namespace lean {
     }
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
-    auto anchor_root = sszHash(anchor_block);
+    auto anchor_root = anchor_block.hash();
     config_ = anchor_state.config;
     auto now_sec = clock->nowSec();
     time_ = now_sec > config_.genesis_time
