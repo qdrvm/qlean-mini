@@ -18,6 +18,7 @@
 #include "blockchain/state_transition_function.hpp"
 #include "blockchain/validator_registry.hpp"
 #include "clock/clock.hpp"
+#include "metrics/histogram_timer.hpp"
 #include "types/block.hpp"
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
@@ -175,6 +176,11 @@ namespace lean {
     Votes latest_new_votes_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     log::Logger logger_;
+
+    metrics::GaugeHelper metric_latest_finalized_{
+        "latest_finalized",
+        "",
+    };
   };
 
   BlockHash getForkChoiceHead(const ForkChoiceStore::Blocks &blocks,

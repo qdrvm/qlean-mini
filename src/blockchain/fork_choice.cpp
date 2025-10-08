@@ -68,6 +68,8 @@ namespace lean {
           }
         }
       }
+
+      metric_latest_finalized_->set(latest_finalized_.slot);
     }
   }
 
