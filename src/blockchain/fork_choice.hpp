@@ -175,7 +175,6 @@ namespace lean {
     Votes latest_known_votes_;
     Votes latest_new_votes_;
     std::shared_ptr<ValidatorRegistry> validator_registry_;
-    const ValidatorIndex validator_index_;
     log::Logger logger_;
   };
 

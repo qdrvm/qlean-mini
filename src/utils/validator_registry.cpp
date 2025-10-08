@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <yaml-cpp/yaml.h>
 
 namespace lean {
@@ -50,24 +51,21 @@ namespace lean {
     return std::nullopt;
   }
 
-  std::optional<ValidatorIndex> ValidatorRegistry::validatorIndexForNodeId(
-      std::string_view node_id) const {
+  std::optional<ValidatorRegistry::ValidatorIndices>
+  ValidatorRegistry::validatorIndicesForNodeId(std::string_view node_id) const {
     if (node_id.empty()) {
       return std::nullopt;
     }
     if (auto it = node_to_indices_.find(std::string(node_id));
         it != node_to_indices_.end() and not it->second.empty()) {
-      return it->second.front();
+      return ValidatorIndices{it->second.begin(), it->second.end()};
     }
     return std::nullopt;
   }
 
-  ValidatorIndex ValidatorRegistry::currentValidatorIndex() const {
-    return current_validator_index_;
-  }
-
-  bool ValidatorRegistry::hasCurrentValidatorIndex() const {
-    return has_current_validator_index_;
+  const ValidatorRegistry::ValidatorIndices &
+  ValidatorRegistry::currentValidatorIndices() const {
+    return current_validator_indices_;
   }
 
   const std::string &ValidatorRegistry::currentNodeId() const {
@@ -168,22 +166,18 @@ namespace lean {
       return;
     }
 
-    if (auto opt_index = validatorIndexForNodeId(current_node_id_);
-        opt_index.has_value()) {
-      current_validator_index_ = opt_index.value();
-      has_current_validator_index_ = true;
+    if (auto opt_indices = validatorIndicesForNodeId(current_node_id_);
+        opt_indices.has_value()) {
+      current_validator_indices_ = opt_indices.value();
       SL_INFO(logger_,
-              "Node '{}' mapped to validator index {}",
+              "Node '{}' mapped to validator indices {}",
               current_node_id_,
-              current_validator_index_);
+              fmt::join(current_validator_indices_, " "));
     } else {
       SL_WARN(logger_,
-              "Validator index for node '{}' not found in registry '{}'; "
-              "defaulting to 0",
+              "Validator indices for node '{}' not found in registry '{}'",
               current_node_id_,
               registry_path_.string());
-      current_validator_index_ = 0;
-      has_current_validator_index_ = false;
     }
   }
 

@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <log/logger.hpp>
@@ -27,6 +28,8 @@ namespace lean {
    */
   class ValidatorRegistry {
    public:
+    using ValidatorIndices = std::unordered_set<ValidatorIndex>;
+
     ValidatorRegistry(qtils::SharedRef<log::LoggingSystem> logging_system,
                       const app::Configuration &config);
 
@@ -40,19 +43,17 @@ namespace lean {
     [[nodiscard]] std::optional<std::string> nodeIdByIndex(
         ValidatorIndex index) const;
 
-    [[nodiscard]] std::optional<ValidatorIndex> validatorIndexForNodeId(
+    [[nodiscard]] std::optional<ValidatorIndices> validatorIndicesForNodeId(
         std::string_view node_id) const;
 
-    [[nodiscard]] ValidatorIndex currentValidatorIndex() const;
-
-    [[nodiscard]] bool hasCurrentValidatorIndex() const;
+    [[nodiscard]] const ValidatorIndices &currentValidatorIndices() const;
 
     [[nodiscard]] const std::string &currentNodeId() const;
 
    private:
     ValidatorRegistry(qtils::SharedRef<log::LoggingSystem> logging_system,
-                    std::filesystem::path registry_path,
-                    std::string current_node_id);
+                      std::filesystem::path registry_path,
+                      std::string current_node_id);
 
     void loadRegistry();
 
@@ -62,8 +63,7 @@ namespace lean {
     std::unordered_map<ValidatorIndex, std::string> index_to_node_;
     std::unordered_map<std::string, std::vector<ValidatorIndex>>
         node_to_indices_;
-    ValidatorIndex current_validator_index_ = 0;
-    bool has_current_validator_index_ = false;
+    ValidatorIndices current_validator_indices_;
   };
 
 }  // namespace lean

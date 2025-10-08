@@ -310,7 +310,9 @@ namespace lean {
                 current_slot,
                 time_ * SECONDS_PER_INTERVAL);
         auto producer_index = current_slot % config_.num_validators;
-        auto is_producer = validator_index_ == producer_index;
+        auto is_producer =
+            validator_registry_->currentValidatorIndices().contains(
+                producer_index);
         if (is_producer) {
           acceptNewVotes();
 
@@ -355,33 +357,35 @@ namespace lean {
                 target.slot,
                 source->root,
                 source->slot);
-        SignedVote signed_vote{
-            .validator_id = validator_index_,
-            .data =
-                Vote{
-                    .slot = current_slot,
-                    .head = head,
-                    .target = target,
-                    .source = *source,
-                },
-        };
+        for (auto validator_index :
+             validator_registry_->currentValidatorIndices()) {
+          SignedVote signed_vote{
+              .validator_id = validator_index,
+              .data =
+                  Vote{
+                      .slot = current_slot,
+                      .head = head,
+                      .target = target,
+                      .source = *source,
+                  },
+          };
 
-        // Dispatching send signed vote only broadcasts to other peers. Current
-        // peer should process attestation directly
-        auto res = processAttestation(signed_vote, false);
-        if (not res.has_value()) {
-          SL_ERROR(logger_,
-                   "Failed to process attestation for slot {}: {}",
-                   current_slot,
-                   res.error());
-          time_ += 1;
-          continue;
+          // Dispatching send signed vote only broadcasts to other peers.
+          // Current peer should process attestation directly
+          auto res = processAttestation(signed_vote, false);
+          if (not res.has_value()) {
+            SL_ERROR(logger_,
+                     "Failed to process attestation for slot {}: {}",
+                     current_slot,
+                     res.error());
+            continue;
+          }
+          SL_INFO(logger_,
+                  "Produced vote for target {}@{}",
+                  signed_vote.data.target.slot,
+                  signed_vote.data.target.root);
+          result.emplace_back(std::move(signed_vote));
         }
-        SL_INFO(logger_,
-                "Produced vote for target {}@{}",
-                signed_vote.data.target.slot,
-                signed_vote.data.target.root);
-        result.emplace_back(std::move(signed_vote));
       } else if (time_ % INTERVALS_PER_SLOT == 2) {
         // Interval two actions
         SL_INFO(logger_,
@@ -471,21 +475,19 @@ namespace lean {
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
       : validator_registry_(validator_registry),
-        validator_index_(validator_registry_->currentValidatorIndex()),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")) {
-    if (not validator_registry_->hasCurrentValidatorIndex()) {
+    if (validator_registry_->currentValidatorIndices().empty()) {
       const auto &node_id = validator_registry_->currentNodeId();
       const auto registry_path_str =
           validator_registry_->registryPath().empty()
               ? std::string{"<not provided>"}
               : validator_registry_->registryPath().string();
-      SL_WARN(logger_,
-              "Validator index for node '{}' is not defined in registry '{}'; "
-              "defaulting to {}",
-              node_id.empty() ? "<unset>" : node_id.c_str(),
-              registry_path_str,
-              validator_index_);
+      SL_WARN(
+          logger_,
+          "Validator indices for node '{}' are not defined in registry '{}'",
+          node_id.empty() ? "<unset>" : node_id.c_str(),
+          registry_path_str);
     }
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
@@ -535,8 +537,7 @@ namespace lean {
         states_(std::move(states)),
         latest_known_votes_(std::move(latest_known_votes)),
         latest_new_votes_(std::move(latest_new_votes)),
-        validator_registry_(std::move(validator_registry)),
-        validator_index_(validator_index) {
+        validator_registry_(std::move(validator_registry)) {
     if (validator_registry_ == nullptr) {
       validator_registry_ = std::make_shared<ValidatorRegistry>(
           logging_system, app::Configuration{});

@@ -18,12 +18,13 @@
 namespace {
 
   std::filesystem::path createTempRegistryFile(const std::string &content) {
-  auto temp_dir = std::filesystem::temp_directory_path();
-  auto timestamp = std::chrono::steady_clock::now().time_since_epoch().count();
-  auto temp_file = temp_dir
-           / std::filesystem::path(
-             "validator-registry-" + std::to_string(timestamp)
-             + ".yaml");
+    auto temp_dir = std::filesystem::temp_directory_path();
+    auto timestamp =
+        std::chrono::steady_clock::now().time_since_epoch().count();
+    auto temp_file =
+        temp_dir
+        / std::filesystem::path("validator-registry-"
+                                + std::to_string(timestamp) + ".yaml");
     std::ofstream ofs(temp_file);
     ofs << content;
     ofs.close();
@@ -41,13 +42,11 @@ node_1:
   auto path = createTempRegistryFile(content);
   auto logger = testutil::prepareLoggers();
 
-  auto registry = lean::ValidatorRegistry::createForTesting(
-      logger,
-      path,
-      "node_1");
+  auto registry =
+      lean::ValidatorRegistry::createForTesting(logger, path, "node_1");
 
-  ASSERT_TRUE(registry.hasCurrentValidatorIndex());
-  EXPECT_EQ(registry.currentValidatorIndex(), 1);
+  EXPECT_EQ(registry.currentValidatorIndices(),
+            lean::ValidatorRegistry::ValidatorIndices{1});
   EXPECT_EQ(registry.nodeIdByIndex(0), std::optional<std::string>{"node_0"});
   EXPECT_EQ(registry.nodeIdByIndex(1), std::optional<std::string>{"node_1"});
   std::filesystem::remove(path);
@@ -60,13 +59,11 @@ TEST(ValidatorRegistryTest, MissingNodeDefaultsToZero) {
   auto path = createTempRegistryFile(content);
   auto logger = testutil::prepareLoggers();
 
-  auto registry = lean::ValidatorRegistry::createForTesting(
-      logger,
-      path,
-      "unknown_node");
+  auto registry =
+      lean::ValidatorRegistry::createForTesting(logger, path, "unknown_node");
 
-  EXPECT_FALSE(registry.hasCurrentValidatorIndex());
-  EXPECT_EQ(registry.currentValidatorIndex(), 0);
+  EXPECT_EQ(registry.currentValidatorIndices(),
+            lean::ValidatorRegistry::ValidatorIndices{});
   std::filesystem::remove(path);
 }
 
@@ -80,10 +77,7 @@ node_1:
   auto logger = testutil::prepareLoggers();
 
   EXPECT_THROW(
-    lean::ValidatorRegistry::createForTesting(
-      logger,
-      path,
-      "node_0"),
-    std::runtime_error);
+      lean::ValidatorRegistry::createForTesting(logger, path, "node_0"),
+      std::runtime_error);
   std::filesystem::remove(path);
 }
