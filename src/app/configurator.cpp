@@ -24,6 +24,7 @@
 
 #include "app/build_version.hpp"
 #include "app/configuration.hpp"
+#include "log/formatters/filepath.hpp"
 #include "utils/parsers.hpp"
 
 using Endpoint = boost::asio::ip::tcp::endpoint;
@@ -493,7 +494,7 @@ groups:
     if (not is_directory(config_->base_path_)) {
       SL_ERROR(logger_,
                "The 'base_path' does not exist or is not a directory: {}",
-               config_->base_path_.c_str());
+               config_->base_path_);
       return Error::InvalidValue;
     }
 
@@ -525,7 +526,7 @@ groups:
     if (not is_directory(config_->modules_dir_)) {
       SL_ERROR(logger_,
                "The 'modules_dir' does not exist or is not a directory: {}",
-               config_->modules_dir_.c_str());
+               config_->modules_dir_);
       return Error::InvalidValue;
     }
 
@@ -535,7 +536,7 @@ groups:
       if (not is_regular_file(config_->bootnodes_file_)) {
         SL_ERROR(logger_,
                  "The 'bootnodes' file does not exist or is not a file: {}",
-                 config_->bootnodes_file_.c_str());
+                 config_->bootnodes_file_);
         return Error::InvalidValue;
       }
     }
@@ -547,7 +548,7 @@ groups:
         SL_ERROR(
             logger_,
             "The 'validator_registry_path' does not exist or is not a file: {}",
-            config_->validator_registry_path_.c_str());
+            config_->validator_registry_path_);
         return Error::InvalidValue;
       }
     }
@@ -562,7 +563,7 @@ groups:
     if (not is_regular_file(config_->genesis_config_path_)) {
       SL_ERROR(logger_,
                "The 'genesis' file does not exist or is not a file: {}",
-               config_->genesis_config_path_.c_str());
+               config_->genesis_config_path_);
       return Error::InvalidValue;
     }
 
