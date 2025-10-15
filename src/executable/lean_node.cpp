@@ -22,7 +22,6 @@
 #include "loaders/loader.hpp"
 #include "log/logger.hpp"
 #include "modules/module_loader.hpp"
-#include "modules/production/read_config_yaml.hpp"
 #include "se/subscription.hpp"
 #include "types/config.hpp"
 
@@ -42,9 +41,8 @@ namespace {
   using lean::log::LoggingSystem;
 
   int run_node(std::shared_ptr<LoggingSystem> logsys,
-               std::shared_ptr<Configuration> appcfg,
-               std::shared_ptr<lean::Config> genesis_cfg) {
-    auto injector = std::make_unique<NodeInjector>(logsys, appcfg, genesis_cfg);
+               std::shared_ptr<Configuration> appcfg) {
+    auto injector = std::make_unique<NodeInjector>(logsys, appcfg);
 
     // Load modules
     std::deque<std::unique_ptr<lean::loaders::Loader>> loaders;
@@ -205,47 +203,14 @@ int main(int argc, const char **argv, const char **env) {
     config_res.value();
   });
 
-  auto genesis_config_res =
-      lean::readConfigYaml(app_configuration->genesisConfigPath());
-
-  if (genesis_config_res.has_error()) {
-    auto logger = logging_system->getLogger("Configurator", "lean");
-    auto error_code = genesis_config_res.error();
-    SL_CRITICAL(logger,
-                "Failed to load genesis config '{}': {}",
-                app_configuration->genesisConfigPath().string(),
-                error_code.message());
-    return EXIT_FAILURE;
-  }
-
-  auto genesis_config =
-      std::make_shared<lean::Config>(genesis_config_res.value());
-
-
   int exit_code;
   auto logger = logging_system->getLogger("Main", lean::log::defaultGroupName);
-  SL_INFO(logger,
-          "Genesis config loaded: genesis_time={}, num_validators={}",
-          genesis_config->genesis_time,
-          genesis_config->num_validators);
-  {
-    // print genesis time in human-readable format
-    std::time_t genesis_time_t =
-        static_cast<std::time_t>(genesis_config->genesis_time);
-    std::tm *gmt = std::gmtime(&genesis_time_t);
-    char time_str[32];
-    std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", gmt);
-    SL_INFO(logger,
-            "Genesis time (UTC): {} (timestamp {})",
-            time_str,
-            genesis_time_t);
-  }
   {
     std::string_view name{argv[1]};
 
     if (name.substr(0, 1) == "-") {
       // The first argument isn't subcommand, run as node
-      exit_code = run_node(logging_system, app_configuration, genesis_config);
+      exit_code = run_node(logging_system, app_configuration);
     }
 
     // else if (false and name == "subcommand-1"s) {

@@ -25,6 +25,10 @@
 #include "utils/ceil_div.hpp"
 
 namespace lean {
+  struct GenesisConfig;
+}  // namespace lean
+
+namespace lean {
   class ForkChoiceStore {
    public:
     using Blocks = std::unordered_map<BlockHash, Block>;
@@ -45,14 +49,12 @@ namespace lean {
       abort();
     }
 
-    ForkChoiceStore(const AnchorState &anchor_state,
-                    const AnchorBlock &anchor_block,
+    ForkChoiceStore(const GenesisConfig &genesis_config,
                     qtils::SharedRef<clock::SystemClock> clock,
                     qtils::SharedRef<log::LoggingSystem> logging_system,
                     qtils::SharedRef<ValidatorRegistry> validator_registry);
 
-    BOOST_DI_INJECT_TRAITS(const AnchorState &,
-                           const AnchorBlock &,
+    BOOST_DI_INJECT_TRAITS(const GenesisConfig &,
                            qtils::SharedRef<clock::SystemClock>,
                            qtils::SharedRef<log::LoggingSystem>,
                            qtils::SharedRef<ValidatorRegistry>);

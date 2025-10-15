@@ -10,6 +10,7 @@
 #include <ranges>
 #include <stdexcept>
 
+#include "blockchain/genesis_config.hpp"
 #include "types/signed_block.hpp"
 
 namespace lean {
@@ -464,14 +465,15 @@ namespace lean {
   }
 
   ForkChoiceStore::ForkChoiceStore(
-      const AnchorState &anchor_state,
-      const AnchorBlock &anchor_block,
+      const GenesisConfig &genesis_config,
       qtils::SharedRef<clock::SystemClock> clock,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
       : validator_registry_(validator_registry),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")) {
+    AnchorState anchor_state = STF::generateGenesisState(genesis_config.config);
+    AnchorBlock anchor_block = STF::genesisBlock(anchor_state);
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
