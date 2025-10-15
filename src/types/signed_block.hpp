@@ -6,15 +6,14 @@
 
 #pragma once
 
-#include <qtils/byte_arr.hpp>
-
 #include "types/block.hpp"
+#include "types/block_signature.hpp"
 
 namespace lean {
 
   struct SignedBlock : ssz::ssz_variable_size_container {
     Block message;
-    qtils::ByteArr<4000> signature;
+    BlockSignature signature;
 
     SSZ_CONT(message, signature);
   };
