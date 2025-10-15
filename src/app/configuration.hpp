@@ -10,6 +10,7 @@
 #include <string>
 
 #include <boost/asio/ip/tcp.hpp>
+#include <libp2p/multi/multiaddress.hpp>
 #include <utils/ctor_limiters.hpp>
 
 namespace lean::app {
@@ -42,9 +43,9 @@ namespace lean::app {
     [[nodiscard]] virtual const std::filesystem::path &validatorRegistryPath()
         const;
     [[nodiscard]] virtual const std::filesystem::path &genesisConfigPath()
-    const;
-    [[nodiscard]] virtual const std::optional<std::string> &listenMultiaddr()
-    const;
+        const;
+    [[nodiscard]] virtual const std::optional<libp2p::Multiaddress> &
+    listenMultiaddr() const;
     [[nodiscard]] virtual const std::optional<std::string> &nodeKeyHex() const;
 
     [[nodiscard]] virtual const DatabaseConfig &database() const;
@@ -62,7 +63,7 @@ namespace lean::app {
     std::filesystem::path bootnodes_file_;
     std::filesystem::path validator_registry_path_;
     std::filesystem::path genesis_config_path_;
-    std::optional<std::string> listen_multiaddr_;
+    std::optional<libp2p::Multiaddress> listen_multiaddr_;
     std::optional<std::string> node_key_hex_;
 
     DatabaseConfig database_;

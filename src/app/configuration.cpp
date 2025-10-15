@@ -51,7 +51,8 @@ namespace lean::app {
     return genesis_config_path_;
   }
 
-  const std::optional<std::string> &Configuration::listenMultiaddr() const {
+  const std::optional<libp2p::Multiaddress> &Configuration::listenMultiaddr()
+      const {
     return listen_multiaddr_;
   }
 

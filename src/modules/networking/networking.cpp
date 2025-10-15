@@ -170,22 +170,13 @@ namespace lean::modules {
 
     if (auto &listen_addr = config_->listenMultiaddr();
         listen_addr.has_value()) {
-      auto listen_res = libp2p::multi::Multiaddress::create(*listen_addr);
-      if (listen_res.has_value()) {
-        auto listen = listen_res.value();
-        if (auto r = host->listen(listen); not r.has_value()) {
-          SL_WARN(logger_,
-                  "Listening address configured via --listen-addr: {}",
-                  listen);
-        } else {
-          SL_INFO(logger_, "Listening on {}", listen);
-        }
+      auto &listen = *listen_addr;
+      if (auto r = host->listen(listen); not r.has_value()) {
+        SL_WARN(logger_,
+                "Listening address configured via --listen-addr: {}",
+                listen);
       } else {
-        SL_CRITICAL(logger_,
-                    "Invalid listen multiaddress '{}': {}",
-                    *listen_addr,
-                    listen_res.error().message());
-        std::exit(1);
+        SL_INFO(logger_, "Listening on {}", listen);
       }
     } else if (not has_enr_listen_address) {
       SL_WARN(logger_, "No listen multiaddress configured");

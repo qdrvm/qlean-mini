@@ -39,9 +39,10 @@ add_library(app_configurator SHARED
 )
 target_link_libraries(app_configurator
     app_configuration
-    yaml-cpp::yaml-cpp
     Boost::program_options
     build_version
+    p2p::libp2p
+    yaml-cpp::yaml-cpp
 )
 
 add_library(app_state_manager SHARED

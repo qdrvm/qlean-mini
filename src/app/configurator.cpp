@@ -357,10 +357,13 @@ groups:
             if (listen_addr.IsScalar()) {
               auto value = listen_addr.as<std::string>();
               boost::trim(value);
-              if (value.empty()) {
-                config_->listen_multiaddr_.reset();
+              if (auto r = libp2p::Multiaddress::create(value)) {
+                config_->listen_multiaddr_ = r.value();
               } else {
-                config_->listen_multiaddr_ = value;
+                std::println(file_errors_,
+                             "E: Value 'general.listen_addr' must be valid "
+                             "multiaddress");
+                file_has_error_ = true;
               }
             } else {
               file_errors_ << "E: Value 'general.listen_addr' must be scalar\n";
@@ -445,13 +448,13 @@ groups:
           config_->modules_dir_ = value;
         });
     find_argument<std::string>(
-        cli_values_map_, "listen-addr", [&](const std::string &value) {
-          auto trimmed = value;
-          boost::trim(trimmed);
-          if (trimmed.empty()) {
-            config_->listen_multiaddr_.reset();
+        cli_values_map_, "listen-addr", [&](std::string value) {
+          boost::trim(value);
+          if (auto r = libp2p::Multiaddress::create(value)) {
+            config_->listen_multiaddr_ = r.value();
           } else {
-            config_->listen_multiaddr_ = trimmed;
+            SL_ERROR(logger_, "'listen-addr' must be valid multiaddress");
+            fail = true;
           }
         });
     find_argument<std::string>(
