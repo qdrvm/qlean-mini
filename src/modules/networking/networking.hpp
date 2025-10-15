@@ -8,7 +8,6 @@
 
 #include <thread>
 
-#include <app/chain_spec.hpp>
 #include <libp2p/event/bus.hpp>
 #include <log/logger.hpp>
 #include <modules/networking/interfaces.hpp>
@@ -16,13 +15,19 @@
 #include <qtils/shared_ref.hpp>
 #include <utils/ctor_limiters.hpp>
 
-namespace libp2p::protocol {
-  class Ping;
-  class Identify;
-}
 namespace boost::asio {
   class io_context;
 }  // namespace boost::asio
+
+namespace libp2p::protocol {
+  class Ping;
+  class Identify;
+}  // namespace libp2p::protocol
+
+namespace libp2p::protocol::gossip {
+  class Gossip;
+  class Topic;
+}  // namespace libp2p::protocol::gossip
 
 namespace lean {
   class ForkChoiceStore;
@@ -36,11 +41,6 @@ namespace lean::app {
   class ChainSpec;
   class Configuration;
 }  // namespace lean::app
-
-namespace libp2p::protocol::gossip {
-  class Gossip;
-  class Topic;
-}  // namespace libp2p::protocol::gossip
 
 namespace lean::modules {
   class StatusProtocol;
