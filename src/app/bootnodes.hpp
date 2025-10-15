@@ -20,9 +20,8 @@ namespace lean::app {
   struct BootnodeInfo {
     libp2p::multi::Multiaddress address;
     libp2p::PeerId peer_id;
-    
-    BootnodeInfo(libp2p::multi::Multiaddress addr, libp2p::PeerId id)
-        : address(std::move(addr)), peer_id(std::move(id)) {}
+
+    BootnodeInfo(libp2p::multi::Multiaddress addr, libp2p::PeerId id);
   };
 
   /**
@@ -31,36 +30,27 @@ namespace lean::app {
   class Bootnodes {
    public:
     Bootnodes() = default;
-    explicit Bootnodes(std::vector<BootnodeInfo> nodes) 
-        : nodes_(std::move(nodes)) {}
+    explicit Bootnodes(std::vector<BootnodeInfo> nodes);
 
     /**
      * @brief Get all bootnode information
      */
-    const std::vector<BootnodeInfo>& getBootnodes() const {
-      return nodes_;
-    }
+    const std::vector<BootnodeInfo> &getBootnodes() const;
 
     /**
      * @brief Add a bootnode
      */
-    void addBootnode(BootnodeInfo node) {
-      nodes_.emplace_back(std::move(node));
-    }
+    void addBootnode(BootnodeInfo node);
 
     /**
      * @brief Check if any bootnodes are configured
      */
-    bool empty() const {
-      return nodes_.empty();
-    }
+    bool empty() const;
 
     /**
      * @brief Get the number of configured bootnodes
      */
-    size_t size() const {
-      return nodes_.size();
-    }
+    size_t size() const;
 
    private:
     std::vector<BootnodeInfo> nodes_;
