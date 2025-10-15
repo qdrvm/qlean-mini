@@ -4,6 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+add_library(validator_registry
+    impl/validator_registry_impl.cpp
+)
+target_link_libraries(validator_registry
+    app_configuration
+    fmt::fmt
+    logger
+    yaml-cpp::yaml-cpp
+)
+
 add_library(blockchain
     fork_choice.cpp
     impl/block_storage_error.cpp

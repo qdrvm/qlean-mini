@@ -76,15 +76,13 @@ namespace lean::modules {
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
       qtils::SharedRef<app::ChainSpec> chain_spec,
-      qtils::SharedRef<app::Configuration> config,
-      qtils::SharedRef<ValidatorRegistry> validator_registry)
+      qtils::SharedRef<app::Configuration> config)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)},
         chain_spec_{std::move(chain_spec)},
-        config_{std::move(config)},
-        validator_registry_{std::move(validator_registry)} {
+        config_{std::move(config)} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
     block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }

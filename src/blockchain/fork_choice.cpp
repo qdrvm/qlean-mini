@@ -477,18 +477,6 @@ namespace lean {
       : validator_registry_(validator_registry),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")) {
-    if (validator_registry_->currentValidatorIndices().empty()) {
-      const auto &node_id = validator_registry_->currentNodeId();
-      const auto registry_path_str =
-          validator_registry_->registryPath().empty()
-              ? std::string{"<not provided>"}
-              : validator_registry_->registryPath().string();
-      SL_WARN(
-          logger_,
-          "Validator indices for node '{}' are not defined in registry '{}'",
-          node_id.empty() ? "<unset>" : node_id.c_str(),
-          registry_path_str);
-    }
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
@@ -524,7 +512,7 @@ namespace lean {
       Votes latest_known_votes,
       Votes latest_new_votes,
       ValidatorIndex validator_index,
-      std::shared_ptr<ValidatorRegistry> validator_registry)
+      qtils::SharedRef<ValidatorRegistry> validator_registry)
       : time_(now_sec / SECONDS_PER_INTERVAL),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
@@ -537,10 +525,5 @@ namespace lean {
         states_(std::move(states)),
         latest_known_votes_(std::move(latest_known_votes)),
         latest_new_votes_(std::move(latest_new_votes)),
-        validator_registry_(std::move(validator_registry)) {
-    if (validator_registry_ == nullptr) {
-      validator_registry_ = std::make_shared<ValidatorRegistry>(
-          logging_system, app::Configuration{});
-    }
-  }
+        validator_registry_(std::move(validator_registry)) {}
 }  // namespace lean

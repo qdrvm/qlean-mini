@@ -30,6 +30,7 @@
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/block_tree_impl.hpp"
 #include "blockchain/impl/fc_block_tree.hpp"
+#include "blockchain/impl/validator_registry_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
 #include "injector/bind_by_lambda.hpp"
@@ -97,6 +98,7 @@ namespace {
         di::bind<blockchain::BlockStorage>.to<blockchain::BlockStorageImpl>(),
         di::bind<app::Timeline>.to<app::TimelineImpl>(),
         di::bind<blockchain::BlockTree>.to<blockchain::FCBlockTree>(),
+        di::bind<ValidatorRegistry>.to<ValidatorRegistryImpl>(),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);

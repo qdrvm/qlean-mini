@@ -16,7 +16,6 @@
 #include <qtils/create_smart_pointer_macros.hpp>
 #include <qtils/shared_ref.hpp>
 #include <utils/ctor_limiters.hpp>
-#include <utils/validator_registry.hpp>
 
 namespace libp2p::protocol {
   class Ping;
@@ -62,8 +61,7 @@ namespace lean::modules {
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
                    qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
-                   qtils::SharedRef<app::Configuration> config,
-                   qtils::SharedRef<ValidatorRegistry> validator_registry);
+                   qtils::SharedRef<app::Configuration> config);
 
    public:
     CREATE_SHARED_METHOD(NetworkingImpl);
@@ -96,7 +94,6 @@ namespace lean::modules {
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
     qtils::SharedRef<app::Configuration> config_;
-    qtils::SharedRef<ValidatorRegistry> validator_registry_;
     std::shared_ptr<void> injector_;
     std::shared_ptr<boost::asio::io_context> io_context_;
     std::optional<std::thread> io_thread_;

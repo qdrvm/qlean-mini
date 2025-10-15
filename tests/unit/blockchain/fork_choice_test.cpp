@@ -17,9 +17,10 @@
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
+#include "mock/blockchain/validator_registry_mock.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "qtils/test/outcome.hpp"
-#include "tests/testutil/prepare_loggers.hpp"
+#include "testutil/prepare_loggers.hpp"
 #include "types/signed_block.hpp"
 
 using lean::Block;
@@ -86,7 +87,8 @@ auto createTestStore(
                          states,
                          latest_known_votes,
                          latest_new_votes,
-                         validator_index);
+                         validator_index,
+                         std::make_shared<lean::ValidatorRegistryMock>());
 }
 
 auto makeBlockMap(std::vector<lean::Block> blocks) {
@@ -709,32 +711,39 @@ TEST(TestHeadSelection, test_produce_block_basic) {
 
 // Test SSZ hash calculation matches ream implementation
 TEST(TestSszHashCompatibility, test_genesis_state_hash_matches_ream) {
-  // Test that our SSZ hash calculation produces the same result as ream's Rust implementation
-  // Using the test vector from ream with specific genesis time and configuration
-  
-  lean::Config test_config{
-    .num_validators = 4,
-    .genesis_time = 1759672259
-  };
-  
+  // Test that our SSZ hash calculation produces the same result as ream's Rust
+  // implementation Using the test vector from ream with specific genesis time
+  // and configuration
+
+  lean::Config test_config{.num_validators = 4, .genesis_time = 1759672259};
+
   // Generate genesis state using our standard method
   auto genesis_state = lean::STF::generateGenesisState(test_config);
-  
+
   // Calculate SSZ hash
   auto calculated_hash = lean::sszHash(genesis_state);
-  
-  // Expected hash from ream's test vector: 0xd3e483e76de397f74e4d072fcca01b8d6988b70df60db896537fe4715322cbfd
-  qtils::ByteArr<32> expected_hash = qtils::ByteArr<32>::fromHex("d3e483e76de397f74e4d072fcca01b8d6988b70df60db896537fe4715322cbfd").value();
-  
+
+  // Expected hash from ream's test vector:
+  // 0xd3e483e76de397f74e4d072fcca01b8d6988b70df60db896537fe4715322cbfd
+  qtils::ByteArr<32> expected_hash =
+      qtils::ByteArr<32>::fromHex(
+          "d3e483e76de397f74e4d072fcca01b8d6988b70df60db896537fe4715322cbfd")
+          .value();
+
   // Verify our SSZ hash calculation matches ream's implementation
-  EXPECT_EQ(calculated_hash, expected_hash) 
-    << "Genesis state SSZ hash does not match ream implementation. "
-    << "This indicates incompatibility in SSZ serialization between C++ and Rust implementations.";
+  EXPECT_EQ(calculated_hash, expected_hash)
+      << "Genesis state SSZ hash does not match ream implementation. "
+      << "This indicates incompatibility in SSZ serialization between C++ and "
+         "Rust implementations.";
 
   Block block = lean::STF::genesisBlock(genesis_state);
-  qtils::ByteArr<32> expected_block_root = qtils::ByteArr<32>::fromHex("aacb28e55e6c6a17fd7c61971d98844350474727af7e9bdadf337750bd11d41f").value();
+  qtils::ByteArr<32> expected_block_root =
+      qtils::ByteArr<32>::fromHex(
+          "aacb28e55e6c6a17fd7c61971d98844350474727af7e9bdadf337750bd11d41f")
+          .value();
   auto calculated_block_root = lean::sszHash(block);
   EXPECT_EQ(calculated_block_root, expected_block_root)
-    << "Genesis block SSZ hash does not match ream implementation. "
-    << "This indicates incompatibility in SSZ serialization between C++ and Rust implementations.";
+      << "Genesis block SSZ hash does not match ream implementation. "
+      << "This indicates incompatibility in SSZ serialization between C++ and "
+         "Rust implementations.";
 }
