@@ -155,7 +155,8 @@ int main(int argc, const char **argv, const char **env) {
     }
     std::println(
         std::cerr,
-        "Usage: qlean generate-genesis (genesis_directory) (validator_count)");
+        "Usage: {} generate-genesis (genesis_directory) (validator_count)",
+        getArg(0).value());
     return EXIT_FAILURE;
   }
 
