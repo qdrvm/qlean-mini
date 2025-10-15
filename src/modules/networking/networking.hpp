@@ -9,7 +9,6 @@
 #include <thread>
 
 #include <app/chain_spec.hpp>
-#include <blockchain/fork_choice.hpp>
 #include <libp2p/event/bus.hpp>
 #include <log/logger.hpp>
 #include <modules/networking/interfaces.hpp>
@@ -24,6 +23,10 @@ namespace libp2p::protocol {
 namespace boost::asio {
   class io_context;
 }  // namespace boost::asio
+
+namespace lean {
+  class ForkChoiceStore;
+}  // namespace lean
 
 namespace lean::blockchain {
   class BlockTree;

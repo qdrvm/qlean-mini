@@ -17,6 +17,10 @@
 #include "modules/shared/networking_types.tmp.hpp"
 #include "se/subscription.hpp"
 
+namespace lean {
+  class ForkChoiceStore;
+}  // namespace lean
+
 namespace lean::blockchain {
   class BlockTree;
 }  // namespace lean::blockchain
