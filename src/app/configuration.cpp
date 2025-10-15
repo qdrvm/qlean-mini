@@ -56,8 +56,8 @@ namespace lean::app {
     return listen_multiaddr_;
   }
 
-  const std::optional<std::string> &Configuration::nodeKeyHex() const {
-    return node_key_hex_;
+  const libp2p::crypto::KeyPair &Configuration::nodeKey() const {
+    return node_key_.value();
   }
 
   const Configuration::DatabaseConfig &Configuration::database() const {

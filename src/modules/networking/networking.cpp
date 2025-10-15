@@ -32,7 +32,6 @@
 #include "blockchain/block_tree.hpp"
 #include "blockchain/impl/fc_block_tree.hpp"
 #include "modules/networking/block_request_protocol.hpp"
-#include "modules/networking/get_node_key.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
 #include "modules/networking/types.hpp"
@@ -97,22 +96,7 @@ namespace lean::modules {
   void NetworkingImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");
 
-    // Determine the keypair: from config if valid, otherwise random
-    libp2p::crypto::KeyPair keypair;
-    if (auto &node_key_hex = config_->nodeKeyHex(); node_key_hex.has_value()) {
-      auto keypair_res = keyPairFromPrivateKeyHex(*node_key_hex);
-      if (keypair_res.has_value()) {
-        keypair = std::move(keypair_res.value());
-      } else {
-        SL_CRITICAL(logger_,
-                    "Failed to parse node key from --node-key \"{}\": {}",
-                    node_key_hex.value(),
-                    keypair_res.error().message());
-        exit(EXIT_FAILURE);
-      }
-    } else {
-      keypair = randomKeyPair();
-    }
+    auto keypair = config_->nodeKey();
 
     // Always set up identity and peer info
     libp2p::peer::IdentityManager identity_manager{

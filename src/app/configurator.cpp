@@ -25,6 +25,7 @@
 #include "app/build_version.hpp"
 #include "app/configuration.hpp"
 #include "log/formatters/filepath.hpp"
+#include "modules/networking/get_node_key.hpp"
 #include "utils/parsers.hpp"
 
 using Endpoint = boost::asio::ip::tcp::endpoint;
@@ -312,10 +313,13 @@ groups:
             if (node_key.IsScalar()) {
               auto value = node_key.as<std::string>();
               boost::trim(value);
-              if (value.empty()) {
-                config_->node_key_hex_.reset();
+              if (auto r = keyPairFromPrivateKeyHex(value)) {
+                config_->node_key_ = r.value();
               } else {
-                config_->node_key_hex_ = value;
+                std::println(file_errors_,
+                             "E: Value 'general.node_key' must be private key "
+                             "hex or it's file path");
+                file_has_error_ = true;
               }
             } else {
               file_errors_ << "E: Value 'general.node_key' must be scalar\n";
@@ -426,13 +430,14 @@ groups:
           config_->node_id_ = value;
         });
     find_argument<std::string>(
-        cli_values_map_, "node-key", [&](const std::string &value) {
-          auto trimmed = value;
-          boost::trim(trimmed);
-          if (trimmed.empty()) {
-            config_->node_key_hex_.reset();
+        cli_values_map_, "node-key", [&](std::string value) {
+          boost::trim(value);
+          if (auto r = keyPairFromPrivateKeyHex(value)) {
+            config_->node_key_ = r.value();
           } else {
-            config_->node_key_hex_ = trimmed;
+            SL_ERROR(logger_,
+                     "'node-key' must be private key hex or it's file path");
+            fail = true;
           }
         });
     find_argument<std::string>(
@@ -778,6 +783,11 @@ groups:
     };
     if (not config_->metrics_.enabled.has_value()) {
       config_->metrics_.enabled = false;
+    }
+
+    if (not config_->node_key_.has_value()) {
+      config_->node_key_ = randomKeyPair();
+      SL_INFO(logger_, "Generating random node key");
     }
 
     return outcome::success();

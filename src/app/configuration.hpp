@@ -10,6 +10,7 @@
 #include <string>
 
 #include <boost/asio/ip/tcp.hpp>
+#include <libp2p/crypto/key.hpp>
 #include <libp2p/multi/multiaddress.hpp>
 #include <utils/ctor_limiters.hpp>
 
@@ -46,7 +47,7 @@ namespace lean::app {
         const;
     [[nodiscard]] virtual const std::optional<libp2p::Multiaddress> &
     listenMultiaddr() const;
-    [[nodiscard]] virtual const std::optional<std::string> &nodeKeyHex() const;
+    [[nodiscard]] virtual const libp2p::crypto::KeyPair &nodeKey() const;
 
     [[nodiscard]] virtual const DatabaseConfig &database() const;
 
@@ -64,7 +65,7 @@ namespace lean::app {
     std::filesystem::path validator_registry_path_;
     std::filesystem::path genesis_config_path_;
     std::optional<libp2p::Multiaddress> listen_multiaddr_;
-    std::optional<std::string> node_key_hex_;
+    std::optional<libp2p::crypto::KeyPair> node_key_;
 
     DatabaseConfig database_;
     MetricsConfig metrics_;
