@@ -340,16 +340,14 @@ namespace lean::modules {
               self->fork_choice_store_->processAttestation(signed_vote, false);
           if (not res.has_value()) {
             SL_WARN(self->logger_,
-                    "Error processing vote for target {}@{}: {}",
-                    signed_vote.data.target.slot,
-                    signed_vote.data.target.root,
+                    "Error processing vote for target {}: {}",
+                    signed_vote.data.target,
                     res.error());
             return;
           }
           SL_INFO(self->logger_,
-                  "Received vote for target {}@{}",
-                  signed_vote.data.target.slot,
-                  signed_vote.data.target.root);
+                  "Received vote for target {}",
+                  signed_vote.data.target);
         });
 
     io_thread_.emplace([io_context{io_context_}] {
@@ -487,9 +485,8 @@ namespace lean::modules {
         auto res = fork_choice_store_->onBlock(block.message);
         if (not res.has_value()) {
           SL_WARN(logger_,
-                  "Error importing block {}@{}: {}",
-                  block.message.hash(),
-                  block.message.slot,
+                  "Error importing block {}: {}",
+                  block.message.slotHash(),
                   res.error());
           break;
         }

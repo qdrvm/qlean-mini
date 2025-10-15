@@ -179,11 +179,9 @@ namespace lean {
   outcome::result<void> ForkChoiceStore::validateAttestation(
       const SignedVote &signed_vote) {
     SL_TRACE(logger_,
-             "Validating attestation for target {}@{}, source {}@{}",
-             signed_vote.data.target.slot,
-             signed_vote.data.target.root,
-             signed_vote.data.source.slot,
-             signed_vote.data.source.root);
+             "Validating attestation for target {}, source {}",
+             signed_vote.data.target,
+             signed_vote.data.source);
     auto &vote = signed_vote.data;
 
     // Validate vote targets exist in store
@@ -349,14 +347,11 @@ namespace lean {
         auto target = getVoteTarget();
         auto source = getLatestJustified();
         SL_INFO(logger_,
-                "For slot {}: head is {}@{}, target is {}@{}, source is {}@{}",
+                "For slot {}: head is {}, target is {}, source is {}",
                 current_slot,
-                head.root,
-                head.slot,
-                target.root,
-                target.slot,
-                source->root,
-                source->slot);
+                head,
+                target,
+                source.value());
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
           SignedVote signed_vote{
@@ -380,10 +375,8 @@ namespace lean {
                      res.error());
             continue;
           }
-          SL_INFO(logger_,
-                  "Produced vote for target {}@{}",
-                  signed_vote.data.target.slot,
-                  signed_vote.data.target.root);
+          SL_INFO(
+              logger_, "Produced vote for target {}", signed_vote.data.target);
           result.emplace_back(std::move(signed_vote));
         }
       } else if (time_ % INTERVALS_PER_SLOT == 2) {
