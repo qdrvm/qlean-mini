@@ -483,9 +483,7 @@ namespace lean::modules {
       remove([&](const BlockHash &block_hash) {
         blocks.emplace_back(block_cache_.extract(block_hash).mapped());
       });
-      std::string __s;
       for (auto &block : blocks) {
-        __s += std::format(" {}", block.message.slot);
         auto res = fork_choice_store_->onBlock(block.message);
         if (not res.has_value()) {
           SL_WARN(logger_,
@@ -493,10 +491,17 @@ namespace lean::modules {
                   block.message.hash(),
                   block.message.slot,
                   res.error());
-          return;
+          break;
         }
       }
-      SL_INFO(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
+      SL_INFO(logger_,
+              "receiveBlock {} => import {}",
+              slot_hash.slot,
+              fmt::join(
+                  blocks | std::views::transform([](const SignedBlock &block) {
+                    return block.message.slot;
+                  }),
+                  " "));
       block_tree_->import(std::move(blocks));
       return;
     }
