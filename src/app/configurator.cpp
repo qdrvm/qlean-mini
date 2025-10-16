@@ -24,6 +24,7 @@
 
 #include "app/build_version.hpp"
 #include "app/configuration.hpp"
+#include "app/default_logging_yaml.hpp"
 #include "log/formatters/filepath.hpp"
 #include "modules/networking/get_node_key.hpp"
 #include "utils/parsers.hpp"
@@ -220,42 +221,11 @@ namespace lean::app {
 
     return false;
   }
-  static constexpr std::string_view default_logging_yaml = R"yaml(
-sinks:
-  - name: console
-    type: console
-    stream: stdout
-    thread: name
-    color: true
-    latency: 0
-groups:
-  - name: main
-    sink: console
-    level: info
-    is_fallback: true
-    children:
-      - name: lean
-        children:
-          - name: modules
-            children:
-              - name: example_module
-              - name: synchronizer_module
-              - name: networking_module
-              - name: production_module
-          - name: injector
-          - name: application
-          - name: rpc
-          - name: metrics
-          - name: threads
-          - name: storage
-            children:
-              - name: block_storage
-)yaml";
 
   outcome::result<YAML::Node> Configurator::getLoggingConfig() {
     auto load_default = [&]() -> outcome::result<YAML::Node> {
       try {
-        return YAML::Load(std::string(default_logging_yaml));
+        return YAML::Load(defaultLoggingYaml())["logging"];
       } catch (const std::exception &e) {
         file_errors_ << "E: Failed to load default logging config: " << e.what()
                      << "\n";

@@ -23,11 +23,16 @@ add_custom_command(
     VERBATIM
 )
 add_library(build_version
-    ${CMAKE_BINARY_DIR}/generated/app/build_version.cpp
+    "${BUILD_VERSION_CPP}"
 )
+
+set(DEFAULT_LOGGING_YAML_CPP "${CMAKE_BINARY_DIR}/generated/app/default_logging_yaml.cpp")
+file(READ "${CMAKE_SOURCE_DIR}/example/config.yaml" DEFAULT_LOGGING_YAML)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/default_logging_yaml.cpp.in" "${DEFAULT_LOGGING_YAML_CPP}")
 
 add_library(app_configuration SHARED
     configuration.cpp
+    "${DEFAULT_LOGGING_YAML_CPP}"
 )
 target_link_libraries(app_configuration
     Boost::boost
