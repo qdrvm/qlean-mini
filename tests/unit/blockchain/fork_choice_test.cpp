@@ -712,7 +712,7 @@ TEST(TestHeadSelection, test_produce_block_basic) {
 // Test SSZ hash calculation matches ream implementation
 TEST(TestSszHashCompatibility, test_genesis_state_hash_matches_ream) {
   // Test that our SSZ hash calculation produces the same result as ream's Rust
-  // implementation Using the test vector from ream with specific genesis time
+  // implementation. Using the test vector from ream with specific genesis time
   // and configuration
 
   lean::Config test_config{.num_validators = 4, .genesis_time = 1759672259};
