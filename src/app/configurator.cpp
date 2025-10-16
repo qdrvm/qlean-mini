@@ -106,15 +106,15 @@ namespace lean::app {
         ("base-path", po::value<std::string>(), "Set base path. All relative paths will be resolved based on this path.")
         ("data-dir", po::value<std::string>(), "Alias for \"--base-path\".")
         ("config,c", po::value<std::string>(),  "Optional. Filepath to load configuration from. Overrides default configuration values.")
-        ("genesis", po::value<std::string>(), "Set path to genesis config yaml file (config.yaml).")
+        ("genesis", po::value<std::string>(), "Set path to genesis config yaml file (genesis/config.yaml).")
         ("listen-addr", po::value<std::string>(), "Set libp2p listen multiaddress.")
         ("modules-dir", po::value<std::string>(), "Set path to directory containing modules.")
-        ("bootnodes", po::value<std::string>(), "Set path to yaml file containing boot node ENRs (nodes.yaml).")
+        ("bootnodes", po::value<std::string>(), "Set path to yaml file containing boot node ENRs (genesis/nodes.yaml).")
         ("validator-registry-path",
          po::value<std::string>(),
-         "Set path to yaml file containing validator registry (validators.yaml).")
+         "Set path to yaml file containing validator registry (genesis/validators.yaml).")
         ("name,n", po::value<std::string>(), "Set name of node.")
-        ("node-id", po::value<std::string>(), "Node id from validator registry (validators.yaml).")
+        ("node-id", po::value<std::string>(), "Node id from validator registry (genesis/validators.yaml).")
         ("node-key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
