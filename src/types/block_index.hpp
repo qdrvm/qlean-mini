@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "log/formatters/slot_hash.hpp"
+#include "log/formatters/block_index_ref.hpp"
 
 namespace lean {
 
@@ -31,11 +31,11 @@ struct std::hash<lean::BlockIndex> {
 };
 
 template <>
-struct fmt::formatter<lean::BlockIndex> : fmt::formatter<lean::FmtSlotHash> {
+struct fmt::formatter<lean::BlockIndex> : fmt::formatter<lean::BlockIndexRef> {
   template <typename FormatContext>
   auto format(const lean::BlockIndex &block_index, FormatContext &ctx) const
       -> decltype(ctx.out()) {
-    return fmt::formatter<lean::FmtSlotHash>::format(
-        lean::FmtSlotHash{block_index.slot, block_index.hash}, ctx);
+    return fmt::formatter<lean::BlockIndexRef>::format(
+        lean::BlockIndexRef{block_index.slot, block_index.hash}, ctx);
   }
 };

@@ -10,14 +10,14 @@
 #include "types/slot.hpp"
 
 namespace lean {
-  struct FmtSlotHash {
+  struct BlockIndexRef {
     Slot slot;
     const BlockHash &hash;
   };
 }  // namespace lean
 
 template <>
-struct fmt::formatter<lean::FmtSlotHash> {
+struct fmt::formatter<lean::BlockIndexRef> {
   // Presentation format
   bool long_form = false;
 
@@ -39,7 +39,7 @@ struct fmt::formatter<lean::FmtSlotHash> {
   // Formats the BlockIndex using the parsed format specification (presentation)
   // stored in this formatter.
   template <typename FormatContext>
-  auto format(const lean::FmtSlotHash &v, FormatContext &ctx) const
+  auto format(const lean::BlockIndexRef &v, FormatContext &ctx) const
       -> decltype(ctx.out()) {
     [[unlikely]] if (long_form) {
       return fmt::format_to(ctx.out(), "{:0xx} @ {}", v.hash, v.slot);
