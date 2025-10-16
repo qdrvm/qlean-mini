@@ -7,7 +7,9 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <system_error>
 
+#include <fmt/format.h>
 #include <qtils/final_action.hpp>
 #include <soralog/impl/configurator_from_yaml.hpp>
 #include <soralog/logging_system.hpp>
@@ -39,9 +41,8 @@ namespace {
   using lean::log::LoggingSystem;
 
   int run_node(std::shared_ptr<LoggingSystem> logsys,
-               std::shared_ptr<Configuration> appcfg,
-               std::shared_ptr<lean::Config> genesis_cfg) {
-    auto injector = std::make_unique<NodeInjector>(logsys, appcfg, genesis_cfg);
+               std::shared_ptr<Configuration> appcfg) {
+    auto injector = std::make_unique<NodeInjector>(logsys, appcfg);
 
     // Load modules
     std::deque<std::unique_ptr<lean::loaders::Loader>> loaders;
@@ -101,6 +102,9 @@ namespace {
 }  // namespace
 
 int main(int argc, const char **argv, const char **env) {
+  setlinebuf(stdout);
+  setlinebuf(stderr);
+
   soralog::util::setThreadName("lean-node");
 
   auto getArg = [&](size_t i) {
@@ -199,28 +203,14 @@ int main(int argc, const char **argv, const char **env) {
     config_res.value();
   });
 
-  // set genesis config. Genesis time should be next multiple of 12 seconds
-  // since epoch (in ms)
-  constexpr uint64_t GENESIS_INTERVAL_MS = 12'000; // 12 seconds in milliseconds
-  uint64_t genesis_time =
-      std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count();
-  genesis_time += GENESIS_INTERVAL_MS - (genesis_time % GENESIS_INTERVAL_MS);
-
-  lean::Config genesis_config{.num_validators = 4,
-                              .genesis_time = genesis_time};
-
   int exit_code;
-
+  auto logger = logging_system->getLogger("Main", lean::log::defaultGroupName);
   {
     std::string_view name{argv[1]};
 
     if (name.substr(0, 1) == "-") {
       // The first argument isn't subcommand, run as node
-      exit_code = run_node(logging_system,
-                           app_configuration,
-                           std::make_shared<lean::Config>(genesis_config));
+      exit_code = run_node(logging_system, app_configuration);
     }
 
     // else if (false and name == "subcommand-1"s) {
@@ -238,7 +228,6 @@ int main(int argc, const char **argv, const char **env) {
     }
   }
 
-  auto logger = logging_system->getLogger("Main", lean::log::defaultGroupName);
   SL_INFO(logger, "All components are stopped");
   logger->flush();
 

@@ -219,7 +219,9 @@ namespace lean::blockchain {
 
   outcome::result<void> BlockStorageImpl::putJustification(
       const Justification &justification, const BlockHash &hash) {
-    BOOST_ASSERT(not justification.empty());
+    if(justification.empty()) {
+      return BlockStorageError::JUSTIFICATION_EMPTY;
+    }
 
     OUTCOME_TRY(encoded_justification, encode(justification));
     OUTCOME_TRY(putToSpace(*storage_,

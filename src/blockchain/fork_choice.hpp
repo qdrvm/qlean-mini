@@ -6,19 +6,28 @@
 
 #pragma once
 
+#include <memory>
 #include <optional>
 #include <unordered_map>
 
 #include <boost/assert.hpp>
 #include <boost/di.hpp>
+#include <qtils/shared_ref.hpp>
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
+#include "blockchain/validator_registry.hpp"
 #include "clock/clock.hpp"
+#include "metrics/histogram_timer.hpp"
 #include "types/block.hpp"
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
 #include "utils/ceil_div.hpp"
+
+namespace lean {
+  struct GenesisConfig;
+  struct SignedBlock;
+}  // namespace lean
 
 namespace lean {
   class ForkChoiceStore {
@@ -41,28 +50,29 @@ namespace lean {
       abort();
     }
 
-    ForkChoiceStore(const AnchorState &anchor_state,
-                    const AnchorBlock &anchor_block,
+    ForkChoiceStore(const GenesisConfig &genesis_config,
                     qtils::SharedRef<clock::SystemClock> clock,
-                    qtils::SharedRef<log::LoggingSystem> logging_system);
+                    qtils::SharedRef<log::LoggingSystem> logging_system,
+                    qtils::SharedRef<ValidatorRegistry> validator_registry);
 
-    BOOST_DI_INJECT_TRAITS(const AnchorState &,
-                           const AnchorBlock &,
+    BOOST_DI_INJECT_TRAITS(const GenesisConfig &,
                            qtils::SharedRef<clock::SystemClock>,
-                           qtils::SharedRef<log::LoggingSystem>);
+                           qtils::SharedRef<log::LoggingSystem>,
+                           qtils::SharedRef<ValidatorRegistry>);
     // Test constructor - only for use in tests
     ForkChoiceStore(uint64_t now_sec,
                     qtils::SharedRef<log::LoggingSystem> logging_system,
-                    Config config = {},
-                    BlockHash head = {},
-                    BlockHash safe_target = {},
-                    Checkpoint latest_justified = {},
-                    Checkpoint latest_finalized = {},
-                    Blocks blocks = {},
-                    std::unordered_map<BlockHash, State> states = {},
-                    Votes latest_known_votes = {},
-                    Votes latest_new_votes = {},
-                    ValidatorIndex validator_index = 0);
+                    Config config,
+                    BlockHash head,
+                    BlockHash safe_target,
+                    Checkpoint latest_justified,
+                    Checkpoint latest_finalized,
+                    Blocks blocks,
+                    std::unordered_map<BlockHash, State> states,
+                    Votes latest_known_votes,
+                    Votes latest_new_votes,
+                    ValidatorIndex validator_index,
+                    qtils::SharedRef<ValidatorRegistry> validator_registry);
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -167,8 +177,13 @@ namespace lean {
     std::unordered_map<BlockHash, State> states_;
     Votes latest_known_votes_;
     Votes latest_new_votes_;
-    const ValidatorIndex validator_index_;
+    qtils::SharedRef<ValidatorRegistry> validator_registry_;
     log::Logger logger_;
+
+    metrics::GaugeHelper metric_latest_finalized_{
+        "latest_finalized",
+        "",
+    };
   };
 
   BlockHash getForkChoiceHead(const ForkChoiceStore::Blocks &blocks,

@@ -11,13 +11,7 @@
 
 #include <qtils/byte_vec.hpp>
 
-#include "types/types.hpp"
-
-namespace lean {
-
-  using NodeAddress = Stub;
-
-}
+#include "app/bootnodes.hpp"
 
 namespace lean::app {
 
@@ -25,14 +19,7 @@ namespace lean::app {
    public:
     virtual ~ChainSpec() = default;
 
-    [[nodiscard]] virtual const std::string &id() const = 0;
-
-    [[nodiscard]] virtual const std::vector<NodeAddress> &bootNodes() const = 0;
-
-    [[nodiscard]] virtual const qtils::ByteVec &genesisHeader() const = 0;
-
-    [[nodiscard]] virtual const std::map<qtils::ByteVec, qtils::ByteVec> &
-    genesisState() const = 0;
+    [[nodiscard]] virtual const app::Bootnodes &getBootnodes() const = 0;
   };
 
 }  // namespace lean::app

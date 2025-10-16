@@ -16,10 +16,12 @@ add_lean_module(networking
   DEFINITIONS
     SOME_FLAG=1
   LIBRARIES
+    blockchain
+    bootnodes
     p2p::libp2p
     qtils::qtils
     Snappy::snappy
     soralog::soralog
-    blockchain
     sszpp
+    validator_registry
 )
