@@ -16,6 +16,30 @@
 #include "app/configuration.hpp"
 
 namespace lean {
+  enum class ValidatorRegistryError {
+    MAP_EXPECTED,
+    NODE_ID_SCALAR_EXPECTED,
+    INDICES_SCALAR_EXPECTED,
+    INVALID_VALUE_TYPE,
+    ALREADY_ASSIGNED,
+  };
+  Q_ENUM_ERROR_CODE(ValidatorRegistryError) {
+    using E = decltype(e);
+    switch (e) {
+      case E::MAP_EXPECTED:
+        return "Validator registry YAML must be a YAML map";
+      case E::NODE_ID_SCALAR_EXPECTED:
+        return "Validator registry YAML has non-scalar node id";
+      case E::INDICES_SCALAR_EXPECTED:
+        return "Validator registry entry must contain scalar indices";
+      case E::INVALID_VALUE_TYPE:
+        return "Validator registry entry has invalid value type";
+      case E::ALREADY_ASSIGNED:
+        return "Validator index is already assigned to node";
+    }
+    abort();
+  }
+
   ValidatorRegistryImpl::ValidatorRegistryImpl(
       qtils::SharedRef<log::LoggingSystem> logging_system,
       const app::Configuration &config)
@@ -70,13 +94,12 @@ namespace lean {
     }
 
     if (not root.IsMap()) {
-      throw std::runtime_error{"Validator registry YAML must be a YAML map"};
+      qtils::raise(ValidatorRegistryError::MAP_EXPECTED);
     }
 
     for (const auto &entry : root) {
       if (not entry.first.IsScalar()) {
-        throw std::runtime_error{
-            "Validator registry YAML has non-scalar node id"};
+        qtils::raise(ValidatorRegistryError::NODE_ID_SCALAR_EXPECTED);
       }
       auto node_id = entry.first.as<std::string>();
       const auto &indices_node = entry.second;
@@ -84,9 +107,7 @@ namespace lean {
       std::vector<ValidatorIndex> indices;
       auto parse_index = [&](const YAML::Node &value) {
         if (not value.IsScalar()) {
-          throw std::runtime_error{fmt::format(
-              "Validator registry entry '{}' must contain scalar indices",
-              node_id)};
+          qtils::raise(ValidatorRegistryError::INDICES_SCALAR_EXPECTED);
         }
         auto idx = value.as<ValidatorIndex>();
         indices.emplace_back(idx);
@@ -101,8 +122,7 @@ namespace lean {
       } else if (indices_node.IsNull()) {
         continue;
       } else {
-        throw std::runtime_error{fmt::format(
-            "Validator registry entry '{}' has invalid value type", node_id)};
+        qtils::raise(ValidatorRegistryError::INVALID_VALUE_TYPE);
       }
 
       if (indices.empty()) {
@@ -117,12 +137,7 @@ namespace lean {
 
       for (auto idx : indices) {
         if (index_to_node_.contains(idx)) {
-          throw std::runtime_error{
-              fmt::format("Validator index {} is already assigned to node '{}' "
-                          "(while processing '{}')",
-                          idx,
-                          index_to_node_.at(idx),
-                          node_id)};
+          qtils::raise(ValidatorRegistryError::ALREADY_ASSIGNED);
         }
         index_to_node_.emplace(idx, node_id);
         node_indices.emplace_back(idx);
