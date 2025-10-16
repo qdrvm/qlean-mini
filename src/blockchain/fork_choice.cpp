@@ -323,7 +323,7 @@ namespace lean {
                      res.error());
             continue;
           }
-          const auto &new_block = res.value();
+          auto &new_block = res.value();
 
           auto new_signed_block = signBlock(std::move(new_block));
 
