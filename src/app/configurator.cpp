@@ -316,9 +316,10 @@ groups:
               if (auto r = keyPairFromPrivateKeyHex(value)) {
                 config_->node_key_ = r.value();
               } else {
-                std::println(file_errors_,
+                fmt::println(file_errors_,
                              "E: Value 'general.node_key' must be private key "
-                             "hex or it's file path");
+                             "hex or it's file path: {}",
+                             r.error());
                 file_has_error_ = true;
               }
             } else {
@@ -364,9 +365,10 @@ groups:
               if (auto r = libp2p::Multiaddress::create(value)) {
                 config_->listen_multiaddr_ = r.value();
               } else {
-                std::println(file_errors_,
+                fmt::println(file_errors_,
                              "E: Value 'general.listen_addr' must be valid "
-                             "multiaddress");
+                             "multiaddress: {}",
+                             r.error());
                 file_has_error_ = true;
               }
             } else {
@@ -436,7 +438,8 @@ groups:
             config_->node_key_ = r.value();
           } else {
             SL_ERROR(logger_,
-                     "'node-key' must be private key hex or it's file path");
+                     "'node-key' must be private key hex or it's file path: {}",
+                     r.error());
             fail = true;
           }
         });
@@ -458,7 +461,9 @@ groups:
           if (auto r = libp2p::Multiaddress::create(value)) {
             config_->listen_multiaddr_ = r.value();
           } else {
-            SL_ERROR(logger_, "'listen-addr' must be valid multiaddress");
+            SL_ERROR(logger_,
+                     "'listen-addr' must be valid multiaddress: {}",
+                     r.error());
             fail = true;
           }
         });
