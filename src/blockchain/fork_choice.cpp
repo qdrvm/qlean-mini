@@ -167,9 +167,8 @@ namespace lean {
     for (auto &signed_vote : latest_known_votes_ | std::views::values) {
       block.body.attestations.push_back(signed_vote);
     }
-    BOOST_OUTCOME_TRY(
-        auto state,
-        stf_.stateTransition({.message = block}, head_state, false));
+    BOOST_OUTCOME_TRY(auto state,
+                      stf_.stateTransition(block, head_state, false));
     block.state_root = sszHash(state);
     block.setHash();
 
@@ -275,9 +274,8 @@ namespace lean {
     // chain if not available before adding block to forkchoice
 
     // Get post state from STF (State Transition Function)
-    BOOST_OUTCOME_TRY(
-        auto state,
-        stf_.stateTransition({.message = block}, parent_state, true));
+    BOOST_OUTCOME_TRY(auto state,
+                      stf_.stateTransition(block, parent_state, true));
     blocks_.emplace(block_hash, block);
     states_.emplace(block_hash, std::move(state));
 
@@ -327,14 +325,13 @@ namespace lean {
           }
           const auto &new_block = res.value();
 
-          SignedBlock new_signed_block{.message = new_block};
+          auto new_signed_block = signBlock(std::move(new_block));
 
           SL_INFO(logger_,
-                  "Produced block for slot {} with parent {} state {} hash {}",
-                  current_slot,
-                  new_block.parent_root,
-                  new_signed_block.message.state_root,
-                  new_signed_block.message.hash());
+                  "Produced block {} with parent {} state {}",
+                  new_signed_block.message.slotHash(),
+                  new_signed_block.message.parent_root,
+                  new_signed_block.message.state_root);
           result.emplace_back(std::move(new_signed_block));
         }
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
@@ -357,16 +354,13 @@ namespace lean {
                 source.value());
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
-          SignedVote signed_vote{
-              .validator_id = validator_index,
-              .data =
-                  Vote{
-                      .slot = current_slot,
-                      .head = head,
-                      .target = target,
-                      .source = *source,
-                  },
-          };
+          auto signed_vote = signVote(validator_index,
+                                      Vote{
+                                          .slot = current_slot,
+                                          .head = head,
+                                          .target = target,
+                                          .source = *source,
+                                      });
 
           // Dispatching send signed vote only broadcasts to other peers.
           // Current peer should process attestation directly

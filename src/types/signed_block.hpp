@@ -18,4 +18,10 @@ namespace lean {
     SSZ_CONT(message, signature);
   };
 
+  /**
+   * Stub method to sign block.
+   */
+  inline SignedBlock signBlock(Block block) {
+    return SignedBlock{.message = std::move(block)};
+  }
 }  // namespace lean

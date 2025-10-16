@@ -18,7 +18,6 @@ namespace lean {
   struct Block;
   struct BlockBody;
   struct Config;
-  struct SignedBlock;
   struct SignedVote;
   struct State;
 
@@ -61,7 +60,7 @@ namespace lean {
      * Apply block to parent state.
      * @returns new state
      */
-    outcome::result<State> stateTransition(const SignedBlock &signed_block,
+    outcome::result<State> stateTransition(const Block &block,
                                            const State &parent_state,
                                            bool check_state_root) const;
 

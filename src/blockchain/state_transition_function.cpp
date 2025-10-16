@@ -103,10 +103,9 @@ namespace lean {
     return result;
   }
 
-  outcome::result<State> STF::stateTransition(const SignedBlock &signed_block,
+  outcome::result<State> STF::stateTransition(const Block &block,
                                               const State &parent_state,
                                               bool check_state_root) const {
-    auto &block = signed_block.message;
     auto state = parent_state;
     // Process slots (including those with no blocks) since block
     OUTCOME_TRY(processSlots(state, block.slot));

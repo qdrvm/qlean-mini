@@ -26,6 +26,7 @@
 
 namespace lean {
   struct GenesisConfig;
+  struct SignedBlock;
 }  // namespace lean
 
 namespace lean {
