@@ -39,7 +39,7 @@ namespace lean {
     return std::nullopt;
   }
 
-  std::optional<ValidatorRegistryImpl::ValidatorIndices>
+  std::optional<ValidatorRegistry::ValidatorIndices>
   ValidatorRegistryImpl::validatorIndicesForNodeId(
       std::string_view node_id) const {
     if (node_id.empty()) {
@@ -52,7 +52,7 @@ namespace lean {
     return std::nullopt;
   }
 
-  const ValidatorRegistryImpl::ValidatorIndices &
+  const ValidatorRegistry::ValidatorIndices &
   ValidatorRegistryImpl::currentValidatorIndices() const {
     return current_validator_indices_;
   }
