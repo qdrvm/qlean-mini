@@ -7,6 +7,7 @@
 #include "blockchain/genesis_config.hpp"
 
 #include <fmt/chrono.h>
+#include <qtils/value_or_raise.hpp>
 
 #include "app/configuration.hpp"
 #include "log/logger.hpp"
@@ -15,7 +16,8 @@
 namespace lean {
   GenesisConfig::GenesisConfig(const log::LoggingSystem &logsys,
                                const app::Configuration &app_config)
-      : config{readConfigYaml(app_config.genesisConfigPath()).value()} {
+      : config{qtils::valueOrRaise(
+            readConfigYaml(app_config.genesisConfigPath()))} {
     auto logger = logsys.getLogger("GenesisConfig", "genesis_config");
     SL_INFO(logger,
             "Genesis config loaded: genesis_time={} (UTC {:%Y-%m-%d "
