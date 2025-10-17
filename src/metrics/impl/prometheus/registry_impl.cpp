@@ -11,7 +11,7 @@
 
 namespace lean::metrics {
 
-  std::unique_ptr<Registry> createRegistry() {
+  std::unique_ptr<PrometheusRegistry> PrometheusRegistry::create() {
     return std::make_unique<PrometheusRegistry>();
   }
 

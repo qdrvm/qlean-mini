@@ -11,6 +11,7 @@
 #include "app/configuration.hpp"
 #include "app/state_manager.hpp"
 #include "log/logger.hpp"
+#include "metrics/impl/prometheus/registry_impl.hpp"
 #include "metrics/registry.hpp"
 
 namespace lean::metrics {
@@ -21,7 +22,7 @@ namespace lean::metrics {
       std::shared_ptr<app::Configuration> app_config)
       : state_manager_(std::move(state_manager)),
         app_config_(std::move(app_config)),
-        metrics_registry_(metrics::createRegistry()) {
+        metrics_registry_(PrometheusRegistry::create()) {
     BOOST_ASSERT(state_manager);
 
     // Metric for exposing current storage size

@@ -15,6 +15,7 @@
 #include "blockchain/impl/block_tree_initializer.hpp"
 #include "blockchain/impl/cached_tree.hpp"
 #include "log/logger.hpp"
+#include "metrics/helpers.hpp"
 #include "metrics/histogram_timer.hpp"
 #include "se/impl/common.hpp"
 #include "se/subscription.hpp"
@@ -204,9 +205,10 @@ namespace lean::blockchain {
     SafeBlockTreeData block_tree_data_;
 
     // Metrics
-    metrics::GaugeHelper metric_best_block_height_;
-    metrics::GaugeHelper metric_finalized_block_height_;
-    metrics::GaugeHelper metric_known_chain_leaves_;
+    // TODO: refactor metrics
+    // metrics::GaugeHelper metric_best_block_height_;
+    // metrics::GaugeHelper metric_finalized_block_height_;
+    // metrics::GaugeHelper metric_known_chain_leaves_;
   };
 
 }  // namespace lean::blockchain

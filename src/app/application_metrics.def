@@ -1,0 +1,43 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * @file application_metrics.def
+ * @brief Application-level metrics definitions
+ *
+ * Format:
+ *   METRIC_GAUGE(field_name,
+ *                "prometheus_metric_name",
+ *                "help_text")
+ *
+ *   METRIC_GAUGE(field_name,
+ *                "prometheus_metric_name",
+ *                "help_text",
+ *                "label1",
+ *                "label2",
+ *                ...)
+ *
+ * Parameters:
+ *   - field_name: Required - C++ member variable name
+ *   - prometheus_metric_name: Required - Prometheus metric name
+ *   - help_text: Required - Metric description
+ *   - labels: Optional - Any number of label names (must be string literals)
+ *
+ * Notes:
+ *   - All labels MUST be strings (enforced by static_assert at compile time)
+ *   - If you pass a non-string type, you'll get a compile error
+ *   - Usage: metrics_->metric_name({{"label1", value1}, {"label2", value2}})->set(...)
+ */
+
+METRIC_GAUGE(app_build_info,
+             "lean_build_info",
+             "A metric with a constant '1' value labeled by name, version",
+             "name",
+             "version")
+
+METRIC_GAUGE(app_process_start_time,
+             "lean_process_start_time_seconds",
+             "UNIX timestamp of the moment the process started")

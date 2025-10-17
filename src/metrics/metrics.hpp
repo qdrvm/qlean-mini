@@ -6,12 +6,29 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+#include <map>
+
 #include "metrics/registry.hpp"
 
 namespace lean::metrics {
-  // the function recommended to use to create a registry of the chosen
-  // implementation
-  std::unique_ptr<Registry> createRegistry();
+  class GaugeHelper;
+
+  /**
+   * @brief Metrics interface that holds all application metrics
+   *
+   * This interface provides access to application-wide metrics collection.
+   */
+  class Metrics {
+   public:
+    virtual ~Metrics() = default;
+
+    /**
+     * @brief Get the underlying registry
+     */
+    virtual Registry& getRegistry() = 0;
+  };
 
   /**
    * @brief A counter metric to represent a monotonically increasing value.

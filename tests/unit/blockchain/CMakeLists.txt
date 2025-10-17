@@ -19,6 +19,7 @@ addtest(fork_choice_test
 target_link_libraries(fork_choice_test
     blockchain
     logger_for_tests
+    metrics
     )
 
 addtest(state_transition_function_test

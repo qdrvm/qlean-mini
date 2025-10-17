@@ -8,6 +8,7 @@
 
 #include <ranges>
 
+#include "metrics/impl/metrics_impl.hpp"
 #include "types/signed_block.hpp"
 #include "utils/__debug_env.hpp"
 
@@ -344,6 +345,7 @@ namespace lean {
         auto head_slot = getBlockSlot(head_root);
         BOOST_ASSERT_MSG(head_slot.has_value(),
                          "Head block must have a valid slot");
+        metrics_->fc_head_slot->set(head_slot.value());
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getVoteTarget();
         auto source = getLatestJustified();
@@ -462,10 +464,12 @@ namespace lean {
       const AnchorState &anchor_state,
       const AnchorBlock &anchor_block,
       qtils::SharedRef<clock::SystemClock> clock,
-      qtils::SharedRef<log::LoggingSystem> logging_system)
+      qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::MetricsImpl> metrics)
       : validator_index_(getPeerIndex()),
         logger_(
-            logging_system->getLogger("ForkChoiceStore", "fork_choice_store")) {
+            logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
+        metrics_(std::move(metrics)) {
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
@@ -491,6 +495,7 @@ namespace lean {
   ForkChoiceStore::ForkChoiceStore(
       uint64_t now_sec,
       qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::MetricsImpl> metrics,
       Config config,
       BlockHash head,
       BlockHash safe_target,
@@ -513,5 +518,6 @@ namespace lean {
         states_(std::move(states)),
         latest_known_votes_(std::move(latest_known_votes)),
         latest_new_votes_(std::move(latest_new_votes)),
-        validator_index_(validator_index) {}
+        validator_index_(validator_index),
+        metrics_(std::move(metrics)) {}
 }  // namespace lean

@@ -14,6 +14,7 @@
 
 #include "qtils/test/outcome.hpp"
 #include "tests/testutil/prepare_loggers.hpp"
+#include "tests/mock/blockchain/mock_metrics.hpp"
 #include "blockchain/is_justifiable_slot.hpp"
 #include "types/signed_block.hpp"
 
@@ -72,6 +73,7 @@ auto createTestStore(uint64_t time = 100,
   return ForkChoiceStore(
       time,
       testutil::prepareLoggers(),
+      lean::metrics::createMockMetrics(),
       config_param,
       head,
       safe_target,

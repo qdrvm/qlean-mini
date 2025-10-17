@@ -69,6 +69,15 @@ namespace lean::metrics {
 
   class PrometheusRegistry : public Registry {
     friend class PrometheusHandler;
+
+   public:
+    /**
+     * @brief Factory method to create PrometheusRegistry instance
+     * @return Unique pointer to a new registry
+     */
+    static std::unique_ptr<PrometheusRegistry> create();
+
+   private:
     // prometheus owns families, returns reference
     // sort of cache, not to search every time in prometheus vector of families
     std::unordered_map<std::string,

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "metrics/impl/prometheus/registry_impl.hpp"
 #include "metrics/metrics.hpp"
 #include "metrics/registry.hpp"
 #include "qtils/final_action.hpp"
@@ -21,26 +22,6 @@ namespace lean::metrics {
     return buckets;
   }
 
-  struct GaugeHelper {
-    GaugeHelper(const std::string &name, const std::string &help) {
-      registry_->registerGaugeFamily(name, help);
-      metric_ = registry_->registerGaugeMetric(name);
-    }
-    GaugeHelper(const std::string &name,
-                const std::string &help,
-                const std::map<std::string, std::string> &labels) {
-      registry_->registerGaugeFamily(name, help);
-      metric_ = registry_->registerGaugeMetric(name, labels);
-    }
-
-    auto *operator->() const {
-      return metric_;
-    }
-
-    std::unique_ptr<metrics::Registry> registry_ = metrics::createRegistry();
-    metrics::Gauge *metric_;
-  };
-
   struct HistogramHelper {
     HistogramHelper(const std::string &name,
                     const std::string &help,
@@ -53,7 +34,7 @@ namespace lean::metrics {
       metric_->observe(value);
     }
 
-    std::unique_ptr<metrics::Registry> registry_ = metrics::createRegistry();
+    std::unique_ptr<metrics::Registry> registry_ = PrometheusRegistry::create();
     metrics::Histogram *metric_;
   };
 

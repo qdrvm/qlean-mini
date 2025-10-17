@@ -40,19 +40,21 @@ namespace lean::blockchain {
             .tree_ = std::make_unique<CachedTree>(
                 std::get<0>(initializer->nonFinalizedSubTree())),
             .hasher_ = std::move(hasher),
-        }},
-        metric_best_block_height_("block_chain_height",
-                                  "Block height info of the chain",
-                                  {{"status", "best"}}),
-        metric_finalized_block_height_("block_chain_height",
-                                       "Block height info of the chain",
-                                       {{"status", "finalized"}}),
-        metric_known_chain_leaves_("number_leaves",
-                                   "Number of known chain leaves (aka forks)") {
+        }} {
+        // TODO: refactor metrics
+        // metric_best_block_height_("block_chain_height",
+        //                           "Block height info of the chain",
+        //                           {{"status", "best"}}),
+        // metric_finalized_block_height_("block_chain_height",
+        //                                "Block height info of the chain",
+        //                                {{"status", "finalized"}}),
+        // metric_known_chain_leaves_("number_leaves",
+        //                            "Number of known chain leaves (aka forks)") {
     block_tree_data_.sharedAccess([&](const BlockTreeData &p) {
-      metric_best_block_height_->set(bestBlockNoLock(p).slot);
-      metric_finalized_block_height_->set(getLastFinalizedNoLock(p).slot);
-      metric_known_chain_leaves_->set(p.tree_->leafCount());
+      // TODO: refactor metrics
+      // metric_best_block_height_->set(bestBlockNoLock(p).slot);
+      // metric_finalized_block_height_->set(getLastFinalizedNoLock(p).slot);
+      // metric_known_chain_leaves_->set(p.tree_->leafCount());
       // telemetry_->setGenesisBlockHash(getGenesisBlockHash());
     });
 
@@ -386,7 +388,8 @@ namespace lean::blockchain {
 
 
         log_->info("Finalized block {}", node->index);
-        metric_finalized_block_height_->set(node->index.slot);
+        // TODO: refactor metrics
+        // metric_finalized_block_height_->set(node->index.slot);
 
       } else {
         OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
@@ -822,7 +825,8 @@ namespace lean::blockchain {
   outcome::result<void> BlockTreeImpl::reorgAndPrune(
       const BlockTreeData &p, const ReorgAndPrune &changes) {
     OUTCOME_TRY(p.storage_->setBlockTreeLeaves(p.tree_->leafHashes()));
-    metric_known_chain_leaves_->set(p.tree_->leafCount());
+    // TODO: refactor metrics
+    // metric_known_chain_leaves_->set(p.tree_->leafCount());
     if (changes.reorg) {
       for (auto &block : changes.reorg->revert) {
         OUTCOME_TRY(p.storage_->deassignHashToSlot(block));
@@ -831,9 +835,11 @@ namespace lean::blockchain {
         OUTCOME_TRY(p.storage_->assignHashToSlot(block));
       }
       if (not changes.reorg->apply.empty()) {
-        metric_best_block_height_->set(changes.reorg->apply.back().slot);
+        // TODO: refactor metrics
+        // metric_best_block_height_->set(changes.reorg->apply.back().slot);
       } else {
-        metric_best_block_height_->set(changes.reorg->common.slot);
+        // TODO: refactor metrics
+        // metric_best_block_height_->set(changes.reorg->common.slot);
       }
     }
 

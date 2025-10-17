@@ -42,6 +42,7 @@
 
 # IDE auxiliaries
 .idea
+.vscode
 
 /build
 /build-ex

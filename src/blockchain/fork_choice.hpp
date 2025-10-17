@@ -20,6 +20,9 @@
 #include "types/validator_index.hpp"
 #include "utils/ceil_div.hpp"
 
+namespace lean::metrics {
+  class MetricsImpl;
+}
 namespace lean {
   class ForkChoiceStore {
    public:
@@ -44,15 +47,18 @@ namespace lean {
     ForkChoiceStore(const AnchorState &anchor_state,
                     const AnchorBlock &anchor_block,
                     qtils::SharedRef<clock::SystemClock> clock,
-                    qtils::SharedRef<log::LoggingSystem> logging_system);
+                    qtils::SharedRef<log::LoggingSystem> logging_system,
+                    qtils::SharedRef<metrics::MetricsImpl> metrics);
 
     BOOST_DI_INJECT_TRAITS(const AnchorState &,
                            const AnchorBlock &,
                            qtils::SharedRef<clock::SystemClock>,
-                           qtils::SharedRef<log::LoggingSystem>);
+                           qtils::SharedRef<log::LoggingSystem>,
+                           qtils::SharedRef<metrics::MetricsImpl>);
     // Test constructor - only for use in tests
     ForkChoiceStore(uint64_t now_sec,
                     qtils::SharedRef<log::LoggingSystem> logging_system,
+                    qtils::SharedRef<metrics::MetricsImpl> metrics,
                     Config config = {},
                     BlockHash head = {},
                     BlockHash safe_target = {},
@@ -169,6 +175,7 @@ namespace lean {
     Votes latest_new_votes_;
     const ValidatorIndex validator_index_;
     log::Logger logger_;
+    qtils::SharedRef<metrics::MetricsImpl> metrics_;
   };
 
   BlockHash getForkChoiceHead(const ForkChoiceStore::Blocks &blocks,

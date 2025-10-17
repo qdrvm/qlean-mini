@@ -5,6 +5,7 @@
 #
 
 add_library(metrics
+    impl/metrics_impl.cpp
     impl/exposer_impl.cpp
     impl/prometheus/handler_impl.cpp
     impl/prometheus/metrics_impl.cpp

@@ -8,6 +8,8 @@
 
 #include <thread>
 
+#include <boost/di.hpp>
+
 #include "metrics/exposer.hpp"
 
 namespace lean::app {
@@ -39,6 +41,19 @@ namespace lean::metrics {
     bool prepare() override;
     bool start() override;
     void stop() override;
+
+    void registerCollectable(Registry &registry) override {
+      if (handler_) {
+        handler_->registerCollectable(registry);
+      }
+    }
+
+    void onSessionRequest(Session::Request request,
+                         std::shared_ptr<Session> session) override {
+      if (handler_) {
+        handler_->onSessionRequest(std::move(request), std::move(session));
+      }
+    }
 
    private:
     void acceptOnce();

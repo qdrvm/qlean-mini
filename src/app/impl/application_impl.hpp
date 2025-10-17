@@ -9,6 +9,7 @@
 #include <memory>
 
 #include <metrics/registry.hpp>
+#include <metrics/metrics.hpp>
 #include <qtils/shared_ref.hpp>
 
 #include "app/application.hpp"
@@ -37,9 +38,8 @@ namespace lean::log {
 }  // namespace lean::log
 
 namespace lean::metrics {
-  class Registry;
-  class Gauge;
   class Exposer;
+  class MetricsImpl;
 }  // namespace lean::metrics
 
 namespace lean::app {
@@ -81,6 +81,7 @@ namespace lean::app {
                     qtils::SharedRef<Configuration> config,
                     qtils::SharedRef<StateManager> state_manager,
                     qtils::SharedRef<Watchdog> watchdog,
+                    qtils::SharedRef<metrics::MetricsImpl> metrics,
                     qtils::SharedRef<metrics::Exposer> metrics_exposer,
                     qtils::SharedRef<clock::SystemClock> system_clock,
                     qtils::SharedRef<Timeline> timeline,
@@ -93,12 +94,11 @@ namespace lean::app {
     qtils::SharedRef<Configuration> app_config_;
     qtils::SharedRef<StateManager> state_manager_;
     qtils::SharedRef<Watchdog> watchdog_;
+    qtils::SharedRef<metrics::MetricsImpl> metrics_;
     qtils::SharedRef<metrics::Exposer> metrics_exposer_;
     qtils::SharedRef<clock::SystemClock> system_clock_;
     qtils::SharedRef<Timeline> timeline_;
 
-    // Metrics
-    std::unique_ptr<metrics::Registry> metrics_registry_;
   };
 
 }  // namespace lean::app

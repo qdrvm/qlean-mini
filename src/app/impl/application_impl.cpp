@@ -15,8 +15,10 @@
 #include "app/timeline.hpp"
 #include "clock/clock.hpp"
 #include "log/logger.hpp"
+#include "metrics/exposer.hpp"
 #include "metrics/histogram_timer.hpp"
 #include "metrics/metrics.hpp"
+#include "metrics/impl/metrics_impl.hpp"
 #include "se/impl/subscription_manager.hpp"
 
 namespace lean::app {
@@ -32,6 +34,7 @@ namespace lean::app {
       qtils::SharedRef<Configuration> config,
       qtils::SharedRef<StateManager> state_manager,
       qtils::SharedRef<Watchdog> watchdog,
+      qtils::SharedRef<metrics::MetricsImpl> metrics,
       qtils::SharedRef<metrics::Exposer> metrics_exposer,
       qtils::SharedRef<clock::SystemClock> system_clock,
       qtils::SharedRef<Timeline> timeline,
@@ -40,17 +43,15 @@ namespace lean::app {
         app_config_(std::move(config)),
         state_manager_(std::move(state_manager)),
         watchdog_(std::move(watchdog)),
+        metrics_(std::move(metrics)),
         metrics_exposer_(std::move(metrics_exposer)),
         system_clock_(std::move(system_clock)),
-        timeline_(std::move(timeline)),
-        metrics_registry_(metrics::createRegistry()) {
+        timeline_(std::move(timeline)) {
+    metrics_exposer_->registerCollectable(metrics_->getRegistry());
+
     // Metric for exposing name and version of node
-    metrics::GaugeHelper(
-        "lean_build_info",
-        "A metric with a constant '1' value labeled by name, version",
-        std::map<std::string, std::string>{
-            {"name", app_config_->nodeName()},
-            {"version", app_config_->nodeVersion()}})
+    metrics_->app_build_info({{"name", app_config_->nodeName()},
+                               {"version", app_config_->nodeVersion()}})
         ->set(1);
   }
 
@@ -67,10 +68,8 @@ namespace lean::app {
 
     state_manager_->atShutdown([this] { watchdog_->stop(); });
 
-    // Metric storing start time
-    metrics::GaugeHelper("lean_process_start_time_seconds",
-                         "UNIX timestamp of the moment the process started")
-        ->set(system_clock_->nowSec());
+    // Set process start time metric
+    metrics_->app_process_start_time->set(system_clock_->nowSec());
 
     state_manager_->run();
 
