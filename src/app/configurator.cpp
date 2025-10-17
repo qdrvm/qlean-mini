@@ -134,9 +134,9 @@ namespace lean::app {
 
     po::options_description metrics_options("Metric options");
     metrics_options.add_options()
-        ("prometheus_disable", "Set to disable OpenMetrics.")
-        ("prometheus_host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
-        ("prometheus_port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
+        ("prometheus-disable", "Set to disable OpenMetrics.")
+        ("prometheus-host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
+        ("prometheus-port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
         ;
 
     // clang-format on
@@ -714,8 +714,9 @@ namespace lean::app {
     bool fail;
 
     fail = false;
+    // support new kebab-case option name
     find_argument<std::string>(
-        cli_values_map_, "prometheus_host", [&](const std::string &value) {
+        cli_values_map_, "prometheus-host", [&](const std::string &value) {
           boost::beast::error_code ec;
           auto address = boost::asio::ip::make_address(value, ec);
           if (!ec) {
@@ -725,7 +726,7 @@ namespace lean::app {
               config_->metrics_.enabled = true;
             }
           } else {
-            std::cerr << "Option --prometheus_host has invalid value\n"
+            std::cerr << "Option --prometheus-host has invalid value\n"
                       << "Try run with option '--help' for more information\n";
             fail = true;
           }
@@ -736,7 +737,7 @@ namespace lean::app {
 
     fail = false;
     find_argument<uint16_t>(
-        cli_values_map_, "prometheus_port", [&](const uint16_t &value) {
+        cli_values_map_, "prometheus-port", [&](const uint16_t &value) {
           if (value > 0 and value <= 65535) {
             config_->metrics_.endpoint = {config_->metrics_.endpoint.address(),
                                           static_cast<uint16_t>(value)};
@@ -744,7 +745,7 @@ namespace lean::app {
               config_->metrics_.enabled = true;
             }
           } else {
-            std::cerr << "Option --prometheus_port has invalid value\n"
+            std::cerr << "Option --prometheus-port has invalid value\n"
                       << "Try run with option '--help' for more information\n";
             fail = true;
           }
@@ -753,7 +754,7 @@ namespace lean::app {
       return Error::CliArgsParseFailed;
     }
 
-    if (find_argument(cli_values_map_, "prometheus_disabled")) {
+    if (find_argument(cli_values_map_, "prometheus-disable")) {
       config_->metrics_.enabled = false;
     };
     if (not config_->metrics_.enabled.has_value()) {

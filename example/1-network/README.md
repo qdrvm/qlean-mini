@@ -35,7 +35,7 @@ Node 0:
   --node-id node_0 \
   --node-key cb920fbda3b96e18f03e22825f4a5a61343ec43c7be1c8c4a717fffee2f4c4ce \
   --listen-addr /ip4/0.0.0.0/udp/9000/quic-v1 \
-  --prometheus_port 9100
+  --prometheus-port 9100
 ```
 
 Node 1:
@@ -49,7 +49,7 @@ Node 1:
   --node-id node_1 \
   --node-key a87e7d23bb1de4613b67002b700bce41e031f4ab1529a3436bd73c893ea039b3 \
   --listen-addr /ip4/0.0.0.0/udp/9001/quic-v1 \
-  --prometheus_port 9101
+  --prometheus-port 9101
 ```
 
 Node 2:
@@ -63,7 +63,7 @@ Node 2:
   --node-id node_2 \
   --node-key f2f53f6acf312c5e92c2a611bbca7a1932b4db0b9e0c43bec413badca9b76760 \
   --listen-addr /ip4/0.0.0.0/udp/9002/quic-v1 \
-  --prometheus_port 9102
+  --prometheus-port 9102
 ```
 
 Node 3:
@@ -77,7 +77,7 @@ Node 3:
   --node-id node_3 \
   --node-key fa5ddbec80f964d17d28221c2c5bac0f4a3f9cfcf4b86674e605f459e195a1c4 \
   --listen-addr /ip4/0.0.0.0/udp/9003/quic-v1 \
-  --prometheus_port 9103
+  --prometheus-port 9103
 ```
 
 ## Notes and tips
@@ -85,4 +85,3 @@ Node 3:
 - Start Node 0 first so others can discover it via the bootnodes list; the rest can follow in any order.
 - Ports (9000–9003) must be free; adjust if they’re taken. Prometheus ports (9100–9103) are optional and can be changed or omitted.
 - For an explanation of the common flags, see `example/0-single/README.md` (the meanings are the same).
-

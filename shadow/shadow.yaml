@@ -12,7 +12,7 @@ hosts:
     ip_addr: 10.0.0.10
     processes:
       - path: build/src/executable/qlean
-        args: --modules-dir /path/to/qlean-mini/build/src/modules --bootnodes /path/to/qlean-mini/example/1-network/genesis/nodes.yaml --genesis /path/to/qlean-mini/example/1-network/genesis/config.yaml --validator-registry-path /path/to/qlean-mini/example/1-network/genesis/validators.yaml --node-id node_0 --node-key cb920fbda3b96e18f03e22825f4a5a61343ec43c7be1c8c4a717fffee2f4c4ce --listen-addr /ip4/0.0.0.0/udp/9000/quic-v1 --prometheus_port 9100
+        args: --modules-dir /path/to/qlean-mini/build/src/modules --bootnodes /path/to/qlean-mini/example/1-network/genesis/nodes.yaml --genesis /path/to/qlean-mini/example/1-network/genesis/config.yaml --validator-registry-path /path/to/qlean-mini/example/1-network/genesis/validators.yaml --node-id node_0 --node-key cb920fbda3b96e18f03e22825f4a5a61343ec43c7be1c8c4a717fffee2f4c4ce --listen-addr /ip4/0.0.0.0/udp/9000/quic-v1 --prometheus-port 9100
         expected_final_state: running
 
   node1:
@@ -20,7 +20,7 @@ hosts:
     ip_addr: 10.0.0.11
     processes:
       - path: build/src/executable/qlean
-        args: --modules-dir /path/to/qlean-mini/build/src/modules --bootnodes /path/to/qlean-mini/example/1-network/genesis/nodes.yaml --genesis /path/to/qlean-mini/example/1-network/genesis/config.yaml --validator-registry-path /path/to/qlean-mini/example/1-network/genesis/validators.yaml --node-id node_1 --node-key a87e7d23bb1de4613b67002b700bce41e031f4ab1529a3436bd73c893ea039b3 --listen-addr /ip4/0.0.0.0/udp/9001/quic-v1 --prometheus_port 9101
+        args: --modules-dir /path/to/qlean-mini/build/src/modules --bootnodes /path/to/qlean-mini/example/1-network/genesis/nodes.yaml --genesis /path/to/qlean-mini/example/1-network/genesis/config.yaml --validator-registry-path /path/to/qlean-mini/example/1-network/genesis/validators.yaml --node-id node_1 --node-key a87e7d23bb1de4613b67002b700bce41e031f4ab1529a3436bd73c893ea039b3 --listen-addr /ip4/0.0.0.0/udp/9001/quic-v1 --prometheus-port 9101
         expected_final_state: running
 
   node2:
@@ -28,7 +28,7 @@ hosts:
     ip_addr: 10.0.0.12
     processes:
       - path: build/src/executable/qlean
-        args: --modules-dir /path/to/qlean-mini/build/src/modules --bootnodes /path/to/qlean-mini/example/1-network/genesis/nodes.yaml --genesis /path/to/qlean-mini/example/1-network/genesis/config.yaml --validator-registry-path /path/to/qlean-mini/example/1-network/genesis/validators.yaml --node-id node_2 --node-key f2f53f6acf312c5e92c2a611bbca7a1932b4db0b9e0c43bec413badca9b76760 --listen-addr /ip4/0.0.0.0/udp/9002/quic-v1 --prometheus_port 9102
+        args: --modules-dir /path/to/qlean-mini/build/src/modules --bootnodes /path/to/qlean-mini/example/1-network/genesis/nodes.yaml --genesis /path/to/qlean-mini/example/1-network/genesis/config.yaml --validator-registry-path /path/to/qlean-mini/example/1-network/genesis/validators.yaml --node-id node_2 --node-key f2f53f6acf312c5e92c2a611bbca7a1932b4db0b9e0c43bec413badca9b76760 --listen-addr /ip4/0.0.0.0/udp/9002/quic-v1 --prometheus-port 9102
         expected_final_state: running
 
   node3:
@@ -36,5 +36,5 @@ hosts:
     ip_addr: 10.0.0.13
     processes:
       - path: build/src/executable/qlean
-        args: --modules-dir /path/to/qlean-mini/build/src/modules --bootnodes /path/to/qlean-mini/example/1-network/genesis/nodes.yaml --genesis /path/to/qlean-mini/example/1-network/genesis/config.yaml --validator-registry-path /path/to/qlean-mini/example/1-network/genesis/validators.yaml --node-id node_3 --node-key fa5ddbec80f964d17d28221c2c5bac0f4a3f9cfcf4b86674e605f459e195a1c4 --listen-addr /ip4/0.0.0.0/udp/9003/quic-v1 --prometheus_port 9103
+        args: --modules-dir /path/to/qlean-mini/build/src/modules --bootnodes /path/to/qlean-mini/example/1-network/genesis/nodes.yaml --genesis /path/to/qlean-mini/example/1-network/genesis/config.yaml --validator-registry-path /path/to/qlean-mini/example/1-network/genesis/validators.yaml --node-id node_3 --node-key fa5ddbec80f964d17d28221c2c5bac0f4a3f9cfcf4b86674e605f459e195a1c4 --listen-addr /ip4/0.0.0.0/udp/9003/quic-v1 --prometheus-port 9103
         expected_final_state: running
