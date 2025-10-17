@@ -13,6 +13,13 @@ Prerequisites:
 
 ## Start the node
 
+Before starting the node, update the GENESIS_TIME in the genesis config file to a future Unix timestamp (e.g., current time + 20 seconds) to allow the node to bootstrap the network. For example:
+
+```bash
+future_time=$(( $(date +%s) + 20 ))
+sed -i "s/GENESIS_TIME: .*/GENESIS_TIME: $future_time/" example/0-single/genesis/config.yaml
+```
+
 Example CLI command:
 
 ```zsh
@@ -51,4 +58,3 @@ Example CLI command:
 
 - If the binary cannot find modules, double-check you built the project and the `--modules-dir` path is correct.
 - You can run multiple nodes by copying this command and changing `--node-id`, `--node-key`, ports in `--listen-addr`, and using appropriate bootnodes.
-
