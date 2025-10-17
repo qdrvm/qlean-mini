@@ -10,7 +10,7 @@ This repository builds a small, modular node binary called `qlean` and a set of 
 
 ## Quick start
 
-### 0) Clone the repository
+### 0) Clone the repository and set system dependencies
 
 ```bash
 git clone https://github.com/qdrvm/qlean-mini.git
@@ -24,14 +24,14 @@ Prerequisites:
 - Python 3 (required by the CMake build)
 - vcpkg (manifest mode)
 
-Note: Dependencies are also listed in the `.ci/.env` file for both macOS and Linux. To install on Linux:
+Note: Dependencies are also listed in the `.ci/.env` file for both macOS and Linux. To install on Debian Linux:
 
 ```bash
 source .ci/.env
 sudo apt update && sudo apt install -y $(echo $LINUX_PACKAGES)
 ```
 
-After installing, if gcc-13 is the default compiler, set gcc-$GCC_VERSION as default (where GCC_VERSION is defined in .ci/.env):
+Make sure gcc-$GCC_VERSION is default compiler (where GCC_VERSION is defined in .ci/.env):
 
 ```bash
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 100
