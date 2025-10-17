@@ -72,6 +72,14 @@ cmake --preset default
 cmake --build build -j
 ```
 
+You can also build the project's Docker images (builder + runtime) with:
+
+```zsh
+make docker_build_all
+```
+
+See the `Makefile` for more Docker targets.
+
 This will:
 - Configure the project into `./build/`
 - Build the main node executable at `./build/src/executable/qlean`
