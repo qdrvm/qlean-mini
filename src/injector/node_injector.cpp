@@ -27,10 +27,11 @@
 #include "app/impl/state_manager_impl.hpp"
 #include "app/impl/timeline_impl.hpp"
 #include "app/impl/watchdog.hpp"
+#include "blockchain/genesis_config.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/block_tree_impl.hpp"
 #include "blockchain/impl/fc_block_tree.hpp"
-#include "blockchain/impl/genesis_block_header_impl.hpp"
+#include "blockchain/impl/validator_registry_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
 #include "injector/bind_by_lambda.hpp"
@@ -69,7 +70,6 @@ namespace {
   template <typename... Ts>
   auto makeApplicationInjector(std::shared_ptr<log::LoggingSystem> logsys,
                                std::shared_ptr<app::Configuration> app_config,
-                               std::shared_ptr<Config> genesis_config,
                                Ts &&...args) {
     // clang-format off
     return di::make_injector(
@@ -96,16 +96,15 @@ namespace {
                   .openmetricsHttpEndpoint()
           };
         }),
-        di::bind<Config>.to(genesis_config),
         di::bind<storage::BufferStorage>.to<storage::InMemoryStorage>(),
         //di::bind<storage::SpacedStorage>.to<storage::InMemorySpacedStorage>(),
         di::bind<storage::SpacedStorage>.to<storage::RocksDb>(),
         di::bind<app::ChainSpec>.to<app::ChainSpecImpl>(),
         di::bind<crypto::Hasher>.to<crypto::HasherImpl>(),
-        di::bind<blockchain::GenesisBlockHeader>.to<blockchain::GenesisBlockHeaderImpl>(),
         di::bind<blockchain::BlockStorage>.to<blockchain::BlockStorageImpl>(),
         di::bind<app::Timeline>.to<app::TimelineImpl>(),
         di::bind<blockchain::BlockTree>.to<blockchain::FCBlockTree>(),
+        di::bind<ValidatorRegistry>.to<ValidatorRegistryImpl>(),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);
@@ -115,17 +114,9 @@ namespace {
   template <typename... Ts>
   auto makeNodeInjector(std::shared_ptr<log::LoggingSystem> logsys,
                         std::shared_ptr<app::Configuration> app_config,
-                        std::shared_ptr<Config> genesis_config,
                         Ts &&...args) {
-    AnchorState genesis_state = STF::generateGenesisState(*genesis_config);
-    AnchorBlock genesis_block = STF::genesisBlock(genesis_state);
-
     return di::make_injector<boost::di::extension::shared_config>(
-        makeApplicationInjector(std::move(logsys),
-                                std::move(app_config),
-                                std::move(genesis_config),
-                                useConfig<AnchorState>(genesis_state),
-                                useConfig<AnchorBlock>(genesis_block)),
+        makeApplicationInjector(std::move(logsys), std::move(app_config)),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);
@@ -137,8 +128,7 @@ namespace lean::injector {
    public:
     using Injector =
         decltype(makeNodeInjector(std::shared_ptr<log::LoggingSystem>(),
-                                  std::shared_ptr<app::Configuration>(),
-                                  std::shared_ptr<Config>()));
+                                  std::shared_ptr<app::Configuration>()));
 
     explicit NodeInjectorImpl(Injector injector)
         : injector_{std::move(injector)} {}
@@ -147,12 +137,9 @@ namespace lean::injector {
   };
 
   NodeInjector::NodeInjector(std::shared_ptr<log::LoggingSystem> logsys,
-                             std::shared_ptr<app::Configuration> app_config,
-                             std::shared_ptr<Config> genesis_config)
+                             std::shared_ptr<app::Configuration> app_config)
       : pimpl_{std::make_unique<NodeInjectorImpl>(
-            makeNodeInjector(std::move(logsys),
-                             std::move(app_config),
-                             std::move(genesis_config)))} {}
+            makeNodeInjector(std::move(logsys), std::move(app_config)))} {}
 
   std::shared_ptr<app::Application> NodeInjector::injectApplication() {
     return pimpl_->injector_
