@@ -14,7 +14,6 @@
 #include "modules/shared/prodution_types.tmp.hpp"
 #include "types/block_data.hpp"
 #include "types/signed_block.hpp"
-#include "utils/__debug_env.hpp"
 
 namespace lean::modules {
   ProductionModuleImpl::ProductionModuleImpl(

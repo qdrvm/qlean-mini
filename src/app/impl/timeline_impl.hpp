@@ -16,7 +16,7 @@ namespace lean::messages {
   struct SlotStarted;
 }
 namespace lean {
-  struct Config;
+  struct GenesisConfig;
 }
 namespace lean::log {
   class LoggingSystem;
@@ -40,7 +40,7 @@ namespace lean::app {
                  qtils::SharedRef<StateManager> state_manager,
                  qtils::SharedRef<Subscription> se_manager,
                  qtils::SharedRef<clock::SystemClock> clock,
-                 qtils::SharedRef<Config> config);
+                 qtils::SharedRef<GenesisConfig> config);
 
     void prepare();
     void start();
@@ -51,7 +51,7 @@ namespace lean::app {
 
     qtils::SharedRef<soralog::Logger> logger_;
     qtils::SharedRef<StateManager> state_manager_;
-    qtils::SharedRef<Config> config_;
+    qtils::SharedRef<GenesisConfig> config_;
     qtils::SharedRef<clock::SystemClock> clock_;
     qtils::SharedRef<Subscription> se_manager_;
 

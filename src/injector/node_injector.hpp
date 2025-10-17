@@ -13,9 +13,6 @@
 namespace lean {
   class ForkChoiceStore;
 }
-namespace lean {
-  struct Config;
-}
 namespace lean::log {
   class LoggingSystem;
 }  // namespace lean::log
@@ -42,8 +39,7 @@ namespace lean::injector {
   class NodeInjector final {
    public:
     explicit NodeInjector(std::shared_ptr<log::LoggingSystem> logging_system,
-                          std::shared_ptr<app::Configuration> app_config,
-                          std::shared_ptr<Config> genesis_config);
+                          std::shared_ptr<app::Configuration> app_config);
 
     std::shared_ptr<app::Application> injectApplication();
     std::unique_ptr<loaders::Loader> register_loader(

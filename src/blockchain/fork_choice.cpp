@@ -6,10 +6,12 @@
 
 #include "blockchain/fork_choice.hpp"
 
+#include <filesystem>
 #include <ranges>
+#include <stdexcept>
 
+#include "blockchain/genesis_config.hpp"
 #include "types/signed_block.hpp"
-#include "utils/__debug_env.hpp"
 
 namespace lean {
   void ForkChoiceStore::updateSafeTarget() {
@@ -67,6 +69,8 @@ namespace lean {
           }
         }
       }
+
+      metric_latest_finalized_->set(latest_finalized_.slot);
     }
   }
 
@@ -163,19 +167,12 @@ namespace lean {
     for (auto &signed_vote : latest_known_votes_ | std::views::values) {
       block.body.attestations.push_back(signed_vote);
     }
-    BOOST_OUTCOME_TRY(
-        auto state,
-        stf_.stateTransition({.message = block}, head_state, false));
+    BOOST_OUTCOME_TRY(auto state,
+                      stf_.stateTransition(block, head_state, false));
     block.state_root = sszHash(state);
     block.setHash();
 
-    // Store block and state in forkchoice store
-    auto block_hash = block.hash();
-    blocks_.emplace(block_hash, block);
-    states_.emplace(block_hash, std::move(state));
-
-    // update head (not in spec)
-    head_ = block_hash;
+    BOOST_OUTCOME_TRY(onBlock(block));
 
     return block;
   }
@@ -183,12 +180,10 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
       const SignedVote &signed_vote) {
-    SL_INFO(logger_,
-            "Validating attestation for target {}@{}, source {}@{}",
-            signed_vote.data.target.slot,
-            signed_vote.data.target.root,
-            signed_vote.data.source.slot,
-            signed_vote.data.source.root);
+    SL_TRACE(logger_,
+             "Validating attestation for target {}, source {}",
+             signed_vote.data.target,
+             signed_vote.data.source);
     auto &vote = signed_vote.data;
 
     // Validate vote targets exist in store
@@ -231,7 +226,7 @@ namespace lean {
     // Validate attestation structure and constraints
     BOOST_OUTCOME_TRY(validateAttestation(signed_vote));
 
-    auto &validator_id = signed_vote.data.validator_id;
+    auto &validator_id = signed_vote.validator_id;
     auto &vote = signed_vote.data;
 
     if (is_from_block) {
@@ -279,8 +274,8 @@ namespace lean {
     // chain if not available before adding block to forkchoice
 
     // Get post state from STF (State Transition Function)
-    auto state =
-        stf_.stateTransition({.message = block}, parent_state, true).value();
+    BOOST_OUTCOME_TRY(auto state,
+                      stf_.stateTransition(block, parent_state, true));
     blocks_.emplace(block_hash, block);
     states_.emplace(block_hash, std::move(state));
 
@@ -297,7 +292,7 @@ namespace lean {
 
   std::vector<std::variant<SignedVote, SignedBlock>>
   ForkChoiceStore::advanceTime(uint64_t now_sec) {
-    auto time_since_genesis = now_sec - config_.genesis_time / 1000;
+    auto time_since_genesis = now_sec - config_.genesis_time;
 
     std::vector<std::variant<SignedVote, SignedBlock>> result{};
     while (time_ < time_since_genesis) {
@@ -314,7 +309,9 @@ namespace lean {
                 current_slot,
                 time_ * SECONDS_PER_INTERVAL);
         auto producer_index = current_slot % config_.num_validators;
-        auto is_producer = validator_index_ == producer_index;
+        auto is_producer =
+            validator_registry_->currentValidatorIndices().contains(
+                producer_index);
         if (is_producer) {
           acceptNewVotes();
 
@@ -326,15 +323,14 @@ namespace lean {
                      res.error());
             continue;
           }
-          const auto &new_block = res.value();
+          auto &new_block = res.value();
 
-          SignedBlock new_signed_block{.message = new_block,
-                                       .signature = qtils::ByteArr<32>{0}};
+          auto new_signed_block = signBlock(std::move(new_block));
 
           SL_INFO(logger_,
-                  "Produced block for slot {} with parent {} state {}",
-                  current_slot,
-                  new_block.parent_root,
+                  "Produced block {} with parent {} state {}",
+                  new_signed_block.message.slotHash(),
+                  new_signed_block.message.parent_root,
                   new_signed_block.message.state_root);
           result.emplace_back(std::move(new_signed_block));
         }
@@ -342,40 +338,44 @@ namespace lean {
         // Interval one actions
         auto head_root = getHead();
         auto head_slot = getBlockSlot(head_root);
-        BOOST_ASSERT_MSG(head_slot.has_value(),
-                         "Head block must have a valid slot");
+        if (not head_slot.has_value()) {
+          SL_ERROR(logger_, "Head block {} not found in store", head_root);
+          time_ += 1;
+          continue;
+        }
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getVoteTarget();
         auto source = getLatestJustified();
         SL_INFO(logger_,
-                "For slot {}: head is {}@{}, target is {}@{}, source is {}@{}",
+                "For slot {}: head is {}, target is {}, source is {}",
                 current_slot,
-                head.root,
-                head.slot,
-                target.root,
-                target.slot,
-                source->root,
-                source->slot);
-        SignedVote signed_vote{.data =
-                                   Vote{
-                                       .validator_id = validator_index_,
-                                       .slot = current_slot,
-                                       .head = head,
-                                       .target = target,
-                                       .source = *source,
-                                   },
-                               // signature with zero bytes for now
-                               .signature = qtils::ByteArr<32>{0}};
+                head,
+                target,
+                source.value());
+        for (auto validator_index :
+             validator_registry_->currentValidatorIndices()) {
+          auto signed_vote = signVote(validator_index,
+                                      Vote{
+                                          .slot = current_slot,
+                                          .head = head,
+                                          .target = target,
+                                          .source = *source,
+                                      });
 
-        // Dispatching send signed vote only broadcasts to other peers. Current
-        // peer should process attestation directly
-        auto res = processAttestation(signed_vote, false);
-        BOOST_ASSERT_MSG(res.has_value(), "Produced vote should be valid");
-        SL_INFO(logger_,
-                "Produced vote for target {}@{}",
-                signed_vote.data.target.slot,
-                signed_vote.data.target.root);
-        result.emplace_back(std::move(signed_vote));
+          // Dispatching send signed vote only broadcasts to other peers.
+          // Current peer should process attestation directly
+          auto res = processAttestation(signed_vote, false);
+          if (not res.has_value()) {
+            SL_ERROR(logger_,
+                     "Failed to process attestation for slot {}: {}",
+                     current_slot,
+                     res.error());
+            continue;
+          }
+          SL_INFO(
+              logger_, "Produced vote for target {}", signed_vote.data.target);
+          result.emplace_back(std::move(signed_vote));
+        }
       } else if (time_ % INTERVALS_PER_SLOT == 2) {
         // Interval two actions
         SL_INFO(logger_,
@@ -459,20 +459,22 @@ namespace lean {
   }
 
   ForkChoiceStore::ForkChoiceStore(
-      const AnchorState &anchor_state,
-      const AnchorBlock &anchor_block,
+      const GenesisConfig &genesis_config,
       qtils::SharedRef<clock::SystemClock> clock,
-      qtils::SharedRef<log::LoggingSystem> logging_system)
-      : validator_index_(getPeerIndex()),
+      qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<ValidatorRegistry> validator_registry)
+      : validator_registry_(validator_registry),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")) {
+    AnchorState anchor_state = STF::generateGenesisState(genesis_config.config);
+    AnchorBlock anchor_block = STF::genesisBlock(anchor_state);
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
     config_ = anchor_state.config;
     auto now_sec = clock->nowSec();
     time_ = now_sec > config_.genesis_time
-              ? (now_sec - config_.genesis_time / 1000) / SECONDS_PER_INTERVAL
+              ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
               : 0;
     head_ = anchor_root;
     safe_target_ = anchor_root;
@@ -500,7 +502,8 @@ namespace lean {
       std::unordered_map<BlockHash, State> states,
       Votes latest_known_votes,
       Votes latest_new_votes,
-      ValidatorIndex validator_index)
+      ValidatorIndex validator_index,
+      qtils::SharedRef<ValidatorRegistry> validator_registry)
       : time_(now_sec / SECONDS_PER_INTERVAL),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
@@ -513,5 +516,5 @@ namespace lean {
         states_(std::move(states)),
         latest_known_votes_(std::move(latest_known_votes)),
         latest_new_votes_(std::move(latest_new_votes)),
-        validator_index_(validator_index) {}
+        validator_registry_(std::move(validator_registry)) {}
 }  // namespace lean

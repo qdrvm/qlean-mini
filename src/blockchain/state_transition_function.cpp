@@ -38,9 +38,10 @@ namespace lean {
     auto &validators = state.justifications_validators.data();
     Justifications justifications;
     size_t offset = 0;
-    BOOST_ASSERT(validators.size() == roots.size() * VALIDATOR_REGISTRY_LIMIT);
+    BOOST_ASSERT(validators.size()
+                 == roots.size() * state.config.num_validators);
     for (auto &root : roots) {
-      auto next_offset = offset + VALIDATOR_REGISTRY_LIMIT;
+      auto next_offset = offset + state.config.num_validators;
       std::vector<bool> bits{
           validators.begin() + offset,
           validators.begin() + next_offset,
@@ -62,9 +63,9 @@ namespace lean {
     roots.clear();
     roots.reserve(justifications.size());
     validators.clear();
-    validators.reserve(justifications.size() * VALIDATOR_REGISTRY_LIMIT);
+    validators.reserve(justifications.size() * state.config.num_validators);
     for (auto &[root, bits] : justifications) {
-      BOOST_ASSERT(bits.size() == VALIDATOR_REGISTRY_LIMIT);
+      BOOST_ASSERT(bits.size() == state.config.num_validators);
       roots.push_back(root);
       validators.insert(validators.end(), bits.begin(), bits.end());
     }
@@ -102,10 +103,9 @@ namespace lean {
     return result;
   }
 
-  outcome::result<State> STF::stateTransition(const SignedBlock &signed_block,
+  outcome::result<State> STF::stateTransition(const Block &block,
                                               const State &parent_state,
                                               bool check_state_root) const {
-    auto &block = signed_block.message;
     auto state = parent_state;
     // Process slots (including those with no blocks) since block
     OUTCOME_TRY(processSlots(state, block.slot));
@@ -245,13 +245,13 @@ namespace lean {
       if (justifications_it == justifications.end()) {
         justifications_it =
             justifications.emplace(vote.target.root, std::vector<bool>{}).first;
-        justifications_it->second.resize(VALIDATOR_REGISTRY_LIMIT);
+        justifications_it->second.resize(state.config.num_validators);
       }
 
-      if (vote.validator_id >= justifications_it->second.size()) {
+      if (signed_vote.validator_id >= justifications_it->second.size()) {
         return Error::INVALID_VOTER;
       }
-      justifications_it->second.at(vote.validator_id) = true;
+      justifications_it->second.at(signed_vote.validator_id) = true;
 
       size_t count = std::ranges::count(justifications_it->second, true);
 

@@ -1,0 +1,16 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include "app/default_logging_yaml.hpp"
+
+namespace lean {
+  const std::string &defaultLoggingYaml() {
+    static std::string yaml = R"yaml(
+@DEFAULT_LOGGING_YAML@
+)yaml";
+    return yaml;
+  }
+}  // namespace lean

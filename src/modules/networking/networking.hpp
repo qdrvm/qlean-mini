@@ -8,7 +8,6 @@
 
 #include <thread>
 
-#include <blockchain/fork_choice.hpp>
 #include <libp2p/event/bus.hpp>
 #include <log/logger.hpp>
 #include <modules/networking/interfaces.hpp>
@@ -20,14 +19,28 @@ namespace boost::asio {
   class io_context;
 }  // namespace boost::asio
 
-namespace lean::blockchain {
-  class BlockTree;
-}  // namespace lean::blockchain
+namespace libp2p::protocol {
+  class Ping;
+  class Identify;
+}  // namespace libp2p::protocol
 
 namespace libp2p::protocol::gossip {
   class Gossip;
   class Topic;
 }  // namespace libp2p::protocol::gossip
+
+namespace lean {
+  class ForkChoiceStore;
+}  // namespace lean
+
+namespace lean::blockchain {
+  class BlockTree;
+}  // namespace lean::blockchain
+
+namespace lean::app {
+  class ChainSpec;
+  class Configuration;
+}  // namespace lean::app
 
 namespace lean::modules {
   class StatusProtocol;
@@ -49,7 +62,9 @@ namespace lean::modules {
     NetworkingImpl(NetworkingLoader &loader,
                    qtils::SharedRef<log::LoggingSystem> logging_system,
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
-                   qtils::SharedRef<ForkChoiceStore> fork_choice_store);
+                   qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                   qtils::SharedRef<app::ChainSpec> chain_spec,
+                   qtils::SharedRef<app::Configuration> config);
 
    public:
     CREATE_SHARED_METHOD(NetworkingImpl);
@@ -80,6 +95,8 @@ namespace lean::modules {
     log::Logger logger_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<app::ChainSpec> chain_spec_;
+    qtils::SharedRef<app::Configuration> config_;
     std::shared_ptr<void> injector_;
     std::shared_ptr<boost::asio::io_context> io_context_;
     std::optional<std::thread> io_thread_;
@@ -88,6 +105,8 @@ namespace lean::modules {
     std::shared_ptr<StatusProtocol> status_protocol_;
     std::shared_ptr<BlockRequestProtocol> block_request_protocol_;
     std::shared_ptr<libp2p::protocol::gossip::Gossip> gossip_;
+    std::shared_ptr<libp2p::protocol::Ping> ping_;
+    std::shared_ptr<libp2p::protocol::Identify> identify_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_blocks_topic_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
     std::unordered_map<BlockHash, SignedBlock> block_cache_;

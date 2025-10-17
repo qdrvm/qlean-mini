@@ -7,16 +7,26 @@
 
 #include "modules/networking/networking.hpp"
 
+#include <format>
+#include <memory>
+#include <stdexcept>
+
+#include <app/configuration.hpp>
 #include <blockchain/fork_choice.hpp>
 #include <boost/endian/conversion.hpp>
 #include <libp2p/basic/read_varint.hpp>
 #include <libp2p/basic/write_varint.hpp>
 #include <libp2p/coro/spawn.hpp>
+#include <libp2p/crypto/key_marshaller.hpp>
 #include <libp2p/crypto/sha/sha256.hpp>
 #include <libp2p/host/basic_host.hpp>
 #include <libp2p/injector/host_injector.hpp>
+#include <libp2p/peer/identity_manager.hpp>
 #include <libp2p/protocol/gossip/gossip.hpp>
+#include <libp2p/protocol/identify.hpp>
+#include <libp2p/protocol/ping.hpp>
 #include <libp2p/transport/quic/transport.hpp>
+#include <libp2p/transport/tcp/tcp_util.hpp>
 #include <qtils/to_shared_ptr.hpp>
 
 #include "blockchain/block_tree.hpp"
@@ -25,8 +35,6 @@
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
 #include "modules/networking/types.hpp"
-#include "utils/__debug_env.hpp"
-#include "utils/sample_peer.hpp"
 
 namespace lean::modules {
   // TODO(turuslan): gossip [from,seqno,signature,key]=None
@@ -65,11 +73,15 @@ namespace lean::modules {
       NetworkingLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
-      qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store)
+      qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
+      qtils::SharedRef<app::ChainSpec> chain_spec,
+      qtils::SharedRef<app::Configuration> config)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
         block_tree_{std::move(block_tree)},
-        fork_choice_store_{std::move(fork_choice_store)} {
+        fork_choice_store_{std::move(fork_choice_store)},
+        chain_spec_{std::move(chain_spec)},
+        config_{std::move(config)} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
     block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }
@@ -84,10 +96,28 @@ namespace lean::modules {
   void NetworkingImpl::on_loaded_success() {
     SL_INFO(logger_, "Loaded success");
 
-    SamplePeer sample_peer{getPeerIndex()};
+    auto keypair = config_->nodeKey();
+
+    // Always set up identity and peer info
+    libp2p::peer::IdentityManager identity_manager{
+        keypair,
+        std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(nullptr)};
+    auto peer_id = identity_manager.getId();
+
+    SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
+
+    libp2p::protocol::gossip::Config gossip_config;
+    gossip_config.validation_mode =
+        libp2p::protocol::gossip::ValidationMode::Anonymous;
+    gossip_config.message_authenticity =
+        libp2p::protocol::gossip::MessageAuthenticity::Anonymous;
+    gossip_config.message_id_fn = gossipMessageId;
+    gossip_config.protocol_versions.erase(
+        libp2p::protocol::gossip::kProtocolGossipsubv1_2);
 
     auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
-        libp2p::injector::useKeyPair(sample_peer.keypair),
+        libp2p::injector::useKeyPair(keypair),
+        libp2p::injector::useGossipConfig(std::move(gossip_config)),
         libp2p::injector::useTransportAdaptors<
             libp2p::transport::QuicTransport>()));
     injector_ = injector;
@@ -95,10 +125,101 @@ namespace lean::modules {
 
     auto host = injector->create<std::shared_ptr<libp2p::host::BasicHost>>();
 
-    if (auto r = host->listen(sample_peer.listen); not r.has_value()) {
-      SL_WARN(logger_, "listen {} error: {}", sample_peer.listen, r.error());
+    bool has_enr_listen_address = false;
+    const auto &bootnodes = chain_spec_->getBootnodes();
+    for (auto &bootnode : bootnodes.getBootnodes()) {
+      if (bootnode.peer_id != peer_id) {
+        continue;
+      }
+      has_enr_listen_address = true;
+      auto info_res = libp2p::transport::detail::asQuic(bootnode.address);
+      if (not info_res.has_value()) {
+        SL_WARN(logger_, "Incompatible enr address {}", bootnode.address);
+        continue;
+      }
+      auto port = info_res.value().port;
+      auto enr_listen_address =
+          libp2p::multi::Multiaddress::create(
+              std::format("/ip4/0.0.0.0/udp/{}/quic-v1", port))
+              .value();
+      if (auto r = host->listen(enr_listen_address); not r.has_value()) {
+        SL_WARN(logger_,
+                "Error listening on enr address {}: {}",
+                enr_listen_address,
+                r.error());
+      } else {
+        SL_INFO(logger_, "Listening on {}", enr_listen_address);
+      }
+    }
+
+    if (auto &listen_addr = config_->listenMultiaddr();
+        listen_addr.has_value()) {
+      auto &listen = *listen_addr;
+      if (auto r = host->listen(listen); not r.has_value()) {
+        SL_WARN(logger_,
+                "Listening address configured via --listen-addr: {}",
+                listen);
+      } else {
+        SL_INFO(logger_, "Listening on {}", listen);
+      }
+    } else if (not has_enr_listen_address) {
+      SL_WARN(logger_, "No listen multiaddress configured");
     }
     host->start();
+
+    // Add bootnodes from chain spec
+    if (!bootnodes.empty()) {
+      SL_INFO(logger_,
+              "Adding {} bootnodes to address repository",
+              bootnodes.size());
+
+      auto &address_repo = host->getPeerRepository().getAddressRepository();
+
+      for (const auto &bootnode : bootnodes.getBootnodes()) {
+        if (bootnode.peer_id == peer_id) {
+          continue;
+        }
+        std::vector<libp2p::multi::Multiaddress> addresses{bootnode.address};
+
+        // Add bootnode addresses with permanent TTL
+        auto result = address_repo.upsertAddresses(
+            bootnode.peer_id,
+            std::span<const libp2p::multi::Multiaddress>(addresses),
+            libp2p::peer::ttl::kPermanent);
+
+        if (result.has_value()) {
+          SL_DEBUG(logger_,
+                   "Added bootnode: peer={}, address={}",
+                   bootnode.peer_id,
+                   bootnode.address.getStringAddress());
+        } else {
+          SL_WARN(logger_,
+                  "Failed to add bootnode: peer={}, error={}",
+                  bootnode.peer_id,
+                  result.error());
+        }
+        libp2p::PeerInfo peer_info{.id = bootnode.peer_id,
+                                   .addresses = addresses};
+        libp2p::coroSpawn(*io_context_,
+                          [weak_self{weak_from_this()},
+                           host,
+                           peer_info]() -> libp2p::Coro<void> {
+                            if (auto r = co_await host->connect(peer_info);
+                                not r.has_value()) {
+                              auto self = weak_self.lock();
+                              if (not self) {
+                                co_return;
+                              }
+                              SL_WARN(self->logger_,
+                                      "connect {} error: {}",
+                                      peer_info.id,
+                                      r.error());
+                            }
+                          });
+      }
+    } else {
+      SL_DEBUG(logger_, "No bootnodes configured");
+    }
 
     auto on_peer_connected =
         [weak_self{weak_from_this()}](
@@ -168,7 +289,12 @@ namespace lean::modules {
 
     gossip_ =
         injector->create<std::shared_ptr<libp2p::protocol::gossip::Gossip>>();
+    ping_ = injector->create<std::shared_ptr<libp2p::protocol::Ping>>();
+    identify_ = injector->create<std::shared_ptr<libp2p::protocol::Identify>>();
+
     gossip_->start();
+    ping_->start();
+    identify_->start();
 
     gossip_blocks_topic_ = gossipSubscribe<SignedBlock>(
         "block", [weak_self{weak_from_this()}](SignedBlock &&block) {
@@ -187,32 +313,17 @@ namespace lean::modules {
           }
           auto res =
               self->fork_choice_store_->processAttestation(signed_vote, false);
-          BOOST_ASSERT_MSG(res.has_value(), "Gossiped vote should be valid");
+          if (not res.has_value()) {
+            SL_WARN(self->logger_,
+                    "Error processing vote for target {}: {}",
+                    signed_vote.data.target,
+                    res.error());
+            return;
+          }
           SL_INFO(self->logger_,
-                  "Received vote for target {}@{}",
-                  signed_vote.data.target.slot,
-                  signed_vote.data.target.root);
+                  "Received vote for target {}",
+                  signed_vote.data.target);
         });
-
-    if (sample_peer.index != 0) {
-      libp2p::coroSpawn(
-          *io_context_,
-          [weak_self{weak_from_this()}, host]() -> libp2p::Coro<void> {
-            SamplePeer sample_peer{0};
-
-            if (auto r = co_await host->connect(sample_peer.connect_info);
-                not r.has_value()) {
-              auto self = weak_self.lock();
-              if (not self) {
-                co_return;
-              }
-              SL_WARN(self->logger_,
-                      "connect {} error: {}",
-                      sample_peer.connect,
-                      r.error());
-            }
-          });
-    }
 
     io_thread_.emplace([io_context{io_context_}] {
       auto work_guard = boost::asio::make_work_guard(*io_context);
@@ -308,9 +419,10 @@ namespace lean::modules {
                                     SignedBlock &&signed_block) {
     auto slot_hash = signed_block.message.slotHash();
     SL_DEBUG(logger_,
-             "receiveBlock slot {} hash {}",
+             "receiveBlock slot {} hash {} parent {}",
              slot_hash.slot,
-             slot_hash.hash);
+             slot_hash.hash,
+             signed_block.message.parent_root);
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
       while (not queue.empty()) {
@@ -344,14 +456,24 @@ namespace lean::modules {
       remove([&](const BlockHash &block_hash) {
         blocks.emplace_back(block_cache_.extract(block_hash).mapped());
       });
-      std::string __s;
       for (auto &block : blocks) {
-        __s += std::format(" {}", block.message.slot);
         auto res = fork_choice_store_->onBlock(block.message);
-        BOOST_ASSERT_MSG(res.has_value(),
-                         "Fork choice store should accept imported block");
+        if (not res.has_value()) {
+          SL_WARN(logger_,
+                  "Error importing block {}: {}",
+                  block.message.slotHash(),
+                  res.error());
+          break;
+        }
       }
-      SL_INFO(logger_, "receiveBlock {} => import{}", slot_hash.slot, __s);
+      SL_INFO(logger_,
+              "receiveBlock {} => import {}",
+              slot_hash.slot,
+              fmt::join(
+                  blocks | std::views::transform([](const SignedBlock &block) {
+                    return block.message.slot;
+                  }),
+                  " "));
       block_tree_->import(std::move(blocks));
       return;
     }
