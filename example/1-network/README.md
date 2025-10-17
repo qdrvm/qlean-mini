@@ -32,7 +32,6 @@ Node 0:
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
-  --base-path ./data_0 \
   --node-id node_0 \
   --node-key cb920fbda3b96e18f03e22825f4a5a61343ec43c7be1c8c4a717fffee2f4c4ce \
   --listen-addr /ip4/0.0.0.0/udp/9000/quic-v1 \
@@ -47,7 +46,6 @@ Node 1:
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
-  --base-path ./data_1 \
   --node-id node_1 \
   --node-key a87e7d23bb1de4613b67002b700bce41e031f4ab1529a3436bd73c893ea039b3 \
   --listen-addr /ip4/0.0.0.0/udp/9001/quic-v1 \
@@ -62,7 +60,6 @@ Node 2:
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
-  --base-path ./data_2 \
   --node-id node_2 \
   --node-key f2f53f6acf312c5e92c2a611bbca7a1932b4db0b9e0c43bec413badca9b76760 \
   --listen-addr /ip4/0.0.0.0/udp/9002/quic-v1 \
@@ -77,7 +74,6 @@ Node 3:
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
-  --base-path ./data_3 \
   --node-id node_3 \
   --node-key fa5ddbec80f964d17d28221c2c5bac0f4a3f9cfcf4b86674e605f459e195a1c4 \
   --listen-addr /ip4/0.0.0.0/udp/9003/quic-v1 \
@@ -88,8 +84,5 @@ Node 3:
 
 - Start Node 0 first so others can discover it via the bootnodes list; the rest can follow in any order.
 - Ports (9000–9003) must be free; adjust if they’re taken. Prometheus ports (9100–9103) are optional and can be changed or omitted.
-- `--base-path` points to a per-node data directory; ensure the path exists or that the process has permission to create it.
-- For an explanation of the common flags, see `example/0-single/README.md` (the meanings are the same). Additional flags used here:
-  - `--base-path`: directory to store node data for each validator instance.
-  - `--prometheus_port`: enable Prometheus metrics endpoint on the given port.
+- For an explanation of the common flags, see `example/0-single/README.md` (the meanings are the same).
 
