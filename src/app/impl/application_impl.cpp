@@ -16,9 +16,8 @@
 #include "clock/clock.hpp"
 #include "log/logger.hpp"
 #include "metrics/exposer.hpp"
-#include "metrics/histogram_timer.hpp"
-#include "metrics/metrics.hpp"
 #include "metrics/impl/metrics_impl.hpp"
+#include "metrics/metrics.hpp"
 #include "se/impl/subscription_manager.hpp"
 
 namespace lean::app {
@@ -38,6 +37,7 @@ namespace lean::app {
       qtils::SharedRef<metrics::Exposer> metrics_exposer,
       qtils::SharedRef<clock::SystemClock> system_clock,
       qtils::SharedRef<Timeline> timeline,
+      qtils::SharedRef<metrics::Registry> metrics_registry,
       std::shared_ptr<SeHolder>)
       : logger_(logsys->getLogger("Application", "application")),
         app_config_(std::move(config)),
@@ -47,11 +47,14 @@ namespace lean::app {
         metrics_exposer_(std::move(metrics_exposer)),
         system_clock_(std::move(system_clock)),
         timeline_(std::move(timeline)) {
-    metrics_exposer_->registerCollectable(metrics_->getRegistry());
+    metrics_exposer_->registerCollectable(*metrics_registry);
 
     // Metric for exposing name and version of node
-    metrics_->app_build_info({{"name", app_config_->nodeName()},
-                               {"version", app_config_->nodeVersion()}})
+    metrics_
+        ->app_build_info({
+            {"name", app_config_->nodeName()},
+            {"version", app_config_->nodeVersion()},
+        })
         ->set(1);
   }
 
@@ -69,7 +72,7 @@ namespace lean::app {
     state_manager_->atShutdown([this] { watchdog_->stop(); });
 
     // Set process start time metric
-    metrics_->app_process_start_time->set(system_clock_->nowSec());
+    metrics_->app_process_start_time()->set(system_clock_->nowSec());
 
     state_manager_->run();
 

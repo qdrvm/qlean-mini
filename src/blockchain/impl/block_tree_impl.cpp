@@ -14,7 +14,6 @@
 #include "blockchain/block_tree_error.hpp"
 #include "blockchain/impl/block_tree_initializer.hpp"
 #include "blockchain/impl/cached_tree.hpp"
-#include "metrics/histogram_timer.hpp"
 #include "modules/shared/prodution_types.tmp.hpp"
 #include "se/subscription.hpp"
 #include "se/subscription_fwd.hpp"
@@ -41,23 +40,6 @@ namespace lean::blockchain {
                 std::get<0>(initializer->nonFinalizedSubTree())),
             .hasher_ = std::move(hasher),
         }} {
-        // TODO: refactor metrics
-        // metric_best_block_height_("block_chain_height",
-        //                           "Block height info of the chain",
-        //                           {{"status", "best"}}),
-        // metric_finalized_block_height_("block_chain_height",
-        //                                "Block height info of the chain",
-        //                                {{"status", "finalized"}}),
-        // metric_known_chain_leaves_("number_leaves",
-        //                            "Number of known chain leaves (aka forks)") {
-    block_tree_data_.sharedAccess([&](const BlockTreeData &p) {
-      // TODO: refactor metrics
-      // metric_best_block_height_->set(bestBlockNoLock(p).slot);
-      // metric_finalized_block_height_->set(getLastFinalizedNoLock(p).slot);
-      // metric_known_chain_leaves_->set(p.tree_->leafCount());
-      // telemetry_->setGenesisBlockHash(getGenesisBlockHash());
-    });
-
     // Add non-finalized block to the block tree
     for (const auto &[block, header] :
          std::get<1>(initializer->nonFinalizedSubTree())) {
@@ -388,8 +370,6 @@ namespace lean::blockchain {
 
 
         log_->info("Finalized block {}", node->index);
-        // TODO: refactor metrics
-        // metric_finalized_block_height_->set(node->index.slot);
 
       } else {
         OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
@@ -825,21 +805,12 @@ namespace lean::blockchain {
   outcome::result<void> BlockTreeImpl::reorgAndPrune(
       const BlockTreeData &p, const ReorgAndPrune &changes) {
     OUTCOME_TRY(p.storage_->setBlockTreeLeaves(p.tree_->leafHashes()));
-    // TODO: refactor metrics
-    // metric_known_chain_leaves_->set(p.tree_->leafCount());
     if (changes.reorg) {
       for (auto &block : changes.reorg->revert) {
         OUTCOME_TRY(p.storage_->deassignHashToSlot(block));
       }
       for (auto &block : changes.reorg->apply) {
         OUTCOME_TRY(p.storage_->assignHashToSlot(block));
-      }
-      if (not changes.reorg->apply.empty()) {
-        // TODO: refactor metrics
-        // metric_best_block_height_->set(changes.reorg->apply.back().slot);
-      } else {
-        // TODO: refactor metrics
-        // metric_best_block_height_->set(changes.reorg->common.slot);
       }
     }
 

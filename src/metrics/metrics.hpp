@@ -6,29 +6,11 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
 #include <map>
-
-#include "metrics/registry.hpp"
+#include <string>
 
 namespace lean::metrics {
-  class GaugeHelper;
-
-  /**
-   * @brief Metrics interface that holds all application metrics
-   *
-   * This interface provides access to application-wide metrics collection.
-   */
-  class Metrics {
-   public:
-    virtual ~Metrics() = default;
-
-    /**
-     * @brief Get the underlying registry
-     */
-    virtual Registry& getRegistry() = 0;
-  };
+  using Labels = std::map<std::string, std::string>;
 
   /**
    * @brief A counter metric to represent a monotonically increasing value.
@@ -125,5 +107,24 @@ namespace lean::metrics {
      * @brief Observe the given amount.
      */
     virtual void observe(const double value) = 0;
+  };
+
+  /**
+   * @brief Metrics interface that holds all application metrics
+   *
+   * This interface provides access to application-wide metrics collection.
+   */
+  class Metrics {
+   public:
+    virtual ~Metrics() = default;
+
+#define METRIC_GAUGE(field, name, help) virtual Gauge *field() = 0;
+#define METRIC_GAUGE_LABELS(field, name, help, ...) \
+  virtual Gauge *field(const Labels &labels) = 0;
+
+#include "metrics/all_metrics.def"
+
+#undef METRIC_GAUGE
+#undef METRIC_GAUGE_LABELS
   };
 }  // namespace lean::metrics

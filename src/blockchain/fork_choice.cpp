@@ -10,8 +10,8 @@
 #include <ranges>
 #include <stdexcept>
 
-#include "metrics/impl/metrics_impl.hpp"
 #include "blockchain/genesis_config.hpp"
+#include "metrics/impl/metrics_impl.hpp"
 #include "types/signed_block.hpp"
 
 namespace lean {
@@ -70,9 +70,6 @@ namespace lean {
           }
         }
       }
-
-      // TODO: refactor metric
-      // metric_latest_finalized_->set(latest_finalized_.slot);
     }
   }
 
@@ -345,7 +342,7 @@ namespace lean {
           time_ += 1;
           continue;
         }
-        metrics_->fc_head_slot->set(head_slot.value());
+        metrics_->fc_head_slot()->set(head_slot.value());
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getVoteTarget();
         auto source = getLatestJustified();
@@ -465,7 +462,7 @@ namespace lean {
       const GenesisConfig &genesis_config,
       qtils::SharedRef<clock::SystemClock> clock,
       qtils::SharedRef<log::LoggingSystem> logging_system,
-      qtils::SharedRef<metrics::MetricsImpl> metrics,
+      qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
       : validator_registry_(validator_registry),
         logger_(
@@ -498,7 +495,7 @@ namespace lean {
   ForkChoiceStore::ForkChoiceStore(
       uint64_t now_sec,
       qtils::SharedRef<log::LoggingSystem> logging_system,
-      qtils::SharedRef<metrics::MetricsImpl> metrics,
+      qtils::SharedRef<metrics::Metrics> metrics,
       Config config,
       BlockHash head,
       BlockHash safe_target,

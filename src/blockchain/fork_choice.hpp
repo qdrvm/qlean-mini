@@ -18,19 +18,19 @@
 #include "blockchain/state_transition_function.hpp"
 #include "blockchain/validator_registry.hpp"
 #include "clock/clock.hpp"
-#include "metrics/histogram_timer.hpp"
 #include "types/block.hpp"
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
 #include "utils/ceil_div.hpp"
 
-namespace lean::metrics {
-  class MetricsImpl;
-}
 namespace lean {
   struct GenesisConfig;
   struct SignedBlock;
 }  // namespace lean
+
+namespace lean::metrics {
+  class Metrics;
+}  // namespace lean::metrics
 
 namespace lean {
   class ForkChoiceStore {
@@ -56,18 +56,18 @@ namespace lean {
     ForkChoiceStore(const GenesisConfig &genesis_config,
                     qtils::SharedRef<clock::SystemClock> clock,
                     qtils::SharedRef<log::LoggingSystem> logging_system,
-                    qtils::SharedRef<metrics::MetricsImpl> metrics,
+                    qtils::SharedRef<metrics::Metrics> metrics,
                     qtils::SharedRef<ValidatorRegistry> validator_registry);
 
     BOOST_DI_INJECT_TRAITS(const GenesisConfig &,
                            qtils::SharedRef<clock::SystemClock>,
                            qtils::SharedRef<log::LoggingSystem>,
-                           qtils::SharedRef<metrics::MetricsImpl>,
+                           qtils::SharedRef<metrics::Metrics>,
                            qtils::SharedRef<ValidatorRegistry>);
     // Test constructor - only for use in tests
     ForkChoiceStore(uint64_t now_sec,
                     qtils::SharedRef<log::LoggingSystem> logging_system,
-                    qtils::SharedRef<metrics::MetricsImpl> metrics,
+                    qtils::SharedRef<metrics::Metrics> metrics,
                     Config config,
                     BlockHash head,
                     BlockHash safe_target,
@@ -185,13 +185,7 @@ namespace lean {
     Votes latest_new_votes_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     log::Logger logger_;
-    qtils::SharedRef<metrics::MetricsImpl> metrics_;
-
-    // TODO: refactor metric
-    // metrics::GaugeHelper metric_latest_finalized_{
-    //     "latest_finalized",
-    //     "",
-    // };
+    qtils::SharedRef<metrics::Metrics> metrics_;
   };
 
   BlockHash getForkChoiceHead(const ForkChoiceStore::Blocks &blocks,

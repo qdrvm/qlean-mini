@@ -8,8 +8,8 @@
 
 #include <memory>
 
-#include <metrics/registry.hpp>
 #include <metrics/metrics.hpp>
+#include <metrics/registry.hpp>
 #include <qtils/shared_ref.hpp>
 
 #include "app/application.hpp"
@@ -85,6 +85,7 @@ namespace lean::app {
                     qtils::SharedRef<metrics::Exposer> metrics_exposer,
                     qtils::SharedRef<clock::SystemClock> system_clock,
                     qtils::SharedRef<Timeline> timeline,
+                    qtils::SharedRef<metrics::Registry> metrics_registry,
                     std::shared_ptr<SeHolder>);
 
     void run() override;
@@ -98,7 +99,6 @@ namespace lean::app {
     qtils::SharedRef<metrics::Exposer> metrics_exposer_;
     qtils::SharedRef<clock::SystemClock> system_clock_;
     qtils::SharedRef<Timeline> timeline_;
-
   };
 
 }  // namespace lean::app

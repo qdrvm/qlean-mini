@@ -5,25 +5,36 @@
  */
 
 #include "metrics/impl/metrics_impl.hpp"
-#include "metrics/impl/prometheus/registry_impl.hpp"
-#include "metrics/metrics.hpp"
+
+#include "metrics/registry.hpp"
 
 namespace lean::metrics {
 
   MetricsImpl::MetricsImpl(std::shared_ptr<Registry> registry)
-      : registry_(std::move(registry))
-        // Initialize all metrics from .def files
-        #define METRIC_GAUGE(name, ...) , name(*registry_, __VA_ARGS__)
+      : registry_{std::move(registry)} {
+#define METRIC_GAUGE(field, name, help)       \
+  registry_->registerGaugeFamily(name, help); \
+  metric_##field##_ = registry_->registerGaugeMetric(name);
+#define METRIC_GAUGE_LABELS(field, name, help, ...) \
+  registry_->registerGaugeFamily(name, help);
 
-        #include "../../app/application_metrics.def"
-        #include "../../blockchain/fork_choice_metrics.def"
+#include "metrics/all_metrics.def"
 
-        #undef METRIC_GAUGE
-  {}
-
-  std::shared_ptr<MetricsImpl> MetricsImpl::create() {
-    return std::make_shared<MetricsImpl>(
-        std::shared_ptr<Registry>(PrometheusRegistry::create()));
+#undef METRIC_GAUGE
+#undef METRIC_GAUGE_LABELS
   }
 
+#define METRIC_GAUGE(field, name, help) \
+  Gauge *MetricsImpl::field() {         \
+    return metric_##field##_;           \
+  }
+#define METRIC_GAUGE_LABELS(field, name, help, ...)      \
+  Gauge *MetricsImpl::field(const Labels &labels) {      \
+    return registry_->registerGaugeMetric(name, labels); \
+  }
+
+#include "metrics/all_metrics.def"
+
+#undef METRIC_GAUGE
+#undef METRIC_GAUGE_LABELS
 }  // namespace lean::metrics

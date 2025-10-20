@@ -32,7 +32,7 @@
  *   - Usage: metrics_->metric_name({{"label1", value1}, {"label2", value2}})->set(...)
  */
 
-METRIC_GAUGE(app_build_info,
+METRIC_GAUGE_LABELS(app_build_info,
              "lean_build_info",
              "A metric with a constant '1' value labeled by name, version",
              "name",

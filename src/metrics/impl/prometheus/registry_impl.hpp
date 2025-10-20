@@ -20,6 +20,7 @@
 #include <prometheus/summary.h>
 
 #include "metrics/impl/prometheus/metrics_impl.hpp"
+#include "metrics/registry.hpp"
 
 namespace lean::metrics {
   class Handler;
@@ -69,13 +70,6 @@ namespace lean::metrics {
 
   class PrometheusRegistry : public Registry {
     friend class PrometheusHandler;
-
-   public:
-    /**
-     * @brief Factory method to create PrometheusRegistry instance
-     * @return Unique pointer to a new registry
-     */
-    static std::unique_ptr<PrometheusRegistry> create();
 
    private:
     // prometheus owns families, returns reference
