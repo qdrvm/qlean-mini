@@ -15,7 +15,6 @@
 #include "blockchain/impl/block_tree_initializer.hpp"
 #include "blockchain/impl/cached_tree.hpp"
 #include "log/logger.hpp"
-#include "metrics/helpers.hpp"
 #include "se/impl/common.hpp"
 #include "se/subscription.hpp"
 #include "se/subscription_fwd.hpp"
