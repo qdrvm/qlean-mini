@@ -33,7 +33,7 @@ namespace lean::app {
       qtils::SharedRef<Configuration> config,
       qtils::SharedRef<StateManager> state_manager,
       qtils::SharedRef<Watchdog> watchdog,
-      qtils::SharedRef<metrics::MetricsImpl> metrics,
+      qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<metrics::Exposer> metrics_exposer,
       qtils::SharedRef<clock::SystemClock> system_clock,
       qtils::SharedRef<Timeline> timeline,
