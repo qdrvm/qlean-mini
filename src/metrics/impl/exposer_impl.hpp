@@ -8,8 +8,6 @@
 
 #include <thread>
 
-#include <boost/di.hpp>
-
 #include "metrics/exposer.hpp"
 
 namespace lean::app {
@@ -49,7 +47,7 @@ namespace lean::metrics {
     }
 
     void onSessionRequest(Session::Request request,
-                         std::shared_ptr<Session> session) override {
+                          std::shared_ptr<Session> session) override {
       if (handler_) {
         handler_->onSessionRequest(std::move(request), std::move(session));
       }

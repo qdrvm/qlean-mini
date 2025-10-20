@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <boost/di.hpp>
 #include <mock/app/configuration_mock.hpp>
 #include <qtils/test/outcome.hpp>
 
