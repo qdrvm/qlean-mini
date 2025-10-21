@@ -37,6 +37,8 @@ namespace lean {
    public:
     ValidatorRegistryImpl(qtils::SharedRef<log::LoggingSystem> logging_system,
                           const app::Configuration &config);
+    BOOST_DI_INJECT_TRAITS(qtils::SharedRef<lean::log::LoggingSystem>,
+                           const lean::app::Configuration &);
     ValidatorRegistryImpl(qtils::SharedRef<log::LoggingSystem> logging_system,
                           std::string yaml,
                           std::string current_node_id);
@@ -64,9 +66,3 @@ namespace lean {
     ValidatorIndices current_validator_indices_;
   };
 }  // namespace lean
-
-template <>
-struct boost::di::ctor_traits<lean::ValidatorRegistryImpl> {
-  BOOST_DI_INJECT_TRAITS(qtils::SharedRef<lean::log::LoggingSystem>,
-                         const lean::app::Configuration &);
-};

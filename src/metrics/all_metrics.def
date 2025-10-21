@@ -1,0 +1,2 @@
+#include "app/application_metrics.def"
+#include "blockchain/fork_choice_metrics.def"

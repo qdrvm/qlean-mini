@@ -20,6 +20,7 @@
 #include "mock/blockchain/validator_registry_mock.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "qtils/test/outcome.hpp"
+#include "tests/mock/blockchain/metrics_mock.hpp"
 #include "testutil/prepare_loggers.hpp"
 #include "types/signed_block.hpp"
 
@@ -78,6 +79,7 @@ auto createTestStore(
     lean::ValidatorIndex validator_index = 0) {
   return ForkChoiceStore(time,
                          testutil::prepareLoggers(),
+                         std::make_shared<lean::metrics::MetricsMock>(),
                          config_param,
                          head,
                          safe_target,
