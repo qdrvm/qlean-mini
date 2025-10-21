@@ -38,7 +38,9 @@
 #include "loaders/loader.hpp"
 #include "log/logger.hpp"
 #include "metrics/impl/exposer_impl.hpp"
+#include "metrics/impl/metrics_impl.hpp"
 #include "metrics/impl/prometheus/handler_impl.hpp"
+#include "metrics/impl/prometheus/registry_impl.hpp"
 #include "modules/module.hpp"
 #include "se/impl/async_dispatcher_impl.hpp"
 #include "se/subscription.hpp"
@@ -79,9 +81,11 @@ namespace {
         di::bind<clock::SystemClock>.to<clock::SystemClockImpl>(),
         di::bind<clock::SteadyClock>.to<clock::SteadyClockImpl>(),
         di::bind<Watchdog>.to<Watchdog>(),
+        di::bind<Dispatcher>.to<se::AsyncDispatcher<kHandlersCount, kThreadPoolSize>>(),
+        di::bind<metrics::Registry>.to<metrics::PrometheusRegistry>(),
+        di::bind<metrics::Metrics>.to<metrics::MetricsImpl>(),
         di::bind<metrics::Handler>.to<metrics::PrometheusHandler>(),
         di::bind<metrics::Exposer>.to<metrics::ExposerImpl>(),
-        di::bind<Dispatcher>.to<se::AsyncDispatcher<kHandlersCount, kThreadPoolSize>>(),
         di::bind<metrics::Exposer::Configuration>.to([](const auto &injector) {
           return metrics::Exposer::Configuration{
               injector

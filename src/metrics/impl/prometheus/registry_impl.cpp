@@ -10,11 +10,6 @@
 #include "metrics/registry.hpp"
 
 namespace lean::metrics {
-
-  std::unique_ptr<Registry> createRegistry() {
-    return std::make_unique<PrometheusRegistry>();
-  }
-
   void PrometheusRegistry::setHandler(Handler &handler) {
     handler.registerCollectable(*this);
   }

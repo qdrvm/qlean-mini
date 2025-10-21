@@ -19,7 +19,7 @@ namespace lean::metrics {
    * @brief an http server interface to expose metrics on request with custom
    * request handler
    */
-  class Exposer {
+  class Exposer : public Handler {
    protected:
     using Acceptor = boost::asio::ip::tcp::acceptor;
     using Endpoint = boost::asio::ip::tcp::endpoint;

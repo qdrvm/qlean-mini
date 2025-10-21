@@ -11,6 +11,7 @@
 #include <stdexcept>
 
 #include "blockchain/genesis_config.hpp"
+#include "metrics/impl/metrics_impl.hpp"
 #include "types/signed_block.hpp"
 
 namespace lean {
@@ -69,8 +70,6 @@ namespace lean {
           }
         }
       }
-
-      metric_latest_finalized_->set(latest_finalized_.slot);
     }
   }
 
@@ -343,6 +342,7 @@ namespace lean {
           time_ += 1;
           continue;
         }
+        metrics_->fc_head_slot()->set(head_slot.value());
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getVoteTarget();
         auto source = getLatestJustified();
@@ -462,10 +462,12 @@ namespace lean {
       const GenesisConfig &genesis_config,
       qtils::SharedRef<clock::SystemClock> clock,
       qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
       : validator_registry_(validator_registry),
         logger_(
-            logging_system->getLogger("ForkChoiceStore", "fork_choice_store")) {
+            logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
+        metrics_(std::move(metrics)) {
     AnchorState anchor_state = STF::generateGenesisState(genesis_config.config);
     AnchorBlock anchor_block = STF::genesisBlock(anchor_state);
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
@@ -493,6 +495,7 @@ namespace lean {
   ForkChoiceStore::ForkChoiceStore(
       uint64_t now_sec,
       qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
       Config config,
       BlockHash head,
       BlockHash safe_target,
@@ -516,5 +519,6 @@ namespace lean {
         states_(std::move(states)),
         latest_known_votes_(std::move(latest_known_votes)),
         latest_new_votes_(std::move(latest_new_votes)),
+        metrics_(std::move(metrics)),
         validator_registry_(std::move(validator_registry)) {}
 }  // namespace lean

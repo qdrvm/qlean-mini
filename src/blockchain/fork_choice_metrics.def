@@ -1,0 +1,33 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * @file fork_choice_metrics.def
+ * @brief ForkChoiceStore metrics definitions
+ *
+ * Format:
+ *   METRIC_GAUGE(field_name,
+ *                "prometheus_metric_name",
+ *                "help_text")
+ *
+ *   METRIC_GAUGE(field_name,
+ *                "prometheus_metric_name",
+ *                "help_text",
+ *                "label1",
+ *                "label2",
+ *                ...)
+ *
+ * Parameters:
+ *   - field_name: Required - C++ member variable name
+ *   - prometheus_metric_name: Required - Prometheus metric name
+ *   - help_text: Required - Metric description
+ *   - labels: Optional - Any number of label names
+ */
+
+METRIC_GAUGE(fc_head_slot,
+             "lean_head_slot",
+             "Latest slot of the beacon chain")
+

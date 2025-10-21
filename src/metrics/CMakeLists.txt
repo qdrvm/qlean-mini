@@ -5,6 +5,7 @@
 #
 
 add_library(metrics
+    impl/metrics_impl.cpp
     impl/exposer_impl.cpp
     impl/prometheus/handler_impl.cpp
     impl/prometheus/metrics_impl.cpp
@@ -18,12 +19,3 @@ target_link_libraries(metrics
     Boost::boost
     prometheus-cpp::core
 )
-
-add_library(metrics_watcher
-    impl/metrics_watcher.cpp
-)
-
-target_link_libraries(metrics_watcher
-    metrics
-)
-
