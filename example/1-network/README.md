@@ -26,7 +26,7 @@ Open four terminals (or run in background) and launch each node with its own key
 
 Node 0:
 
-```zsh
+```bash
 ./build/src/executable/qlean \
   --modules-dir ./build/src/modules \
   --bootnodes example/1-network/genesis/nodes.yaml \
@@ -40,7 +40,7 @@ Node 0:
 
 Node 1:
 
-```zsh
+```bash
 ./build/src/executable/qlean \
   --modules-dir ./build/src/modules \
   --bootnodes example/1-network/genesis/nodes.yaml \
@@ -54,7 +54,7 @@ Node 1:
 
 Node 2:
 
-```zsh
+```bash
 ./build/src/executable/qlean \
   --modules-dir ./build/src/modules \
   --bootnodes example/1-network/genesis/nodes.yaml \
@@ -68,7 +68,7 @@ Node 2:
 
 Node 3:
 
-```zsh
+```bash
 ./build/src/executable/qlean \
   --modules-dir ./build/src/modules \
   --bootnodes example/1-network/genesis/nodes.yaml \

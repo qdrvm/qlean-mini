@@ -22,7 +22,7 @@ sed -i "s/GENESIS_TIME: .*/GENESIS_TIME: $future_time/" example/0-single/genesis
 
 Example CLI command:
 
-```zsh
+```bash
 ./build/src/executable/qlean \
   --modules-dir ./build/src/modules \
   --bootnodes example/0-single/genesis/nodes.yaml \
@@ -48,7 +48,7 @@ Example CLI command:
 - `--node-key <hex>`
   - Hex-encoded libp2p private key. Using a fixed key gives a stable PeerId across restarts. You can generate one with:
     
-    ```zsh
+    ```bash
     ./build/src/executable/qlean key generate-node-key
     ```
 - `--listen-addr /ip4/0.0.0.0/udp/9000/quic-v1`

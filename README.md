@@ -40,14 +40,14 @@ sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION 10
 
 For macOS:
 
-```zsh
+```bash
 source .ci/.env
 brew install $(echo $MACOS_PACKAGES)
 ```
 
 ### 1) Install and bootstrap vcpkg
 
-```zsh
+```bash
 # Clone vcpkg somewhere on your machine (e.g. in your home directory)
 git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
 
@@ -66,7 +66,7 @@ Notes:
 
 Use the provided CMake preset (generator: Ninja):
 
-```zsh
+```bash
 # From the repository root
 cmake --preset default
 cmake --build build -j
@@ -74,7 +74,7 @@ cmake --build build -j
 
 You can also build the project's Docker images (builder + runtime) with:
 
-```zsh
+```bash
 make docker_build_all
 ```
 
@@ -87,7 +87,7 @@ This will:
 ### 3) Ensure build was successful
 Print help:
 
-```zsh
+```bash
 ./build/src/executable/qlean --help
 ```
 
@@ -100,7 +100,7 @@ For step-by-step instructions to run a local single-node devnet, see `example/0-
 
 The binary includes a helper subcommand to generate a node key and corresponding PeerId:
 
-```zsh
+```bash
 ./build/src/executable/qlean key generate-node-key
 ```
 
@@ -113,7 +113,7 @@ This prints two lines:
 
 If `TESTING` is enabled (default ON in top-level CMakeLists), tests are built and can be run with CTest:
 
-```zsh
+```bash
 # After building
 ctest --test-dir build --output-on-failure
 ```
