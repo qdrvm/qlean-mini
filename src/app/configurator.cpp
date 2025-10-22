@@ -176,7 +176,8 @@ namespace lean::app {
       std::cout << "Lean-node version " << buildVersion() << '\n';
       std::cout << cli_options_ << '\n';
       std::println(std::cout, "Other commands:");
-      std::println(std::cout, "  qlean key generate-node-key");
+      std::println(std::cout, "  {} key generate-node-key", argv_[0]);
+      std::println(std::cout, "  {} generate-genesis", argv_[0]);
       return true;
     }
 

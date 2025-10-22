@@ -17,7 +17,8 @@
 #include "app/application.hpp"
 #include "app/configuration.hpp"
 #include "app/configurator.hpp"
-#include "executable/cmd_key_generate_node_key.hpp"
+#include "commands/generate_genesis.hpp"
+#include "commands/key_generate_node_key.hpp"
 #include "injector/node_injector.hpp"
 #include "loaders/loader.hpp"
 #include "log/logger.hpp"
@@ -130,14 +131,12 @@ int main(int argc, const char **argv, const char **env) {
     return EXIT_FAILURE;
   }
 
-  if (getArg(1) == "key") {
-    if (getArg(2) == "generate-node-key") {
-      cmdKeyGenerateNodeKey();
-      return EXIT_SUCCESS;
-    }
-    std::println(std::cerr, "Expected one of following commands:");
-    std::println(std::cerr, "  qlean key generate-node-key");
-    return EXIT_FAILURE;
+  if (getArg(1) == "key" and getArg(2) == "generate-node-key") {
+    cmdKeyGenerateNodeKey();
+    return EXIT_SUCCESS;
+  }
+  if (getArg(1) == "generate-genesis") {
+    return cmdGenerateGenesis(getArg);
   }
 
   auto app_configurator =

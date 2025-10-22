@@ -8,7 +8,10 @@
 
 #include <bit>
 
+#include <boost/endian/conversion.hpp>
 #include <cppcodec/base64_url_unpadded.hpp>
+#include <libp2p/crypto/secp256k1_provider/secp256k1_provider_impl.hpp>
+#include <libp2p/crypto/sha/keccak.hpp>
 #include <libp2p/peer/peer_id_from.hpp>
 #include <qtils/bytestr.hpp>
 
@@ -252,18 +255,34 @@ namespace lean::rlp {
 
 namespace lean::enr {
   enum class Error {
+    EXPECTED_SECP256K1_KEYPAIR,
     INVALID_PREFIX,
     INVALID_ID,
+    SIGNATURE_VERIFICATION_FAILED,
   };
   Q_ENUM_ERROR_CODE(Error) {
     using E = decltype(e);
     switch (e) {
+      case E::EXPECTED_SECP256K1_KEYPAIR:
+        return "Expected secp256k1 keypair";
       case E::INVALID_PREFIX:
         return "Invalid ENR prefix";
       case E::INVALID_ID:
         return "Invalid ENR id";
+      case E::SIGNATURE_VERIFICATION_FAILED:
+        return "Signature verification failed";
     }
     abort();
+  }
+
+  Ip makeIp(uint32_t i) {
+    Ip ip;
+    boost::endian::store_big_u32(ip.data(), i);
+    return ip;
+  }
+
+  std::string toString(const Ip &ip) {
+    return std::format("{}.{}.{}.{}", ip[0], ip[1], ip[2], ip[3]);
   }
 
   libp2p::PeerId Enr::peerId() const {
@@ -279,11 +298,8 @@ namespace lean::enr {
   libp2p::Multiaddress Enr::connectAddress() const {
     auto &ip = this->ip.value();
     return libp2p::Multiaddress::create(
-               std::format("/ip4/{}.{}.{}.{}/udp/{}/quic-v1/p2p/{}",
-                           ip[0],
-                           ip[1],
-                           ip[2],
-                           ip[3],
+               std::format("/ip4/{}/udp/{}/quic-v1/p2p/{}",
+                           toString(ip),
                            port.value(),
                            peerId().toBase58()))
         .value();
@@ -291,6 +307,24 @@ namespace lean::enr {
 
   libp2p::PeerInfo Enr::connectInfo() const {
     return {peerId(), {connectAddress()}};
+  }
+
+  inline void encodeContent(rlp::Encoder &rlp, const Enr &enr) {
+    rlp.uint(enr.sequence);
+    rlp.str("id");
+    rlp.str("v4");
+    rlp.str("ip");
+    rlp.bytes(enr.ip.value());
+    rlp.str("quic");
+    rlp.uint(enr.port.value());
+    rlp.str("secp256k1");
+    rlp.bytes(enr.public_key);
+  }
+
+  qtils::ByteVec Enr::signable() const {
+    rlp::Encoder rlp;
+    encodeContent(rlp, *this);
+    return rlp.list();
   }
 
   outcome::result<Enr> decode(std::string_view str) {
@@ -333,22 +367,48 @@ namespace lean::enr {
       BOOST_OUTCOME_TRY(enr.port, kv_quic->second.uint<Port>());
     }
 
+    libp2p::crypto::secp256k1::Secp256k1ProviderImpl secp256k1{nullptr};
+    BOOST_OUTCOME_TRY(
+        auto valid_signature,
+        secp256k1.verifyCompact(libp2p::Keccak::hash(enr.signable()),
+                                enr.signature,
+                                enr.public_key));
+    if (not valid_signature) {
+      return Error::SIGNATURE_VERIFICATION_FAILED;
+    }
+
     return enr;
   }
 
-  std::string encode(const Secp256k1PublicKey &public_key, Port port) {
-    Enr enr{Secp256k1Signature{}, 1, public_key, Ip{127, 0, 0, 1}, port};
+  outcome::result<std::string> encode(const libp2p::crypto::KeyPair &keypair,
+                                      Ip ip,
+                                      Port port) {
+    if (keypair.privateKey.type != libp2p::crypto::Key::Type::Secp256k1) {
+      return Error::EXPECTED_SECP256K1_KEYPAIR;
+    }
+    if (keypair.publicKey.type != libp2p::crypto::Key::Type::Secp256k1) {
+      return Error::EXPECTED_SECP256K1_KEYPAIR;
+    }
+    BOOST_OUTCOME_TRY(auto private_key,
+                      Secp256k1PrivateKey::fromSpan(keypair.privateKey.data));
+    BOOST_OUTCOME_TRY(auto public_key,
+                      Secp256k1PublicKey::fromSpan(keypair.publicKey.data));
+
+    Enr enr{
+        .sequence = 1,
+        .public_key = public_key,
+        .ip = ip,
+        .port = port,
+    };
+
+    libp2p::crypto::secp256k1::Secp256k1ProviderImpl secp256k1{nullptr};
+    enr.signature = Secp256k1Signature{
+        secp256k1.signCompact(libp2p::Keccak::hash(enr.signable()), private_key)
+            .value()};
+
     rlp::Encoder rlp;
     rlp.bytes(enr.signature);
-    rlp.uint(enr.sequence);
-    rlp.str("id");
-    rlp.str("v4");
-    rlp.str("ip");
-    rlp.bytes(enr.ip.value());
-    rlp.str("quic");
-    rlp.uint(enr.port.value());
-    rlp.str("secp256k1");
-    rlp.bytes(enr.public_key);
+    encodeContent(rlp, enr);
     return "enr:" + cppcodec::base64_url_unpadded::encode(rlp.list());
   }
 }  // namespace lean::enr

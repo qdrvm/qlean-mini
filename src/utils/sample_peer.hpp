@@ -12,14 +12,25 @@
 
 namespace lean {
   struct SamplePeer : libp2p::SamplePeer {
-    SamplePeer(size_t index) : libp2p::SamplePeer{makeSecp256k1(index)} {}
-
-    std::string enr() const {
-      enr::Secp256k1PublicKey public_key;
-      assert(keypair.publicKey.data.size() == public_key.size());
-      memcpy(
-          public_key.data(), keypair.publicKey.data.data(), public_key.size());
-      return enr::encode(public_key, port);
+    static enr::Ip makeIp(size_t index, bool shadow) {
+      return shadow ? enr::makeIp((10 << 24) + index) : enr::Ip{127, 0, 0, 1};
     }
+
+    SamplePeer(size_t index, bool shadow)
+        : libp2p::SamplePeer{
+            index,
+            enr::toString(makeIp(index, shadow)),
+            samplePort(index),
+            Secp256k1,
+          },
+          enr_ip{makeIp(index,shadow)},
+          enr{enr::encode(
+            keypair,
+            enr_ip,
+            port
+          ).value()} {}
+
+    enr::Ip enr_ip;
+    std::string enr;
   };
 }  // namespace lean
