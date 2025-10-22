@@ -13,33 +13,19 @@
 
 #include <qtils/test/outcome.hpp>
 
+#include "utils/sample_peer.hpp"
+
 using lean::enr::Enr;
 using lean::enr::Ip;
 using lean::enr::Port;
 using lean::enr::Secp256k1PublicKey;
 using lean::enr::Secp256k1Signature;
 
-namespace {
-
-  // Known valid compressed secp256k1 public key: generator point G
-  static constexpr std::array<uint8_t, 33> kCompressedG{
-      0x02, 0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC, 0x55, 0xA0,
-      0x62, 0x95, 0xCE, 0x87, 0x0B, 0x07, 0x02, 0x9B, 0xFC, 0xDB, 0x2D,
-      0xCE, 0x28, 0xD9, 0x59, 0xF2, 0x81, 0x5B, 0x16, 0xF8, 0x17, 0x98};
-
-  Secp256k1PublicKey makeKey() {
-    Secp256k1PublicKey k{};
-    std::copy(kCompressedG.begin(), kCompressedG.end(), k.begin());
-    return k;
-  }
-
-}  // namespace
-
 TEST(EnrTest, EncodeDecodeRoundTrip) {
-  auto pub = makeKey();
-  Port port = 9000;
+  lean::SamplePeer peer{0, false};
 
-  auto encoded = lean::enr::encode(pub, port);
+  ASSERT_OUTCOME_SUCCESS(
+      encoded, lean::enr::encode(peer.keypair, peer.enr_ip, peer.port));
   // Encoded string must start with "enr:"
   ASSERT_TRUE(encoded.rfind("enr:", 0) == 0) << encoded;
 
@@ -47,12 +33,7 @@ TEST(EnrTest, EncodeDecodeRoundTrip) {
 
   // Basic fields
   EXPECT_EQ(enr.sequence, 1u);
-  EXPECT_EQ(enr.public_key, pub);
-
-  // Signature is all-zero (not actually signed)
-  EXPECT_TRUE(std::all_of(enr.signature.begin(),
-                          enr.signature.end(),
-                          [](uint8_t b) { return b == 0; }));
+  EXPECT_EQ(SpanAdl{enr.public_key}, peer.keypair.publicKey.data);
 
   // IP and port present and correct
   ASSERT_TRUE(enr.ip.has_value());
@@ -61,7 +42,7 @@ TEST(EnrTest, EncodeDecodeRoundTrip) {
   EXPECT_EQ(enr.ip.value(), expected_ip);
 
   ASSERT_TRUE(enr.port.has_value());
-  EXPECT_EQ(enr.port.value(), port);
+  EXPECT_EQ(enr.port.value(), peer.port);
 
   // PeerId must be derivable and non-empty
   auto pid = enr.peerId().toBase58();
@@ -73,20 +54,23 @@ TEST(EnrTest, EncodeDecodeRoundTrip) {
 }
 
 TEST(EnrTest, DeterministicEncoding) {
-  auto pub = makeKey();
-  Port port = 12345;
-  auto e1 = lean::enr::encode(pub, port);
-  auto e2 = lean::enr::encode(pub, port);
+  lean::SamplePeer peer{0, false};
+  lean::SamplePeer peer2{1, false};
+
+  ASSERT_OUTCOME_SUCCESS(
+      e1, lean::enr::encode(peer.keypair, peer.enr_ip, peer.port));
+  ASSERT_OUTCOME_SUCCESS(
+      e2, lean::enr::encode(peer.keypair, peer.enr_ip, peer.port));
   EXPECT_EQ(e1, e2);
 
   // Changing port changes ENR
-  auto e3 = lean::enr::encode(pub, static_cast<Port>(port + 1));
+  ASSERT_OUTCOME_SUCCESS(
+      e3, lean::enr::encode(peer.keypair, peer.enr_ip, peer2.port));
   EXPECT_NE(e1, e3);
 
   // Changing key changes ENR
-  auto pub2 = pub;
-  pub2[32] ^= 0x01;  // tweak
-  auto e4 = lean::enr::encode(pub2, port);
+  ASSERT_OUTCOME_SUCCESS(
+      e4, lean::enr::encode(peer2.keypair, peer.enr_ip, peer.port));
   EXPECT_NE(e1, e4);
 }
 
