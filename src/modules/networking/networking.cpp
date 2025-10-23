@@ -320,7 +320,7 @@ namespace lean::modules {
                     res.error());
             return;
           }
-          SL_INFO(self->logger_,
+          SL_DEBUG(self->logger_,
                   "Received vote for target {}",
                   signed_vote.data.target);
         });

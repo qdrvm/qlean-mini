@@ -93,7 +93,15 @@ OUTPUT_YAML_ABS="$(py_abspath "$(dirname "$OUTPUT_YAML")")/$(basename "$OUTPUT_Y
 
 CONFIG_YAML="$GENESIS_DIR_ABS/config.yaml"
 VALIDATORS_YAML="$GENESIS_DIR_ABS/validators.yaml"
+VALIDATOR_CONFIG_YAML="$GENESIS_DIR_ABS/validator-config.yaml"
 NODES_YAML="$GENESIS_DIR_ABS/nodes.yaml"
+
+# Prefer validator-config.yaml for parsing enrFields (it's used in some genesis folders).
+if [[ -f "$VALIDATOR_CONFIG_YAML" ]]; then
+  PARSE_VALIDATOR_FILE="$VALIDATOR_CONFIG_YAML"
+else
+  PARSE_VALIDATOR_FILE="$VALIDATORS_YAML"
+fi
 
 for f in "$CONFIG_YAML" "$VALIDATORS_YAML" "$NODES_YAML"; do
   if [[ ! -f "$f" ]]; then
@@ -133,6 +141,51 @@ if VAL_COUNT=$(grep -E '^\s*VALIDATOR_COUNT\s*:' "$CONFIG_YAML" | awk -F: '{gsub
   fi
 fi
 
+# Parse validators.yaml to extract enrFields.ip and enrFields.quic per validator (if present).
+# We prefer these values over generated defaults so shadow uses the same IPs/ports as the genesis.
+VALIDATOR_IPS=()
+VALIDATOR_QUICS=()
+# This python snippet prints one line per node index: "<ip> <quic>" (empty strings if not found)
+while IFS= read -r _line; do
+  VALIDATOR_IPS+=("$(echo "$_line" | awk '{print $1}')")
+  VALIDATOR_QUICS+=("$(echo "$_line" | awk '{print $2}')")
+done < <(python3 - "$PARSE_VALIDATOR_FILE" "$NODE_COUNT" <<'PY'
+import sys, re
+path = sys.argv[1]
+node_count = int(sys.argv[2])
+mapping = {}
+name = None
+in_enr = False
+with open(path) as f:
+    for raw in f:
+        line = raw.rstrip('\n')
+        m = re.match(r'^\s*-\s*name:\s*(\S+)', line)
+        if m:
+            name = m.group(1)
+            in_enr = False
+            continue
+        if re.match(r'^\s*enrFields:\s*', line):
+            in_enr = True
+            continue
+        if in_enr and name is not None:
+            m_ip = re.match(r'^\s*ip:\s*(\S+)', line)
+            if m_ip:
+                mapping.setdefault(name, {})['ip'] = m_ip.group(1)
+                continue
+            m_quic = re.match(r'^\s*quic:\s*(\S+)', line)
+            if m_quic:
+                mapping.setdefault(name, {})['quic'] = m_quic.group(1)
+                continue
+# Emit ip and quic for node_0 .. node_{N-1}
+for i in range(node_count):
+    nm = f'node_{i}'
+    ent = mapping.get(nm, {})
+    ip = ent.get('ip', '')
+    quic = str(ent.get('quic', ''))
+    print(ip + ' ' + quic)
+PY
+)
+
 # Helper: YAML double-quoted string escape
 yaml_escape() {
   local s="$1"
@@ -157,9 +210,21 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
   for ((i=0; i<NODE_COUNT; i++)); do
     key_file="${NODE_KEY_FILES[$i]}"
     node_name="node$i"
-    ip_last=$((IP_BASE_LAST_OCTET + i))
-    ip="10.0.0.$ip_last"
-    udp_port=$((UDP_BASE + i))
+    # Prefer the IP from validators.yaml if present; otherwise fall back to generated 10.0.0.<base+idx>
+    if [[ -n "${VALIDATOR_IPS[$i]}" ]]; then
+      ip="${VALIDATOR_IPS[$i]}"
+    else
+      ip_last=$((IP_BASE_LAST_OCTET + i))
+      ip="10.0.0.$ip_last"
+    fi
+
+    # Prefer the quic port from validators.yaml if present; otherwise use UDP_BASE + index
+    if [[ -n "${VALIDATOR_QUICS[$i]}" ]]; then
+      udp_port="${VALIDATOR_QUICS[$i]}"
+    else
+      udp_port=$((UDP_BASE + i))
+    fi
+
     prom_port=$((PROM_BASE + i))
 
     # Build args string
