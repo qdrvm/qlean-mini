@@ -39,8 +39,6 @@
 #include "modules/networking/types.hpp"
 
 namespace lean::modules {
-  // TODO(turuslan): gossip [from,seqno,signature,key]=None
-
   inline auto gossipTopic(std::string_view type) {
     return std::format("/leanconsensus/devnet0/{}/ssz_snappy", type);
   }
@@ -243,53 +241,53 @@ namespace lean::modules {
     }
 
     // Restore peer connection handlers and protocol startup
-    auto on_peer_connected =
-        [host, weak_self{weak_from_this()}](
-            std::weak_ptr<libp2p::connection::CapableConnection>
-                weak_connection) {
-          auto connection = weak_connection.lock();
-          if (not connection) {
-            return;
-          }
-          auto self = weak_self.lock();
-          if (not self) {
-            return;
-          }
-          auto peer_id = connection->remotePeer();
-          self->loader_.dispatch_peer_connected(
-              qtils::toSharedPtr(messages::PeerConnectedMessage{peer_id}));
-          if (connection->isInitiator()) {
-            libp2p::coroSpawn(
-                *self->io_context_,
-                [status_protocol{self->status_protocol_},
-                 connection]() -> libp2p::Coro<void> {
-                  std::ignore = co_await status_protocol->connect(connection);
-                });
-          } else {
-            // Non-initiator: record remote address in peer repository
-            auto addr_res = connection->remoteMultiaddr();
-            if (!addr_res.has_value()) {
-              SL_WARN(self->logger_, "remoteMultiaddr() failed: {}", addr_res.error());
-              return;
-            }
+    auto on_peer_connected = [host, weak_self{weak_from_this()}](
+                                 std::weak_ptr<
+                                     libp2p::connection::CapableConnection>
+                                     weak_connection) {
+      auto connection = weak_connection.lock();
+      if (not connection) {
+        return;
+      }
+      auto self = weak_self.lock();
+      if (not self) {
+        return;
+      }
+      auto peer_id = connection->remotePeer();
+      self->loader_.dispatch_peer_connected(
+          qtils::toSharedPtr(messages::PeerConnectedMessage{peer_id}));
+      if (connection->isInitiator()) {
+        libp2p::coroSpawn(*self->io_context_,
+                          [status_protocol{self->status_protocol_},
+                           connection]() -> libp2p::Coro<void> {
+                            std::ignore =
+                                co_await status_protocol->connect(connection);
+                          });
+      } else {
+        // Non-initiator: record remote address in peer repository
+        auto addr_res = connection->remoteMultiaddr();
+        if (!addr_res.has_value()) {
+          SL_WARN(
+              self->logger_, "remoteMultiaddr() failed: {}", addr_res.error());
+          return;
+        }
 
-            std::vector<libp2p::multi::Multiaddress> addrs;
-            addrs.emplace_back(addr_res.value());
+        std::vector<libp2p::multi::Multiaddress> addrs;
+        addrs.emplace_back(addr_res.value());
 
-            if (auto result = host->getPeerRepository()
-                                  .getAddressRepository()
-                                  .addAddresses(
-                                      peer_id,
-                                      std::span<const libp2p::multi::Multiaddress>(addrs),
-                                      libp2p::peer::ttl::kRecentlyConnected);
-                not result.has_value()) {
-              SL_WARN(self->logger_,
-                      "Failed to add addresses for peer {}: {}",
-                      peer_id,
-                      result.error());
-                }
-          }
-        };
+        if (auto result =
+                host->getPeerRepository().getAddressRepository().addAddresses(
+                    peer_id,
+                    std::span<const libp2p::multi::Multiaddress>(addrs),
+                    libp2p::peer::ttl::kRecentlyConnected);
+            not result.has_value()) {
+          SL_WARN(self->logger_,
+                  "Failed to add addresses for peer {}: {}",
+                  peer_id,
+                  result.error());
+        }
+      }
+    };
 
     auto on_peer_disconnected =
         [weak_self{weak_from_this()}](libp2p::PeerId peer_id) {
@@ -344,16 +342,20 @@ namespace lean::modules {
     identify_->start();
 
     gossip_blocks_topic_ = gossipSubscribe<SignedBlock>(
-        "block", [weak_self{weak_from_this()}](SignedBlock &&block) {
+        "block",
+        [weak_self{weak_from_this()}](
+            SignedBlock &&block, std::optional<libp2p::PeerId> received_from) {
           auto self = weak_self.lock();
           if (not self) {
             return;
           }
           block.message.setHash();
-          self->receiveBlock(std::nullopt, std::move(block));
+          self->receiveBlock(received_from, std::move(block));
         });
     gossip_votes_topic_ = gossipSubscribe<SignedVote>(
-        "vote", [weak_self{weak_from_this()}](SignedVote &&signed_vote) {
+        "vote",
+        [weak_self{weak_from_this()}](SignedVote &&signed_vote,
+                                      std::optional<libp2p::PeerId>) {
           auto self = weak_self.lock();
           if (not self) {
             return;
@@ -405,12 +407,12 @@ namespace lean::modules {
     libp2p::coroSpawn(
         *io_context_,
         [this, type, topic, f{std::move(f)}]() -> libp2p::Coro<void> {
-          while (auto raw_result = co_await topic->receive()) {
+          while (auto raw_result = co_await topic->receiveMessage()) {
             auto &raw = raw_result.value();
-            if (auto uncompressed_res = snappyUncompress(raw)) {
+            if (auto uncompressed_res = snappyUncompress(raw.data)) {
               auto &uncompressed = uncompressed_res.value();
               if (auto r = decode<T>(uncompressed)) {
-                f(std::move(r.value()));
+                f(std::move(r.value()), raw.received_from);
               }
             }
           }
@@ -466,10 +468,10 @@ namespace lean::modules {
                                     SignedBlock &&signed_block) {
     auto slot_hash = signed_block.message.slotHash();
     SL_INFO(logger_,
-             "receiveBlock slot {} hash {} parent {}",
-             slot_hash.slot,
-             slot_hash.hash,
-             signed_block.message.parent_root);
+            "receiveBlock slot {} hash {} parent {}",
+            slot_hash.slot,
+            slot_hash.hash,
+            signed_block.message.parent_root);
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
       while (not queue.empty()) {
