@@ -17,7 +17,7 @@
 # Notes:
 # - Node count is inferred from node_*.key files in GENESIS_DIR.
 # - Ports increment by +index per node.
-# - IPs are assigned as 10.0.0.(IP_BASE_LAST_OCTET + index)
+# - IPs are assigned as 10.0.0.(base+idx)
 # - Paths are emitted literally in YAML and quoted; override with -x/-m if needed.
 
 set -euo pipefail
@@ -40,6 +40,12 @@ MODULES_DIR_DEFAULT="$PROJECT_ROOT/build/src/modules"
 QLEAN_PATH="$QLEAN_PATH_DEFAULT"
 MODULES_DIR="$MODULES_DIR_DEFAULT"
 GENESIS_DIR=""
+
+# Network/graph defaults (host/switched bandwidth, latency, packet loss)
+BANDWIDTH_HOST="100 Mbit"
+BANDWIDTH_SWITCH="1 Gbit"
+LINK_LATENCY="1 ms"
+PACKET_LOSS="0.0"
 
 while getopts ":g:o:t:u:p:i:x:m:r:h" opt; do
   case $opt in
@@ -203,8 +209,52 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
   printf "experimental:\n"
   printf "  native_preemption_enabled: true\n"
   printf "network:\n"
+  # Emit an inline GML graph: create one node per host with 100 Mbit and a central switch with 1 Gbit
   printf "  graph:\n"
-  printf "    type: 1_gbit_switch\n"
+  printf "    type: gml\n"
+  printf "    inline: |\n"
+  printf "      graph [\n"
+  printf "        directed 0\n"
+
+  # Print node entries for each host
+  for ((i=0; i<NODE_COUNT; i++)); do
+    printf "        node [\n"
+    printf "          id %d\n" "$i"
+    printf "          host_bandwidth_up \"%s\"\n" "$BANDWIDTH_HOST"
+    printf "          host_bandwidth_down \"%s\"\n" "$BANDWIDTH_HOST"
+    printf "        ]\n"
+  done
+
+  # Central switch node (id = NODE_COUNT)
+  central_id=$NODE_COUNT
+  printf "        node [\n"
+  printf "          id %d\n" "$central_id"
+  printf "          host_bandwidth_up \"%s\"\n" "$BANDWIDTH_SWITCH"
+  printf "          host_bandwidth_down \"%s\"\n" "$BANDWIDTH_SWITCH"
+  printf "        ]\n"
+
+  # Self-loop edges for hosts and switch
+  for ((i=0; i<=NODE_COUNT; i++)); do
+    printf "        edge [\n"
+    printf "          source %d\n" "$i"
+    printf "          target %d\n" "$i"
+    printf "          latency \"%s\"\n" "$LINK_LATENCY"
+    printf "          packet_loss %s\n" "$PACKET_LOSS"
+    printf "        ]\n"
+  done
+
+  # Edges from each host to central switch
+  for ((i=0; i<NODE_COUNT; i++)); do
+    printf "        edge [\n"
+    printf "          source %d\n" "$i"
+    printf "          target %d\n" "$central_id"
+    printf "          latency \"%s\"\n" "$LINK_LATENCY"
+    printf "          packet_loss %s\n" "$PACKET_LOSS"
+    printf "        ]\n"
+  done
+
+  printf "      ]\n"
+
   printf "hosts:\n"
 
   for ((i=0; i<NODE_COUNT; i++)); do
@@ -243,7 +293,7 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
     joined="${args_str[*]}"
 
     printf "  %s:\n" "$node_name"
-    printf "    network_node_id: 0\n"
+    printf "    network_node_id: %d\n" "$i"
     printf "    ip_addr: %s\n" "$ip"
     printf "    processes:\n"
     printf "      - path: %s\n" "$QLEAN_PATH_ABS"
