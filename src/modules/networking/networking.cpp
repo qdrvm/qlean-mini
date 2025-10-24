@@ -7,8 +7,10 @@
 
 #include "modules/networking/networking.hpp"
 
+#include <algorithm>
 #include <format>
 #include <memory>
+#include <random>
 #include <stdexcept>
 
 #include <app/configuration.hpp>
@@ -169,16 +171,35 @@ namespace lean::modules {
 
     // Add bootnodes from chain spec
     if (!bootnodes.empty()) {
-      SL_INFO(logger_,
-              "Adding {} bootnodes to address repository",
-              bootnodes.size());
+      SL_INFO(logger_, "Found {} bootnodes in chain spec", bootnodes.size());
 
       auto &address_repo = host->getPeerRepository().getAddressRepository();
 
-      for (const auto &bootnode : bootnodes.getBootnodes()) {
-        if (bootnode.peer_id == peer_id) {
+      // Collect candidates (exclude ourselves)
+      auto all_bootnodes = bootnodes.getBootnodes();
+      std::vector<decltype(all_bootnodes)::value_type> candidates;
+      candidates.reserve(all_bootnodes.size());
+      for (const auto &b : all_bootnodes) {
+        if (b.peer_id == peer_id) {
           continue;
         }
+        candidates.push_back(b);
+      }
+
+      // If more than 20 candidates, shuffle and pick first 20
+      size_t max_take = 20;
+      if (candidates.size() > max_take) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::shuffle(candidates.begin(), candidates.end(), gen);
+        candidates.erase(candidates.begin() + max_take, candidates.end());
+      }
+
+      SL_INFO(logger_,
+              "Adding {} bootnodes to address repository",
+              candidates.size());
+
+      for (const auto &bootnode : candidates) {
         std::vector<libp2p::multi::Multiaddress> addresses{bootnode.address};
 
         // Add bootnode addresses with permanent TTL
@@ -221,8 +242,9 @@ namespace lean::modules {
       SL_DEBUG(logger_, "No bootnodes configured");
     }
 
+    // Restore peer connection handlers and protocol startup
     auto on_peer_connected =
-        [weak_self{weak_from_this()}](
+        [host, weak_self{weak_from_this()}](
             std::weak_ptr<libp2p::connection::CapableConnection>
                 weak_connection) {
           auto connection = weak_connection.lock();
@@ -243,8 +265,32 @@ namespace lean::modules {
                  connection]() -> libp2p::Coro<void> {
                   std::ignore = co_await status_protocol->connect(connection);
                 });
+          } else {
+            // Non-initiator: record remote address in peer repository
+            auto addr_res = connection->remoteMultiaddr();
+            if (!addr_res.has_value()) {
+              SL_WARN(self->logger_, "remoteMultiaddr() failed: {}", addr_res.error());
+              return;
+            }
+
+            std::vector<libp2p::multi::Multiaddress> addrs;
+            addrs.emplace_back(addr_res.value());
+
+            if (auto result = host->getPeerRepository()
+                                  .getAddressRepository()
+                                  .addAddresses(
+                                      peer_id,
+                                      std::span<const libp2p::multi::Multiaddress>(addrs),
+                                      libp2p::peer::ttl::kRecentlyConnected);
+                not result.has_value()) {
+              SL_WARN(self->logger_,
+                      "Failed to add addresses for peer {}: {}",
+                      peer_id,
+                      result.error());
+                }
           }
         };
+
     auto on_peer_disconnected =
         [weak_self{weak_from_this()}](libp2p::PeerId peer_id) {
           auto self = weak_self.lock();
@@ -254,6 +300,7 @@ namespace lean::modules {
           self->loader_.dispatch_peer_disconnected(
               qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
         };
+
     on_peer_connected_sub_ =
         host->getBus()
             .getChannel<libp2p::event::network::OnNewConnectionChannel>()
@@ -321,8 +368,8 @@ namespace lean::modules {
             return;
           }
           SL_DEBUG(self->logger_,
-                  "Received vote for target {}",
-                  signed_vote.data.target);
+                   "Received vote for target {}",
+                   signed_vote.data.target);
         });
 
     io_thread_.emplace([io_context{io_context_}] {
@@ -418,7 +465,7 @@ namespace lean::modules {
   void NetworkingImpl::receiveBlock(std::optional<libp2p::PeerId> from_peer,
                                     SignedBlock &&signed_block) {
     auto slot_hash = signed_block.message.slotHash();
-    SL_DEBUG(logger_,
+    SL_INFO(logger_,
              "receiveBlock slot {} hash {} parent {}",
              slot_hash.slot,
              slot_hash.hash,
