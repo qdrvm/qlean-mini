@@ -18,9 +18,11 @@ namespace lean::app {
     // clang-format off
     MOCK_METHOD(const std::string&, nodeVersion, (), (const, override));
     MOCK_METHOD(const std::string&, nodeName, (), (const, override));
+    MOCK_METHOD(const std::string&, nodeId, (), (const, override));
     MOCK_METHOD(const std::filesystem::path&, basePath, (), (const, override));
-    MOCK_METHOD(const std::filesystem::path&, specFile, (), (const, override));
     MOCK_METHOD(const std::filesystem::path&, modulesDir, (), (const, override));
+    MOCK_METHOD(const std::filesystem::path&, bootnodesFile, (), (const, override));
+    MOCK_METHOD(const std::filesystem::path&, validatorRegistryPath, (), (const, override));
 
     MOCK_METHOD(const DatabaseConfig &, database, (), (const, override));
 

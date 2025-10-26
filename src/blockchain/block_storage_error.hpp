@@ -20,6 +20,7 @@ namespace lean::blockchain {
     GENESIS_BLOCK_NOT_FOUND,
     FINALIZED_BLOCK_NOT_FOUND,
     BLOCK_TREE_LEAVES_NOT_FOUND,
+    JUSTIFICATION_EMPTY
   };
 
 }

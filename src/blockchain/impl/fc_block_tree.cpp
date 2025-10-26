@@ -105,7 +105,13 @@ namespace lean::blockchain {
 
   outcome::result<std::optional<SignedBlock>> FCBlockTree::tryGetSignedBlock(
       const BlockHash block_hash) const {
-    throw std::runtime_error("FCBlockTree::tryGetSignedBlock()");
+    auto &blocks = fork_choice_store_->getBlocks();
+    auto it = blocks.find(block_hash);
+    if (it == blocks.end()) {
+      return std::nullopt;
+    }
+    // TODO(turuslan): signature
+    return SignedBlock{.message = it->second};
   }
 
   void FCBlockTree::import(std::vector<SignedBlock> blocks) {}

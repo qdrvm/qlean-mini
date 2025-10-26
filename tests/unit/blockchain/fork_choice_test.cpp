@@ -11,10 +11,17 @@
 #include <cmath>
 #include <cstring>
 #include <format>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 
-#include "qtils/test/outcome.hpp"
-#include "tests/testutil/prepare_loggers.hpp"
 #include "blockchain/is_justifiable_slot.hpp"
+#include "blockchain/state_transition_function.hpp"
+#include "mock/blockchain/validator_registry_mock.hpp"
+#include "modules/networking/ssz_snappy.hpp"
+#include "qtils/test/outcome.hpp"
+#include "tests/mock/blockchain/metrics_mock.hpp"
+#include "testutil/prepare_loggers.hpp"
 #include "types/signed_block.hpp"
 
 using lean::Block;
@@ -33,9 +40,9 @@ lean::BlockHash testHash(std::string_view s) {
 
 SignedVote makeVote(const Block &source, const Block &target) {
   return SignedVote{
+      .validator_id = 0,
       .data =
           {
-              .validator_id = 0,
               .slot = target.slot,
               .head = Checkpoint::from(target),
               .target = Checkpoint::from(target),
@@ -55,33 +62,35 @@ std::optional<Checkpoint> getVote(const ForkChoiceStore::Votes &votes) {
 
 lean::Config config{
     .num_validators = 100,
-    .genesis_time = 1000,
+    .genesis_time = 1,
 };
 
-auto createTestStore(uint64_t time = 100,
-                     lean::Config config_param = config,
-                     lean::BlockHash head = {},
-                     lean::BlockHash safe_target = {},
-                     lean::Checkpoint latest_justified = {},
-                     lean::Checkpoint latest_finalized = {},
-                     ForkChoiceStore::Blocks blocks = {},
-                     std::unordered_map<lean::BlockHash, lean::State> states = {},
-                     ForkChoiceStore::Votes latest_known_votes = {},
-                     ForkChoiceStore::Votes latest_new_votes = {},
-                     lean::ValidatorIndex validator_index = 0) {
-  return ForkChoiceStore(
-      time,
-      testutil::prepareLoggers(),
-      config_param,
-      head,
-      safe_target,
-      latest_justified,
-      latest_finalized,
-      blocks,
-      states,
-      latest_known_votes,
-      latest_new_votes,
-      validator_index);
+auto createTestStore(
+    uint64_t time = 100,
+    lean::Config config_param = config,
+    lean::BlockHash head = {},
+    lean::BlockHash safe_target = {},
+    lean::Checkpoint latest_justified = {},
+    lean::Checkpoint latest_finalized = {},
+    ForkChoiceStore::Blocks blocks = {},
+    std::unordered_map<lean::BlockHash, lean::State> states = {},
+    ForkChoiceStore::Votes latest_known_votes = {},
+    ForkChoiceStore::Votes latest_new_votes = {},
+    lean::ValidatorIndex validator_index = 0) {
+  return ForkChoiceStore(time,
+                         testutil::prepareLoggers(),
+                         std::make_shared<lean::metrics::MetricsMock>(),
+                         config_param,
+                         head,
+                         safe_target,
+                         latest_justified,
+                         latest_finalized,
+                         blocks,
+                         states,
+                         latest_known_votes,
+                         latest_new_votes,
+                         validator_index,
+                         std::make_shared<lean::ValidatorRegistryMock>());
 }
 
 auto makeBlockMap(std::vector<lean::Block> blocks) {
@@ -118,8 +127,13 @@ TEST(TestVoteTargetCalculation, test_get_vote_target_basic) {
   // Recent finalization
   auto finalized = Checkpoint::from(genesis);
 
-  auto store = createTestStore(100, config, block_1.hash(), block_1.hash(),
-                              finalized, finalized, makeBlockMap(blocks));
+  auto store = createTestStore(100,
+                               config,
+                               block_1.hash(),
+                               block_1.hash(),
+                               finalized,
+                               finalized,
+                               makeBlockMap(blocks));
 
   auto target = store.getVoteTarget();
 
@@ -138,8 +152,13 @@ TEST(TestVoteTargetCalculation, test_vote_target_with_old_finalized) {
   // Current head is at slot 9
   auto &head = blocks.at(9);
 
-  auto store = createTestStore(100, config, head.hash(), head.hash(),
-                              finalized, finalized, makeBlockMap(blocks));
+  auto store = createTestStore(100,
+                               config,
+                               head.hash(),
+                               head.hash(),
+                               finalized,
+                               finalized,
+                               makeBlockMap(blocks));
 
   auto target = store.getVoteTarget();
 
@@ -157,8 +176,13 @@ TEST(TestVoteTargetCalculation, test_vote_target_walks_back_from_head) {
   // Finalized at genesis
   auto finalized = Checkpoint::from(genesis);
 
-  auto store = createTestStore(100, config, block_2.hash(), block_1.hash(),
-                              finalized, finalized, makeBlockMap(blocks));
+  auto store = createTestStore(100,
+                               config,
+                               block_2.hash(),
+                               block_1.hash(),
+                               finalized,
+                               finalized,
+                               makeBlockMap(blocks));
 
   auto target = store.getVoteTarget();
 
@@ -177,8 +201,13 @@ TEST(TestVoteTargetCalculation, test_vote_target_justifiable_slot_constraint) {
   // Head at slot 20
   auto &head = blocks.at(20);
 
-  auto store = createTestStore(100, config, head.hash(), head.hash(),
-                              finalized, finalized, makeBlockMap(blocks));
+  auto store = createTestStore(100,
+                               config,
+                               head.hash(),
+                               head.hash(),
+                               finalized,
+                               finalized,
+                               makeBlockMap(blocks));
 
   auto target = store.getVoteTarget();
 
@@ -198,8 +227,13 @@ TEST(TestVoteTargetCalculation,
 
   auto finalized = Checkpoint::from(genesis);
 
-  auto store = createTestStore(500, config, head.hash(), head.hash(),
-                              finalized, finalized, makeBlockMap(blocks));
+  auto store = createTestStore(500,
+                               config,
+                               head.hash(),
+                               head.hash(),
+                               finalized,
+                               finalized,
+                               makeBlockMap(blocks));
 
   auto target = store.getVoteTarget();
 
@@ -216,20 +250,19 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
 
   ForkChoiceStore::Votes votes;
   votes[0] = SignedVote{
-      .data = {
-          .validator_id = 0,
-          .slot = target.slot,
-          .head = Checkpoint::from(target),
-          .target = Checkpoint::from(target),
-          .source = Checkpoint::from(root),
-      },
+      .validator_id = 0,
+      .data =
+          {
+              .slot = target.slot,
+              .head = Checkpoint::from(target),
+              .target = Checkpoint::from(target),
+              .source = Checkpoint::from(root),
+          },
       .signature = {},
   };
 
-  auto head = getForkChoiceHead(makeBlockMap(blocks),
-                                Checkpoint::from(root),
-                                votes,
-                                0);
+  auto head =
+      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), votes, 0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -240,8 +273,8 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_no_votes) {
   auto &root = blocks.at(0);
 
   ForkChoiceStore::Votes empty_votes;
-  auto head =
-      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), empty_votes, 0);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks), Checkpoint::from(root), empty_votes, 0);
 
   EXPECT_EQ(head, root.hash());
 }
@@ -254,20 +287,19 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
 
   ForkChoiceStore::Votes votes;
   votes[0] = SignedVote{
-      .data = {
-          .validator_id = 0,
-          .slot = target.slot,
-          .head = Checkpoint::from(target),
-          .target = Checkpoint::from(target),
-          .source = Checkpoint::from(root),
-      },
+      .validator_id = 0,
+      .data =
+          {
+              .slot = target.slot,
+              .head = Checkpoint::from(target),
+              .target = Checkpoint::from(target),
+              .source = Checkpoint::from(root),
+          },
       .signature = {},
   };
 
-  auto head = getForkChoiceHead(makeBlockMap(blocks),
-                                Checkpoint::from(root),
-                                votes,
-                                2);
+  auto head =
+      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), votes, 2);
 
   EXPECT_EQ(head, root.hash());
 }
@@ -281,21 +313,20 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
   ForkChoiceStore::Votes votes;
   for (int i = 0; i < 3; ++i) {
     votes[i] = SignedVote{
-        .data = {
-            .validator_id = static_cast<uint64_t>(i),
-            .slot = target.slot,
-            .head = Checkpoint::from(target),
-            .target = Checkpoint::from(target),
-            .source = Checkpoint::from(root),
-        },
+        .validator_id = static_cast<uint64_t>(i),
+        .data =
+            {
+                .slot = target.slot,
+                .head = Checkpoint::from(target),
+                .target = Checkpoint::from(target),
+                .source = Checkpoint::from(root),
+            },
         .signature = {},
     };
   }
 
-  auto head = getForkChoiceHead(makeBlockMap(blocks),
-                                Checkpoint::from(root),
-                                votes,
-                                0);
+  auto head =
+      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), votes, 0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -307,8 +338,13 @@ TEST(TestSafeTargetComputation, test_update_safe_target_basic) {
 
   auto finalized = Checkpoint::from(genesis);
 
-  auto store = createTestStore(100, config, genesis.hash(), genesis.hash(),
-                              finalized, finalized, makeBlockMap(blocks));
+  auto store = createTestStore(100,
+                               config,
+                               genesis.hash(),
+                               genesis.hash(),
+                               finalized,
+                               finalized,
+                               makeBlockMap(blocks));
 
   // Update safe target (this tests the method exists and runs)
   store.updateSafeTarget();
@@ -327,29 +363,38 @@ TEST(TestSafeTargetComputation, test_safe_target_with_votes) {
 
   ForkChoiceStore::Votes new_votes;
   new_votes[0] = SignedVote{
-      .data = {
-          .validator_id = 0,
-          .slot = block_1.slot,
-          .head = Checkpoint::from(block_1),
-          .target = Checkpoint::from(block_1),
-          .source = Checkpoint::from(genesis),
-      },
+      .validator_id = 0,
+      .data =
+          {
+              .slot = block_1.slot,
+              .head = Checkpoint::from(block_1),
+              .target = Checkpoint::from(block_1),
+              .source = Checkpoint::from(genesis),
+          },
       .signature = {},
   };
   new_votes[1] = SignedVote{
-      .data = {
-          .validator_id = 1,
-          .slot = block_1.slot,
-          .head = Checkpoint::from(block_1),
-          .target = Checkpoint::from(block_1),
-          .source = Checkpoint::from(genesis),
-      },
+      .validator_id = 1,
+      .data =
+          {
+              .slot = block_1.slot,
+              .head = Checkpoint::from(block_1),
+              .target = Checkpoint::from(block_1),
+              .source = Checkpoint::from(genesis),
+          },
       .signature = {},
   };
 
-  auto store = createTestStore(100, config, block_1.hash(), genesis.hash(),
-                              finalized, finalized, makeBlockMap(blocks), {},
-                              {}, new_votes);
+  auto store = createTestStore(100,
+                               config,
+                               block_1.hash(),
+                               genesis.hash(),
+                               finalized,
+                               finalized,
+                               makeBlockMap(blocks),
+                               {},
+                               {},
+                               new_votes);
 
   // Update safe target with votes
   store.updateSafeTarget();
@@ -365,8 +410,13 @@ TEST(TestEdgeCases, test_vote_target_single_block) {
 
   auto finalized = Checkpoint::from(genesis);
 
-  auto store = createTestStore(100, config, genesis.hash(), genesis.hash(),
-                              finalized, finalized, makeBlockMap(blocks));
+  auto store = createTestStore(100,
+                               config,
+                               genesis.hash(),
+                               genesis.hash(),
+                               finalized,
+                               finalized,
+                               makeBlockMap(blocks));
 
   auto target = store.getVoteTarget();
 
@@ -380,7 +430,8 @@ TEST(TestAttestationValidation, test_validate_attestation_valid) {
   auto &source = blocks.at(1);
   auto &target = blocks.at(2);
 
-  auto sample_store = createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
+  auto sample_store =
+      createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // Create valid signed vote
   // Should validate without error
@@ -396,7 +447,8 @@ TEST(TestAttestationValidation, test_validate_attestation_slot_order_invalid) {
   // Earlier than source
   auto &target = blocks.at(1);
 
-  auto sample_store = createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
+  auto sample_store =
+      createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // Create invalid signed vote (source > target slot)
   EXPECT_OUTCOME_ERROR(
@@ -418,7 +470,8 @@ TEST(TestAttestationValidation,
   auto &source = blocks.at(1);
   auto &target = blocks.at(2);
 
-  auto sample_store = createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
+  auto sample_store =
+      createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // Create signed vote with mismatched checkpoint slot
   auto vote = makeVote(source, target);
@@ -432,9 +485,11 @@ TEST(TestAttestationValidation, test_validate_attestation_too_far_future) {
   auto &source = blocks.at(1);
   auto &target = blocks.at(9);
 
-  // Use very low genesis time (0) so that target at slot 9 is far in future (slot 9 > current slot + 1)
+  // Use very low genesis time (0) so that target at slot 9 is far in future
+  // (slot 9 > current slot + 1)
   lean::Config low_time_config{.num_validators = 100, .genesis_time = 0};
-  auto sample_store = createTestStore(0, low_time_config, {}, {}, {}, {}, makeBlockMap(blocks));
+  auto sample_store =
+      createTestStore(0, low_time_config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // Create signed vote for future slot (target slot 9 when current is ~0)
   EXPECT_OUTCOME_ERROR(
@@ -447,7 +502,8 @@ TEST(TestAttestationProcessing, test_process_network_attestation) {
   auto &source = blocks.at(1);
   auto &target = blocks.at(2);
 
-  auto sample_store = createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
+  auto sample_store =
+      createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // Create valid signed vote
   // Process as network attestation
@@ -455,7 +511,8 @@ TEST(TestAttestationProcessing, test_process_network_attestation) {
       sample_store.processAttestation(makeVote(source, target), false));
 
   // Vote should be added to new votes
-  EXPECT_EQ(getVote(sample_store.getLatestNewVotes()), Checkpoint::from(target));
+  EXPECT_EQ(getVote(sample_store.getLatestNewVotes()),
+            Checkpoint::from(target));
 }
 
 // Test processing attestation from a block.
@@ -464,7 +521,8 @@ TEST(TestAttestationProcessing, test_process_block_attestation) {
   auto &source = blocks.at(1);
   auto &target = blocks.at(2);
 
-  auto sample_store = createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
+  auto sample_store =
+      createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // Create valid signed vote
   // Process as block attestation
@@ -482,7 +540,8 @@ TEST(TestAttestationProcessing, test_process_attestation_superseding) {
   auto &target_1 = blocks.at(1);
   auto &target_2 = blocks.at(2);
 
-  auto sample_store = createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
+  auto sample_store =
+      createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // Process first (older) attestation
   EXPECT_OUTCOME_SUCCESS(
@@ -504,7 +563,8 @@ TEST(TestAttestationProcessing,
   auto &source = blocks.at(1);
   auto &target = blocks.at(2);
 
-  auto sample_store = createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
+  auto sample_store =
+      createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // First process as network vote
   auto signed_vote = makeVote(source, target);
@@ -524,11 +584,12 @@ TEST(TestAttestationProcessing,
 
 // Test basic time advancement.
 TEST(TestTimeAdvancement, test_advance_time_basic) {
-  // Create a simple store with minimal setup - use 0 time interval so advanceTime is a no-op
+  // Create a simple store with minimal setup - use 0 time interval so
+  // advanceTime is a no-op
   auto sample_store = createTestStore(0, config);
 
   // Target time equal to genesis time - should be a no-op
-  auto target_time = sample_store.getConfig().genesis_time / 1000;
+  auto target_time = sample_store.getConfig().genesis_time;
 
   // This should not throw an exception and should return empty result
   auto result = sample_store.advanceTime(target_time);
@@ -541,7 +602,7 @@ TEST(TestTimeAdvancement, test_advance_time_no_proposal) {
   auto sample_store = createTestStore(0, config);
 
   // Target time equal to genesis time - should be a no-op
-  auto target_time = sample_store.getConfig().genesis_time / 1000;
+  auto target_time = sample_store.getConfig().genesis_time;
 
   // This should not throw an exception and should return empty result
   auto result = sample_store.advanceTime(target_time);
@@ -553,8 +614,8 @@ TEST(TestTimeAdvancement, test_advance_time_already_current) {
   // Create a simple store with time already set
   auto sample_store = createTestStore(100, config);
 
-  // Target time is in the past relative to current time - should be a no-op  
-  auto current_target = sample_store.getConfig().genesis_time / 1000;
+  // Target time is in the past relative to current time - should be a no-op
+  auto current_target = sample_store.getConfig().genesis_time;
 
   // Try to advance to past time (should be no-op)
   auto result = sample_store.advanceTime(current_target);
@@ -567,7 +628,7 @@ TEST(TestTimeAdvancement, test_advance_time_small_increment) {
   auto sample_store = createTestStore(0, config);
 
   // Target time equal to genesis time - should be a no-op
-  auto target_time = sample_store.getConfig().genesis_time / 1000;
+  auto target_time = sample_store.getConfig().genesis_time;
 
   auto result = sample_store.advanceTime(target_time);
   EXPECT_TRUE(result.empty());
@@ -580,7 +641,7 @@ TEST(TestTimeAdvancement, test_advance_time_step_by_step) {
 
   // Multiple calls to advance time with same target - should all be no-ops
   for (int i = 1; i <= 5; ++i) {
-    auto target_time = sample_store.getConfig().genesis_time / 1000;
+    auto target_time = sample_store.getConfig().genesis_time;
     auto result = sample_store.advanceTime(target_time);
     EXPECT_TRUE(result.empty());
   }
@@ -593,7 +654,7 @@ TEST(TestTimeAdvancement, test_advance_time_multiple_steps) {
 
   // Multiple calls to advance time - should all be no-ops
   for (int i = 1; i <= 5; ++i) {
-    auto target_time = sample_store.getConfig().genesis_time / 1000;
+    auto target_time = sample_store.getConfig().genesis_time;
     auto result = sample_store.advanceTime(target_time);
     EXPECT_TRUE(result.empty());
   }
@@ -605,7 +666,7 @@ TEST(TestTimeAdvancement, test_advance_time_with_votes) {
   auto sample_store = createTestStore(0, config);
 
   // Advance time - should be no-op
-  auto target_time = sample_store.getConfig().genesis_time / 1000;
+  auto target_time = sample_store.getConfig().genesis_time;
   auto result = sample_store.advanceTime(target_time);
   EXPECT_TRUE(result.empty());
 }
@@ -614,8 +675,13 @@ TEST(TestTimeAdvancement, test_advance_time_with_votes) {
 TEST(TestHeadSelection, test_get_head_basic) {
   auto blocks = makeBlocks(1);
   auto &genesis = blocks.at(0);
-  auto sample_store = createTestStore(100, config, genesis.hash(), genesis.hash(),
-                                     {}, {}, makeBlockMap(blocks));
+  auto sample_store = createTestStore(100,
+                                      config,
+                                      genesis.hash(),
+                                      genesis.hash(),
+                                      {},
+                                      {},
+                                      makeBlockMap(blocks));
 
   // Get current head
   auto head = sample_store.getHead();
@@ -630,7 +696,7 @@ TEST(TestHeadSelection, test_advance_time_functionality) {
   auto sample_store = createTestStore(0, config);
 
   // Advance time - should be no-op
-  auto target_time = sample_store.getConfig().genesis_time / 1000;
+  auto target_time = sample_store.getConfig().genesis_time;
   auto result = sample_store.advanceTime(target_time);
   EXPECT_TRUE(result.empty());
 }
@@ -640,6 +706,46 @@ TEST(TestHeadSelection, test_produce_block_basic) {
   // Create a simple store
   auto sample_store = createTestStore(0, config);
 
-  // Try to produce a block - should throw due to missing state, which is expected
+  // Try to produce a block - should throw due to missing state, which is
+  // expected
   EXPECT_THROW(sample_store.produceBlock(1, 1), std::exception);
+}
+
+// Test SSZ hash calculation matches ream implementation
+TEST(TestSszHashCompatibility, test_genesis_state_hash_matches_ream) {
+  // Test that our SSZ hash calculation produces the same result as ream's Rust
+  // implementation. Using the test vector from ream with specific genesis time
+  // and configuration
+
+  lean::Config test_config{.num_validators = 4, .genesis_time = 1759672259};
+
+  // Generate genesis state using our standard method
+  auto genesis_state = lean::STF::generateGenesisState(test_config);
+
+  // Calculate SSZ hash
+  auto calculated_hash = lean::sszHash(genesis_state);
+
+  // Expected hash from ream's test vector:
+  // 0xd3e483e76de397f74e4d072fcca01b8d6988b70df60db896537fe4715322cbfd
+  qtils::ByteArr<32> expected_hash =
+      qtils::ByteArr<32>::fromHex(
+          "d3e483e76de397f74e4d072fcca01b8d6988b70df60db896537fe4715322cbfd")
+          .value();
+
+  // Verify our SSZ hash calculation matches ream's implementation
+  EXPECT_EQ(calculated_hash, expected_hash)
+      << "Genesis state SSZ hash does not match ream implementation. "
+      << "This indicates incompatibility in SSZ serialization between C++ and "
+         "Rust implementations.";
+
+  Block block = lean::STF::genesisBlock(genesis_state);
+  qtils::ByteArr<32> expected_block_root =
+      qtils::ByteArr<32>::fromHex(
+          "aacb28e55e6c6a17fd7c61971d98844350474727af7e9bdadf337750bd11d41f")
+          .value();
+  auto calculated_block_root = lean::sszHash(block);
+  EXPECT_EQ(calculated_block_root, expected_block_root)
+      << "Genesis block SSZ hash does not match ream implementation. "
+      << "This indicates incompatibility in SSZ serialization between C++ and "
+         "Rust implementations.";
 }

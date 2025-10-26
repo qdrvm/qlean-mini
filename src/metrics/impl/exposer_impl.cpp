@@ -28,10 +28,7 @@ namespace lean::metrics {
         config_{std::move(config)},
         session_config_{session_config} {
     if (config_->metrics().enabled == true) {
-      auto registry = metrics::createRegistry();
-      registry->setHandler(*handler.get());
       setHandler(handler);
-
       state_manager->takeControl(*this);
     }
   }

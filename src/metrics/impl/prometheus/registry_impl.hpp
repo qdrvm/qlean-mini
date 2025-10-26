@@ -20,6 +20,7 @@
 #include <prometheus/summary.h>
 
 #include "metrics/impl/prometheus/metrics_impl.hpp"
+#include "metrics/registry.hpp"
 
 namespace lean::metrics {
   class Handler;
@@ -69,6 +70,8 @@ namespace lean::metrics {
 
   class PrometheusRegistry : public Registry {
     friend class PrometheusHandler;
+
+   private:
     // prometheus owns families, returns reference
     // sort of cache, not to search every time in prometheus vector of families
     std::unordered_map<std::string,

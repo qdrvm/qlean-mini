@@ -14,6 +14,7 @@
 #include <string>
 #include <string_view>
 
+#include <boost/algorithm/string/trim.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core/error.hpp>
 #include <boost/program_options.hpp>
@@ -23,6 +24,9 @@
 
 #include "app/build_version.hpp"
 #include "app/configuration.hpp"
+#include "app/default_logging_yaml.hpp"
+#include "log/formatters/filepath.hpp"
+#include "modules/networking/get_node_key.hpp"
 #include "utils/parsers.hpp"
 
 using Endpoint = boost::asio::ip::tcp::endpoint;
@@ -100,11 +104,19 @@ namespace lean::app {
     general_options.add_options()
         ("help,h", "Show this help message.")
         ("version,v", "Show version information.")
-        ("base_path", po::value<std::string>(), "Set base path. All relative paths will be resolved based on this path.")
+        ("base-path", po::value<std::string>(), "Set base path. All relative paths will be resolved based on this path.")
+        ("data-dir", po::value<std::string>(), "Alias for \"--base-path\".")
         ("config,c", po::value<std::string>(),  "Optional. Filepath to load configuration from. Overrides default configuration values.")
-        ("spec_file", po::value<std::string>(), "Set path to spec file.")
-        ("modules_dir", po::value<std::string>(), "Set path to directory containing modules.")
+        ("genesis", po::value<std::string>(), "Set path to genesis config yaml file (genesis/config.yaml).")
+        ("listen-addr", po::value<std::string>(), "Set libp2p listen multiaddress.")
+        ("modules-dir", po::value<std::string>(), "Set path to directory containing modules.")
+        ("bootnodes", po::value<std::string>(), "Set path to yaml file containing boot node ENRs (genesis/nodes.yaml).")
+        ("validator-registry-path",
+         po::value<std::string>(),
+         "Set path to yaml file containing validator registry (genesis/validators.yaml).")
         ("name,n", po::value<std::string>(), "Set name of node.")
+        ("node-id", po::value<std::string>(), "Node id from validator registry (genesis/validators.yaml).")
+        ("node-key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
           "Syntax: <target>=<level>, e.g., -llibp2p=off.\n"
@@ -122,9 +134,9 @@ namespace lean::app {
 
     po::options_description metrics_options("Metric options");
     metrics_options.add_options()
-        ("prometheus_disable", "Set to disable OpenMetrics.")
-        ("prometheus_host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
-        ("prometheus_port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
+        ("prometheus-disable", "Set to disable OpenMetrics.")
+        ("prometheus-host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
+        ("prometheus-port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
         ;
 
     // clang-format on
@@ -211,13 +223,25 @@ namespace lean::app {
   }
 
   outcome::result<YAML::Node> Configurator::getLoggingConfig() {
+    auto load_default = [&]() -> outcome::result<YAML::Node> {
+      try {
+        return YAML::Load(defaultLoggingYaml())["logging"];
+      } catch (const std::exception &e) {
+        file_errors_ << "E: Failed to load default logging config: " << e.what()
+                     << "\n";
+        return Error::ConfigFileParseFailed;
+      }
+    };
+
+    if (not config_file_.has_value()) {
+      return load_default();
+    }
     auto logging = (*config_file_)["logging"];
     if (logging.IsDefined()) {
       return logging;
     }
-    return YAML::Node{};  // TODO return default logging config
+    return load_default();
   }
-
   outcome::result<std::shared_ptr<Configuration>> Configurator::calculateConfig(
       qtils::SharedRef<soralog::Logger> logger) {
     logger_ = std::move(logger);
@@ -244,33 +268,102 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
-          auto base_path = section["base_path"];
+          auto node_id = section["node-id"];
+          if (node_id.IsDefined()) {
+            if (node_id.IsScalar()) {
+              auto value = node_id.as<std::string>();
+              config_->node_id_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.node_id' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
+          auto node_key = section["node-key"];
+          if (node_key.IsDefined()) {
+            if (node_key.IsScalar()) {
+              auto value = node_key.as<std::string>();
+              boost::trim(value);
+              if (auto r = keyPairFromPrivateKeyHex(value)) {
+                config_->node_key_ = r.value();
+              } else {
+                fmt::println(file_errors_,
+                             "E: Value 'general.node_key' must be private key "
+                             "hex or it's file path: {}",
+                             r.error());
+                file_has_error_ = true;
+              }
+            } else {
+              file_errors_ << "E: Value 'general.node_key' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
+          auto base_path = section["base-path"];
           if (base_path.IsDefined()) {
             if (base_path.IsScalar()) {
               auto value = base_path.as<std::string>();
               config_->base_path_ = value;
             } else {
-              file_errors_ << "E: Value 'general.base_path' must be scalar\n";
+              file_errors_ << "E: Value 'general.base-path' must be scalar\n";
               file_has_error_ = true;
             }
           }
-          auto spec_file = section["spec_file"];
-          if (spec_file.IsDefined()) {
-            if (spec_file.IsScalar()) {
-              auto value = spec_file.as<std::string>();
-              config_->spec_file_ = value;
+          auto genesis = section["genesis"];
+          if (genesis.IsDefined()) {
+            if (genesis.IsScalar()) {
+              auto value = genesis.as<std::string>();
+              config_->genesis_config_path_ = value;
             } else {
-              file_errors_ << "E: Value 'general.spec_file' must be scalar\n";
+              file_errors_ << "E: Value 'general.genesis' must be scalar\n";
               file_has_error_ = true;
             }
           }
-          auto modules_dir = section["modules_dir"];
+          auto modules_dir = section["modules-dir"];
           if (modules_dir.IsDefined()) {
             if (modules_dir.IsScalar()) {
               auto value = modules_dir.as<std::string>();
               config_->modules_dir_ = value;
             } else {
               file_errors_ << "E: Value 'general.modules_dir' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
+          auto listen_addr = section["listen-addr"];
+          if (listen_addr.IsDefined()) {
+            if (listen_addr.IsScalar()) {
+              auto value = listen_addr.as<std::string>();
+              boost::trim(value);
+              if (auto r = libp2p::Multiaddress::create(value)) {
+                config_->listen_multiaddr_ = r.value();
+              } else {
+                fmt::println(file_errors_,
+                             "E: Value 'general.listen_addr' must be valid "
+                             "multiaddress: {}",
+                             r.error());
+                file_has_error_ = true;
+              }
+            } else {
+              file_errors_ << "E: Value 'general.listen_addr' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
+          auto bootnodes_file = section["bootnodes"];
+          if (bootnodes_file.IsDefined()) {
+            if (bootnodes_file.IsScalar()) {
+              auto value = bootnodes_file.as<std::string>();
+              config_->bootnodes_file_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.bootnodes' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
+          auto validator_registry_path = section["validator-registry-path"];
+          if (validator_registry_path.IsDefined()) {
+            if (validator_registry_path.IsScalar()) {
+              auto value = validator_registry_path.as<std::string>();
+              config_->validator_registry_path_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.validator_registry_path' must "
+                              "be scalar\n";
               file_has_error_ = true;
             }
           }
@@ -305,55 +398,155 @@ namespace lean::app {
           config_->name_ = value;
         });
     find_argument<std::string>(
-        cli_values_map_, "base_path", [&](const std::string &value) {
+        cli_values_map_, "node-id", [&](const std::string &value) {
+          config_->node_id_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "node-key", [&](std::string value) {
+          boost::trim(value);
+          if (auto r = keyPairFromPrivateKeyHex(value)) {
+            config_->node_key_ = r.value();
+          } else {
+            SL_ERROR(logger_,
+                     "'node-key' must be private key hex or it's file path: {}",
+                     r.error());
+            fail = true;
+          }
+        });
+    find_argument<std::string>(
+        cli_values_map_, "base-path", [&](const std::string &value) {
           config_->base_path_ = value;
         });
     find_argument<std::string>(
-        cli_values_map_, "modules_dir", [&](const std::string &value) {
+        cli_values_map_, "data-dir", [&](const std::string &value) {
+          config_->base_path_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "modules-dir", [&](const std::string &value) {
           config_->modules_dir_ = value;
         });
     find_argument<std::string>(
-        cli_values_map_, "spec_file", [&](const std::string &value) {
-          config_->spec_file_ = value;
+        cli_values_map_, "listen-addr", [&](std::string value) {
+          boost::trim(value);
+          if (auto r = libp2p::Multiaddress::create(value)) {
+            config_->listen_multiaddr_ = r.value();
+          } else {
+            SL_ERROR(logger_,
+                     "'listen-addr' must be valid multiaddress: {}",
+                     r.error());
+            fail = true;
+          }
         });
+    find_argument<std::string>(
+        cli_values_map_, "genesis", [&](const std::string &value) {
+          config_->genesis_config_path_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "bootnodes", [&](const std::string &value) {
+          config_->bootnodes_file_ = value;
+        });
+    find_argument<std::string>(cli_values_map_,
+                               "validator-registry-path",
+                               [&](const std::string &value) {
+                                 config_->validator_registry_path_ = value;
+                               });
     if (fail) {
       return Error::CliArgsParseFailed;
     }
 
-    // Check values
-    if (not config_->base_path_.is_absolute()) {
-      SL_ERROR(logger_,
-               "The 'base_path' must be defined as absolute: {}",
-               config_->base_path_.c_str());
-      return Error::InvalidValue;
+    // Resolve base_path_ to an absolute path (relative to config file dir or
+    // CWD)
+    {
+      std::filesystem::path resolved = config_->base_path_;
+      if (not resolved.is_absolute()) {
+        if (auto cfg = find_argument<std::string>(cli_values_map_, "config");
+            cfg.has_value()) {
+          resolved = weakly_canonical(std::filesystem::path(*cfg).parent_path()
+                                      / resolved);
+        } else {
+          resolved =
+              weakly_canonical(std::filesystem::current_path() / resolved);
+        }
+      } else {
+        resolved = weakly_canonical(resolved);
+      }
+      config_->base_path_ = std::move(resolved);
     }
+
+    // Validate base_path_ exists and is a directory
     if (not is_directory(config_->base_path_)) {
       SL_ERROR(logger_,
                "The 'base_path' does not exist or is not a directory: {}",
-               config_->base_path_.c_str());
+               config_->base_path_);
       return Error::InvalidValue;
     }
-    current_path(config_->base_path_);
 
-    auto make_absolute = [&](const std::filesystem::path &path) {
-      return weakly_canonical(config_->base_path_.is_absolute()
-                                  ? path
-                                  : (config_->base_path_ / path));
+    // Helper to resolve general paths: if provided via CLI -> relative to CWD,
+    // else if provided via config file -> relative to config file dir,
+    // else fallback to CWD. Always normalize.
+    auto resolve_relative = [&](const std::filesystem::path &path,
+                                const char *cli_option_name) {
+      if (path.is_absolute()) {
+        return weakly_canonical(path);
+      }
+      // Was this option passed explicitly on CLI?
+      if (find_argument<std::string>(cli_values_map_, cli_option_name)
+              .has_value()) {
+        return weakly_canonical(std::filesystem::current_path() / path);
+      }
+      // Otherwise, prefer resolving relative to config file location if present
+      if (auto cfg = find_argument<std::string>(cli_values_map_, "config");
+          cfg.has_value()) {
+        return weakly_canonical(std::filesystem::path(*cfg).parent_path()
+                                / path);
+      }
+      // Fallback: current working directory
+      return weakly_canonical(std::filesystem::current_path() / path);
     };
 
-    config_->modules_dir_ = make_absolute(config_->modules_dir_);
+    config_->modules_dir_ =
+        resolve_relative(config_->modules_dir_, "modules-dir");
     if (not is_directory(config_->modules_dir_)) {
       SL_ERROR(logger_,
                "The 'modules_dir' does not exist or is not a directory: {}",
-               config_->modules_dir_.c_str());
+               config_->modules_dir_);
       return Error::InvalidValue;
     }
 
-    config_->spec_file_ = make_absolute(config_->spec_file_);
-    if (not is_regular_file(config_->spec_file_)) {
+    if (not config_->bootnodes_file_.empty()) {
+      config_->bootnodes_file_ =
+          resolve_relative(config_->bootnodes_file_, "bootnodes");
+      if (not is_regular_file(config_->bootnodes_file_)) {
+        SL_ERROR(logger_,
+                 "The 'bootnodes' file does not exist or is not a file: {}",
+                 config_->bootnodes_file_);
+        return Error::InvalidValue;
+      }
+    }
+
+    if (not config_->validator_registry_path_.empty()) {
+      config_->validator_registry_path_ = resolve_relative(
+          config_->validator_registry_path_, "validator-registry-path");
+      if (not is_regular_file(config_->validator_registry_path_)) {
+        SL_ERROR(
+            logger_,
+            "The 'validator_registry_path' does not exist or is not a file: {}",
+            config_->validator_registry_path_);
+        return Error::InvalidValue;
+      }
+    }
+
+    if (config_->genesis_config_path_.empty()) {
+      SL_ERROR(logger_, "The 'genesis' path must be provided");
+      return Error::InvalidValue;
+    }
+
+    config_->genesis_config_path_ =
+        resolve_relative(config_->genesis_config_path_, "genesis");
+    if (not is_regular_file(config_->genesis_config_path_)) {
       SL_ERROR(logger_,
-               "The 'spec_file' does not exist or is not a file: {}",
-               config_->spec_file_.c_str());
+               "The 'genesis' file does not exist or is not a file: {}",
+               config_->genesis_config_path_);
       return Error::InvalidValue;
     }
 
@@ -429,11 +622,10 @@ namespace lean::app {
       return Error::CliArgsParseFailed;
     }
 
-    // Check values
+    // Resolve database path against base_path_ when relative
     auto make_absolute = [&](const std::filesystem::path &path) {
-      return weakly_canonical(config_->base_path_.is_absolute()
-                                  ? path
-                                  : (config_->base_path_ / path));
+      return weakly_canonical(
+          path.is_absolute() ? path : (config_->base_path_ / path));
     };
 
     config_->database_.directory = make_absolute(config_->database_.directory);
@@ -522,8 +714,9 @@ namespace lean::app {
     bool fail;
 
     fail = false;
+    // support new kebab-case option name
     find_argument<std::string>(
-        cli_values_map_, "prometheus_host", [&](const std::string &value) {
+        cli_values_map_, "prometheus-host", [&](const std::string &value) {
           boost::beast::error_code ec;
           auto address = boost::asio::ip::make_address(value, ec);
           if (!ec) {
@@ -533,7 +726,7 @@ namespace lean::app {
               config_->metrics_.enabled = true;
             }
           } else {
-            std::cerr << "Option --prometheus_host has invalid value\n"
+            std::cerr << "Option --prometheus-host has invalid value\n"
                       << "Try run with option '--help' for more information\n";
             fail = true;
           }
@@ -544,7 +737,7 @@ namespace lean::app {
 
     fail = false;
     find_argument<uint16_t>(
-        cli_values_map_, "prometheus_port", [&](const uint16_t &value) {
+        cli_values_map_, "prometheus-port", [&](const uint16_t &value) {
           if (value > 0 and value <= 65535) {
             config_->metrics_.endpoint = {config_->metrics_.endpoint.address(),
                                           static_cast<uint16_t>(value)};
@@ -552,7 +745,7 @@ namespace lean::app {
               config_->metrics_.enabled = true;
             }
           } else {
-            std::cerr << "Option --prometheus_port has invalid value\n"
+            std::cerr << "Option --prometheus-port has invalid value\n"
                       << "Try run with option '--help' for more information\n";
             fail = true;
           }
@@ -561,11 +754,16 @@ namespace lean::app {
       return Error::CliArgsParseFailed;
     }
 
-    if (find_argument(cli_values_map_, "prometheus_disabled")) {
+    if (find_argument(cli_values_map_, "prometheus-disable")) {
       config_->metrics_.enabled = false;
     };
     if (not config_->metrics_.enabled.has_value()) {
       config_->metrics_.enabled = false;
+    }
+
+    if (not config_->node_key_.has_value()) {
+      config_->node_key_ = randomKeyPair();
+      SL_INFO(logger_, "Generating random node key");
     }
 
     return outcome::success();

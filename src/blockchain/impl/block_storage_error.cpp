@@ -23,6 +23,8 @@ OUTCOME_CPP_DEFINE_CATEGORY(lean::blockchain, BlockStorageError, e) {
       return "Genesis block not found";
     case E::BLOCK_TREE_LEAVES_NOT_FOUND:
       return "Block tree leaves not found";
+    case E::JUSTIFICATION_EMPTY:
+      return "Justification empty";
   }
   return "Unknown error";
 }
