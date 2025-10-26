@@ -1,0 +1,42 @@
+# Build directories
+.build
+.build-deps
+build/
+.venv/
+.vcpkg/
+vcpkg_installed/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docs
+*.md
+
+# CI
+.github/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.tmp
+tmp/
+
+# Python
+__pycache__/
+*.pyc
+
+# Docker
+docker-compose*.yml
+
