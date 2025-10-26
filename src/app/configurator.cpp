@@ -19,6 +19,7 @@
 #include <boost/beast/core/error.hpp>
 #include <boost/program_options.hpp>
 #include <boost/program_options/value_semantic.hpp>
+#include <fmt/format.h>
 #include <qtils/outcome.hpp>
 #include <qtils/shared_ref.hpp>
 
@@ -175,8 +176,8 @@ namespace lean::app {
     if (vm.contains("help")) {
       std::cout << "Lean-node version " << buildVersion() << '\n';
       std::cout << cli_options_ << '\n';
-      std::println(std::cout, "Other commands:");
-      std::println(std::cout, "  qlean key generate-node-key");
+      fmt::println("Other commands:");
+      fmt::println("  qlean key generate-node-key");
       return true;
     }
 

@@ -72,13 +72,39 @@ cmake --preset default
 cmake --build build -j
 ```
 
-You can also build the project's Docker images (builder + runtime) with:
+You can also build the project's Docker images with **three-stage build**:
 
 ```bash
-make docker_build_all
+# First time (full build)
+make docker_build_all          # ~20 min
+
+# Daily development (fast rebuild)  
+make docker_build_fast         # ~3-5 min ⚡
 ```
 
-See the `Makefile` for more Docker targets.
+**Three stages:**
+- Dependencies: vcpkg libs (~2.5 GB, rebuild rarely)
+- Builder: project code (~3 GB, rebuild often)
+- Runtime: minimal image (~300 MB, production)
+
+**Commands:**
+```bash
+make docker_build_dependencies # Stage 1: vcpkg
+make docker_build_builder      # Stage 2: code
+make docker_build_runtime      # Stage 3: final
+make docker_build_ci           # CI/CD: pull deps + build (fast)
+make docker_run                # Run node
+make docker_verify             # Test
+```
+
+**For CI/CD:**
+```bash
+# One command - pulls dependencies from registry, builds code
+export DOCKER_REGISTRY=your-registry
+make docker_build_ci           # ~4 min
+```
+
+See [DOCKER_BUILD.md](DOCKER_BUILD.md) for details. See the `Makefile` for all Docker targets.
 
 This will:
 - Configure the project into `./build/`

@@ -135,8 +135,8 @@ int main(int argc, const char **argv, const char **env) {
       cmdKeyGenerateNodeKey();
       return EXIT_SUCCESS;
     }
-    std::println(std::cerr, "Expected one of following commands:");
-    std::println(std::cerr, "  qlean key generate-node-key");
+    fmt::println(stderr, "Expected one of following commands:");
+    fmt::println(stderr, "  qlean key generate-node-key");
     return EXIT_FAILURE;
   }
 
