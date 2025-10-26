@@ -1,7 +1,7 @@
 # Stage 2: Build project code
 # Uses pre-built dependencies from Stage 1
 
-ARG DEPS_IMAGE=qlean-mini-dependencies:build_test
+ARG DEPS_IMAGE=qlean-mini-dependencies:latest
 FROM ${DEPS_IMAGE} AS dependencies
 
 FROM ubuntu:24.04 AS builder
@@ -63,15 +63,21 @@ RUN set -eux; \
     cmake --build ${BUILD} --parallel; \
     mkdir -p /opt/artifacts/bin /opt/artifacts/modules /opt/artifacts/lib /opt/artifacts/vcpkg; \
     cp -v ${BUILD}/src/executable/qlean /opt/artifacts/bin/; \
+    strip /opt/artifacts/bin/qlean; \
     find ${BUILD}/src/modules -type f -name "*_module.so" -exec cp -v {} /opt/artifacts/modules/ \; || true; \
+    find /opt/artifacts/modules/ -name "*.so" -exec strip {} \; || true; \
     find ${BUILD}/src -type f -name "*.so" ! -name "*_module.so" -exec cp -v {} /opt/artifacts/lib/ \; || true; \
+    find /opt/artifacts/lib/ -name "*.so" -exec strip {} \; || true; \
     if [ -d "${BUILD}/vcpkg_installed" ]; then \
-      cp -R ${BUILD}/vcpkg_installed /opt/artifacts/vcpkg/; \
+      echo "Collecting only runtime .so libraries from vcpkg..."; \
+      find ${BUILD}/vcpkg_installed -name "*.so*" -type f -exec cp -v {} /opt/artifacts/vcpkg/ \; 2>/dev/null || true; \
+      find /opt/artifacts/vcpkg/ -name "*.so*" -exec strip {} \; 2>/dev/null || true; \
     fi; \
     echo "=== Artifacts ==="; \
     ls -lh /opt/artifacts/bin/; \
     ls -lh /opt/artifacts/modules/ || true; \
-    ls -lh /opt/artifacts/lib/ || true
+    ls -lh /opt/artifacts/lib/ || true; \
+    echo "Vcpkg libraries: $(find /opt/artifacts/vcpkg/ -name '*.so*' | wc -l) files"
 
 CMD ["/bin/bash"]
 

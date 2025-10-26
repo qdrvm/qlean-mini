@@ -83,9 +83,15 @@ make docker_build              # ~3-5 min ⚡
 ```
 
 **Three stages:**
-- `qlean-mini-dependencies:build_test` - vcpkg libs (~2.5 GB, rebuild rarely)
-- `qlean-mini-builder:build_test` - project code (~3 GB, rebuild often)
-- `qlean-mini:build_test` - minimal image (~300 MB, production)
+- `qlean-mini-dependencies:latest` - vcpkg libs (~18 GB, rebuild rarely)
+- `qlean-mini-builder:latest` - project code (~19 GB, rebuild often)
+- `qlean-mini:latest` - runtime image (~240 MB, production)
+
+**When to rebuild dependencies:**
+- `vcpkg.json` or `vcpkg-configuration.json` changes (new libraries)
+- System dependencies update (`.ci/.env`: cmake, gcc, rust versions)
+- Typically: once per month or when adding new dependencies
+- **Tip:** Push dependencies to registry after rebuild for team reuse
 
 **Main commands:**
 ```bash
@@ -97,9 +103,26 @@ make docker_build_ci           # CI/CD: pull deps + build (~4 min)
 **Push/Pull:**
 ```bash
 make docker_push_dependencies  # Push dependencies to registry (once)
-make docker_push               # Push all images
+make docker_push               # Push all images (commit tag only)
 make docker_pull_dependencies  # Pull dependencies from registry
+
+# Push with custom tag
+DOCKER_PUSH_TAG=true DOCKER_IMAGE_TAG=v1.0.0 make docker_push  # commit + v1.0.0
+
+# Push with latest tag
+DOCKER_PUSH_LATEST=true make docker_push  # commit + latest
+
+# Push all 3 tags (commit + custom + latest)
+DOCKER_PUSH_TAG=true DOCKER_PUSH_LATEST=true DOCKER_IMAGE_TAG=v1.0.0 make docker_push
 ```
+
+**Image tagging:**
+- Each build creates 2 local tags: `qlean-mini:608f5cc` (commit) + `qlean-mini:localBuild` (default)
+- Push behavior:
+  - **Commit tag** (`608f5cc`): always pushed to registry
+  - **Custom tag** (`DOCKER_IMAGE_TAG`): pushed if `DOCKER_PUSH_TAG=true` (default: `localBuild`, not pushed)
+  - **Latest tag**: pushed if `DOCKER_PUSH_LATEST=true`
+- Push up to 3 tags: commit + custom (v1.0.0) + latest
 
 **Utility:**
 ```bash
@@ -116,7 +139,17 @@ make docker_clean_all          # Clean everything (including deps)
 export DOCKER_REGISTRY=your-registry
 make docker_build_ci           # ~4 min
 make docker_verify
-make docker_push
+make docker_push               # Push commit tag only
+
+# Production release with version and latest
+DOCKER_PUSH_TAG=true DOCKER_PUSH_LATEST=true DOCKER_IMAGE_TAG=v1.0.0 make docker_push
+# Pushes: qlean-mini:608f5cc + qlean-mini:v1.0.0 + qlean-mini:latest
+
+# Only latest
+DOCKER_PUSH_LATEST=true make docker_push  # qlean-mini:608f5cc + qlean-mini:latest
+
+# Staging environment
+DOCKER_PUSH_TAG=true DOCKER_IMAGE_TAG=staging make docker_push  # commit + staging
 ```
 
 See [DOCKER_BUILD.md](DOCKER_BUILD.md) for details. See the `Makefile` for all Docker targets.

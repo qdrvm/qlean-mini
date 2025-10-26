@@ -50,10 +50,26 @@ make docker_build_ci            # CI/CD optimized (~4 min)
 ### Push to Registry
 
 ```bash
-make docker_push_dependencies   # Push dependencies image
-make docker_push_builder        # Push builder image  
-make docker_push_runtime        # Push runtime image
-make docker_push                # Push all built images
+# Local dev (default) - only commit tag
+make docker_push                # Push: qlean-mini:608f5cc
+
+# Push with custom tag (e.g., version)
+DOCKER_PUSH_TAG=true DOCKER_IMAGE_TAG=v1.0.0 make docker_push  # Push: commit + v1.0.0
+
+# Push with latest tag
+DOCKER_PUSH_LATEST=true make docker_push  # Push: commit + latest
+
+# Production release - push all 3 tags
+DOCKER_PUSH_TAG=true DOCKER_PUSH_LATEST=true DOCKER_IMAGE_TAG=v1.0.0 make docker_push
+# Push: qlean-mini:608f5cc + qlean-mini:v1.0.0 + qlean-mini:latest
+
+# Staging environment
+DOCKER_PUSH_TAG=true DOCKER_IMAGE_TAG=staging make docker_push  # Push: commit + staging
+
+# Individual stages
+make docker_push_dependencies   # Push dependencies only
+make docker_push_builder        # Push builder only
+make docker_push_runtime        # Push runtime only
 ```
 
 ### Pull from Registry
@@ -80,9 +96,38 @@ make docker_inspect             # Show image info
 
 ## Images
 
-- `qlean-mini-dependencies:build_test` (~2.5 GB) - vcpkg libraries, build tools
-- `qlean-mini-builder:build_test` (~3 GB) - compiled project code
-- `qlean-mini:build_test` (~300 MB) - minimal runtime image for production
+- `qlean-mini-dependencies:latest` (~18 GB) - vcpkg libraries, build tools
+- `qlean-mini-builder:latest` (~19 GB) - compiled project code  
+- `qlean-mini:latest` (~240 MB) - **optimized** runtime image for production
+
+**Image tagging:**
+
+Every build creates **2 local tags**:
+- **Commit tag**: `qlean-mini:608f5cc` (always, based on git commit)
+- **Additional tag**: `qlean-mini:localBuild` (default, configurable via `DOCKER_IMAGE_TAG`)
+
+Push behavior (**up to 3 tags** can be pushed):
+
+| Tag Type | Variable | Always Pushed? | Example |
+|----------|----------|----------------|---------|
+| **Commit** | `GIT_COMMIT` | ✅ Yes | `qlean-mini:608f5cc` |
+| **Custom** | `DOCKER_IMAGE_TAG` | Only if `DOCKER_PUSH_TAG=true` | `qlean-mini:v1.0.0` |
+| **Latest** | (hardcoded) | Only if `DOCKER_PUSH_LATEST=true` | `qlean-mini:latest` |
+
+**Examples:**
+
+| Scenario | Command | Local Tags | Pushed Tags |
+|----------|---------|------------|-------------|
+| Local dev (default) | `make docker_build` | `608f5cc`, `localBuild` | None (manual push) |
+| Push to registry | `make docker_push` | `608f5cc`, `localBuild` | `608f5cc` |
+| Master branch | `DOCKER_PUSH_LATEST=true` | `608f5cc`, `localBuild` | `608f5cc`, `latest` |
+| Production release | `DOCKER_PUSH_TAG=true`<br>`DOCKER_PUSH_LATEST=true`<br>`DOCKER_IMAGE_TAG=v1.0.0` | `608f5cc`, `v1.0.0` | `608f5cc`, `v1.0.0`, `latest` |
+| Staging | `DOCKER_PUSH_TAG=true`<br>`DOCKER_IMAGE_TAG=staging` | `608f5cc`, `staging` | `608f5cc`, `staging` |
+
+**Optimization applied:**
+- Strip debug symbols from binaries (~30-50% size reduction)
+- Copy only `.so` files from vcpkg (not static libs, headers, cmake files)
+- Result: **14x smaller** runtime image (240 MB vs 3.4 GB)
 
 ## When to Rebuild
 
@@ -122,10 +167,14 @@ make docker_pull_dependencies
 # 1. Edit code
 # 2. Rebuild (fast!)
 make docker_build               # ~4 min
+# Creates: qlean-mini:abc1234 + qlean-mini:localBuild (local only)
 
 # Test
 make docker_run ARGS='--version'
 make docker_verify
+
+# Push to registry (only commit tag)
+make docker_push                # Push: qlean-mini:abc1234
 ```
 
 ### CI/CD Pipeline
@@ -140,8 +189,20 @@ make docker_build_ci            # ~4 min
 # Test
 make docker_verify
 
-# Push
-make docker_push                # Push all built images
+# Push scenarios:
+
+# 1. Feature branch / PR - only commit tag
+make docker_push                # Push: qlean-mini:608f5cc
+
+# 2. Master branch - commit + latest
+DOCKER_PUSH_LATEST=true make docker_push  # Push: qlean-mini:608f5cc + latest
+
+# 3. Release tag - commit + version + latest
+DOCKER_PUSH_TAG=true DOCKER_PUSH_LATEST=true DOCKER_IMAGE_TAG=v1.0.0 make docker_push
+# Push: qlean-mini:608f5cc + v1.0.0 + latest
+
+# 4. Staging environment - commit + staging
+DOCKER_PUSH_TAG=true DOCKER_IMAGE_TAG=staging make docker_push  # Push: commit + staging
 ```
 
 ## CI/CD Integration
@@ -171,13 +232,6 @@ make docker_verify
 make docker_push
 ```
 
-## Benefits
-
-- **4-6x faster** builds during development
-- **75-80% time savings** (3-5 min vs 20 min)
-- **10x smaller** production images (300 MB vs 3 GB)
-- Better caching and layer reuse
-
 ## Tracking Dependency Changes
 
 Dependencies rebuild when these files change:
@@ -190,12 +244,14 @@ Dependencies rebuild when these files change:
 
 ```bash
 # Check if dependencies changed
-if git diff HEAD~1 HEAD -- vcpkg.json vcpkg-configuration.json vcpkg-overlay/ | grep .; then
+if git diff HEAD~1 HEAD -- vcpkg.json vcpkg-configuration.json vcpkg-overlay/ .ci/.env | grep .; then
   make docker_build_dependencies
+  make docker_push_dependencies
 else
-  docker pull registry/deps:latest
+  docker pull qdrvm/qlean-mini-dependencies:latest
+  docker tag qdrvm/qlean-mini-dependencies:latest qlean-mini-dependencies:latest
 fi
-make docker_build_fast
+make docker_build
 ```
 
 ## Troubleshooting
@@ -204,19 +260,24 @@ make docker_build_fast
 ```bash
 make docker_build_dependencies
 # or
-docker pull registry/deps:latest
-docker tag registry/deps:latest qlean-mini:latest-dependencies
+docker pull qdrvm/qlean-mini-dependencies:latest
+docker tag qdrvm/qlean-mini-dependencies:latest qlean-mini-dependencies:latest
 ```
 
 **Changes not reflected**
 ```bash
 docker builder prune -a
-make docker_build_fast
+make docker_build
 ```
 
 **Library not found in runtime**
 ```bash
 docker run --rm qlean-mini:latest ldd /usr/local/bin/qlean
+```
+
+**Check image sizes**
+```bash
+make docker_inspect
 ```
 
 ## CI/CD Examples
@@ -254,9 +315,19 @@ jobs:
       - name: Verify
         run: make docker_verify
       
-      - name: Push
-        if: github.ref == 'refs/heads/master'
+      - name: Push (commit tag only)
+        if: github.ref != 'refs/heads/master' && !startsWith(github.ref, 'refs/tags/v')
         run: make docker_push
+      
+      - name: Push with latest tag (master)
+        if: github.ref == 'refs/heads/master'
+        run: DOCKER_PUSH_LATEST=true make docker_push
+      
+      - name: Push with version and latest tags (releases)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          DOCKER_PUSH_TAG=true DOCKER_PUSH_LATEST=true DOCKER_IMAGE_TAG=$VERSION make docker_push
 ```
 
 ### GitLab CI
@@ -278,12 +349,30 @@ build:
     - master
     - develop
 
-push:
+push_commit:
   stage: push
   script:
     - make docker_push
   only:
+    - develop
+
+push_latest:
+  stage: push
+  script:
+    - export DOCKER_PUSH_LATEST=true
+    - make docker_push
+  only:
     - master
+
+push_version:
+  stage: push
+  script:
+    - export DOCKER_PUSH_TAG=true
+    - export DOCKER_PUSH_LATEST=true
+    - export DOCKER_IMAGE_TAG=$CI_COMMIT_TAG
+    - make docker_push
+  only:
+    - tags
 ```
 
 ### Key Points for CI/CD
@@ -291,7 +380,13 @@ push:
 1. **Use `docker_build_ci`** - automatically pulls dependencies from registry
 2. **Set `DOCKER_REGISTRY`** environment variable
 3. **Dependencies only rebuild** when vcpkg.json changes
-4. **Fast builds** - ~4 min instead of 20 min
-5. **Push dependencies** to registry when they change (once)
-6. **Git required** - for version detection in build
+4. **Fast builds** - ~4 min instead of 25 min
+5. **Automatic tagging** - images always tagged by git commit hash
+6. **Push up to 3 tags**:
+   - Commit tag (always): `qlean-mini:608f5cc`
+   - Custom tag (optional): set `DOCKER_PUSH_TAG=true` + `DOCKER_IMAGE_TAG=v1.0.0`
+   - Latest tag (optional): set `DOCKER_PUSH_LATEST=true`
+7. **Flexible tagging** - use any custom tag: latest, v1.0.0, staging, production, etc.
+8. **Git required** - for version detection and commit-based tagging
+9. **Optimized runtime** - 240 MB production image (stripped binaries)
 
