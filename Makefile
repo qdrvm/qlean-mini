@@ -18,15 +18,15 @@ OS_TYPE := $(shell bash -c 'source $(CI_DIR)/scripts/detect_os.sh && detect_os')
 # Override these variables to customize image names and tags:
 #   make docker_build_all DOCKER_IMAGE_NAME=my-project DOCKER_IMAGE_TAG=v1.0.0
 DOCKER_IMAGE_NAME ?= qlean-mini
-DOCKER_IMAGE_TAG ?= build_test
+DOCKER_IMAGE_TAG ?= latest
 DOCKER_PLATFORM ?= linux/arm64 #linux/amd64
 DOCKER_REGISTRY ?= qdrvm
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 # Derived image names for each stage:
-#   qlean-mini-dependencies:build_test
-#   qlean-mini-builder:build_test
-#   qlean-mini:build_test
+#   qlean-mini-dependencies:latest
+#   qlean-mini-builder:latest
+#   qlean-mini:latest
 DOCKER_IMAGE_DEPS := $(DOCKER_IMAGE_NAME)-dependencies:$(DOCKER_IMAGE_TAG)
 DOCKER_IMAGE_BUILDER := $(DOCKER_IMAGE_NAME)-builder:$(DOCKER_IMAGE_TAG)
 DOCKER_IMAGE_RUNTIME := $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)
@@ -73,29 +73,17 @@ clean_all:
 
 # Three-stage build
 
-# Pull images from registry (for CI/CD)
+# Pull dependencies from registry (for CI/CD optimization)
 docker_pull_dependencies:
 	@echo "=== Pulling dependencies from registry ==="
 	@echo "Registry: $(DOCKER_REGISTRY)"
 	@echo "Image: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"
 	@if docker pull $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS) 2>/dev/null; then \
-		echo "✓ Dependencies pulled"; \
+		docker tag $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS) $(DOCKER_IMAGE_DEPS); \
+		echo "✓ Dependencies pulled and tagged"; \
 	else \
 		echo "⚠ Dependencies not found in registry, will need to build"; \
 	fi
-
-docker_pull_builder:
-	@echo "=== Pulling builder from registry ==="
-	@echo "Registry: $(DOCKER_REGISTRY)"
-	@echo "Image: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)"
-	@if docker pull $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER) 2>/dev/null; then \
-		echo "✓ Builder pulled"; \
-	else \
-		echo "⚠ Builder not found in registry"; \
-	fi
-
-docker_pull_all: docker_pull_dependencies docker_pull_builder
-	@echo "✓ All cached images pulled"
 
 docker_build_dependencies:
 	@echo "=== [Stage 1/3] Building DEPENDENCIES image ==="
@@ -166,14 +154,18 @@ docker_build_runtime:
 	@echo ""
 	@echo "✓ Runtime image built: $(DOCKER_IMAGE_RUNTIME)"
 
-docker_build_fast: docker_build_builder docker_build_runtime
-	@echo ""
-	@echo "=== ✓ Fast rebuild completed (using cached dependencies) ==="
-
+# Build all stages from scratch (dependencies + code)
 docker_build_all: docker_build_dependencies docker_build_builder docker_build_runtime
 	@echo ""
 	@echo "=== ✓ All Docker images built successfully (3 stages) ==="
 	@echo "  - Dependencies: $(DOCKER_IMAGE_DEPS)"
+	@echo "  - Builder: $(DOCKER_IMAGE_BUILDER)"
+	@echo "  - Runtime: $(DOCKER_IMAGE_RUNTIME)"
+
+# Fast rebuild: only code (assumes dependencies exist)
+docker_build: docker_build_builder docker_build_runtime
+	@echo ""
+	@echo "=== ✓ Code rebuilt (using cached dependencies) ==="
 	@echo "  - Builder: $(DOCKER_IMAGE_BUILDER)"
 	@echo "  - Runtime: $(DOCKER_IMAGE_RUNTIME)"
 
@@ -190,11 +182,9 @@ docker_build_ci:
 	fi
 	@echo ""
 	@echo "Step 3: Build project code..."
-	@$(MAKE) docker_build_fast
+	@$(MAKE) docker_build
 	@echo ""
 	@echo "=== ✓ CI/CD build completed ==="
-
-docker_build: docker_build_runtime
 
 docker_run:
 	@echo "=== Running Docker image $(DOCKER_IMAGE_RUNTIME) ==="
@@ -208,16 +198,24 @@ docker_run:
 	docker run --rm -it $(DOCKER_IMAGE_RUNTIME) $(ARGS)
 
 docker_clean:
-	@echo "=== Cleaning Docker images ==="
+	@echo "=== Cleaning Docker images (builder + runtime) ==="
+	@echo "Note: Dependencies will be kept for fast rebuilds"
+	docker rmi -f $(DOCKER_IMAGE_RUNTIME) $(DOCKER_IMAGE_BUILDER) 2>/dev/null || true
+	@echo "✓ Builder and runtime images cleaned"
+	@echo "Tip: Use 'make docker_clean_all' to also remove dependencies"
+
+docker_clean_all:
+	@echo "=== Cleaning ALL Docker images (including dependencies) ==="
 	docker rmi -f $(DOCKER_IMAGE_RUNTIME) $(DOCKER_IMAGE_BUILDER) $(DOCKER_IMAGE_DEPS) 2>/dev/null || true
-	@echo "✓ Docker images cleaned"
+	@echo "✓ All Docker images cleaned"
 
 docker_inspect:
 	@echo "=== Docker images info ==="
 	@docker images | grep qlean-mini || echo "No qlean-mini images found"
 
 docker_verify:
-	@echo "=== Verifying Docker image: $(DOCKER_IMAGE_RUNTIME) ==="
+	@echo "=== Verifying Docker runtime image ==="
+	@echo "Image: $(DOCKER_IMAGE_RUNTIME)"
 	@echo ""
 	@echo "[1/6] Testing help command..."
 	@docker run --rm $(DOCKER_IMAGE_RUNTIME) --help > /dev/null && echo "  ✓ Help works" || (echo "  ✗ Help failed" && exit 1)
@@ -256,74 +254,45 @@ docker_verify:
 		echo "" && echo "Checking libapplication.so dependencies..." && \
 		ldd /opt/qlean/lib/libapplication.so | grep "not found" && exit 1 || echo "  ✓ All project libraries OK"'
 	@echo ""
-	@echo "=== ✓ All verification checks passed! ==="
+	@echo "=== ✓ Runtime image verified successfully! ==="
 
-docker_verify_all: docker_verify
-	@echo ""
-	@echo "=== Verifying builder image: $(DOCKER_IMAGE_BUILDER) ==="
-	@echo ""
-	@echo "Checking builder image exists..."
-	@docker image inspect $(DOCKER_IMAGE_BUILDER) > /dev/null 2>&1 && echo "  ✓ Builder image found" || (echo "  ✗ Builder image not found" && exit 1)
-	@echo "Checking builder image size..."
-	@docker images $(DOCKER_IMAGE_BUILDER) --format "  Size: {{.Size}}"
-	@echo ""
-	@echo "=== ✓ All images verified! ==="
-
-# Function to push a single Docker image
-# Args: $(1) = image name, $(2) = stage name, $(3) = build target
+# Internal function to push a single Docker image
 define push_image
-	@echo "=== Pushing $(2) image ==="
-	@echo "Registry: $(DOCKER_REGISTRY)"
-	@echo "Image: $(DOCKER_REGISTRY)/$(1)"
-	@echo ""
 	@if ! docker image inspect $(1) >/dev/null 2>&1; then \
 		echo "ERROR: $(2) image not found: $(1)"; \
 		echo "Run: make docker_build_$(3)"; \
 		exit 1; \
 	fi
-	docker tag $(1) $(DOCKER_REGISTRY)/$(1)
-	docker push $(DOCKER_REGISTRY)/$(1)
-	@echo ""
+	@docker tag $(1) $(DOCKER_REGISTRY)/$(1)
+	@docker push $(DOCKER_REGISTRY)/$(1)
 	@echo "✓ $(2) pushed: $(DOCKER_REGISTRY)/$(1)"
 endef
 
-docker_tag:
-	@echo "=== Tagging Docker images for push ==="
+# Push individual images to registry
+docker_push_dependencies:
+	@echo "=== Pushing dependencies image ==="
+	@echo "Registry: $(DOCKER_REGISTRY)"
+	$(call push_image,$(DOCKER_IMAGE_DEPS),Dependencies,dependencies)
+
+docker_push_builder:
+	@echo "=== Pushing builder image ==="
+	@echo "Registry: $(DOCKER_REGISTRY)"
+	$(call push_image,$(DOCKER_IMAGE_BUILDER),Builder,builder)
+
+docker_push_runtime:
+	@echo "=== Pushing runtime image ==="
+	@echo "Registry: $(DOCKER_REGISTRY)"
+	$(call push_image,$(DOCKER_IMAGE_RUNTIME),Runtime,runtime)
+
+# Push all built images to registry
+docker_push:
+	@echo "=== Pushing all Docker images ==="
 	@echo "Registry: $(DOCKER_REGISTRY)"
 	@echo "Commit: $(GIT_COMMIT)"
 	@echo ""
 	@if docker image inspect $(DOCKER_IMAGE_DEPS) >/dev/null 2>&1; then \
-		docker tag $(DOCKER_IMAGE_DEPS) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS); \
-		echo "✓ Tagged: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"; \
-	fi
-	@if docker image inspect $(DOCKER_IMAGE_BUILDER) >/dev/null 2>&1; then \
-		docker tag $(DOCKER_IMAGE_BUILDER) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER); \
-		echo "✓ Tagged: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)"; \
-	fi
-	@if docker image inspect $(DOCKER_IMAGE_RUNTIME) >/dev/null 2>&1; then \
-		docker tag $(DOCKER_IMAGE_RUNTIME) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME); \
-		echo "✓ Tagged: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"; \
-	fi
-
-# Push only dependencies image
-docker_push_dependencies:
-	$(call push_image,$(DOCKER_IMAGE_DEPS),Dependencies,dependencies)
-
-# Push only builder image
-docker_push_builder:
-	$(call push_image,$(DOCKER_IMAGE_BUILDER),Builder,builder)
-
-# Push only runtime image
-docker_push_runtime:
-	$(call push_image,$(DOCKER_IMAGE_RUNTIME),Runtime,runtime)
-
-# Push all available images
-docker_push: docker_tag
-	@echo ""
-	@echo "=== Pushing Docker images to $(DOCKER_REGISTRY) ==="
-	@echo ""
-	@if docker image inspect $(DOCKER_IMAGE_DEPS) >/dev/null 2>&1; then \
 		echo "[1/3] Pushing dependencies..."; \
+		docker tag $(DOCKER_IMAGE_DEPS) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS); \
 		docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS); \
 		echo "✓ Dependencies pushed"; \
 	else \
@@ -332,6 +301,7 @@ docker_push: docker_tag
 	@echo ""
 	@if docker image inspect $(DOCKER_IMAGE_BUILDER) >/dev/null 2>&1; then \
 		echo "[2/3] Pushing builder..."; \
+		docker tag $(DOCKER_IMAGE_BUILDER) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER); \
 		docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER); \
 		echo "✓ Builder pushed"; \
 	else \
@@ -340,46 +310,17 @@ docker_push: docker_tag
 	@echo ""
 	@if docker image inspect $(DOCKER_IMAGE_RUNTIME) >/dev/null 2>&1; then \
 		echo "[3/3] Pushing runtime..."; \
+		docker tag $(DOCKER_IMAGE_RUNTIME) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME); \
 		docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME); \
 		echo "✓ Runtime pushed"; \
 	else \
 		echo "[3/3] Skipping runtime (not built)"; \
 	fi
 	@echo ""
-	@echo "✓ Push completed!"
-
-docker_push_fast: 
-	@echo "=== Fast push: builder and runtime only ==="
-	@echo "Registry: $(DOCKER_REGISTRY)"
-	@echo ""
-	@if docker image inspect $(DOCKER_IMAGE_BUILDER) >/dev/null 2>&1; then \
-		docker tag $(DOCKER_IMAGE_BUILDER) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER); \
-		docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER); \
-		echo "✓ Builder pushed"; \
-	else \
-		echo "⚠ Builder not found, skipping"; \
-	fi
-	@echo ""
-	@if docker image inspect $(DOCKER_IMAGE_RUNTIME) >/dev/null 2>&1; then \
-		docker tag $(DOCKER_IMAGE_RUNTIME) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME); \
-		docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME); \
-		echo "✓ Runtime pushed"; \
-	else \
-		echo "⚠ Runtime not found, skipping"; \
-	fi
-	@echo ""
-	@echo "✓ Fast push completed!"
-
-docker_build_push: docker_build_all docker_push
-	@echo ""
-	@echo "=== ✓ Build and push completed ==="
-	@echo "Images available at:"
-	@echo "  docker pull $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"
-	@echo "  docker pull $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)"
-	@echo "  docker pull $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"
+	@echo "✓ All images pushed to $(DOCKER_REGISTRY)!"
 
 .PHONY: all init_all os init init_py init_vcpkg configure build test clean_all \
-	docker_pull_dependencies docker_pull_builder docker_pull_all \
-	docker_build_dependencies docker_build_builder docker_build_runtime docker_build docker_build_all docker_build_fast docker_build_ci \
-	docker_run docker_clean docker_inspect docker_verify docker_verify_all \
-	docker_tag docker_push_dependencies docker_push_builder docker_push_runtime docker_push docker_push_fast docker_build_push
+	docker_pull_dependencies \
+	docker_build_dependencies docker_build_builder docker_build_runtime docker_build docker_build_all docker_build_ci \
+	docker_push_dependencies docker_push_builder docker_push_runtime docker_push \
+	docker_run docker_clean docker_clean_all docker_inspect docker_verify

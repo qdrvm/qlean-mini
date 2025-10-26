@@ -76,25 +76,38 @@ You can also build the project's Docker images with **three-stage build**:
 
 ```bash
 # First time (full build)
-make docker_build_all          # ~20 min
+make docker_build_all          # ~25 min
 
 # Daily development (fast rebuild)  
-make docker_build_fast         # ~3-5 min ⚡
+make docker_build              # ~3-5 min ⚡
 ```
 
 **Three stages:**
-- Dependencies: vcpkg libs (~2.5 GB, rebuild rarely)
-- Builder: project code (~3 GB, rebuild often)
-- Runtime: minimal image (~300 MB, production)
+- `qlean-mini-dependencies:build_test` - vcpkg libs (~2.5 GB, rebuild rarely)
+- `qlean-mini-builder:build_test` - project code (~3 GB, rebuild often)
+- `qlean-mini:build_test` - minimal image (~300 MB, production)
 
-**Commands:**
+**Main commands:**
 ```bash
-make docker_build_dependencies # Stage 1: vcpkg
-make docker_build_builder      # Stage 2: code
-make docker_build_runtime      # Stage 3: final
-make docker_build_ci           # CI/CD: pull deps + build (fast)
+make docker_build_all          # Full build (all 3 stages)
+make docker_build              # Fast rebuild (code only)
+make docker_build_ci           # CI/CD: pull deps + build (~4 min)
+```
+
+**Push/Pull:**
+```bash
+make docker_push_dependencies  # Push dependencies to registry (once)
+make docker_push               # Push all images
+make docker_pull_dependencies  # Pull dependencies from registry
+```
+
+**Utility:**
+```bash
 make docker_run                # Run node
-make docker_verify             # Test
+make docker_run ARGS='--version'
+make docker_verify             # Test runtime image
+make docker_clean              # Clean builder + runtime (keep deps)
+make docker_clean_all          # Clean everything (including deps)
 ```
 
 **For CI/CD:**
@@ -102,6 +115,8 @@ make docker_verify             # Test
 # One command - pulls dependencies from registry, builds code
 export DOCKER_REGISTRY=your-registry
 make docker_build_ci           # ~4 min
+make docker_verify
+make docker_push
 ```
 
 See [DOCKER_BUILD.md](DOCKER_BUILD.md) for details. See the `Makefile` for all Docker targets.

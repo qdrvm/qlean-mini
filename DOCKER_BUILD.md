@@ -10,7 +10,7 @@ Stage 2: Builder (project code)    → ~3-5 min, rebuild often
 Stage 3: Runtime (minimal image)   → ~1 min, automatic
 ```
 
-## Commands
+## Quick Start
 
 ### First Time (Full Build)
 
@@ -23,30 +23,43 @@ make docker_build_all
 
 ```bash
 # After code changes
-make docker_build_fast
+make docker_build
 # Builds: builder → runtime using cached dependencies (~4 min)
-```
-
-### Individual Stages
-
-```bash
-make docker_build_dependencies  # Stage 1: vcpkg libs (~20 min)
-make docker_build_builder       # Stage 2: project code (~3-5 min)
-make docker_build_runtime       # Stage 3: final image (~1 min)
-```
-
-### Pull from Registry
-
-```bash
-make docker_pull_dependencies   # Pull dependencies image from registry
-make docker_pull_builder        # Pull builder image from registry
-make docker_pull_all            # Pull both
 ```
 
 ### CI/CD Optimized
 
 ```bash
-make docker_build_ci            # Pull deps from registry, build code (~4 min)
+make docker_build_ci
+# Pull deps from registry + build code (~4 min)
+```
+
+## All Commands
+
+### Build
+
+```bash
+make docker_build_dependencies  # Stage 1: vcpkg libs (~20 min)
+make docker_build_builder       # Stage 2: project code (~3-5 min)
+make docker_build_runtime       # Stage 3: final image (~1 min)
+make docker_build               # Fast: builder + runtime (~4 min)
+make docker_build_all           # Full: all 3 stages (~25 min)
+make docker_build_ci            # CI/CD optimized (~4 min)
+```
+
+### Push to Registry
+
+```bash
+make docker_push_dependencies   # Push dependencies image
+make docker_push_builder        # Push builder image  
+make docker_push_runtime        # Push runtime image
+make docker_push                # Push all built images
+```
+
+### Pull from Registry
+
+```bash
+make docker_pull_dependencies   # Pull dependencies from registry
 ```
 
 ### Run & Verify
@@ -55,108 +68,107 @@ make docker_build_ci            # Pull deps from registry, build code (~4 min)
 make docker_run                 # Run with --help
 make docker_run ARGS='--version'
 make docker_verify              # Test runtime image
-make docker_clean               # Remove images
 ```
 
-### Push to Registry
+### Clean
 
 ```bash
-make docker_push                # Push all images
-make docker_push_fast           # Push builder + runtime only
+make docker_clean               # Remove builder + runtime (keep dependencies)
+make docker_clean_all           # Remove all images (including dependencies)
+make docker_inspect             # Show image info
 ```
 
 ## Images
 
-- `qlean-mini:latest-dependencies` (~2.5 GB) - vcpkg libraries, build tools
-- `qlean-mini:latest-builder` (~3 GB) - compiled project code
-- `qlean-mini:latest` (~300 MB) - minimal runtime image for production
+- `qlean-mini-dependencies:build_test` (~2.5 GB) - vcpkg libraries, build tools
+- `qlean-mini-builder:build_test` (~3 GB) - compiled project code
+- `qlean-mini:build_test` (~300 MB) - minimal runtime image for production
 
 ## When to Rebuild
 
 **Dependencies** - rebuild when:
 - `vcpkg.json` changes
 - System dependencies update (cmake, gcc, rust versions)
+- Rarely - maybe once per month or when adding new libraries
 
 **Builder** - rebuild when:
 - Code changes in `src/`
 - `CMakeLists.txt` changes
-- Every commit (fast!)
+- Every commit (fast - only 3-5 min!)
 
-**Runtime** - automatic after builder
+**Runtime** - automatically rebuilt after builder
 
-## Workflow
+## Workflow Examples
 
-### Team Setup (once)
+### Team Setup (First Time)
 
 ```bash
-# Lead/DevOps builds and pushes dependencies
+# Lead/DevOps builds and pushes dependencies (once)
 make docker_build_dependencies
-make docker_push                # Push all images including dependencies
+make docker_push_dependencies
+
+# Or push everything
+make docker_build_all
+make docker_push
 ```
 
 ### Developer Daily Work
 
 ```bash
-# Pull dependencies (once)
+# Pull dependencies (once per setup)
 make docker_pull_dependencies
 
-# Development (fast!)
-# ... edit code ...
-make docker_build_fast          # ~4 min
+# Daily development cycle
+# 1. Edit code
+# 2. Rebuild (fast!)
+make docker_build               # ~4 min
+
+# Test
+make docker_run ARGS='--version'
+make docker_verify
 ```
 
 ### CI/CD Pipeline
 
 ```bash
-# In your CI script:
+# Set registry
 export DOCKER_REGISTRY=your-registry
 
-# Option 1: Automatic (recommended)
-make docker_build_ci            # Pull deps + build code
+# Build (pulls dependencies from registry)
+make docker_build_ci            # ~4 min
 
-# Option 2: Manual control
-make docker_pull_dependencies   # Try to pull from registry
-make docker_build_fast          # Build code
-
-# Test and push
+# Test
 make docker_verify
-make docker_push_fast
+
+# Push
+make docker_push                # Push all built images
 ```
 
-### CI/CD
+## CI/CD Integration
 
-**Simple way (automatic):**
+### Automatic (Recommended)
+
 ```bash
 # One command: pull dependencies from registry, then build
+export DOCKER_REGISTRY=your-registry
 make docker_build_ci            # ~4 min (if deps cached)
 make docker_verify
-make docker_push_fast
+make docker_push
 ```
 
-**Manual way:**
+### Manual Control
+
 ```bash
-# Pull dependencies from registry
-make docker_pull_dependencies   # or docker_pull_all
+# 1. Pull dependencies from registry
+export DOCKER_REGISTRY=your-registry
+make docker_pull_dependencies
 
-# Build code
-make docker_build_fast          # ~4 min
+# 2. Build code only
+make docker_build               # ~4 min
+
+# 3. Test and push
 make docker_verify
-make docker_push_fast
-```
-
-**CI/CD YAML example:**
-```yaml
-- name: Set registry
-  run: export DOCKER_REGISTRY=your-registry
-
-- name: Build (uses cached dependencies)
-  run: make docker_build_ci
-
-- name: Verify
-  run: make docker_verify
-
-- name: Push
-  run: make docker_push_fast
+make docker_push
 ```
 
 ## Benefits
@@ -244,7 +256,7 @@ jobs:
       
       - name: Push
         if: github.ref == 'refs/heads/master'
-        run: make docker_push_fast
+        run: make docker_push
 ```
 
 ### GitLab CI
@@ -257,7 +269,7 @@ build:
     - docker:24-dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - apk add --no-cache make bash
+    - apk add --no-cache make bash git
   script:
     - export DOCKER_REGISTRY=$CI_REGISTRY
     - make docker_build_ci
@@ -269,7 +281,7 @@ build:
 push:
   stage: push
   script:
-    - make docker_push_fast
+    - make docker_push
   only:
     - master
 ```
@@ -280,5 +292,6 @@ push:
 2. **Set `DOCKER_REGISTRY`** environment variable
 3. **Dependencies only rebuild** when vcpkg.json changes
 4. **Fast builds** - ~4 min instead of 20 min
-5. **Push dependencies** to registry when they change
+5. **Push dependencies** to registry when they change (once)
+6. **Git required** - for version detection in build
 
