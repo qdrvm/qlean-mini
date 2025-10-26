@@ -19,6 +19,7 @@ OS_TYPE := $(shell bash -c 'source $(CI_DIR)/scripts/detect_os.sh && detect_os')
 #   make docker_build_all DOCKER_IMAGE_NAME=my-project DOCKER_IMAGE_TAG=v1.0.0
 DOCKER_IMAGE_NAME ?= qlean-mini
 DOCKER_IMAGE_TAG ?= localBuild
+DOCKER_DEPS_TAG ?= latest
 DOCKER_PLATFORM ?= linux/arm64 #linux/amd64
 DOCKER_REGISTRY ?= qdrvm
 DOCKER_PUSH_TAG ?= false
@@ -26,21 +27,19 @@ DOCKER_PUSH_LATEST ?= false
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 # Derived image names for each stage:
-# Commit tag (always created and pushed):
-#   qlean-mini-dependencies:608f5cc
-#   qlean-mini-builder:608f5cc
-#   qlean-mini:608f5cc
-# Additional tag (created locally, pushed if DOCKER_PUSH_TAG=true):
-#   qlean-mini-dependencies:localBuild (default, for local dev)
-#   qlean-mini-dependencies:v1.0.0 (custom)
-#   qlean-mini-dependencies:staging (custom)
-# Latest tag (pushed only if DOCKER_PUSH_LATEST=true):
-#   qlean-mini-dependencies:latest
-DOCKER_IMAGE_DEPS := $(DOCKER_IMAGE_NAME)-dependencies:$(GIT_COMMIT)
+#
+# Dependencies (single version for all commits, changes only when vcpkg.json changes):
+#   qlean-mini-dependencies:latest (configurable via DOCKER_DEPS_TAG)
+#   qlean-mini-dependencies:v1 (custom)
+#
+# Builder and Runtime (tagged by commit):
+#   Commit tag (always): qlean-mini-builder:608f5cc, qlean-mini:608f5cc
+#   Additional tag: qlean-mini-builder:localBuild, qlean-mini:localBuild (via DOCKER_IMAGE_TAG)
+#
+DOCKER_IMAGE_DEPS := $(DOCKER_IMAGE_NAME)-dependencies:$(DOCKER_DEPS_TAG)
 DOCKER_IMAGE_BUILDER := $(DOCKER_IMAGE_NAME)-builder:$(GIT_COMMIT)
 DOCKER_IMAGE_RUNTIME := $(DOCKER_IMAGE_NAME):$(GIT_COMMIT)
 
-DOCKER_IMAGE_DEPS_TAG := $(DOCKER_IMAGE_NAME)-dependencies:$(DOCKER_IMAGE_TAG)
 DOCKER_IMAGE_BUILDER_TAG := $(DOCKER_IMAGE_NAME)-builder:$(DOCKER_IMAGE_TAG)
 DOCKER_IMAGE_RUNTIME_TAG := $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)
 
@@ -105,8 +104,7 @@ docker_build_dependencies:
 	@echo "  - GCC_VERSION=$(GCC_VERSION)"
 	@echo "  - RUST_VERSION=$(RUST_VERSION)"
 	@echo ""
-	@echo "Primary tag: $(DOCKER_IMAGE_DEPS)"
-	@echo "Additional tag: $(DOCKER_IMAGE_DEPS_TAG)"
+	@echo "Tag: $(DOCKER_IMAGE_DEPS) (shared across all commits)"
 	@echo ""
 	DOCKER_BUILDKIT=1 docker build \
 		--build-arg CMAKE_VERSION=$(CMAKE_VERSION) \
@@ -116,34 +114,27 @@ docker_build_dependencies:
 		-f Dockerfile.dependencies \
 		--target dependencies-final \
 		--progress=plain \
-		-t $(DOCKER_IMAGE_DEPS) \
-		-t $(DOCKER_IMAGE_DEPS_TAG) .
+		-t $(DOCKER_IMAGE_DEPS) .
 	@echo ""
-	@echo "✓ Dependencies image built with tags:"
-	@echo "  - $(DOCKER_IMAGE_DEPS)"
-	@echo "  - $(DOCKER_IMAGE_DEPS_TAG)"
+	@echo "✓ Dependencies image built: $(DOCKER_IMAGE_DEPS)"
 
 docker_build_builder:
 	@echo "=== [Stage 2/3] Building BUILDER image ==="
-	@echo "=== Using dependencies: $(DOCKER_IMAGE_DEPS_TAG) ==="
+	@echo "=== Using dependencies: $(DOCKER_IMAGE_DEPS) ==="
 	@echo ""
-	@if docker image inspect $(DOCKER_IMAGE_DEPS) >/dev/null 2>&1; then \
-		echo "Using dependencies image: $(DOCKER_IMAGE_DEPS)"; \
-	elif docker image inspect $(DOCKER_IMAGE_DEPS_TAG) >/dev/null 2>&1; then \
-		echo "Using dependencies image: $(DOCKER_IMAGE_DEPS_TAG)"; \
-	else \
-		echo "ERROR: Dependencies image not found!"; \
-		echo "Tried: $(DOCKER_IMAGE_DEPS) and $(DOCKER_IMAGE_DEPS_TAG)"; \
+	@if ! docker image inspect $(DOCKER_IMAGE_DEPS) >/dev/null 2>&1; then \
+		echo "ERROR: Dependencies image not found: $(DOCKER_IMAGE_DEPS)"; \
 		echo "Run: make docker_build_dependencies"; \
 		echo "Or:  make docker_pull_dependencies"; \
 		exit 1; \
 	fi
+	@echo "✓ Using dependencies image: $(DOCKER_IMAGE_DEPS)"
 	@echo ""
 	@echo "Primary tag: $(DOCKER_IMAGE_BUILDER)"
 	@echo "Additional tag: $(DOCKER_IMAGE_BUILDER_TAG)"
 	@echo ""
 	DOCKER_BUILDKIT=1 docker build \
-		--build-arg DEPS_IMAGE=$(DOCKER_IMAGE_DEPS_TAG) \
+		--build-arg DEPS_IMAGE=$(DOCKER_IMAGE_DEPS) \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
 		-f Dockerfile.builder \
 		--progress=plain \
@@ -229,13 +220,16 @@ docker_run:
 docker_clean:
 	@echo "=== Cleaning Docker images (builder + runtime) ==="
 	@echo "Note: Dependencies will be kept for fast rebuilds"
-	docker rmi -f $(DOCKER_IMAGE_RUNTIME) $(DOCKER_IMAGE_BUILDER) 2>/dev/null || true
+	docker rmi -f $(DOCKER_IMAGE_RUNTIME) $(DOCKER_IMAGE_RUNTIME_TAG) \
+		$(DOCKER_IMAGE_BUILDER) $(DOCKER_IMAGE_BUILDER_TAG) 2>/dev/null || true
 	@echo "✓ Builder and runtime images cleaned"
 	@echo "Tip: Use 'make docker_clean_all' to also remove dependencies"
 
 docker_clean_all:
 	@echo "=== Cleaning ALL Docker images (including dependencies) ==="
-	docker rmi -f $(DOCKER_IMAGE_RUNTIME) $(DOCKER_IMAGE_BUILDER) $(DOCKER_IMAGE_DEPS) 2>/dev/null || true
+	docker rmi -f $(DOCKER_IMAGE_RUNTIME) $(DOCKER_IMAGE_RUNTIME_TAG) \
+		$(DOCKER_IMAGE_BUILDER) $(DOCKER_IMAGE_BUILDER_TAG) \
+		$(DOCKER_IMAGE_DEPS) 2>/dev/null || true
 	@echo "✓ All Docker images cleaned"
 
 docker_inspect:
@@ -319,10 +313,17 @@ endef
 docker_push_dependencies:
 	@echo "=== Pushing dependencies image ==="
 	@echo "Registry: $(DOCKER_REGISTRY)"
-	@echo "Additional tag: $(DOCKER_IMAGE_TAG) (push: $(DOCKER_PUSH_TAG))"
-	@echo "Latest tag: $(DOCKER_PUSH_LATEST)"
+	@echo "Dependencies tag: $(DOCKER_DEPS_TAG)"
 	@echo ""
-	$(call push_image,$(DOCKER_IMAGE_DEPS),$(DOCKER_IMAGE_DEPS_TAG),Dependencies,dependencies,$(DOCKER_IMAGE_NAME)-dependencies:latest)
+	@if ! docker image inspect $(DOCKER_IMAGE_DEPS) >/dev/null 2>&1; then \
+		echo "ERROR: Dependencies image not found: $(DOCKER_IMAGE_DEPS)"; \
+		echo "Run: make docker_build_dependencies"; \
+		exit 1; \
+	fi
+	@echo "Pushing: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"
+	@docker tag $(DOCKER_IMAGE_DEPS) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)
+	@docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)
+	@echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"
 
 docker_push_builder:
 	@echo "=== Pushing builder image ==="

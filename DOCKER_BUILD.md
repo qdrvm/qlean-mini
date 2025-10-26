@@ -49,6 +49,17 @@ make docker_build_ci            # CI/CD optimized (~4 min)
 
 ### Push to Registry
 
+**Dependencies (push once per version):**
+```bash
+# Push dependencies with default tag (latest)
+make docker_push_dependencies   # Push: qlean-mini-dependencies:latest
+
+# Push dependencies with custom tag
+DOCKER_DEPS_TAG=v2 make docker_build_dependencies
+make docker_push_dependencies   # Push: qlean-mini-dependencies:v2
+```
+
+**Builder & Runtime (push per commit):**
 ```bash
 # Local dev (default) - only commit tag
 make docker_push                # Push: qlean-mini:608f5cc
@@ -67,7 +78,6 @@ DOCKER_PUSH_TAG=true DOCKER_PUSH_LATEST=true DOCKER_IMAGE_TAG=v1.0.0 make docker
 DOCKER_PUSH_TAG=true DOCKER_IMAGE_TAG=staging make docker_push  # Push: commit + staging
 
 # Individual stages
-make docker_push_dependencies   # Push dependencies only
 make docker_push_builder        # Push builder only
 make docker_push_runtime        # Push runtime only
 ```
@@ -75,7 +85,11 @@ make docker_push_runtime        # Push runtime only
 ### Pull from Registry
 
 ```bash
-make docker_pull_dependencies   # Pull dependencies from registry
+# Pull dependencies with default tag (latest)
+make docker_pull_dependencies   # Pull: qlean-mini-dependencies:latest
+
+# Pull dependencies with custom tag
+DOCKER_DEPS_TAG=v2 make docker_pull_dependencies  # Pull: qlean-mini-dependencies:v2
 ```
 
 ### Run & Verify
@@ -102,11 +116,18 @@ make docker_inspect             # Show image info
 
 **Image tagging:**
 
-Every build creates **2 local tags**:
-- **Commit tag**: `qlean-mini:608f5cc` (always, based on git commit)
-- **Additional tag**: `qlean-mini:localBuild` (default, configurable via `DOCKER_IMAGE_TAG`)
+**Dependencies** (single version, shared across all commits):
+- Tag: `qlean-mini-dependencies:latest` (default, configurable via `DOCKER_DEPS_TAG`)
+- Example: `DOCKER_DEPS_TAG=v1 make docker_build_dependencies`
+- Changes only when `vcpkg.json`, `vcpkg-configuration.json`, or system deps change
+- Always uses the same tag across all code commits
 
-Push behavior (**up to 3 tags** can be pushed):
+**Builder & Runtime** (per-commit versioning):
+- Every build creates **2 local tags**:
+  - **Commit tag**: `qlean-mini:608f5cc` (always, based on git commit)
+  - **Additional tag**: `qlean-mini:localBuild` (default, configurable via `DOCKER_IMAGE_TAG`)
+
+Push behavior for Builder & Runtime (**up to 3 tags** can be pushed):
 
 | Tag Type | Variable | Always Pushed? | Example |
 |----------|----------|----------------|---------|
@@ -118,11 +139,12 @@ Push behavior (**up to 3 tags** can be pushed):
 
 | Scenario | Command | Local Tags | Pushed Tags |
 |----------|---------|------------|-------------|
-| Local dev (default) | `make docker_build` | `608f5cc`, `localBuild` | None (manual push) |
-| Push to registry | `make docker_push` | `608f5cc`, `localBuild` | `608f5cc` |
-| Master branch | `DOCKER_PUSH_LATEST=true` | `608f5cc`, `localBuild` | `608f5cc`, `latest` |
-| Production release | `DOCKER_PUSH_TAG=true`<br>`DOCKER_PUSH_LATEST=true`<br>`DOCKER_IMAGE_TAG=v1.0.0` | `608f5cc`, `v1.0.0` | `608f5cc`, `v1.0.0`, `latest` |
-| Staging | `DOCKER_PUSH_TAG=true`<br>`DOCKER_IMAGE_TAG=staging` | `608f5cc`, `staging` | `608f5cc`, `staging` |
+| Local dev (default) | `make docker_build` | Builder/Runtime: `608f5cc`, `localBuild`<br>Deps: `latest` | None (manual push) |
+| Push to registry | `make docker_push` | Builder/Runtime: `608f5cc`, `localBuild`<br>Deps: `latest` | `608f5cc` only |
+| Master branch | `DOCKER_PUSH_LATEST=true` | Builder/Runtime: `608f5cc`, `localBuild`<br>Deps: `latest` | `608f5cc`, `latest` |
+| Production release | `DOCKER_PUSH_TAG=true`<br>`DOCKER_PUSH_LATEST=true`<br>`DOCKER_IMAGE_TAG=v1.0.0` | Builder/Runtime: `608f5cc`, `v1.0.0`<br>Deps: `latest` | `608f5cc`, `v1.0.0`, `latest` |
+| Staging | `DOCKER_PUSH_TAG=true`<br>`DOCKER_IMAGE_TAG=staging` | Builder/Runtime: `608f5cc`, `staging`<br>Deps: `latest` | `608f5cc`, `staging` |
+| New deps version | `DOCKER_DEPS_TAG=v2`<br>`make docker_build_dependencies` | Deps: `v2` | Manual: `make docker_push_dependencies` |
 
 **Optimization applied:**
 - Strip debug symbols from binaries (~30-50% size reduction)
@@ -379,14 +401,75 @@ push_version:
 
 1. **Use `docker_build_ci`** - automatically pulls dependencies from registry
 2. **Set `DOCKER_REGISTRY`** environment variable
-3. **Dependencies only rebuild** when vcpkg.json changes
-4. **Fast builds** - ~4 min instead of 25 min
-5. **Automatic tagging** - images always tagged by git commit hash
-6. **Push up to 3 tags**:
+3. **Dependencies tag** - use `DOCKER_DEPS_TAG` to specify which dependencies version to use (default: `latest`)
+4. **Dependencies only rebuild** when vcpkg.json changes
+5. **Fast builds** - ~4 min instead of 25 min
+6. **Automatic tagging** - images always tagged by git commit hash
+7. **Push up to 3 tags**:
    - Commit tag (always): `qlean-mini:608f5cc`
    - Custom tag (optional): set `DOCKER_PUSH_TAG=true` + `DOCKER_IMAGE_TAG=v1.0.0`
    - Latest tag (optional): set `DOCKER_PUSH_LATEST=true`
-7. **Flexible tagging** - use any custom tag: latest, v1.0.0, staging, production, etc.
-8. **Git required** - for version detection and commit-based tagging
-9. **Optimized runtime** - 240 MB production image (stripped binaries)
+8. **Flexible tagging** - use any custom tag: latest, v1.0.0, staging, production, etc.
+9. **Git required** - for version detection and commit-based tagging
+10. **Optimized runtime** - 240 MB production image (stripped binaries)
+
+## Working with Dependencies Tag
+
+The dependencies image is **shared across all code commits** and only needs to be rebuilt when dependencies change.
+
+### Understanding `DOCKER_DEPS_TAG`
+
+- **Variable**: `DOCKER_DEPS_TAG` (default: `latest`)
+- **Purpose**: Specify which version of dependencies to use
+- **When to change**: After updating `vcpkg.json`, `vcpkg-configuration.json`, or system dependencies
+
+### Typical Workflow
+
+**1. Team uses default (latest):**
+```bash
+# Everyone pulls the same dependencies
+make docker_pull_dependencies  # Pulls: qlean-mini-dependencies:latest
+make docker_build              # Builds code using latest dependencies
+```
+
+**2. Developer updates dependencies:**
+```bash
+# Edit vcpkg.json to add new library
+vim vcpkg.json
+
+# Build new dependencies version
+DOCKER_DEPS_TAG=v2 make docker_build_dependencies
+
+# Push for team
+DOCKER_DEPS_TAG=v2 make docker_push_dependencies
+
+# Update CI/CD to use v2
+# Set DOCKER_DEPS_TAG=v2 in CI environment variables
+```
+
+**3. Using specific dependency version:**
+```bash
+# Pull specific version
+DOCKER_DEPS_TAG=v2 make docker_pull_dependencies
+
+# Build code with specific dependencies
+DOCKER_DEPS_TAG=v2 make docker_build
+
+# Or set as default in your shell
+export DOCKER_DEPS_TAG=v2
+make docker_pull_dependencies
+make docker_build
+```
+
+### Best Practices
+
+1. **Use `latest` for active development** - simplest for most developers
+2. **Version dependencies for releases** - e.g., `v1`, `v2`, `v3` when making breaking changes
+3. **Push after building** - always push dependencies to registry after rebuilding:
+   ```bash
+   DOCKER_DEPS_TAG=v2 make docker_build_dependencies
+   DOCKER_DEPS_TAG=v2 make docker_push_dependencies
+   ```
+4. **Document in team** - notify team when dependencies version changes
+5. **CI/CD pinning** - for stable builds, pin `DOCKER_DEPS_TAG` in CI config instead of using `latest`
 

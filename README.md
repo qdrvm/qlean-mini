@@ -117,6 +117,12 @@ DOCKER_PUSH_TAG=true DOCKER_PUSH_LATEST=true DOCKER_IMAGE_TAG=v1.0.0 make docker
 ```
 
 **Image tagging:**
+
+Dependencies (single version, shared across commits):
+- Tag: `qlean-mini-dependencies:latest` (configurable via `DOCKER_DEPS_TAG`)
+- Changes only when `vcpkg.json` or system dependencies change
+
+Builder & Runtime (per commit):
 - Each build creates 2 local tags: `qlean-mini:608f5cc` (commit) + `qlean-mini:localBuild` (default)
 - Push behavior:
   - **Commit tag** (`608f5cc`): always pushed to registry
