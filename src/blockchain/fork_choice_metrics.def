@@ -5,7 +5,6 @@
  */
 
 /**
- * @file fork_choice_metrics.def
  * @brief ForkChoiceStore metrics definitions
  *
  * Format:
@@ -13,21 +12,48 @@
  *                "prometheus_metric_name",
  *                "help_text")
  *
- *   METRIC_GAUGE(field_name,
- *                "prometheus_metric_name",
- *                "help_text",
- *                "label1",
- *                "label2",
- *                ...)
+ *   METRIC_GAUGE_LABELS(field_name,
+ *                       "prometheus_metric_name",
+ *                       "help_text",
+ *                       {"label1", "label2", ...})
  *
- * Parameters:
- *   - field_name: Required - C++ member variable name
- *   - prometheus_metric_name: Required - Prometheus metric name
- *   - help_text: Required - Metric description
- *   - labels: Optional - Any number of label names
+ *   METRIC_COUNTER(field_name,
+ *                  "prometheus_metric_name",
+ *                  "help_text")
+ *
+ *   METRIC_COUNTER_LABELS(field_name,
+ *                         "prometheus_metric_name",
+ *                         "help_text",
+ *                         {"label1", "label2", ...})
+ *
+ *   METRIC_HISTOGRAM(field_name,
+ *                    "prometheus_metric_name",
+ *                    "help_text",
+ *                    {bucket1, bucket2, ...})
+ *
+ *   METRIC_HISTOGRAM_LABELS(field_name,
+ *                           "prometheus_metric_name",
+ *                           "help_text",
+ *                           {bucket1, bucket2, ...},
+ *                           {"label1", "label2", ...})
  */
 
-METRIC_GAUGE(fc_head_slot,
-             "lean_head_slot",
-             "Latest slot of the beacon chain")
+METRIC_GAUGE(fc_head_slot, "lean_head_slot", "Latest slot of the beacon chain")
 
+// Attestation validation
+METRIC_COUNTER(fc_attestations_valid_total,
+               "lean_attestations_valid_total",
+               "Total number of valid attestations")
+METRIC_COUNTER(fc_attestations_invalid_total,
+               "lean_attestations_invalid_total",
+               "Total number of invalid attestations")
+METRIC_HISTOGRAM(fc_attestation_validation_time_seconds,
+                 "lean_attestation_validation_time_seconds",
+                 "Time taken to validate attestation",
+                 {0.005, 0.01, 0.025, 0.05, 0.1, 1})
+
+// Block processing
+METRIC_HISTOGRAM(fc_block_processing_time_seconds,
+                 "lean_fork_choice_block_processing_time_seconds",
+                 "Time taken to process block in fork choice",
+                 {0.005, 0.01, 0.025, 0.05, 0.1, 1})

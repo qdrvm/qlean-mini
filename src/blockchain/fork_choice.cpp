@@ -183,13 +183,16 @@ namespace lean {
              "Validating attestation for target {}, source {}",
              signed_vote.data.target,
              signed_vote.data.source);
+    auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
     auto &vote = signed_vote.data;
 
     // Validate vote targets exist in store
     if (not blocks_.contains(vote.source.root)) {
+      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
     if (not blocks_.contains(vote.target.root)) {
+      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
 
@@ -198,25 +201,31 @@ namespace lean {
     auto &target_block = blocks_.at(vote.target.root);
 
     if (source_block.slot > target_block.slot) {
+      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
     if (vote.source.slot > vote.target.slot) {
+      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
 
     // Validate checkpoint slots match block slots
     if (source_block.slot != vote.source.slot) {
+      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
     if (target_block.slot != vote.target.slot) {
+      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
 
     // Validate attestation is not too far in the future
     if (vote.slot > getCurrentSlot() + 1) {
+      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
 
+    metrics_->fc_attestations_valid_total()->inc();
     return outcome::success();
   }
 
@@ -261,6 +270,7 @@ namespace lean {
   }
 
   outcome::result<void> ForkChoiceStore::onBlock(Block block) {
+    auto timer = metrics_->fc_block_processing_time_seconds()->timer();
     block.setHash();
     auto block_hash = block.hash();
     // If the block is already known, ignore it
@@ -464,7 +474,8 @@ namespace lean {
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
-      : validator_registry_(validator_registry),
+      : stf_(metrics),
+        validator_registry_(validator_registry),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         metrics_(std::move(metrics)) {
@@ -507,7 +518,8 @@ namespace lean {
       Votes latest_new_votes,
       ValidatorIndex validator_index,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
-      : time_(now_sec / SECONDS_PER_INTERVAL),
+      : stf_(metrics),
+        time_(now_sec / SECONDS_PER_INTERVAL),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         config_(config),

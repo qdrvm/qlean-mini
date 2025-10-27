@@ -8,6 +8,7 @@
 
 #include <qtils/enum_error_code.hpp>
 #include <qtils/outcome.hpp>
+#include <qtils/shared_ref.hpp>
 
 #include "app/impl/chain_spec_impl.hpp"
 #include "types/block.hpp"
@@ -20,7 +21,13 @@ namespace lean {
   struct Config;
   struct SignedVote;
   struct State;
+}  // namespace lean
 
+namespace lean::metrics {
+  class Metrics;
+}  // namespace lean::metrics
+
+namespace lean {
   class STF {
    public:
     enum class Error {
@@ -53,6 +60,8 @@ namespace lean {
       abort();
     }
 
+    explicit STF(qtils::SharedRef<metrics::Metrics> metrics);
+
     static AnchorState generateGenesisState(const Config &config);
     static AnchorBlock genesisBlock(const State &state);
 
@@ -76,5 +85,8 @@ namespace lean {
     outcome::result<void> processAttestations(
         State &state, const std::vector<SignedVote> &attestations) const;
     bool validateProposerIndex(const State &state, const Block &block) const;
+
+   private:
+    qtils::SharedRef<metrics::Metrics> metrics_;
   };
 }  // namespace lean
