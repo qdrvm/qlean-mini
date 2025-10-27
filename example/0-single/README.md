@@ -17,7 +17,7 @@ Before starting the node, update the GENESIS_TIME in the genesis config file to 
 
 ```bash
 future_time=$(( $(date +%s) + 20 ))
-sed -i "s/GENESIS_TIME: .*/GENESIS_TIME: $future_time/" example/0-single/genesis/config.yaml
+sed -i '' "s/GENESIS_TIME: .*/GENESIS_TIME: $future_time/" example/0-single/genesis/config.yaml
 ```
 
 Example CLI command:

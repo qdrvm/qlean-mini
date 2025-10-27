@@ -17,7 +17,7 @@ Before starting nodes, set `GENESIS_TIME` in `example/1-network/genesis/config.y
 
 ```bash
 future_time=$(( $(date +%s) + 20 ))
-sed -i "s/GENESIS_TIME: .*/GENESIS_TIME: $future_time/" example/1-network/genesis/config.yaml
+sed -i '' "s/GENESIS_TIME: .*/GENESIS_TIME: $future_time/" example/1-network/genesis/config.yaml
 ```
 
 ## Start the 4 validators
@@ -33,7 +33,7 @@ Node 0:
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
   --node-id node_0 \
-  --node-key cb920fbda3b96e18f03e22825f4a5a61343ec43c7be1c8c4a717fffee2f4c4ce \
+  --node-key 0000000000000000010000000000000002000000000000000300000000000000 \
   --listen-addr /ip4/0.0.0.0/udp/9000/quic-v1 \
   --prometheus-port 9100
 ```
@@ -47,7 +47,7 @@ Node 1:
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
   --node-id node_1 \
-  --node-key a87e7d23bb1de4613b67002b700bce41e031f4ab1529a3436bd73c893ea039b3 \
+  --node-key 0100000000000000020000000000000003000000000000000400000000000000 \
   --listen-addr /ip4/0.0.0.0/udp/9001/quic-v1 \
   --prometheus-port 9101
 ```
@@ -61,7 +61,7 @@ Node 2:
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
   --node-id node_2 \
-  --node-key f2f53f6acf312c5e92c2a611bbca7a1932b4db0b9e0c43bec413badca9b76760 \
+  --node-key 0200000000000000030000000000000004000000000000000500000000000000 \
   --listen-addr /ip4/0.0.0.0/udp/9002/quic-v1 \
   --prometheus-port 9102
 ```
@@ -75,7 +75,7 @@ Node 3:
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
   --node-id node_3 \
-  --node-key fa5ddbec80f964d17d28221c2c5bac0f4a3f9cfcf4b86674e605f459e195a1c4 \
+  --node-key 0300000000000000040000000000000005000000000000000600000000000000 \
   --listen-addr /ip4/0.0.0.0/udp/9003/quic-v1 \
   --prometheus-port 9103
 ```
