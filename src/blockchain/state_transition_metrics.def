@@ -50,7 +50,7 @@ METRIC_GAUGE(stf_latest_finalized_slot,
 METRIC_HISTOGRAM(stf_state_transition_time_seconds,
                  "lean_state_transition_time_seconds",
                  "Time to process state transition",
-                 {0.005, 0.01, 0.025, 0.05, 0.1, 1})
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
 
 // Slot processing
 METRIC_COUNTER(stf_slots_processed_total,
@@ -59,13 +59,13 @@ METRIC_COUNTER(stf_slots_processed_total,
 METRIC_HISTOGRAM(stf_slots_processing_time_seconds,
                  "lean_state_transition_slots_processing_time_seconds",
                  "Time taken to process slots",
-                 {0.005, 0.01, 0.025, 0.05, 0.1, 1})
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
 
 // Block processing
 METRIC_HISTOGRAM(stf_block_processing_time_seconds,
                  "lean_state_transition_block_processing_time_seconds",
                  "Time taken to process block",
-                 {0.005, 0.01, 0.025, 0.05, 0.1, 1})
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
 
 // Attestation processing
 METRIC_COUNTER(stf_attestations_processed_total,
@@ -74,4 +74,4 @@ METRIC_COUNTER(stf_attestations_processed_total,
 METRIC_HISTOGRAM(stf_attestations_processing_time_seconds,
                  "lean_state_transition_attestations_processing_time_seconds",
                  "Time taken to process attestations",
-                 {0.005, 0.01, 0.025, 0.05, 0.1, 1})
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))

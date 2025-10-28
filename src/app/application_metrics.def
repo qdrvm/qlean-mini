@@ -42,7 +42,7 @@ METRIC_GAUGE_LABELS(
     app_build_info,
     "lean_build_info",
     "A metric with a constant '1' value labeled by name, version",
-    {"name", "version"})
+    ("name", "version"))
 
 METRIC_GAUGE(app_process_start_time,
              "lean_process_start_time_seconds",

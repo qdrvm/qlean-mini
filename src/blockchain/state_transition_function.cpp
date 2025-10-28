@@ -272,8 +272,7 @@ namespace lean {
       // scenarios
       if (3 * count >= 2 * state.config.num_validators) {
         state.latest_justified = vote.target;
-        metrics_->stf_latest_justified_slot()->set(
-            state.latest_justified.slot);
+        metrics_->stf_latest_justified_slot()->set(state.latest_justified.slot);
         setBit(state.justified_slots.data(), vote.target.slot);
         justifications.erase(vote.target.root);
 
