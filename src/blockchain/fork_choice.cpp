@@ -188,11 +188,9 @@ namespace lean {
 
     // Validate vote targets exist in store
     if (not blocks_.contains(vote.source.root)) {
-      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
     if (not blocks_.contains(vote.target.root)) {
-      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
 
@@ -201,38 +199,37 @@ namespace lean {
     auto &target_block = blocks_.at(vote.target.root);
 
     if (source_block.slot > target_block.slot) {
-      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
     if (vote.source.slot > vote.target.slot) {
-      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
 
     // Validate checkpoint slots match block slots
     if (source_block.slot != vote.source.slot) {
-      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
     if (target_block.slot != vote.target.slot) {
-      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
 
     // Validate attestation is not too far in the future
     if (vote.slot > getCurrentSlot() + 1) {
-      metrics_->fc_attestations_invalid_total()->inc();
       return Error::INVALID_ATTESTATION;
     }
 
-    metrics_->fc_attestations_valid_total()->inc();
     return outcome::success();
   }
 
   outcome::result<void> ForkChoiceStore::processAttestation(
       const SignedVote &signed_vote, bool is_from_block) {
     // Validate attestation structure and constraints
-    BOOST_OUTCOME_TRY(validateAttestation(signed_vote));
+    if (auto res = validateAttestation(signed_vote); res.has_value()) {
+      metrics_->fc_attestations_valid_total()->inc();
+    } else {
+      metrics_->fc_attestations_invalid_total()->inc();
+      return res;
+    }
 
     auto &validator_id = signed_vote.validator_id;
     auto &vote = signed_vote.data;

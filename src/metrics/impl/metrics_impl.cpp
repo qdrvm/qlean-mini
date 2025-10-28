@@ -22,10 +22,10 @@ namespace lean::metrics {
   metric_##field##_ = registry_->registerCounterMetric(name);
 #define METRIC_COUNTER_LABELS(field, name, help, ...) \
   registry_->registerCounterFamily(name, help);
-#define METRIC_HISTOGRAM(field, name, help, ...)              \
-  registry_->registerHistogramFamily(name, help);             \
+#define METRIC_HISTOGRAM(field, name, help, ...)  \
+  registry_->registerHistogramFamily(name, help); \
   metric_##field##_ = registry_->registerHistogramMetric(name, {__VA_ARGS__});
-#define METRIC_HISTOGRAM_LABELS(field, name, help, ...) \
+#define METRIC_HISTOGRAM_LABELS(field, name, help, buckets, ...) \
   registry_->registerHistogramFamily(name, help);
 
 #include "metrics/all_metrics.def"
@@ -54,13 +54,13 @@ namespace lean::metrics {
   Counter *MetricsImpl::field(const Labels &labels) {      \
     return registry_->registerCounterMetric(name, labels); \
   }
-#define METRIC_HISTOGRAM(field, name, help, ...) \
-  Histogram *MetricsImpl::field() {              \
-    return metric_##field##_;                    \
+#define METRIC_HISTOGRAM(field, name, help, buckets, ...) \
+  Histogram *MetricsImpl::field() {                       \
+    return metric_##field##_;                             \
   }
-#define METRIC_HISTOGRAM_LABELS(field, name, help, ...)      \
-  Histogram *MetricsImpl::field(const Labels &labels) {      \
-    return registry_->registerHistogramMetric(name, {__VA_ARGS__}, labels); \
+#define METRIC_HISTOGRAM_LABELS(field, name, help, buckets, ...)      \
+  Histogram *MetricsImpl::field(const Labels &labels) {               \
+    return registry_->registerHistogramMetric(name, buckets, labels); \
   }
 
 #include "metrics/all_metrics.def"
