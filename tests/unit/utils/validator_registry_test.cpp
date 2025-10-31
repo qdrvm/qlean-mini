@@ -7,13 +7,16 @@
 #include <gtest/gtest.h>
 
 #include "blockchain/impl/validator_registry_impl.hpp"
+#include "mock/blockchain/metrics_mock.hpp"
 #include "testutil/prepare_loggers.hpp"
 
 TEST(ValidatorRegistryTest, LoadsRegistryAndResolvesIndices) {
   auto logger = testutil::prepareLoggers();
+  auto metrics = std::make_shared<lean::metrics::MetricsMock>();
 
   lean::ValidatorRegistryImpl registry{
       logger,
+      metrics,
       R"(
 node_0:
   - 0
@@ -31,9 +34,11 @@ node_1:
 
 TEST(ValidatorRegistryTest, MissingNodeDefaultsToZero) {
   auto logger = testutil::prepareLoggers();
+  auto metrics = std::make_shared<lean::metrics::MetricsMock>();
 
   lean::ValidatorRegistryImpl registry{
       logger,
+      metrics,
       R"(
 node_0:
   - 0
@@ -47,9 +52,11 @@ node_0:
 
 TEST(ValidatorRegistryTest, ThrowsOnDuplicateIndex) {
   auto logger = testutil::prepareLoggers();
+  auto metrics = std::make_shared<lean::metrics::MetricsMock>();
 
   EXPECT_THROW((lean::ValidatorRegistryImpl{
                    logger,
+                   metrics,
                    R"(
 node_0:
   - 0

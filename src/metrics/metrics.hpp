@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <map>
 #include <string>
 
@@ -92,6 +93,8 @@ namespace lean::metrics {
     virtual void observe(const double value) = 0;
   };
 
+  class HistogramTimer;
+
   /**
    * @brief A histogram metric to represent aggregatable distributions of
    * events.
@@ -107,6 +110,12 @@ namespace lean::metrics {
      * @brief Observe the given amount.
      */
     virtual void observe(const double value) = 0;
+
+    /**
+     * @brief Create a timer that automatically observes elapsed time.
+     * @return HistogramTimer that records duration when it goes out of scope
+     */
+    HistogramTimer timer();
   };
 
   /**
@@ -121,10 +130,125 @@ namespace lean::metrics {
 #define METRIC_GAUGE(field, name, help) virtual Gauge *field() = 0;
 #define METRIC_GAUGE_LABELS(field, name, help, ...) \
   virtual Gauge *field(const Labels &labels) = 0;
+#define METRIC_COUNTER(field, name, help) virtual Counter *field() = 0;
+#define METRIC_COUNTER_LABELS(field, name, help, ...) \
+  virtual Counter *field(const Labels &labels) = 0;
+#define METRIC_HISTOGRAM(field, name, help, ...) virtual Histogram *field() = 0;
+#define METRIC_HISTOGRAM_LABELS(field, name, help, ...) \
+  virtual Histogram *field(const Labels &labels) = 0;
 
 #include "metrics/all_metrics.def"
 
 #undef METRIC_GAUGE
 #undef METRIC_GAUGE_LABELS
+#undef METRIC_COUNTER
+#undef METRIC_COUNTER_LABELS
+#undef METRIC_HISTOGRAM
+#undef METRIC_HISTOGRAM_LABELS
   };
+
+  /**
+   * @brief timer for histogram metrics
+   *
+   * Automatically records the elapsed time to a histogram when the timer
+   * goes out of scope or when manually stopped.
+   */
+  class HistogramTimer {
+   public:
+    using Clock = std::chrono::steady_clock;
+    using TimePoint = std::chrono::time_point<Clock>;
+    using Duration = std::chrono::duration<double>;
+
+    /**
+     * @brief Construct and start a timer for the given histogram
+     * @param histogram Histogram to record elapsed time to
+     */
+    explicit HistogramTimer(Histogram *histogram)
+        : histogram_(histogram), start_time_(Clock::now()), running_(true) {}
+
+    /**
+     * @brief Destructor - automatically stops timer and records elapsed time
+     */
+    ~HistogramTimer() {
+      if (running_) {
+        const auto elapsed_time = stop();
+        if (histogram_) {
+          histogram_->observe(elapsed_time);
+        }
+      }
+    }
+
+    // Disable copying
+    HistogramTimer(const HistogramTimer &) = delete;
+    HistogramTimer &operator=(const HistogramTimer &) = delete;
+
+    // Enable moving
+    HistogramTimer(HistogramTimer &&other) noexcept
+        : histogram_(other.histogram_),
+          start_time_(other.start_time_),
+          running_(other.running_) {
+      other.running_ = false;
+    }
+
+    HistogramTimer &operator=(HistogramTimer &&other) noexcept {
+      if (this != &other) {
+        if (running_) {
+          const auto elapsed_time = stop();
+          if (histogram_) {
+            histogram_->observe(elapsed_time);
+          }
+        }
+        histogram_ = other.histogram_;
+        start_time_ = other.start_time_;
+        running_ = other.running_;
+        other.running_ = false;
+      }
+      return *this;
+    }
+
+    /**
+     * @brief Manually stop the timer
+     * @return Elapsed time in seconds
+     *
+     * After calling stop(), the timer is considered stopped and the destructor
+     * will not record the time to the histogram.
+     */
+    double stop() {
+      if (!running_) {
+        return 0.0;
+      }
+
+      const auto elapsed_time = elapsed();
+      running_ = false;
+      return elapsed_time;
+    }
+
+    /**
+     * @brief Check if the timer is currently running
+     * @return true if running, false if stopped
+     */
+    bool isRunning() const {
+      return running_;
+    }
+
+    /**
+     * @brief Get elapsed time without stopping the timer
+     * @return Elapsed time in seconds
+     */
+    double elapsed() const {
+      const auto now = Clock::now();
+      const Duration duration = now - start_time_;
+      return duration.count();
+    }
+
+   private:
+    Histogram *histogram_;
+    TimePoint start_time_;
+    bool running_;
+  };
+
+  inline HistogramTimer Histogram::timer() {
+    return HistogramTimer(this);
+  }
+
 }  // namespace lean::metrics
