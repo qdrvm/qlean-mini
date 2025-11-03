@@ -1,0 +1,80 @@
+#
+# Docker Build Workflow - Example/Stub
+#
+# This is a minimal stub to enable branch selection in GitHub UI.
+# The actual workflow is maintained in the ci/docker branch.
+#
+# To use:
+# 1. Merge this file to master
+# 2. Go to Actions → Docker Build → Run workflow
+# 3. Select branch "ci/docker" from dropdown
+# 4. Configure build parameters and run
+#
+# This stub will NOT trigger on push/PR to master, only manual runs.
+#
+
+name: "Docker Build"
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_amd64:
+        description: "Build linux/amd64"
+        type: boolean
+        required: false
+        default: true
+      build_arm64:
+        description: "Build linux/arm64"
+        type: boolean
+        required: false
+        default: true
+      build_dependencies:
+        description: "Build dependencies image (only when vcpkg.json changes)"
+        type: boolean
+        required: false
+        default: false
+      push_to_registry:
+        description: "Push images to Docker Hub"
+        type: boolean
+        required: false
+        default: false
+      docker_push_tag:
+        description: "Push additional custom tag (e.g., v1.0.0, staging)"
+        type: string
+        required: false
+        default: ""
+      docker_push_latest:
+        description: "Push 'latest' tag"
+        type: boolean
+        required: false
+        default: false
+      docker_deps_tag:
+        description: "Dependencies image tag to use/create"
+        type: string
+        required: false
+        default: "latest"
+
+jobs:
+  stub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Workflow stub"
+        run: |
+          echo "=============================================="
+          echo "This is a stub workflow for master branch"
+          echo "=============================================="
+          echo ""
+          echo "The actual Docker build workflow is in ci/docker branch."
+          echo ""
+          echo "To run the actual build:"
+          echo "1. Cancel this workflow"
+          echo "2. Go back to Actions → Docker Build"
+          echo "3. Click 'Run workflow'"
+          echo "4. Select branch: ci/docker"
+          echo "5. Configure parameters"
+          echo "6. Click 'Run workflow'"
+          echo ""
+          echo "=============================================="
+          echo "Current branch: ${{ github.ref_name }}"
+          echo "This stub does nothing and will exit successfully."
+          echo "=============================================="
