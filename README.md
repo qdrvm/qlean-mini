@@ -184,6 +184,31 @@ DOCKER_PUSH_TAG=true DOCKER_IMAGE_TAG=staging make docker_push  # commit + stagi
 
 See [DOCKER_BUILD.md](DOCKER_BUILD.md) for details. See the `Makefile` for all Docker targets.
 
+### Automated CI/CD (GitHub Actions)
+
+This project includes GitHub Actions workflow for automated multi-arch Docker builds:
+
+- ✅ **Auto-build on push** to `ci/docker` branch (or tags)
+- ✅ **Manual builds** via GitHub UI with flexible parameters
+- ✅ **Multi-arch support** (ARM64 + AMD64) on native runners
+- ✅ **Smart caching** (rebuilds dependencies only when `vcpkg.json` changes)
+- ✅ **Flexible tagging** (commit hash + custom tag + latest)
+
+**Quick actions:**
+
+```bash
+# Push to ci/docker branch → auto-build and push
+git push origin ci/docker
+
+# Create tag → auto-build and push with tag
+git tag v1.0.0 && git push origin v1.0.0
+
+# Manual build via GitHub UI:
+# Actions → Docker Build → Run workflow
+```
+
+See [.github/workflows/README.md](.github/workflows/README.md) for CI/CD documentation.
+
 This will:
 - Configure the project into `./build/`
 - Build the main node executable at `./build/src/executable/qlean`
