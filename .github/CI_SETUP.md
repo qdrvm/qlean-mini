@@ -57,14 +57,22 @@ Set these in GitHub repository settings (**Settings** → **Secrets** → **Acti
 
 ## Runner Configuration
 
-The workflow uses these runners (same as example CI):
+The workflow uses **free GitHub-hosted runners** with native ARM64 support:
 
-| Architecture | Runner Label | Type |
-|--------------|--------------|------|
-| AMD64 | `actions-runner-controller` | GitHub-hosted or self-hosted |
-| ARM64 | `["self-hosted", "qdrvm-arm64"]` | Self-hosted |
+| Architecture | Runner Label | Type | Build Speed |
+|--------------|--------------|------|-------------|
+| AMD64 | `ubuntu-24.04` | GitHub-hosted (free, native) | ~20-30 min |
+| ARM64 | `ubuntu-24.04-arm` | GitHub-hosted (free, native) | ~20-30 min |
 
-**Note:** These are already configured and match the example CI setup.
+**Benefits:**
+- ✅ **100% Free** - No cost for public repositories
+- ✅ **Native builds** - Full speed on both architectures (no QEMU)
+- ✅ **No setup** - Works out of the box
+- ✅ **Parallel builds** - ARM64 and AMD64 build simultaneously
+- ✅ **Multi-arch support** - One tag works on both architectures
+- ✅ **Fast** - Native compilation is 2-3x faster than QEMU emulation
+
+**Note:** This is the recommended setup for all public repositories. For private repositories, ARM64 minutes are billed, but AMD64 is still free.
 
 ## Example Usage
 
@@ -236,12 +244,13 @@ docker run --rm qdrvm/qlean-mini:608f5cc --help
 
 | Feature | Manual | CI/CD |
 |---------|--------|-------|
-| Build time | ~50 min (emulated) | ~25 min (native parallel) |
+| Build time | ~50 min (single arch) | ~20-30 min (parallel native) |
 | Consistency | Depends on dev | Always reproducible |
 | Tag management | Manual | Automatic |
 | Multi-arch | Complex setup | Built-in |
 | Dependency caching | Manual | Automatic detection |
 | Team collaboration | Requires coordination | Automatic |
+| Cost | Local resources | 100% free (public repos) |
 
 ## Troubleshooting
 

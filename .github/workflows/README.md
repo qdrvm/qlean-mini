@@ -102,12 +102,20 @@ git push origin feature-branch
 
 ## Runners
 
-The workflow uses two types of runners:
+The workflow uses **GitHub-hosted free runners** with native ARM64 support:
 
-- **AMD64**: `actions-runner-controller` (GitHub-hosted or self-hosted)
-- **ARM64**: `["self-hosted", "qdrvm-arm64"]` (self-hosted)
+- **AMD64**: `ubuntu-24.04` (native x64)
+- **ARM64**: `ubuntu-24.04-arm` (native ARM64)
 
 These are configured in `.github/actions/docker-matrix/action.yml`.
+
+**Benefits:**
+- ✅ **Free** - Both AMD64 and ARM64 runners are free for public repositories
+- ✅ **Native builds** - No QEMU emulation, full speed on both architectures
+- ✅ **Parallel** - Builds run simultaneously on separate runners
+- ✅ **Fast** - Each architecture builds in ~20-30 minutes natively
+
+**Note:** For private repositories, consider costs or use self-hosted runners.
 
 ## Secrets
 
@@ -229,9 +237,7 @@ make docker_manifest_dependencies
 
 **Error: "Runner not found"**
 
-Check that you have configured self-hosted runners with labels:
-- `actions-runner-controller` (for AMD64)
-- `self-hosted, qdrvm-arm64` (for ARM64)
+The workflow should work on all GitHub repositories with free ubuntu-24.04 runners. If you see this error, check that GitHub Actions are enabled for your repository.
 
 **Build timeout**
 

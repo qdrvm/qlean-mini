@@ -118,8 +118,8 @@ jobs:
         with:
           build_amd64: ${{ inputs.build_amd64 || 'true' }}
           build_arm64: ${{ inputs.build_arm64 || 'true' }}
-          amd64_runner: '"actions-runner-controller"'
-          arm64_runner: '["self-hosted","qdrvm-arm64"]'
+          amd64_runner: '"ubuntu-24.04"'
+          arm64_runner: '"ubuntu-24.04-arm"'
 
   build_dependencies:
     needs: setup_matrix

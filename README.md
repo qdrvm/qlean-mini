@@ -190,9 +190,11 @@ This project includes GitHub Actions workflow for automated multi-arch Docker bu
 
 - ✅ **Auto-build on push** to `ci/docker` branch (or tags)
 - ✅ **Manual builds** via GitHub UI with flexible parameters
-- ✅ **Multi-arch support** (ARM64 + AMD64) on native runners
+- ✅ **Native multi-arch** (ARM64 + AMD64) on free GitHub-hosted runners
+- ✅ **Fast builds** (~20-30 min per architecture, native compilation)
 - ✅ **Smart caching** (rebuilds dependencies only when `vcpkg.json` changes)
 - ✅ **Flexible tagging** (commit hash + custom tag + latest)
+- ✅ **Zero setup** - works out of the box, 100% free for public repos
 
 **Quick actions:**
 

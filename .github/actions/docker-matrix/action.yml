@@ -13,11 +13,11 @@ inputs:
   amd64_runner:
     description: 'Runner label for AMD64 architecture'
     required: false
-    default: 'actions-runner-controller'
+    default: 'ubuntu-24.04'
   arm64_runner:
-    description: 'Runner label for ARM64 architecture (JSON array as string)'
+    description: 'Runner label for ARM64 architecture'
     required: false
-    default: '["self-hosted","qdrvm-arm64"]'
+    default: 'ubuntu-24.04-arm'
 
 outputs:
   matrix:
@@ -35,18 +35,18 @@ runs:
         
         # Process AMD64
         if [[ "${{ inputs.build_amd64 }}" == "true" ]]; then
-          MATRIX_ITEMS+=('{"platform":"linux/amd64","arch_suffix":"amd64","runs_on":${{ inputs.amd64_runner }}}')
+          MATRIX_ITEMS+=('{"platform":"linux/amd64","arch_suffix":"amd64","runs_on":"${{ inputs.amd64_runner }}"}')
         fi
         
         # Process ARM64
         if [[ "${{ inputs.build_arm64 }}" == "true" ]]; then
-          MATRIX_ITEMS+=('{"platform":"linux/arm64","arch_suffix":"arm64","runs_on":${{ inputs.arm64_runner }}}')
+          MATRIX_ITEMS+=('{"platform":"linux/arm64","arch_suffix":"arm64","runs_on":"${{ inputs.arm64_runner }}"}')
         fi
         
         # Format the matrix JSON
         if [[ ${#MATRIX_ITEMS[@]} -eq 0 ]]; then
           echo "No matrix items selected! Defaulting to AMD64"
-          MATRIX_ITEMS+=('{"platform":"linux/amd64","arch_suffix":"amd64","runs_on":${{ inputs.amd64_runner }}}')
+          MATRIX_ITEMS+=('{"platform":"linux/amd64","arch_suffix":"amd64","runs_on":"${{ inputs.amd64_runner }}"}')
         fi
         
         MATRIX_JSON="{\"include\":[$(IFS=,; echo "${MATRIX_ITEMS[*]}")]}"
