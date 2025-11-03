@@ -26,6 +26,13 @@ DOCKER_PUSH_TAG ?= false
 DOCKER_PUSH_LATEST ?= false
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
+# Supported platforms: linux/arm64, linux/amd64
+# Usage: make docker_build_all DOCKER_PLATFORM=linux/amd64
+#
+# Multi-arch support:
+# - DOCKER_MULTIARCH=true - enable multi-arch manifest creation
+# - Builds for both platforms and creates unified manifest
+
 # Derived image names for each stage:
 #
 # Dependencies (single version for all commits, changes only when vcpkg.json changes):
@@ -90,7 +97,8 @@ docker_pull_dependencies:
 	@echo "=== Pulling dependencies from registry ==="
 	@echo "Registry: $(DOCKER_REGISTRY)"
 	@echo "Image: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"
-	@if docker pull $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS) 2>/dev/null; then \
+	@echo "Platform: $(DOCKER_PLATFORM)"
+	@if docker pull --platform $(DOCKER_PLATFORM) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS) 2>/dev/null; then \
 		docker tag $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS) $(DOCKER_IMAGE_DEPS); \
 		echo "✓ Dependencies pulled and tagged"; \
 	else \
@@ -103,10 +111,12 @@ docker_build_dependencies:
 	@echo "  - CMAKE_VERSION=$(CMAKE_VERSION)"
 	@echo "  - GCC_VERSION=$(GCC_VERSION)"
 	@echo "  - RUST_VERSION=$(RUST_VERSION)"
+	@echo "  - Platform=$(DOCKER_PLATFORM)"
 	@echo ""
 	@echo "Tag: $(DOCKER_IMAGE_DEPS) (shared across all commits)"
 	@echo ""
 	DOCKER_BUILDKIT=1 docker build \
+		--platform $(DOCKER_PLATFORM) \
 		--build-arg CMAKE_VERSION=$(CMAKE_VERSION) \
 		--build-arg GCC_VERSION=$(GCC_VERSION) \
 		--build-arg RUST_VERSION=$(RUST_VERSION) \
@@ -121,6 +131,7 @@ docker_build_dependencies:
 docker_build_builder:
 	@echo "=== [Stage 2/3] Building BUILDER image ==="
 	@echo "=== Using dependencies: $(DOCKER_IMAGE_DEPS) ==="
+	@echo "=== Platform: $(DOCKER_PLATFORM) ==="
 	@echo ""
 	@if ! docker image inspect $(DOCKER_IMAGE_DEPS) >/dev/null 2>&1; then \
 		echo "ERROR: Dependencies image not found: $(DOCKER_IMAGE_DEPS)"; \
@@ -134,6 +145,7 @@ docker_build_builder:
 	@echo "Additional tag: $(DOCKER_IMAGE_BUILDER_TAG)"
 	@echo ""
 	DOCKER_BUILDKIT=1 docker build \
+		--platform $(DOCKER_PLATFORM) \
 		--build-arg DEPS_IMAGE=$(DOCKER_IMAGE_DEPS) \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
 		-f Dockerfile.builder \
@@ -148,6 +160,7 @@ docker_build_builder:
 docker_build_runtime:
 	@echo "=== [Stage 3/3] Building RUNTIME image ==="
 	@echo "=== Using builder: $(DOCKER_IMAGE_BUILDER_TAG) ==="
+	@echo "=== Platform: $(DOCKER_PLATFORM) ==="
 	@echo ""
 	@if docker image inspect $(DOCKER_IMAGE_BUILDER) >/dev/null 2>&1; then \
 		echo "Using builder image: $(DOCKER_IMAGE_BUILDER)"; \
@@ -164,6 +177,7 @@ docker_build_runtime:
 	@echo "Additional tag: $(DOCKER_IMAGE_RUNTIME_TAG)"
 	@echo ""
 	DOCKER_BUILDKIT=1 docker build \
+		--platform $(DOCKER_PLATFORM) \
 		--build-arg BUILDER_IMAGE=$(DOCKER_IMAGE_BUILDER_TAG) \
 		-f Dockerfile.runtime \
 		--progress=plain \
@@ -208,6 +222,7 @@ docker_build_ci:
 
 docker_run:
 	@echo "=== Running Docker image $(DOCKER_IMAGE_RUNTIME) ==="
+	@echo "Platform: $(DOCKER_PLATFORM)"
 	@echo "Note: --modules-dir is already set in ENTRYPOINT"
 	@echo ""
 	@echo "Usage examples:"
@@ -215,7 +230,7 @@ docker_run:
 	@echo "  make docker_run ARGS='--version'             # Show version"
 	@echo "  make docker_run ARGS='--base-path /work ...' # Run with custom args"
 	@echo ""
-	docker run --rm -it $(DOCKER_IMAGE_RUNTIME) $(ARGS)
+	docker run --rm -it --platform $(DOCKER_PLATFORM) $(DOCKER_IMAGE_RUNTIME) $(ARGS)
 
 docker_clean:
 	@echo "=== Cleaning Docker images (builder + runtime) ==="
@@ -239,22 +254,23 @@ docker_inspect:
 docker_verify:
 	@echo "=== Verifying Docker runtime image ==="
 	@echo "Image: $(DOCKER_IMAGE_RUNTIME)"
+	@echo "Platform: $(DOCKER_PLATFORM)"
 	@echo ""
 	@echo "[1/6] Testing help command..."
-	@docker run --rm $(DOCKER_IMAGE_RUNTIME) --help > /dev/null && echo "  ✓ Help works" || (echo "  ✗ Help failed" && exit 1)
+	@docker run --rm --platform $(DOCKER_PLATFORM) $(DOCKER_IMAGE_RUNTIME) --help > /dev/null && echo "  ✓ Help works" || (echo "  ✗ Help failed" && exit 1)
 	@echo ""
 	@echo "[2/6] Testing version command..."
-	@docker run --rm $(DOCKER_IMAGE_RUNTIME) --version && echo "  ✓ Version works" || (echo "  ✗ Version failed" && exit 1)
+	@docker run --rm --platform $(DOCKER_PLATFORM) $(DOCKER_IMAGE_RUNTIME) --version && echo "  ✓ Version works" || (echo "  ✗ Version failed" && exit 1)
 	@echo ""
 	@echo "[3/6] Checking binary dependencies..."
-	@docker run --rm --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
+	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		apt-get update -qq && apt-get install -y -qq file > /dev/null 2>&1 && \
 		echo "Binary info:" && file /usr/local/bin/qlean && \
 		echo "" && echo "Checking for missing libraries..." && \
 		ldd /usr/local/bin/qlean | grep "not found" && exit 1 || echo "  ✓ All binary dependencies OK"'
 	@echo ""
 	@echo "[4/6] Checking modules..."
-	@docker run --rm --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
+	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		echo "Modules:" && ls -lh /opt/qlean/modules/ && \
 		echo "" && echo "Checking module dependencies..." && \
 		for mod in /opt/qlean/modules/*.so; do \
@@ -263,7 +279,7 @@ docker_verify:
 		done'
 	@echo ""
 	@echo "[5/6] Checking environment variables..."
-	@docker run --rm --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
+	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		echo "LD_LIBRARY_PATH=$$LD_LIBRARY_PATH" && \
 		echo "QLEAN_MODULES_DIR=$$QLEAN_MODULES_DIR" && \
 		echo "" && echo "Verifying paths exist:" && \
@@ -271,7 +287,7 @@ docker_verify:
 		ls -d /opt/qlean/lib > /dev/null && echo "  ✓ Lib dir exists" || (echo "  ✗ Lib dir missing" && exit 1)'
 	@echo ""
 	@echo "[6/6] Checking project libraries..."
-	@docker run --rm --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
+	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		apt-get update -qq && apt-get install -y -qq file > /dev/null 2>&1 && \
 		echo "Project libraries:" && ls /opt/qlean/lib/ && \
 		echo "" && echo "Checking libapplication.so dependencies..." && \
@@ -372,8 +388,116 @@ docker_push:
 	@echo ""
 	@echo "✓ All images pushed to $(DOCKER_REGISTRY)!"
 
+# Push single platform with architecture suffix (for CI/CD on native runners)
+docker_push_platform_dependencies:
+	@echo "=== Pushing dependencies for platform: $(DOCKER_PLATFORM) ==="
+	@echo "Registry: $(DOCKER_REGISTRY)"
+	@echo "Base tag: $(DOCKER_IMAGE_DEPS)"
+	@echo ""
+	@if ! docker image inspect $(DOCKER_IMAGE_DEPS) >/dev/null 2>&1; then \
+		echo "ERROR: Dependencies image not found: $(DOCKER_IMAGE_DEPS)"; \
+		echo "Run: make docker_build_dependencies"; \
+		exit 1; \
+	fi
+	@if [ "$(DOCKER_PLATFORM)" = "linux/arm64" ]; then \
+		ARCH_SUFFIX="-arm64"; \
+	elif [ "$(DOCKER_PLATFORM)" = "linux/amd64" ]; then \
+		ARCH_SUFFIX="-amd64"; \
+	else \
+		echo "ERROR: Unknown platform $(DOCKER_PLATFORM)"; \
+		exit 1; \
+	fi; \
+	echo "Pushing: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)$$ARCH_SUFFIX"; \
+	docker tag $(DOCKER_IMAGE_DEPS) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)$$ARCH_SUFFIX; \
+	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)$$ARCH_SUFFIX; \
+	echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)$$ARCH_SUFFIX"
+
+docker_push_platform:
+	@echo "=== Pushing builder and runtime for platform: $(DOCKER_PLATFORM) ==="
+	@echo "Registry: $(DOCKER_REGISTRY)"
+	@echo ""
+	@if ! docker image inspect $(DOCKER_IMAGE_BUILDER) >/dev/null 2>&1; then \
+		echo "ERROR: Builder image not found: $(DOCKER_IMAGE_BUILDER)"; \
+		echo "Run: make docker_build_builder"; \
+		exit 1; \
+	fi
+	@if ! docker image inspect $(DOCKER_IMAGE_RUNTIME) >/dev/null 2>&1; then \
+		echo "ERROR: Runtime image not found: $(DOCKER_IMAGE_RUNTIME)"; \
+		echo "Run: make docker_build_runtime"; \
+		exit 1; \
+	fi
+	@if [ "$(DOCKER_PLATFORM)" = "linux/arm64" ]; then \
+		ARCH_SUFFIX="-arm64"; \
+	elif [ "$(DOCKER_PLATFORM)" = "linux/amd64" ]; then \
+		ARCH_SUFFIX="-amd64"; \
+	else \
+		echo "ERROR: Unknown platform $(DOCKER_PLATFORM)"; \
+		exit 1; \
+	fi; \
+	echo "[1/2] Pushing builder..."; \
+	docker tag $(DOCKER_IMAGE_BUILDER) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)$$ARCH_SUFFIX; \
+	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)$$ARCH_SUFFIX; \
+	echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)$$ARCH_SUFFIX"; \
+	echo ""; \
+	echo "[2/2] Pushing runtime..."; \
+	docker tag $(DOCKER_IMAGE_RUNTIME) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)$$ARCH_SUFFIX; \
+	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)$$ARCH_SUFFIX; \
+	echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)$$ARCH_SUFFIX"; \
+	echo ""; \
+	echo "✓ Platform images pushed to $(DOCKER_REGISTRY)!"
+
+# Create manifest from already pushed platform images (no build, no pull)
+docker_manifest_dependencies:
+	@echo "=== Creating multi-arch manifest for dependencies ==="
+	@echo "Registry: $(DOCKER_REGISTRY)"
+	@echo "Tag: $(DOCKER_IMAGE_DEPS)"
+	@echo ""
+	@echo "Creating manifest from registry images..."
+	@docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS) 2>/dev/null || true
+	@docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS) \
+		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)-arm64 \
+		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)-amd64
+	@echo ""
+	@echo "Pushing manifest..."
+	@docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)
+	@echo "✓ Multi-arch manifest created: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"
+	@echo ""
+	@echo "Verify with: docker manifest inspect $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"
+
+docker_manifest_create:
+	@echo "=== Creating multi-arch manifests for builder and runtime ==="
+	@echo "Registry: $(DOCKER_REGISTRY)"
+	@echo ""
+	@echo "[1/4] Creating builder manifest..."
+	@docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER) 2>/dev/null || true
+	@docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER) \
+		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)-arm64 \
+		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)-amd64
+	@echo ""
+	@echo "[2/4] Pushing builder manifest..."
+	@docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)
+	@echo "✓ Builder manifest: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)"
+	@echo ""
+	@echo "[3/4] Creating runtime manifest..."
+	@docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME) 2>/dev/null || true
+	@docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME) \
+		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)-arm64 \
+		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)-amd64
+	@echo ""
+	@echo "[4/4] Pushing runtime manifest..."
+	@docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)
+	@echo "✓ Runtime manifest: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"
+	@echo ""
+	@echo "✓ All multi-arch manifests created!"
+	@echo ""
+	@echo "Verify with:"
+	@echo "  docker manifest inspect $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)"
+	@echo "  docker manifest inspect $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"
+
 .PHONY: all init_all os init init_py init_vcpkg configure build test clean_all \
 	docker_pull_dependencies \
 	docker_build_dependencies docker_build_builder docker_build_runtime docker_build docker_build_all docker_build_ci \
 	docker_push_dependencies docker_push_builder docker_push_runtime docker_push \
+	docker_push_platform_dependencies docker_push_platform \
+	docker_manifest_dependencies docker_manifest_create \
 	docker_run docker_clean docker_clean_all docker_inspect docker_verify
