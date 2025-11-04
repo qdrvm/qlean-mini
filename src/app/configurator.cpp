@@ -117,7 +117,7 @@ namespace lean::app {
         ("name,n", po::value<std::string>(), "Set name of node.")
         ("node-id", po::value<std::string>(), "Node id from validator registry (genesis/validators.yaml).")
         ("node-key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
-        ("max-bootnodes", po::value<std::string>(), "Max bootnodes count to connect to.")
+        ("max-bootnodes", po::value<size_t>(), "Max bootnodes count to connect to.")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
           "Syntax: <target>=<level>, e.g., -llibp2p=off.\n"
