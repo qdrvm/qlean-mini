@@ -183,6 +183,7 @@ namespace lean {
              "Validating attestation for target {}, source {}",
              signed_vote.data.target,
              signed_vote.data.source);
+    auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
     auto &vote = signed_vote.data;
 
     // Validate vote targets exist in store
@@ -223,7 +224,12 @@ namespace lean {
   outcome::result<void> ForkChoiceStore::processAttestation(
       const SignedVote &signed_vote, bool is_from_block) {
     // Validate attestation structure and constraints
-    BOOST_OUTCOME_TRY(validateAttestation(signed_vote));
+    if (auto res = validateAttestation(signed_vote); res.has_value()) {
+      metrics_->fc_attestations_valid_total()->inc();
+    } else {
+      metrics_->fc_attestations_invalid_total()->inc();
+      return res;
+    }
 
     auto &validator_id = signed_vote.validator_id;
     auto &vote = signed_vote.data;
@@ -261,6 +267,7 @@ namespace lean {
   }
 
   outcome::result<void> ForkChoiceStore::onBlock(Block block) {
+    auto timer = metrics_->fc_block_processing_time_seconds()->timer();
     block.setHash();
     auto block_hash = block.hash();
     // If the block is already known, ignore it
@@ -459,7 +466,8 @@ namespace lean {
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
-      : validator_registry_(validator_registry),
+      : stf_(metrics),
+        validator_registry_(validator_registry),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         metrics_(std::move(metrics)) {
@@ -502,7 +510,8 @@ namespace lean {
       Votes latest_new_votes,
       ValidatorIndex validator_index,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
-      : time_(now_sec / SECONDS_PER_INTERVAL),
+      : stf_(metrics),
+        time_(now_sec / SECONDS_PER_INTERVAL),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         config_(config),

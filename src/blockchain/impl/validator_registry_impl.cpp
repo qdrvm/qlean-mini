@@ -14,6 +14,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include "app/configuration.hpp"
+#include "metrics/metrics.hpp"
 
 namespace lean {
   enum class ValidatorRegistryError {
@@ -42,16 +43,20 @@ namespace lean {
 
   ValidatorRegistryImpl::ValidatorRegistryImpl(
       qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
       const app::Configuration &config)
       : ValidatorRegistryImpl{std::move(logging_system),
+                              std::move(metrics),
                               YAML::LoadFile(config.validatorRegistryPath()),
                               config.nodeId()} {}
 
   ValidatorRegistryImpl::ValidatorRegistryImpl(
       qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
       std::string yaml,
       std::string current_node_id)
       : ValidatorRegistryImpl{std::move(logging_system),
+                              std::move(metrics),
                               YAML::Load(yaml),
                               std::move(current_node_id)} {}
 
@@ -83,10 +88,12 @@ namespace lean {
 
   ValidatorRegistryImpl::ValidatorRegistryImpl(
       qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
       YAML::Node root,
       std::string current_node_id)
       : logger_{logging_system->getLogger("ValidatorRegistry",
                                           "validator_registry")},
+        metrics_{std::move(metrics)},
         current_node_id_{std::move(current_node_id)} {
     if (not root.IsDefined() or root.IsNull()) {
       SL_WARN(logger_, "Validator registry YAML is empty");
@@ -161,5 +168,7 @@ namespace lean {
               "Validator indices for node '{}' not found in registry YAML",
               current_node_id_);
     }
+
+    metrics_->val_validators_count()->set(current_validator_indices_.size());
   }
 }  // namespace lean

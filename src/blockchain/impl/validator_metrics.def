@@ -5,7 +5,7 @@
  */
 
 /**
- * @brief ForkChoiceStore metrics definitions
+ * @brief Validator metrics definitions
  *
  * Format:
  *   METRIC_GAUGE(field_name,
@@ -38,22 +38,6 @@
  *                           {"label1", "label2", ...})
  */
 
-METRIC_GAUGE(fc_head_slot, "lean_head_slot", "Latest slot of the beacon chain")
-
-// Attestation validation
-METRIC_COUNTER(fc_attestations_valid_total,
-               "lean_attestations_valid_total",
-               "Total number of valid attestations")
-METRIC_COUNTER(fc_attestations_invalid_total,
-               "lean_attestations_invalid_total",
-               "Total number of invalid attestations")
-METRIC_HISTOGRAM(fc_attestation_validation_time_seconds,
-                 "lean_attestation_validation_time_seconds",
-                 "Time taken to validate attestation",
-                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
-
-// Block processing
-METRIC_HISTOGRAM(fc_block_processing_time_seconds,
-                 "lean_fork_choice_block_processing_time_seconds",
-                 "Time taken to process block in fork choice",
-                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+METRIC_GAUGE(val_validators_count,
+             "lean_validators_count",
+             "Number of connected validators")
