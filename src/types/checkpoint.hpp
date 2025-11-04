@@ -21,6 +21,7 @@ namespace lean {
     }
 
     SSZ_CONT(root, slot);
+    bool operator==(const Checkpoint &) const = default;
   };
 
 }  // namespace lean

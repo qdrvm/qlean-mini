@@ -9,7 +9,6 @@
 #include <gtest/gtest.h>
 
 #include "types/config.hpp"
-#include "types/signed_block.hpp"
 #include "types/state.hpp"
 
 TEST(STF, Test) {

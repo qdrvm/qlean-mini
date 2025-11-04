@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "types/signed_block.hpp"
+#include "types/signed_block_with_attestation.hpp"
 
 namespace lean {
   struct StatusMessage : ssz::ssz_container {
@@ -23,7 +23,7 @@ namespace lean {
   };
 
   struct BlockResponse : ssz::ssz_variable_size_container {
-    ssz::list<SignedBlock, MAX_REQUEST_BLOCKS> blocks;
+    ssz::list<SignedBlockWithAttestation, MAX_REQUEST_BLOCKS> blocks;
 
     SSZ_CONT(blocks);
   };

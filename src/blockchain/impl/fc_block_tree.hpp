@@ -34,7 +34,8 @@ namespace lean::blockchain {
 
     outcome::result<void> addBlockHeader(const BlockHeader &header) override;
 
-    outcome::result<void> addBlock(const Block &block) override;
+    outcome::result<void> addBlock(
+        SignedBlockWithAttestation signed_block_with_attestation) override;
 
     outcome::result<void> removeLeaf(const BlockHash &block_hash) override;
 
@@ -68,9 +69,9 @@ namespace lean::blockchain {
 
     BlockIndex lastFinalized() const override;
 
-    outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
-        const BlockHash block_hash) const override;
-    void import(std::vector<SignedBlock> blocks) override;
+    outcome::result<std::optional<SignedBlockWithAttestation>>
+    tryGetSignedBlock(const BlockHash block_hash) const override;
+    void import(std::vector<SignedBlockWithAttestation> blocks) override;
 
     // BlockHeaderRepository methods
 

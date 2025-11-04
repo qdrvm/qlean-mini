@@ -21,9 +21,8 @@ namespace lean {
     auto logger = logsys.getLogger("GenesisConfig", "genesis_config");
     SL_INFO(logger,
             "Genesis config loaded: genesis_time={} (UTC {:%Y-%m-%d "
-            "%H:%M:%S}), num_validators={}",
+            "%H:%M:%S})",
             config.genesis_time,
-            fmt::gmtime(config.genesis_time),
-            config.num_validators);
+            fmt::gmtime(config.genesis_time));
   }
 }  // namespace lean

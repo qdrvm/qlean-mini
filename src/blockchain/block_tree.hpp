@@ -12,7 +12,8 @@
 namespace lean {
   struct Block;
   struct BlockBody;
-  struct SignedBlock;
+  struct SignedBlockWithAttestation;
+  struct SignedBlockWithAttestation;
   struct StatusMessage;
 }  // namespace lean
 
@@ -76,7 +77,8 @@ namespace lean::blockchain {
      * peer for the parent block and try to insert it; this operation is to be
      * repeated until a successful insertion happens
      */
-    virtual outcome::result<void> addBlock(const Block &block) = 0;
+    virtual outcome::result<void> addBlock(
+        SignedBlockWithAttestation signed_block_with_attestation) = 0;
 
     /**
      * Remove leaf
@@ -154,18 +156,18 @@ namespace lean::blockchain {
     [[nodiscard]] virtual BlockIndex lastFinalized() const = 0;
 
     /**
-     * Get `SignedBlock` for "/leanconsensus/req/blocks_by_root/1/ssz_snappy"
-     * protocol.
+     * Get `SignedBlockWithAttestation` for
+     * "/leanconsensus/req/blocks_by_root/1/ssz_snappy" protocol.
      */
-    virtual outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
-        const BlockHash block_hash) const = 0;
+    virtual outcome::result<std::optional<SignedBlockWithAttestation>>
+    tryGetSignedBlock(const BlockHash block_hash) const = 0;
 
     // TODO(turuslan): state transition function
     /**
-     * Import pre-sorted batch of `SignedBlock`.
+     * Import pre-sorted batch of `SignedBlockWithAttestation`.
      * May change best and finalized block.
      */
-    virtual void import(std::vector<SignedBlock> blocks) = 0;
+    virtual void import(std::vector<SignedBlockWithAttestation> blocks) = 0;
   };
 
 }  // namespace lean::blockchain

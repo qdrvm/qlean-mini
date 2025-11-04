@@ -1,5 +1,5 @@
 /**
-* Copyright Quadrivium LLC
+ * Copyright Quadrivium LLC
  * All Rights Reserved
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -45,8 +45,8 @@ namespace lean {
       return ConfigYamlError::INVALID;
     }
     return Config{
-      .num_validators = yaml_validator_count.as<uint64_t>(),
-      .genesis_time = yaml_genesis_time.as<uint64_t>(),
-  };
+        .num_validators = yaml_validator_count.as<uint64_t>(),
+        .genesis_time = yaml_genesis_time.as<uint64_t>(),
+    };
   }
 }  // namespace lean

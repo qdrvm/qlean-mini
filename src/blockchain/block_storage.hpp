@@ -14,7 +14,7 @@
 #include "types/block_data.hpp"
 #include "types/block_header.hpp"
 #include "types/justification.hpp"
-#include "types/signed_block.hpp"
+#include "types/signed_block_with_attestation.hpp"
 #include "types/types.hpp"
 
 namespace lean::blockchain {
@@ -204,8 +204,9 @@ namespace lean::blockchain {
      * Tries to get block data
      * @returns block data or error
      */
-    [[nodiscard]] virtual outcome::result<std::optional<SignedBlock>> getBlock(
-        const BlockHash &block_hash) const = 0;
+    [[nodiscard]] virtual outcome::result<
+        std::optional<SignedBlockWithAttestation>>
+    getBlock(const BlockHash &block_hash) const = 0;
 
     /**
      * Removes all data of block by hash from block storage
