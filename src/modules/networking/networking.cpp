@@ -184,13 +184,13 @@ namespace lean::modules {
         candidates.push_back(b);
       }
 
-      // If more than 20 candidates, shuffle and pick first 20
-      size_t max_take = 20;
-      if (candidates.size() > max_take) {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::shuffle(candidates.begin(), candidates.end(), gen);
-        candidates.erase(candidates.begin() + max_take, candidates.end());
+      // Randomly choose no more than `maxBootnodes` bootnodes to connect to.
+      if (config_->maxBootnodes().has_value()
+          and candidates.size() > *config_->maxBootnodes()) {
+        std::ranges::shuffle(candidates, std::default_random_engine{});
+        // `resize` doesn't work without default constructor
+        candidates.erase(candidates.begin() + *config_->maxBootnodes(),
+                         candidates.end());
       }
 
       SL_INFO(logger_,
@@ -409,11 +409,8 @@ namespace lean::modules {
         [this, type, topic, f{std::move(f)}]() -> libp2p::Coro<void> {
           while (auto raw_result = co_await topic->receiveMessage()) {
             auto &raw = raw_result.value();
-            if (auto uncompressed_res = snappyUncompress(raw.data)) {
-              auto &uncompressed = uncompressed_res.value();
-              if (auto r = decode<T>(uncompressed)) {
-                f(std::move(r.value()), raw.received_from);
-              }
+            if (auto r = decodeSszSnappy<T>(raw.data)) {
+              f(std::move(r.value()), raw.received_from);
             }
           }
         });
