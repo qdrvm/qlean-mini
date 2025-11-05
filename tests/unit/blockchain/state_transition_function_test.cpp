@@ -8,11 +8,13 @@
 
 #include <gtest/gtest.h>
 
+#include "mock/blockchain/metrics_mock.hpp"
 #include "types/config.hpp"
 #include "types/state.hpp"
 
 TEST(STF, Test) {
-  lean::STF stf;
+  auto metrics = std::make_shared<lean::metrics::MetricsMock>();
+  lean::STF stf(metrics);
 
   lean::Config config{
       .num_validators = 2,

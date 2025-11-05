@@ -288,6 +288,7 @@ namespace lean {
              "Validating attestation for target {}, source {}",
              data.target,
              data.source);
+    auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
 
     // Validate vote targets exist in store
     if (not blocks_.contains(data.source.root)) {
@@ -327,7 +328,12 @@ namespace lean {
   outcome::result<void> ForkChoiceStore::onAttestation(
       const SignedAttestation &signed_attestation, bool is_from_block) {
     // Validate attestation structure and constraints
-    BOOST_OUTCOME_TRY(validateAttestation(signed_attestation));
+    if (auto res = validateAttestation(signed_attestation); res.has_value()) {
+      metrics_->fc_attestations_valid_total()->inc();
+    } else {
+      metrics_->fc_attestations_invalid_total()->inc();
+      return res;
+    }
 
     auto &attestation = signed_attestation.message;
     auto &validator_id = attestation.validator_id;
@@ -406,6 +412,7 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::onBlock(
       SignedBlockWithAttestation signed_block_with_attestation) {
+    auto timer = metrics_->fc_block_processing_time_seconds()->timer();
     auto &block = signed_block_with_attestation.message.block;
     auto &proposer_attestation =
         signed_block_with_attestation.message.proposer_attestation;
@@ -629,7 +636,8 @@ namespace lean {
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
-      : validator_registry_(validator_registry),
+      : stf_(metrics),
+        validator_registry_(validator_registry),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         metrics_(std::move(metrics)) {
@@ -672,7 +680,8 @@ namespace lean {
       Votes latest_new_votes,
       ValidatorIndex validator_index,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
-      : time_(now_sec / SECONDS_PER_INTERVAL),
+      : stf_(metrics),
+        time_(now_sec / SECONDS_PER_INTERVAL),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         config_(config),

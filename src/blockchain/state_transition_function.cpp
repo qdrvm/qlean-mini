@@ -10,10 +10,14 @@
 #include <soralog/macro.hpp>
 
 #include "blockchain/is_justifiable_slot.hpp"
+#include "metrics/metrics.hpp"
 #include "types/state.hpp"
 
 namespace lean {
   constexpr BlockHash kZeroHash;
+
+  STF::STF(qtils::SharedRef<metrics::Metrics> metrics)
+      : metrics_(std::move(metrics)) {}
 
   inline bool getBit(const std::vector<bool> &bits, size_t i) {
     return i < bits.size() and bits.at(i);
@@ -104,6 +108,7 @@ namespace lean {
   outcome::result<State> STF::stateTransition(const Block &block,
                                               const State &parent_state,
                                               bool check_state_root) const {
+    auto timer = metrics_->stf_state_transition_time_seconds()->timer();
     auto state = parent_state;
     // Process slots (including those with no blocks) since block
     OUTCOME_TRY(processSlots(state, block.slot));
@@ -120,12 +125,14 @@ namespace lean {
   }
 
   outcome::result<void> STF::processSlots(State &state, Slot slot) const {
+    auto timer = metrics_->stf_slots_processing_time_seconds()->timer();
     if (state.slot >= slot) {
       return Error::INVALID_SLOT;
     }
     while (state.slot < slot) {
       processSlot(state);
       ++state.slot;
+      metrics_->stf_slots_processed_total()->inc();
     }
     return outcome::success();
   }
@@ -139,6 +146,7 @@ namespace lean {
 
   outcome::result<void> STF::processBlock(State &state,
                                           const Block &block) const {
+    auto timer = metrics_->stf_block_processing_time_seconds()->timer();
     OUTCOME_TRY(processBlockHeader(state, block));
     OUTCOME_TRY(processOperations(state, block.body));
     return outcome::success();
@@ -208,6 +216,7 @@ namespace lean {
       State &state, const Attestations &attestations) const {
     // get justifications, justified slots and historical block hashes are
     // already upto date as per the processing in process_block_header
+    auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
     auto justifications = getJustifications(state);
 
     // From 3sf-mini/consensus.py - apply votes
@@ -261,6 +270,7 @@ namespace lean {
       // scenarios
       if (3 * count >= 2 * state.validatorCount()) {
         state.latest_justified = vote.target;
+        metrics_->stf_latest_justified_slot()->set(state.latest_justified.slot);
         setBit(state.justified_slots.data(), vote.target.slot);
         justifications.erase(vote.target.root);
 
@@ -276,8 +286,11 @@ namespace lean {
         }
         if (not any) {
           state.latest_finalized = vote.source;
+          metrics_->stf_latest_finalized_slot()->set(
+              state.latest_finalized.slot);
         }
       }
+      metrics_->stf_attestations_processed_total()->inc();
     }
 
     // flatten and set updated justifications back to the state
