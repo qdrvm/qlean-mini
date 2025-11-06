@@ -55,8 +55,8 @@ namespace lean::modules {
    *
    * Protocols:
    * - Status handshake protocol (best and finalized block info).
-   * - Block request protocol (`SignedBlock` by hash).
-   * - `SignedBlock` and `SignedVote` gossip protocol.
+   * - Block request protocol (`SignedBlockWithAttestation` by hash).
+   * - `SignedBlockWithAttestation` and `SignedAttestation` gossip protocol.
    */
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
     NetworkingImpl(NetworkingLoader &loader,
@@ -88,7 +88,7 @@ namespace lean::modules {
     void requestBlock(const libp2p::PeerId &peer_id,
                       const BlockHash &block_hash);
     void receiveBlock(std::optional<libp2p::PeerId> peer_id,
-                      SignedBlock &&block);
+                      SignedBlockWithAttestation &&block);
     bool statusFinalizedIsGood(const BlockIndex &slot_hash);
 
     NetworkingLoader &loader_;
@@ -109,7 +109,7 @@ namespace lean::modules {
     std::shared_ptr<libp2p::protocol::Identify> identify_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_blocks_topic_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
-    std::unordered_map<BlockHash, SignedBlock> block_cache_;
+    std::unordered_map<BlockHash, SignedBlockWithAttestation> block_cache_;
     std::unordered_multimap<BlockHash, BlockHash> block_children_;
   };
 

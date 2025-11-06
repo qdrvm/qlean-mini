@@ -7,7 +7,6 @@
 #include "blockchain/impl/fc_block_tree.hpp"
 
 #include "blockchain/block_tree_error.hpp"
-#include "types/signed_block.hpp"
 
 namespace lean::blockchain {
   FCBlockTree::FCBlockTree(qtils::SharedRef<ForkChoiceStore> fork_choice_store)
@@ -40,8 +39,10 @@ namespace lean::blockchain {
     throw std::runtime_error("FCBlockTree::addBlockHeader()");
   }
 
-  outcome::result<void> FCBlockTree::addBlock(const Block &block) {
-    return fork_choice_store_->onBlock(block);
+  outcome::result<void> FCBlockTree::addBlock(
+      SignedBlockWithAttestation signed_block_with_attestation) {
+    return fork_choice_store_->onBlock(
+        std::move(signed_block_with_attestation));
   }
 
   outcome::result<void> FCBlockTree::removeLeaf(const BlockHash &block_hash) {
@@ -103,18 +104,18 @@ namespace lean::blockchain {
     return BlockIndex{.slot = finalized.slot, .hash = finalized.root};
   }
 
-  outcome::result<std::optional<SignedBlock>> FCBlockTree::tryGetSignedBlock(
-      const BlockHash block_hash) const {
+  outcome::result<std::optional<SignedBlockWithAttestation>>
+  FCBlockTree::tryGetSignedBlock(const BlockHash block_hash) const {
     auto &blocks = fork_choice_store_->getBlocks();
     auto it = blocks.find(block_hash);
     if (it == blocks.end()) {
       return std::nullopt;
     }
     // TODO(turuslan): signature
-    return SignedBlock{.message = it->second};
+    return SignedBlockWithAttestation{.message = it->second};
   }
 
-  void FCBlockTree::import(std::vector<SignedBlock> blocks) {}
+  void FCBlockTree::import(std::vector<SignedBlockWithAttestation> blocks) {}
 
   // BlockHeaderRepository methods
 

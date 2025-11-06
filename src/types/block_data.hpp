@@ -11,7 +11,7 @@
 
 #include "block_body.hpp"
 #include "block_header.hpp"
-#include "block_signature.hpp"
+#include "block_signatures.hpp"
 #include "types.hpp"
 
 // SSZ-friendly optional encoded as List[T; max=1].
@@ -70,7 +70,7 @@ namespace lean {
     BlockHash hash;
     ssz_maybe<BlockHeader> header;
     ssz_maybe<BlockBody> body;
-    ssz_maybe<BlockSignature> signature;
+    ssz_maybe<BlockSignatures> signature;
 
     SSZ_CONT(hash, header, body, signature);
   };

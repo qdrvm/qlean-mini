@@ -11,7 +11,6 @@
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "metrics/metrics.hpp"
-#include "types/signed_block.hpp"
 #include "types/state.hpp"
 
 namespace lean {
@@ -42,10 +41,9 @@ namespace lean {
     auto &validators = state.justifications_validators.data();
     Justifications justifications;
     size_t offset = 0;
-    BOOST_ASSERT(validators.size()
-                 == roots.size() * state.config.num_validators);
+    BOOST_ASSERT(validators.size() == roots.size() * state.validatorCount());
     for (auto &root : roots) {
-      auto next_offset = offset + state.config.num_validators;
+      auto next_offset = offset + state.validatorCount();
       std::vector<bool> bits{
           validators.begin() + offset,
           validators.begin() + next_offset,
@@ -67,9 +65,9 @@ namespace lean {
     roots.clear();
     roots.reserve(justifications.size());
     validators.clear();
-    validators.reserve(justifications.size() * state.config.num_validators);
+    validators.reserve(justifications.size() * state.validatorCount());
     for (auto &[root, bits] : justifications) {
-      BOOST_ASSERT(bits.size() == state.config.num_validators);
+      BOOST_ASSERT(bits.size() == state.validatorCount());
       roots.push_back(root);
       validators.insert(validators.end(), bits.begin(), bits.end());
     }
@@ -209,21 +207,21 @@ namespace lean {
   outcome::result<void> STF::processOperations(State &state,
                                                const BlockBody &body) const {
     // process attestations
-    OUTCOME_TRY(processAttestations(state, body.attestations.data()));
+    OUTCOME_TRY(processAttestations(state, body.attestations));
     // other operations will get added as the functionality evolves
     return outcome::success();
   }
 
   outcome::result<void> STF::processAttestations(
-      State &state, const std::vector<SignedVote> &attestations) const {
+      State &state, const Attestations &attestations) const {
     // get justifications, justified slots and historical block hashes are
     // already upto date as per the processing in process_block_header
     auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
     auto justifications = getJustifications(state);
 
     // From 3sf-mini/consensus.py - apply votes
-    for (auto &signed_vote : attestations) {
-      auto &vote = signed_vote.data;
+    for (auto &attestation : attestations) {
+      auto &vote = attestation.data;
       if (vote.source.slot >= state.historical_block_hashes.size()) {
         return Error::INVALID_VOTE_SOURCE_SLOT;
       }
@@ -254,13 +252,13 @@ namespace lean {
       if (justifications_it == justifications.end()) {
         justifications_it =
             justifications.emplace(vote.target.root, std::vector<bool>{}).first;
-        justifications_it->second.resize(state.config.num_validators);
+        justifications_it->second.resize(state.validatorCount());
       }
 
-      if (signed_vote.validator_id >= justifications_it->second.size()) {
+      if (attestation.validator_id >= justifications_it->second.size()) {
         return Error::INVALID_VOTER;
       }
-      justifications_it->second.at(signed_vote.validator_id) = true;
+      justifications_it->second.at(attestation.validator_id) = true;
 
       size_t count = std::ranges::count(justifications_it->second, true);
 
@@ -270,7 +268,7 @@ namespace lean {
       // / 3 to prevent integer division which could lead to less than 2/3 of
       // validators justifying specially if the num_validators is low in testing
       // scenarios
-      if (3 * count >= 2 * state.config.num_validators) {
+      if (3 * count >= 2 * state.validatorCount()) {
         state.latest_justified = vote.target;
         metrics_->stf_latest_justified_slot()->set(state.latest_justified.slot);
         setBit(state.justified_slots.data(), vote.target.slot);
@@ -302,6 +300,6 @@ namespace lean {
 
   bool STF::validateProposerIndex(const State &state,
                                   const Block &block) const {
-    return block.proposer_index == block.slot % state.config.num_validators;
+    return block.proposer_index == block.slot % state.validatorCount();
   }
 }  // namespace lean

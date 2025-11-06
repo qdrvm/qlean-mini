@@ -17,10 +17,9 @@
 #include "modules/shared/prodution_types.tmp.hpp"
 #include "se/subscription.hpp"
 #include "se/subscription_fwd.hpp"
-#include "tests/testutil/literals.hpp"
 #include "types/block.hpp"
 #include "types/block_header.hpp"
-#include "types/signed_block.hpp"
+#include "types/signed_block_with_attestation.hpp"
 
 namespace lean::blockchain {
   BlockTreeImpl::SafeBlockTreeData::SafeBlockTreeData(BlockTreeData data)
@@ -101,7 +100,9 @@ namespace lean::blockchain {
         });
   }
 
-  outcome::result<void> BlockTreeImpl::addBlock(const Block &block) {
+  outcome::result<void> BlockTreeImpl::addBlock(
+      SignedBlockWithAttestation signed_block_with_attestation) {
+    auto &block = signed_block_with_attestation.message.block;
     return block_tree_data_.exclusiveAccess(
         [&](BlockTreeData &p) -> outcome::result<void> {
           // Check if we know parent of this block; if not, we cannot insert it
@@ -769,8 +770,8 @@ namespace lean::blockchain {
         [&](const BlockTreeData &p) { return getLastFinalizedNoLock(p); });
   }
 
-  outcome::result<std::optional<SignedBlock>> BlockTreeImpl::tryGetSignedBlock(
-      const BlockHash block_hash) const {
+  outcome::result<std::optional<SignedBlockWithAttestation>>
+  BlockTreeImpl::tryGetSignedBlock(const BlockHash block_hash) const {
     auto header_res = getBlockHeader(block_hash);
     if (not header_res.has_value()) {
       return std::nullopt;
@@ -781,24 +782,27 @@ namespace lean::blockchain {
       return std::nullopt;
     }
     auto &body = body_res.value();
-    return SignedBlock{
+    return SignedBlockWithAttestation{
         .message =
             {
-                .slot = header.slot,
-                .proposer_index = header.proposer_index,
-                .parent_root = header.parent_root,
-                .state_root = header.state_root,
-                .body = std::move(body),
+                .block =
+                    {
+                        .slot = header.slot,
+                        .proposer_index = header.proposer_index,
+                        .parent_root = header.parent_root,
+                        .state_root = header.state_root,
+                        .body = std::move(body),
+                    },
+                .proposer_attestation = {},
             },
         // TODO(turuslan): signature
         .signature = {},
     };
   }
 
-  void BlockTreeImpl::import(std::vector<SignedBlock> blocks) {
+  void BlockTreeImpl::import(std::vector<SignedBlockWithAttestation> blocks) {
     for (auto &block : blocks) {
-      // TODO(turuslan): signature
-      std::ignore = addBlock(block.message);
+      std::ignore = addBlock(block);
     }
   }
 

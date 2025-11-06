@@ -296,33 +296,37 @@ namespace lean::modules {
     ping_->start();
     identify_->start();
 
-    gossip_blocks_topic_ = gossipSubscribe<SignedBlock>(
-        "block", [weak_self{weak_from_this()}](SignedBlock &&block) {
+    gossip_blocks_topic_ = gossipSubscribe<SignedBlockWithAttestation>(
+        "block",
+        [weak_self{weak_from_this()}](
+            SignedBlockWithAttestation &&signed_block_with_attestation) {
           auto self = weak_self.lock();
           if (not self) {
             return;
           }
-          block.message.setHash();
-          self->receiveBlock(std::nullopt, std::move(block));
+          signed_block_with_attestation.message.block.setHash();
+          self->receiveBlock(std::nullopt,
+                             std::move(signed_block_with_attestation));
         });
-    gossip_votes_topic_ = gossipSubscribe<SignedVote>(
-        "vote", [weak_self{weak_from_this()}](SignedVote &&signed_vote) {
+    gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
+        "vote",
+        [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation) {
           auto self = weak_self.lock();
           if (not self) {
             return;
           }
-          auto res =
-              self->fork_choice_store_->processAttestation(signed_vote, false);
+          auto res = self->fork_choice_store_->onAttestation(signed_attestation,
+                                                             false);
           if (not res.has_value()) {
             SL_WARN(self->logger_,
                     "Error processing vote for target {}: {}",
-                    signed_vote.data.target,
+                    signed_attestation.message.data.target,
                     res.error());
             return;
           }
           SL_INFO(self->logger_,
                   "Received vote for target {}",
-                  signed_vote.data.target);
+                  signed_attestation.message.data.target);
         });
 
     io_thread_.emplace([io_context{io_context_}] {
@@ -408,21 +412,22 @@ namespace lean::modules {
                             co_return;
                           }
                           auto &block = blocks.at(0);
-                          block.message.setHash();
+                          block.message.block.setHash();
                           self->receiveBlock(peer_id, std::move(block));
                         }
                       });
   }
 
   // TODO(turuslan): detect finalized change
-  void NetworkingImpl::receiveBlock(std::optional<libp2p::PeerId> from_peer,
-                                    SignedBlock &&signed_block) {
-    auto slot_hash = signed_block.message.slotHash();
+  void NetworkingImpl::receiveBlock(
+      std::optional<libp2p::PeerId> from_peer,
+      SignedBlockWithAttestation &&signed_block_with_attestation) {
+    auto slot_hash = signed_block_with_attestation.message.block.slotHash();
     SL_DEBUG(logger_,
              "receiveBlock slot {} hash {} parent {}",
              slot_hash.slot,
              slot_hash.hash,
-             signed_block.message.parent_root);
+             signed_block_with_attestation.message.block.parent_root);
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
       while (not queue.empty()) {
@@ -435,7 +440,7 @@ namespace lean::modules {
         }
       }
     };
-    auto parent_hash = signed_block.message.parent_root;
+    auto parent_hash = signed_block_with_attestation.message.block.parent_root;
     if (block_cache_.contains(slot_hash.hash)) {
       SL_TRACE(logger_, "receiveBlock {} => ignore cached", slot_hash.slot);
       return;
@@ -452,16 +457,17 @@ namespace lean::modules {
       return;
     }
     if (block_tree_->has(parent_hash)) {
-      std::vector<SignedBlock> blocks{std::move(signed_block)};
+      std::vector<SignedBlockWithAttestation> blocks{
+          std::move(signed_block_with_attestation)};
       remove([&](const BlockHash &block_hash) {
         blocks.emplace_back(block_cache_.extract(block_hash).mapped());
       });
       for (auto &block : blocks) {
-        auto res = fork_choice_store_->onBlock(block.message);
+        auto res = fork_choice_store_->onBlock(block);
         if (not res.has_value()) {
           SL_WARN(logger_,
                   "Error importing block {}: {}",
-                  block.message.slotHash(),
+                  block.message.block.slotHash(),
                   res.error());
           break;
         }
@@ -469,15 +475,17 @@ namespace lean::modules {
       SL_INFO(logger_,
               "receiveBlock {} => import {}",
               slot_hash.slot,
-              fmt::join(
-                  blocks | std::views::transform([](const SignedBlock &block) {
-                    return block.message.slot;
-                  }),
-                  " "));
+              fmt::join(blocks
+                            | std::views::transform(
+                                [](const SignedBlockWithAttestation &block) {
+                                  return block.message.block.slot;
+                                }),
+                        " "));
       block_tree_->import(std::move(blocks));
       return;
     }
-    block_cache_.emplace(slot_hash.hash, std::move(signed_block));
+    block_cache_.emplace(slot_hash.hash,
+                         std::move(signed_block_with_attestation));
     block_children_.emplace(parent_hash, slot_hash.hash);
     if (block_cache_.contains(parent_hash)) {
       SL_TRACE(logger_, "receiveBlock {} => has parent", slot_hash.slot);
