@@ -16,6 +16,7 @@ namespace lean {
     Attestations attestations;
 
     SSZ_CONT(attestations);
+    bool operator==(const BlockBody &) const = default;
   };
 
 }  // namespace lean
