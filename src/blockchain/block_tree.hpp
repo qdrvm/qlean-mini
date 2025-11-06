@@ -13,7 +13,6 @@ namespace lean {
   struct Block;
   struct BlockBody;
   struct SignedBlockWithAttestation;
-  struct SignedBlockWithAttestation;
   struct StatusMessage;
 }  // namespace lean
 
