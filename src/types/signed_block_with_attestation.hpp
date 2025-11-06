@@ -17,6 +17,7 @@ namespace lean {
     BlockSignatures signature;
 
     SSZ_CONT(message, signature);
+    bool operator==(const SignedBlockWithAttestation &) const = default;
   };
 
   /**
