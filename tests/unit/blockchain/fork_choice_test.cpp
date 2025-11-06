@@ -585,7 +585,7 @@ TEST(TestTimeAdvancement, test_advance_time_already_current) {
   // Try to advance to past time (should be no-op)
   auto result = sample_store.advanceTime(current_target);
   EXPECT_TRUE(result.empty());
-  EXPECT_LE(std::abs<Interval>(sample_store.time() - initial_time), 10);
+  EXPECT_LE(sample_store.time() - initial_time, 10);
 }
 
 // Test advance_time with small time increment.
