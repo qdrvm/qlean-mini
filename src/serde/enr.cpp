@@ -8,6 +8,7 @@
 
 #include <bit>
 
+#include <boost/asio/ip/address_v4.hpp>
 #include <boost/endian/conversion.hpp>
 #include <cppcodec/base64_url_unpadded.hpp>
 #include <libp2p/crypto/secp256k1_provider/secp256k1_provider_impl.hpp>
@@ -282,7 +283,9 @@ namespace lean::enr {
   }
 
   std::string toString(const Ip &ip) {
-    return std::format("{}.{}.{}.{}", ip[0], ip[1], ip[2], ip[3]);
+    auto ip_host_endian = boost::endian::load_big_u32(ip.data());
+    auto ip_asio = boost::asio::ip::make_address_v4(ip_host_endian);
+    return ip_asio.to_string();
   }
 
   libp2p::PeerId Enr::peerId() const {
