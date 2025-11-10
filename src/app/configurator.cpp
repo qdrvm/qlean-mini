@@ -174,11 +174,12 @@ namespace lean::app {
     }
 
     if (vm.contains("help")) {
+      auto exe = std::filesystem::path{argv_[0]}.filename().string();
       std::cout << "Lean-node version " << buildVersion() << '\n';
       std::cout << cli_options_ << '\n';
       std::println(std::cout, "Other commands:");
-      std::println(std::cout, "  {} key generate-node-key", argv_[0]);
-      std::println(std::cout, "  {} generate-genesis", argv_[0]);
+      std::println(std::cout, "  {} key generate-node-key", exe);
+      std::println(std::cout, "  {} generate-genesis", exe);
       return true;
     }
 

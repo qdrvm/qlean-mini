@@ -96,9 +96,10 @@ inline int cmdGenerateGenesis(auto &&getArg) {
       }
     }
   }
+  auto exe = std::filesystem::path{getArg(0).value()}.filename().string();
   std::println(std::cerr,
                "Usage: {} generate-genesis (genesis_directory) "
                "(validator_count) (shadow?)",
-               getArg(0).value());
+               exe);
   return EXIT_FAILURE;
 }
