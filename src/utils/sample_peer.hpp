@@ -13,7 +13,10 @@
 namespace lean {
   struct SamplePeer : libp2p::SamplePeer {
     static enr::Ip makeIp(size_t index, bool shadow) {
-      return shadow ? enr::makeIp((10 << 24) + index) : enr::Ip{127, 0, 0, 1};
+      if (shadow) {
+        return enr::makeIp("10.0.0.0", index);
+      }
+      return enr::makeIp("127.0.0.1", 0);
     }
 
     SamplePeer(size_t index, bool shadow)

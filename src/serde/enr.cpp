@@ -282,6 +282,11 @@ namespace lean::enr {
     return ip;
   }
 
+  Ip makeIp(std::string_view base, uint32_t i) {
+    auto ip_host_endian = boost::asio::ip::make_address_v4(base).to_uint();
+    return makeIp(ip_host_endian + i);
+  }
+
   std::string toString(const Ip &ip) {
     auto ip_host_endian = boost::endian::load_big_u32(ip.data());
     auto ip_asio = boost::asio::ip::make_address_v4(ip_host_endian);

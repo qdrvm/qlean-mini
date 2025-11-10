@@ -25,6 +25,7 @@ namespace lean::enr {
   using Port = uint16_t;
 
   Ip makeIp(uint32_t i);
+  Ip makeIp(std::string_view base, uint32_t i);
   std::string toString(const Ip &ip);
 
   struct Enr {
