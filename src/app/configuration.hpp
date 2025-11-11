@@ -48,6 +48,7 @@ namespace lean::app {
     [[nodiscard]] virtual const std::optional<libp2p::Multiaddress> &
     listenMultiaddr() const;
     [[nodiscard]] virtual const libp2p::crypto::KeyPair &nodeKey() const;
+    [[nodiscard]] virtual const std::optional<size_t> &maxBootnodes() const;
 
     [[nodiscard]] virtual const DatabaseConfig &database() const;
 
@@ -66,6 +67,7 @@ namespace lean::app {
     std::filesystem::path genesis_config_path_;
     std::optional<libp2p::Multiaddress> listen_multiaddr_;
     std::optional<libp2p::crypto::KeyPair> node_key_;
+    std::optional<size_t> max_bootnodes_;
 
     DatabaseConfig database_;
     MetricsConfig metrics_;
