@@ -61,7 +61,8 @@ namespace lean {
 
     explicit STF(qtils::SharedRef<metrics::Metrics> metrics);
 
-    static AnchorState generateGenesisState(const Config &config);
+    static AnchorState generateGenesisState(const Config &config,
+                                            ValidatorIndex validator_count);
     static AnchorBlock genesisBlock(const State &state);
 
     /**

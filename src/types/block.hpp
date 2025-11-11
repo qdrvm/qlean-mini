@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "serde/json_fwd.hpp"
 #include "types/block_body.hpp"
 #include "types/block_header.hpp"
 
@@ -19,6 +20,8 @@ namespace lean {
 
     SSZ_CONT(slot, proposer_index, parent_root, state_root, body);
     bool operator==(const Block &) const = default;
+
+    JSON_CAMEL(slot, proposer_index, parent_root, state_root, body);
 
     BlockHeader getHeader() const {
       BlockHeader header;

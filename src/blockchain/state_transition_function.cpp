@@ -73,7 +73,8 @@ namespace lean {
     }
   }
 
-  AnchorState STF::generateGenesisState(const Config &config) {
+  AnchorState STF::generateGenesisState(const Config &config,
+                                        ValidatorIndex validator_count) {
     BlockHeader header;
     header.slot = 0;
     header.proposer_index = 0;
@@ -87,10 +88,7 @@ namespace lean {
     result.latest_block_header = header;
     result.latest_justified = Checkpoint{.root = kZeroHash, .slot = 0};
     result.latest_finalized = Checkpoint{.root = kZeroHash, .slot = 0};
-    // result.historical_block_hashes;
-    // result.justified_slots;
-    // result.justifications_roots;
-    // result.justifications_validators;
+    result.validators.data().resize(validator_count);
 
     return result;
   }

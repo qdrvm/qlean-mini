@@ -16,8 +16,9 @@
 namespace lean {
   GenesisConfig::GenesisConfig(const log::LoggingSystem &logsys,
                                const app::Configuration &app_config)
-      : config{qtils::valueOrRaise(
-            readConfigYaml(app_config.genesisConfigPath()))} {
+      : state{qtils::valueOrRaise(
+            readConfigYaml(app_config.genesisConfigPath()))},
+        config{state.config} {
     auto logger = logsys.getLogger("GenesisConfig", "genesis_config");
     SL_INFO(logger,
             "Genesis config loaded: genesis_time={} (UTC {:%Y-%m-%d "

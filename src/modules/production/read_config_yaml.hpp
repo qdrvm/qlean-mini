@@ -12,7 +12,7 @@
 #include <qtils/outcome.hpp>
 #include <yaml-cpp/yaml.h>
 
-#include "types/config.hpp"
+#include "blockchain/state_transition_function.hpp"
 
 namespace lean {
   enum class ConfigYamlError {
@@ -30,7 +30,7 @@ namespace lean {
   /**
    * Read GENESIS_TIME and VALIDATOR_COUNT from config.yaml
    */
-  inline outcome::result<Config> readConfigYaml(
+  inline outcome::result<State> readConfigYaml(
       const std::filesystem::path &path) {
     auto yaml = YAML::LoadFile(path);
     if (not yaml.IsMap()) {
@@ -44,9 +44,8 @@ namespace lean {
     if (not yaml_validator_count.IsScalar()) {
       return ConfigYamlError::INVALID;
     }
-    return Config{
-        .num_validators = yaml_validator_count.as<uint64_t>(),
-        .genesis_time = yaml_genesis_time.as<uint64_t>(),
-    };
+    return STF::generateGenesisState(
+        Config{.genesis_time = yaml_genesis_time.as<uint64_t>()},
+        yaml_validator_count.as<uint64_t>());
   }
 }  // namespace lean

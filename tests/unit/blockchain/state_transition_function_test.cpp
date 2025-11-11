@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 
-#include "mock/blockchain/metrics_mock.hpp"
+#include "mock/metrics_mock.hpp"
 #include "types/config.hpp"
 #include "types/state.hpp"
 
@@ -17,10 +17,9 @@ TEST(STF, Test) {
   lean::STF stf(metrics);
 
   lean::Config config{
-      .num_validators = 2,
       .genesis_time = 0,
   };
-  auto state0 = stf.generateGenesisState(config);
+  auto state0 = stf.generateGenesisState(config, 2);
   auto block0 = stf.genesisBlock(state0);
   block0.setHash();
 

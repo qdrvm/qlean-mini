@@ -641,12 +641,12 @@ namespace lean {
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         metrics_(std::move(metrics)) {
-    AnchorState anchor_state = STF::generateGenesisState(genesis_config.config);
+    AnchorState anchor_state{genesis_config.state};
     AnchorBlock anchor_block = STF::genesisBlock(anchor_state);
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
-    config_ = anchor_state.config;
+    config_ = genesis_config.config;
     auto now_sec = clock->nowSec();
     time_ = now_sec > config_.genesis_time
               ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL

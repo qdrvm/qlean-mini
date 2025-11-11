@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "blockchain/impl/validator_registry_impl.hpp"
-#include "mock/blockchain/metrics_mock.hpp"
+#include "mock/metrics_mock.hpp"
 #include "testutil/prepare_loggers.hpp"
 
 TEST(ValidatorRegistryTest, LoadsRegistryAndResolvesIndices) {

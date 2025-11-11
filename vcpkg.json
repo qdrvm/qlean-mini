@@ -11,12 +11,13 @@
     "leanp2p",
     "prometheus-cpp",
     "qtils",
+    "rapidjson",
     "rocksdb",
     "snappy",
     "soralog",
     "sszpp"
   ],
   "features": {
-    "test": { "description": "Test", "dependencies": ["gtest"]}
+    "test": { "description": "Test", "dependencies": ["gtest"] }
   }
 }

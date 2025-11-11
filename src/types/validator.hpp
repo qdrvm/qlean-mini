@@ -9,11 +9,15 @@
 #include <qtils/byte_arr.hpp>
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
+
 namespace lean {
   struct Validator : ssz::ssz_container {
     qtils::ByteArr<52> pubkey;
 
     SSZ_CONT(pubkey);
     bool operator==(const Validator &) const = default;
+
+    JSON_CAMEL(pubkey);
   };
 }  // namespace lean
