@@ -60,6 +60,10 @@ namespace lean::app {
     return node_key_.value();
   }
 
+  const std::optional<size_t> &Configuration::maxBootnodes() const {
+    return max_bootnodes_;
+  }
+
   const Configuration::DatabaseConfig &Configuration::database() const {
     return database_;
   }

@@ -7,8 +7,10 @@
 
 #include "modules/networking/networking.hpp"
 
+#include <algorithm>
 #include <format>
 #include <memory>
+#include <random>
 #include <stdexcept>
 
 #include <app/configuration.hpp>
@@ -37,8 +39,6 @@
 #include "modules/networking/types.hpp"
 
 namespace lean::modules {
-  // TODO(turuslan): gossip [from,seqno,signature,key]=None
-
   inline auto gossipTopic(std::string_view type) {
     return std::format("/leanconsensus/devnet0/{}/ssz_snappy", type);
   }
@@ -169,16 +169,35 @@ namespace lean::modules {
 
     // Add bootnodes from chain spec
     if (!bootnodes.empty()) {
-      SL_INFO(logger_,
-              "Adding {} bootnodes to address repository",
-              bootnodes.size());
+      SL_INFO(logger_, "Found {} bootnodes in chain spec", bootnodes.size());
 
       auto &address_repo = host->getPeerRepository().getAddressRepository();
 
-      for (const auto &bootnode : bootnodes.getBootnodes()) {
-        if (bootnode.peer_id == peer_id) {
+      // Collect candidates (exclude ourselves)
+      auto all_bootnodes = bootnodes.getBootnodes();
+      std::vector<decltype(all_bootnodes)::value_type> candidates;
+      candidates.reserve(all_bootnodes.size());
+      for (const auto &b : all_bootnodes) {
+        if (b.peer_id == peer_id) {
           continue;
         }
+        candidates.push_back(b);
+      }
+
+      // Randomly choose no more than `maxBootnodes` bootnodes to connect to.
+      if (config_->maxBootnodes().has_value()
+          and candidates.size() > *config_->maxBootnodes()) {
+        std::ranges::shuffle(candidates, std::default_random_engine{});
+        // `resize` doesn't work without default constructor
+        candidates.erase(candidates.begin() + *config_->maxBootnodes(),
+                         candidates.end());
+      }
+
+      SL_INFO(logger_,
+              "Adding {} bootnodes to address repository",
+              candidates.size());
+
+      for (const auto &bootnode : candidates) {
         std::vector<libp2p::multi::Multiaddress> addresses{bootnode.address};
 
         // Add bootnode addresses with permanent TTL
@@ -221,30 +240,55 @@ namespace lean::modules {
       SL_DEBUG(logger_, "No bootnodes configured");
     }
 
-    auto on_peer_connected =
-        [weak_self{weak_from_this()}](
-            std::weak_ptr<libp2p::connection::CapableConnection>
-                weak_connection) {
-          auto connection = weak_connection.lock();
-          if (not connection) {
-            return;
-          }
-          auto self = weak_self.lock();
-          if (not self) {
-            return;
-          }
-          auto peer_id = connection->remotePeer();
-          self->loader_.dispatch_peer_connected(
-              qtils::toSharedPtr(messages::PeerConnectedMessage{peer_id}));
-          if (connection->isInitiator()) {
-            libp2p::coroSpawn(
-                *self->io_context_,
-                [status_protocol{self->status_protocol_},
-                 connection]() -> libp2p::Coro<void> {
-                  std::ignore = co_await status_protocol->connect(connection);
-                });
-          }
-        };
+    // Restore peer connection handlers and protocol startup
+    auto on_peer_connected = [host, weak_self{weak_from_this()}](
+                                 std::weak_ptr<
+                                     libp2p::connection::CapableConnection>
+                                     weak_connection) {
+      auto connection = weak_connection.lock();
+      if (not connection) {
+        return;
+      }
+      auto self = weak_self.lock();
+      if (not self) {
+        return;
+      }
+      auto peer_id = connection->remotePeer();
+      self->loader_.dispatch_peer_connected(
+          qtils::toSharedPtr(messages::PeerConnectedMessage{peer_id}));
+      if (connection->isInitiator()) {
+        libp2p::coroSpawn(*self->io_context_,
+                          [status_protocol{self->status_protocol_},
+                           connection]() -> libp2p::Coro<void> {
+                            std::ignore =
+                                co_await status_protocol->connect(connection);
+                          });
+      } else {
+        // Non-initiator: record remote address in peer repository
+        auto addr_res = connection->remoteMultiaddr();
+        if (!addr_res.has_value()) {
+          SL_WARN(
+              self->logger_, "remoteMultiaddr() failed: {}", addr_res.error());
+          return;
+        }
+
+        std::vector<libp2p::multi::Multiaddress> addrs;
+        addrs.emplace_back(addr_res.value());
+
+        if (auto result =
+                host->getPeerRepository().getAddressRepository().addAddresses(
+                    peer_id,
+                    std::span<const libp2p::multi::Multiaddress>(addrs),
+                    libp2p::peer::ttl::kRecentlyConnected);
+            not result.has_value()) {
+          SL_WARN(self->logger_,
+                  "Failed to add addresses for peer {}: {}",
+                  peer_id,
+                  result.error());
+        }
+      }
+    };
+
     auto on_peer_disconnected =
         [weak_self{weak_from_this()}](libp2p::PeerId peer_id) {
           auto self = weak_self.lock();
@@ -254,6 +298,7 @@ namespace lean::modules {
           self->loader_.dispatch_peer_disconnected(
               qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
         };
+
     on_peer_connected_sub_ =
         host->getBus()
             .getChannel<libp2p::event::network::OnNewConnectionChannel>()
@@ -299,18 +344,19 @@ namespace lean::modules {
     gossip_blocks_topic_ = gossipSubscribe<SignedBlockWithAttestation>(
         "block",
         [weak_self{weak_from_this()}](
-            SignedBlockWithAttestation &&signed_block_with_attestation) {
+            SignedBlockWithAttestation &&signed_block_with_attestation, std::optional<libp2p::PeerId> received_from) {
           auto self = weak_self.lock();
           if (not self) {
             return;
           }
           signed_block_with_attestation.message.block.setHash();
-          self->receiveBlock(std::nullopt,
+          self->receiveBlock(received_from,
                              std::move(signed_block_with_attestation));
         });
     gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
         "vote",
-        [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation) {
+        [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation,
+                                      std::optional<libp2p::PeerId>) {
           auto self = weak_self.lock();
           if (not self) {
             return;
@@ -324,9 +370,9 @@ namespace lean::modules {
                     res.error());
             return;
           }
-          SL_INFO(self->logger_,
-                  "Received vote for target {}",
-                  signed_attestation.message.data.target);
+          SL_DEBUG(self->logger_,
+                   "Received vote for target {}",
+                   signed_attestation.message.data.target);
         });
 
     io_thread_.emplace([io_context{io_context_}] {
@@ -362,13 +408,10 @@ namespace lean::modules {
     libp2p::coroSpawn(
         *io_context_,
         [this, type, topic, f{std::move(f)}]() -> libp2p::Coro<void> {
-          while (auto raw_result = co_await topic->receive()) {
+          while (auto raw_result = co_await topic->receiveMessage()) {
             auto &raw = raw_result.value();
-            if (auto uncompressed_res = snappyUncompress(raw)) {
-              auto &uncompressed = uncompressed_res.value();
-              if (auto r = decode<T>(uncompressed)) {
-                f(std::move(r.value()));
-              }
+            if (auto r = decodeSszSnappy<T>(raw.data)) {
+              f(std::move(r.value()), raw.received_from);
             }
           }
         });
@@ -423,11 +466,11 @@ namespace lean::modules {
       std::optional<libp2p::PeerId> from_peer,
       SignedBlockWithAttestation &&signed_block_with_attestation) {
     auto slot_hash = signed_block_with_attestation.message.block.slotHash();
-    SL_DEBUG(logger_,
-             "receiveBlock slot {} hash {} parent {}",
-             slot_hash.slot,
-             slot_hash.hash,
-             signed_block_with_attestation.message.block.parent_root);
+    SL_INFO(logger_,
+            "receiveBlock slot {} hash {} parent {}",
+            slot_hash.slot,
+            slot_hash.hash,
+            signed_block_with_attestation.message.block.parent_root);
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
       while (not queue.empty()) {

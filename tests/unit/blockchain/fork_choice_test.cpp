@@ -293,16 +293,22 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
   EXPECT_EQ(head, target.hash());
 }
 
-// Test get_fork_choice_head with no votes returns the root.
-TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_no_votes) {
+/**
+ * Test fork choice algorithm with no attestations walks to the leaf.
+ *
+ * With no attestations, fork choice should walk down the tree and select the
+ * leaf block (the furthest descendant), breaking ties by lexicographic hash.
+ */
+TEST(TestForkChoiceHeadFunction, test_fork_choice_no_attestations) {
   auto blocks = makeBlocks(3);
   auto &root = blocks.at(0);
+  auto &leaf = blocks.at(2);
 
   ForkChoiceStore::Votes empty_votes;
   auto head = getForkChoiceHead(
       makeBlockMap(blocks), Checkpoint::from(root), empty_votes, 0);
 
-  EXPECT_EQ(head, root.hash());
+  EXPECT_EQ(head, leaf.hash());
 }
 
 // Test get_fork_choice_head respects minimum score.

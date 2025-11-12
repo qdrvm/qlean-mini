@@ -573,11 +573,6 @@ namespace lean {
                               const Checkpoint &root,
                               const ForkChoiceStore::Votes &latest_votes,
                               uint64_t min_score) {
-    // If no votes, return the starting root immediately
-    if (latest_votes.empty()) {
-      return root.root;
-    }
-
     // For each block, count the number of votes for that block. A vote for
     // any descendant of a block also counts as a vote for that block
     std::unordered_map<BlockHash, uint64_t> vote_weights;
