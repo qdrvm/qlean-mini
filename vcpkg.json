@@ -11,6 +11,7 @@
     "leanp2p",
     "prometheus-cpp",
     "qtils",
+    "qdrvm-crates",
     "rocksdb",
     "snappy",
     "soralog",
