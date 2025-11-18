@@ -95,9 +95,7 @@ namespace lean::crypto::xmss {
     XmssKeypair keypair;
 
     // Serialize secret key
-    size_t max_secret_key_size =
-        32 * 64 * num_active_epochs;  // hash_size * number_of_hash_chains *
-                                      // num_active_epochs
+    size_t max_secret_key_size = 200 * 1024 * 1024;  // 200 MB buffer
     qtils::ByteVec sk_buffer(max_secret_key_size);
     size_t sk_written = 0;
 
