@@ -292,7 +292,7 @@ namespace lean {
              source);
     auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
 
-    // Validate vote targets exist in store
+    // Validate attestation targets exist in store
     if (not blocks_.contains(source.root)) {
       return Error::INVALID_ATTESTATION;
     }
@@ -576,10 +576,11 @@ namespace lean {
     return result;
   }
 
+
   BlockHash getForkChoiceHead(
       const ForkChoiceStore::Blocks &blocks,
       const Checkpoint &root,
-      const ForkChoiceStore::AttestationMap &latest_attestations,
+      const ForkChoiceStore::SignedAttestations &latest_attestations,
       uint64_t min_score) {
     // For each block, count the number of votes for that block. A vote for
     // any descendant of a block also counts as a vote for that block
@@ -680,8 +681,8 @@ namespace lean {
       Checkpoint latest_finalized,
       Blocks blocks,
       std::unordered_map<BlockHash, State> states,
-      AttestationMap latest_known_attestations,
-      AttestationMap latest_new_attestations,
+      SignedAttestations latest_known_attestations,
+      SignedAttestations latest_new_votes,
       ValidatorIndex validator_index,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
       : stf_(metrics),

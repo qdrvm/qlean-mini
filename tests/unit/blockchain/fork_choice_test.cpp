@@ -56,10 +56,9 @@ SignedAttestation makeAttestation(const Block &source, const Block &target) {
   };
 }
 
-std::optional<Checkpoint> getAttestation(
-    const ForkChoiceStore::AttestationMap &attestations) {
-  auto it = attestations.find(0);
-  if (it == attestations.end()) {
+std::optional<Checkpoint> getAttestation(const ForkChoiceStore::SignedAttestations &votes) {
+  auto it = votes.find(0);
+  if (it == votes.end()) {
     return std::nullopt;
   }
   return it->second.message.data.target;
@@ -79,8 +78,8 @@ auto createTestStore(
     lean::Checkpoint latest_finalized = {},
     ForkChoiceStore::Blocks blocks = {},
     std::unordered_map<lean::BlockHash, lean::State> states = {},
-    ForkChoiceStore::AttestationMap latest_known_attestations = {},
-    ForkChoiceStore::AttestationMap latest_new_attestations = {},
+    ForkChoiceStore::SignedAttestations latest_known_attestations = {},
+    ForkChoiceStore::SignedAttestations latest_new_votes = {},
     lean::ValidatorIndex validator_index = 0) {
   auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
   static lean::ValidatorRegistry::ValidatorIndices validators;
@@ -272,7 +271,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::AttestationMap attestations;
+  ForkChoiceStore::SignedAttestations attestations;
   attestations[0] = SignedAttestation{
       .message =
           {
@@ -305,7 +304,7 @@ TEST(TestForkChoiceHeadFunction, test_fork_choice_no_attestations) {
   auto &root = blocks.at(0);
   auto &leaf = blocks.at(2);
 
-  ForkChoiceStore::AttestationMap empty_attestations;
+  ForkChoiceStore::SignedAttestations empty_attestations;
   auto head = getForkChoiceHead(
       makeBlockMap(blocks), Checkpoint::from(root), empty_attestations, 0);
 
@@ -318,7 +317,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::AttestationMap attestations;
+  ForkChoiceStore::SignedAttestations attestations;
   attestations[0] = SignedAttestation{
       .message =
           {
@@ -346,7 +345,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::AttestationMap attestations;
+  ForkChoiceStore::SignedAttestations attestations;
   for (int i = 0; i < 3; ++i) {
     attestations[i] = SignedAttestation{
         .message =
