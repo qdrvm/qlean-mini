@@ -6,6 +6,7 @@
 
 add_library(xmss_provider
     xmss_provider_impl.cpp
+    xmss_util.cpp
 )
 target_link_libraries(xmss_provider
     c_hash_sig::c_hash_sig

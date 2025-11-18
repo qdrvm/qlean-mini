@@ -60,6 +60,11 @@ namespace lean::app {
     return node_key_.value();
   }
 
+  const crypto::xmss::XmssKeypair &Configuration::xmssKeypair() const {
+    return xmss_keypair_.value();
+  }
+
+
   const std::optional<size_t> &Configuration::maxBootnodes() const {
     return max_bootnodes_;
   }

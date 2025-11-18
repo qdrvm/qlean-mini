@@ -25,6 +25,7 @@
 #include "app/build_version.hpp"
 #include "app/configuration.hpp"
 #include "app/default_logging_yaml.hpp"
+#include "crypto/xmss/xmss_util.hpp"
 #include "log/formatters/filepath.hpp"
 #include "modules/networking/get_node_key.hpp"
 #include "utils/parsers.hpp"
@@ -117,6 +118,8 @@ namespace lean::app {
         ("name,n", po::value<std::string>(), "Set name of node.")
         ("node-id", po::value<std::string>(), "Node id from validator registry (genesis/validators.yaml).")
         ("node-key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
+        ("xmss-pk", po::value<std::string>(), "Path to XMSS public key JSON file (required).")
+        ("xmss-sk", po::value<std::string>(), "Path to XMSS secret key JSON file (required).")
         ("max-bootnodes", po::value<size_t>(), "Max bootnodes count to connect to.")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
@@ -370,6 +373,26 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
+          auto xmss_pk = section["xmss-pk"];
+          if (xmss_pk.IsDefined()) {
+            if (xmss_pk.IsScalar()) {
+              auto value = xmss_pk.as<std::string>();
+              config_->xmss_public_key_path_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.xmss-pk' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
+          auto xmss_sk = section["xmss-sk"];
+          if (xmss_sk.IsDefined()) {
+            if (xmss_sk.IsScalar()) {
+              auto value = xmss_sk.as<std::string>();
+              config_->xmss_secret_key_path_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.xmss-sk' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
         } else {
           file_errors_ << "E: Section 'general' defined, but is not map\n";
           file_has_error_ = true;
@@ -457,6 +480,14 @@ namespace lean::app {
                                [&](const std::string &value) {
                                  config_->validator_registry_path_ = value;
                                });
+    find_argument<std::string>(
+        cli_values_map_, "xmss-pk", [&](const std::string &value) {
+          config_->xmss_public_key_path_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "xmss-sk", [&](const std::string &value) {
+          config_->xmss_secret_key_path_ = value;
+        });
     if (fail) {
       return Error::CliArgsParseFailed;
     }
@@ -556,6 +587,44 @@ namespace lean::app {
                config_->genesis_config_path_);
       return Error::InvalidValue;
     }
+
+    // Validate and load XMSS keys (mandatory)
+    if (config_->xmss_public_key_path_.empty()) {
+      SL_ERROR(logger_, "The '--xmss-pk' (XMSS public key) path must be provided");
+      return Error::InvalidValue;
+    }
+    if (config_->xmss_secret_key_path_.empty()) {
+      SL_ERROR(logger_, "The '--xmss-sk' (XMSS secret key) path must be provided");
+      return Error::InvalidValue;
+    }
+
+    config_->xmss_public_key_path_ =
+        resolve_relative(config_->xmss_public_key_path_, "xmss-pk");
+    if (not is_regular_file(config_->xmss_public_key_path_)) {
+      SL_ERROR(logger_,
+               "The 'xmss-pk' file does not exist or is not a file: {}",
+               config_->xmss_public_key_path_);
+      return Error::InvalidValue;
+    }
+
+    config_->xmss_secret_key_path_ =
+        resolve_relative(config_->xmss_secret_key_path_, "xmss-sk");
+    if (not is_regular_file(config_->xmss_secret_key_path_)) {
+      SL_ERROR(logger_,
+               "The 'xmss-sk' file does not exist or is not a file: {}",
+               config_->xmss_secret_key_path_);
+      return Error::InvalidValue;
+    }
+
+    // Load XMSS keypair from JSON files
+    OUTCOME_TRY(keypair, crypto::xmss::loadKeypairFromJson(
+        config_->xmss_secret_key_path_,
+        config_->xmss_public_key_path_
+    ));
+    config_->xmss_keypair_ = std::move(keypair);
+    SL_INFO(logger_, "Loaded XMSS keypair from:");
+    SL_INFO(logger_, "  Public key: {}", config_->xmss_public_key_path_);
+    SL_INFO(logger_, "  Secret key: {}", config_->xmss_secret_key_path_);
 
     return outcome::success();
   }
