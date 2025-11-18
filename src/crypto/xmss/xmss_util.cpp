@@ -4,16 +4,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "crypto/keystore/keystore_impl.hpp"
+#include "crypto/xmss/xmss_util.hpp"
 
 #include <c_hash_sig/c_hash_sig.h>
 
 #include <fstream>
 #include <memory>
 #include <sstream>
-#include <stdexcept>
 
-namespace lean::crypto::keystore {
+OUTCOME_CPP_DEFINE_CATEGORY(lean::crypto::xmss, XmssUtilError, e) {
+  using E = lean::crypto::xmss::XmssUtilError;
+  switch (e) {
+    case E::FileNotFound:
+      return "Key file not found";
+    case E::FileOpenFailed:
+      return "Failed to open key file";
+    case E::JsonParseFailed:
+      return "Failed to parse JSON key";
+    case E::SerializationFailed:
+      return "Failed to serialize key";
+  }
+  return "Unknown XmssUtilError";
+}
+
+namespace lean::crypto::xmss {
 
   namespace {
     // RAII wrapper for PQSignatureSchemeSecretKey
@@ -54,14 +68,14 @@ namespace lean::crypto::keystore {
     }
 
     // Load entire file as string
-    std::string loadFileAsString(const std::filesystem::path& path) {
+    outcome::result<std::string> loadFileAsString(const std::filesystem::path& path) {
       if (!std::filesystem::exists(path)) {
-        throw std::runtime_error("Key file not found: " + path.string());
+        return XmssUtilError::FileNotFound;
       }
 
       std::ifstream file(path);
       if (!file.is_open()) {
-        throw std::runtime_error("Failed to open key file: " + path.string());
+        return XmssUtilError::FileOpenFailed;
       }
 
       std::stringstream buffer;
@@ -70,30 +84,28 @@ namespace lean::crypto::keystore {
     }
 
     // Parse public key from JSON file
-    xmss::XmssPublicKey parsePublicKeyFromJson(const std::filesystem::path& path) {
-      std::string json_content = loadFileAsString(path);
+    outcome::result<XmssPublicKey> parsePublicKeyFromJson(const std::filesystem::path& path) {
+      OUTCOME_TRY(json_content, loadFileAsString(path));
 
       PQSignatureSchemePublicKey *pk_raw = nullptr;
       PQSigningError result = pq_public_key_from_json(json_content.c_str(), &pk_raw);
 
       if (result != PQ_SIGNING_ERROR_SUCCESS) {
-        throw std::runtime_error("Failed to parse public key from JSON: "
-                               + getErrorDescription(result));
+        return XmssUtilError::JsonParseFailed;
       }
 
       PublicKeyPtr pk(pk_raw);
 
       // Serialize to bytes
       constexpr size_t kMaxPublicKeySize = 100;
-      xmss::XmssPublicKey pk_bytes(kMaxPublicKeySize);
+      XmssPublicKey pk_bytes(kMaxPublicKeySize);
       size_t pk_written = 0;
 
       result = pq_public_key_serialize(
           pk.get(), pk_bytes.data(), pk_bytes.size(), &pk_written);
 
       if (result != PQ_SIGNING_ERROR_SUCCESS) {
-        throw std::runtime_error("Failed to serialize public key: "
-                               + getErrorDescription(result));
+        return XmssUtilError::SerializationFailed;
       }
 
       pk_bytes.resize(pk_written);
@@ -101,15 +113,14 @@ namespace lean::crypto::keystore {
     }
 
     // Parse secret key from JSON file
-    xmss::XmssPrivateKey parseSecretKeyFromJson(const std::filesystem::path& path) {
-      std::string json_content = loadFileAsString(path);
+    outcome::result<XmssPrivateKey> parseSecretKeyFromJson(const std::filesystem::path& path) {
+      OUTCOME_TRY(json_content, loadFileAsString(path));
 
       PQSignatureSchemeSecretKey *sk_raw = nullptr;
       PQSigningError result = pq_secret_key_from_json(json_content.c_str(), &sk_raw);
 
       if (result != PQ_SIGNING_ERROR_SUCCESS) {
-        throw std::runtime_error("Failed to parse secret key from JSON: "
-                               + getErrorDescription(result));
+        return XmssUtilError::JsonParseFailed;
       }
 
       SecretKeyPtr sk(sk_raw);
@@ -117,15 +128,14 @@ namespace lean::crypto::keystore {
       // Serialize to bytes
       // Secret keys can be very large (50+ MB for large epoch counts)
       size_t max_secret_key_size = 100 * 1024 * 1024; // 100 MB buffer
-      xmss::XmssPrivateKey sk_bytes(max_secret_key_size);
+      XmssPrivateKey sk_bytes(max_secret_key_size);
       size_t sk_written = 0;
 
       result = pq_secret_key_serialize(
           sk.get(), sk_bytes.data(), sk_bytes.size(), &sk_written);
 
       if (result != PQ_SIGNING_ERROR_SUCCESS) {
-        throw std::runtime_error("Failed to serialize secret key: "
-                               + getErrorDescription(result));
+        return XmssUtilError::SerializationFailed;
       }
 
       sk_bytes.resize(sk_written);
@@ -133,15 +143,19 @@ namespace lean::crypto::keystore {
     }
   }
 
-  KeyStoreImpl::KeyStoreImpl(std::filesystem::path secret_key_path,
-                             std::filesystem::path public_key_path) {
-    keypair_.public_key = parsePublicKeyFromJson(public_key_path);
-    keypair_.private_key = parseSecretKeyFromJson(secret_key_path);
+  outcome::result<XmssKeypair> loadKeypairFromJson(
+      const std::filesystem::path& secret_key_path,
+      const std::filesystem::path& public_key_path) {
+    XmssKeypair keypair;
+
+    OUTCOME_TRY(pk, parsePublicKeyFromJson(public_key_path));
+    keypair.public_key = std::move(pk);
+
+    OUTCOME_TRY(sk, parseSecretKeyFromJson(secret_key_path));
+    keypair.private_key = std::move(sk);
+
+    return keypair;
   }
 
-  xmss::XmssKeypair KeyStoreImpl::xmssKeypair() const {
-    return keypair_;
-  }
-
-}  // namespace lean::crypto::keystore
+}  // namespace lean::crypto::xmss
 

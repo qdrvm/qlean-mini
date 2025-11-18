@@ -46,6 +46,7 @@ target_link_libraries(app_configurator
     app_configuration
     Boost::program_options
     build_version
+    xmss_provider
     p2p::libp2p
     yaml-cpp::yaml-cpp
 )

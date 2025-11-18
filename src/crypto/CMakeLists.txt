@@ -5,7 +5,6 @@
 #
 
 #add_subdirectory(blake2)
-add_subdirectory(keystore)
 add_subdirectory(sha)
 #add_subdirectory(twox)
 add_subdirectory(xmss)
