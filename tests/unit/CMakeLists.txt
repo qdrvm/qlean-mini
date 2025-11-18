@@ -6,6 +6,7 @@
 
 add_subdirectory(app)
 add_subdirectory(blockchain)
+add_subdirectory(crypto)
 add_subdirectory(storage)
 add_subdirectory(serde)
 add_subdirectory(utils)

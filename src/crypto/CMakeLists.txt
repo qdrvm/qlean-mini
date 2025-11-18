@@ -7,6 +7,7 @@
 #add_subdirectory(blake2)
 add_subdirectory(sha)
 #add_subdirectory(twox)
+add_subdirectory(xmss)
 
 add_library(hasher
     hasher/hasher_impl.cpp
