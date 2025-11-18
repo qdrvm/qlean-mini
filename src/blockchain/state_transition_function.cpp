@@ -227,39 +227,46 @@ namespace lean {
     auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
     auto justifications = getJustifications(state);
 
-    // From 3sf-mini/consensus.py - apply votes
+    // From 3sf-mini/consensus.py - apply attestations
     for (auto &attestation : attestations) {
-      auto &vote = attestation.data;
-      if (vote.source.slot >= state.historical_block_hashes.size()) {
+      auto &attestation_data = attestation.data;
+      if (attestation_data.source.slot
+          >= state.historical_block_hashes.size()) {
         return Error::INVALID_VOTE_SOURCE_SLOT;
       }
-      if (vote.target.slot >= state.historical_block_hashes.size()) {
+      if (attestation_data.target.slot
+          >= state.historical_block_hashes.size()) {
         return Error::INVALID_VOTE_TARGET_SLOT;
       }
-      // Ignore votes whose source is not already justified,
+      // Ignore attestations whose source is not already justified,
       // or whose target is not in the history, or whose target is not a
       // valid justifiable slot
-      if (not getBit(state.justified_slots.data(), vote.source.slot)
+      if (not getBit(state.justified_slots.data(), attestation_data.source.slot)
           // This condition is missing in 3sf mini but has been added here
           // because we don't want to re-introduce the target again for
-          // remaining votes if the slot is already justified and its tracking
-          // already cleared out from justifications map
-          or getBit(state.justified_slots.data(), vote.target.slot)
-          or vote.source.root
-                 != state.historical_block_hashes.data().at(vote.source.slot)
-          or vote.target.root
-                 != state.historical_block_hashes.data().at(vote.target.slot)
-          or vote.target.slot <= vote.source.slot
+          // remaining attestations if the slot is already justified and its
+          // tracking already cleared out from justifications map
+          or getBit(state.justified_slots.data(), attestation_data.target.slot)
+          or attestation_data.source.root
+                 != state.historical_block_hashes.data().at(
+                     attestation_data.source.slot)
+          or attestation_data.target.root
+                 != state.historical_block_hashes.data().at(
+                     attestation_data.target.slot)
+          or attestation_data.target.slot <= attestation_data.source.slot
           or not isJustifiableSlot(state.latest_finalized.slot,
-                                   vote.target.slot)) {
+                                   attestation_data.target.slot)) {
         continue;
       }
 
-      auto justifications_it = justifications.find(vote.target.root);
+      auto justifications_it =
+          justifications.find(attestation_data.target.root);
       // Track attempts to justify new hashes
       if (justifications_it == justifications.end()) {
         justifications_it =
-            justifications.emplace(vote.target.root, std::vector<bool>{}).first;
+            justifications
+                .emplace(attestation_data.target.root, std::vector<bool>{})
+                .first;
         justifications_it->second.resize(state.validatorCount());
       }
 
@@ -277,15 +284,16 @@ namespace lean {
       // validators justifying specially if the num_validators is low in testing
       // scenarios
       if (3 * count >= 2 * state.validatorCount()) {
-        state.latest_justified = vote.target;
+        state.latest_justified = attestation_data.target;
         metrics_->stf_latest_justified_slot()->set(state.latest_justified.slot);
-        setBit(state.justified_slots.data(), vote.target.slot);
-        justifications.erase(vote.target.root);
+        setBit(state.justified_slots.data(), attestation_data.target.slot);
+        justifications.erase(attestation_data.target.root);
 
         // Finalization: if the target is the next valid justifiable hash after
         // the source
         auto any = false;
-        for (auto slot = vote.source.slot + 1; slot < vote.target.slot;
+        for (auto slot = attestation_data.source.slot + 1;
+             slot < attestation_data.target.slot;
              ++slot) {
           if (isJustifiableSlot(state.latest_finalized.slot, slot)) {
             any = true;
@@ -293,7 +301,7 @@ namespace lean {
           }
         }
         if (not any) {
-          state.latest_finalized = vote.source;
+          state.latest_finalized = attestation_data.source;
           metrics_->stf_latest_finalized_slot()->set(
               state.latest_finalized.slot);
         }

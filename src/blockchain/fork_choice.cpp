@@ -24,7 +24,7 @@ namespace lean {
     auto min_target_score = ceilDiv(head_state.validatorCount() * 2, 3);
 
     safe_target_ = getForkChoiceHead(
-        blocks_, latest_justified_, latest_new_votes_, min_target_score);
+        blocks_, latest_justified_, latest_new_attestations_, min_target_score);
   }
 
   std::optional<Checkpoint> ForkChoiceStore::getLatestJustified() {
@@ -77,11 +77,11 @@ namespace lean {
     }
   }
 
-  void ForkChoiceStore::acceptNewVotes() {
-    for (auto &[voter, vote] : latest_new_votes_) {
+  void ForkChoiceStore::acceptNewAttestations() {
+    for (auto &[voter, vote] : latest_new_attestations_) {
       latest_known_attestations_[voter] = vote;
     }
-    latest_new_votes_.clear();
+    latest_new_attestations_.clear();
     updateHead();
   }
 
@@ -290,7 +290,7 @@ namespace lean {
              data.source);
     auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
 
-    // Validate vote targets exist in store
+    // Validate attestation targets exist in store
     if (not blocks_.contains(data.source.root)) {
       return Error::INVALID_ATTESTATION;
     }
@@ -349,10 +349,10 @@ namespace lean {
       }
 
       // clear from new votes if this is latest
-      auto latest_new_vote = latest_new_votes_.find(validator_id);
-      if (latest_new_vote != latest_new_votes_.end()
+      auto latest_new_vote = latest_new_attestations_.find(validator_id);
+      if (latest_new_vote != latest_new_attestations_.end()
           and latest_new_vote->second.message.data.slot <= attestation_slot) {
-        latest_new_votes_.erase(latest_new_vote);
+        latest_new_attestations_.erase(latest_new_vote);
       }
     } else {
       // forkchoice should be correctly ticked to current time before importing
@@ -362,10 +362,10 @@ namespace lean {
       }
 
       // update latest new votes if this is the latest
-      auto latest_new_vote = latest_new_votes_.find(validator_id);
-      if (latest_new_vote == latest_new_votes_.end()
+      auto latest_new_vote = latest_new_attestations_.find(validator_id);
+      if (latest_new_vote == latest_new_attestations_.end()
           or latest_new_vote->second.message.data.slot < attestation_slot) {
-        latest_new_votes_.insert_or_assign(validator_id, signed_attestation);
+        latest_new_attestations_.insert_or_assign(validator_id, signed_attestation);
       }
     }
 
@@ -487,7 +487,7 @@ namespace lean {
             validator_registry_->currentValidatorIndices().contains(
                 producer_index);
         if (is_producer) {
-          acceptNewVotes();
+          acceptNewAttestations();
 
           auto res = produceBlockWithSignatures(current_slot, producer_index);
           if (!res.has_value()) {
@@ -562,7 +562,7 @@ namespace lean {
                 "Interval three of slot {} at time {}",
                 current_slot,
                 time_ * SECONDS_PER_INTERVAL);
-        acceptNewVotes();
+        acceptNewAttestations();
       }
       time_ += 1;
     }
@@ -570,23 +570,24 @@ namespace lean {
   }
 
 
-  BlockHash getForkChoiceHead(const ForkChoiceStore::Blocks &blocks,
-                              const Checkpoint &root,
-                              const ForkChoiceStore::Votes &latest_votes,
-                              uint64_t min_score) {
+  BlockHash getForkChoiceHead(
+      const ForkChoiceStore::Blocks &blocks,
+      const Checkpoint &root,
+      const ForkChoiceStore::SignedAttestations &latest_attestations,
+      uint64_t min_score) {
     // For each block, count the number of votes for that block. A vote for
     // any descendant of a block also counts as a vote for that block
-    std::unordered_map<BlockHash, uint64_t> vote_weights;
+    std::unordered_map<BlockHash, uint64_t> attestation_weights;
     auto get_weight = [&](const BlockHash &hash) {
-      auto it = vote_weights.find(hash);
-      return it != vote_weights.end() ? it->second : 0;
+      auto it = attestation_weights.find(hash);
+      return it != attestation_weights.end() ? it->second : 0;
     };
 
-    for (auto &vote : latest_votes | std::views::values) {
-      auto block_it = blocks.find(vote.message.data.target.root);
+    for (auto &attestation : latest_attestations | std::views::values) {
+      auto block_it = blocks.find(attestation.message.data.target.root);
       if (block_it != blocks.end()) {
         while (block_it->second.slot > root.slot) {
-          ++vote_weights[block_it->first];
+          ++attestation_weights[block_it->first];
           block_it = blocks.find(block_it->second.parent_root);
           BOOST_ASSERT(block_it != blocks.end());
         }
@@ -673,8 +674,8 @@ namespace lean {
       Checkpoint latest_finalized,
       Blocks blocks,
       std::unordered_map<BlockHash, State> states,
-      Votes latest_known_attestations,
-      Votes latest_new_votes,
+      SignedAttestations latest_known_attestations,
+      SignedAttestations latest_new_votes,
       ValidatorIndex validator_index,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
       : stf_(metrics),
@@ -689,7 +690,7 @@ namespace lean {
         blocks_(std::move(blocks)),
         states_(std::move(states)),
         latest_known_attestations_(std::move(latest_known_attestations)),
-        latest_new_votes_(std::move(latest_new_votes)),
+        latest_new_attestations_(std::move(latest_new_votes)),
         metrics_(std::move(metrics)),
         validator_registry_(std::move(validator_registry)) {}
 }  // namespace lean

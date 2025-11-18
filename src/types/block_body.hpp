@@ -12,7 +12,7 @@
 
 namespace lean {
   struct BlockBody : ssz::ssz_variable_size_container {
-    /// @note votes will be replaced by aggregated attestations.
+    /// @note attestations will be replaced by aggregated attestations.
     Attestations attestations;
 
     SSZ_CONT(attestations);
