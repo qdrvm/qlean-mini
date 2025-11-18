@@ -40,12 +40,7 @@ namespace lean {
     if (not yaml_genesis_time.IsScalar()) {
       return ConfigYamlError::INVALID;
     }
-    auto yaml_validator_count = yaml["VALIDATOR_COUNT"];
-    if (not yaml_validator_count.IsScalar()) {
-      return ConfigYamlError::INVALID;
-    }
     return Config{
-        .num_validators = yaml_validator_count.as<uint64_t>(),
         .genesis_time = yaml_genesis_time.as<uint64_t>(),
     };
   }

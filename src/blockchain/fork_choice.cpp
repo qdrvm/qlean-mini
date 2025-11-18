@@ -495,6 +495,7 @@ namespace lean {
                      "Failed to produce block for slot {}: {}",
                      current_slot,
                      res.error());
+            time_ += 1;
             continue;
           }
           auto &new_signed_block = res.value();
@@ -636,7 +637,8 @@ namespace lean {
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         metrics_(std::move(metrics)) {
-    AnchorState anchor_state = STF::generateGenesisState(genesis_config.config);
+    AnchorState anchor_state =
+        STF::generateGenesisState(genesis_config.config, validator_registry_);
     AnchorBlock anchor_block = STF::genesisBlock(anchor_state);
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
