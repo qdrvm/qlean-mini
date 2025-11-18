@@ -6,37 +6,40 @@
 
 #include "crypto/xmss/xmss_provider_impl.hpp"
 
-#include <c_hash_sig/c_hash_sig.h>
 #include <cstring>
 #include <memory>
 #include <stdexcept>
+
+#include <c_hash_sig/c_hash_sig.h>
 
 namespace lean::crypto::xmss {
 
   namespace {
     // RAII wrapper for PQSignatureSchemeSecretKey
     struct SecretKeyDeleter {
-      void operator()(PQSignatureSchemeSecretKey* key) const {
+      void operator()(PQSignatureSchemeSecretKey *key) const {
         if (key) {
           pq_secret_key_free(key);
         }
       }
     };
-    using SecretKeyPtr = std::unique_ptr<PQSignatureSchemeSecretKey, SecretKeyDeleter>;
+    using SecretKeyPtr =
+        std::unique_ptr<PQSignatureSchemeSecretKey, SecretKeyDeleter>;
 
     // RAII wrapper for PQSignatureSchemePublicKey
     struct PublicKeyDeleter {
-      void operator()(PQSignatureSchemePublicKey* key) const {
+      void operator()(PQSignatureSchemePublicKey *key) const {
         if (key) {
           pq_public_key_free(key);
         }
       }
     };
-    using PublicKeyPtr = std::unique_ptr<PQSignatureSchemePublicKey, PublicKeyDeleter>;
+    using PublicKeyPtr =
+        std::unique_ptr<PQSignatureSchemePublicKey, PublicKeyDeleter>;
 
     // RAII wrapper for PQSignature
     struct SignatureDeleter {
-      void operator()(PQSignature* sig) const {
+      void operator()(PQSignature *sig) const {
         if (sig) {
           pq_signature_free(sig);
         }
@@ -46,7 +49,7 @@ namespace lean::crypto::xmss {
 
     // RAII wrapper for error description string
     struct StringDeleter {
-      void operator()(char* str) const {
+      void operator()(char *str) const {
         if (str) {
           pq_string_free(str);
         }
@@ -61,23 +64,28 @@ namespace lean::crypto::xmss {
   }  // namespace
 
   XmssKeypair XmssProviderImpl::generateKeypair(uint64_t activation_epoch,
-                                                 uint64_t num_active_epochs) {
+                                                uint64_t num_active_epochs) {
     // Validate parameters
     uint64_t max_lifetime = pq_get_lifetime();
     if (num_active_epochs == 0) {
-      throw std::runtime_error("Number of active epochs must be greater than 0");
+      throw std::runtime_error(
+          "Number of active epochs must be greater than 0");
     }
     if (num_active_epochs > max_lifetime) {
-      throw std::runtime_error("Number of active epochs (" + std::to_string(num_active_epochs) +
-                               ") exceeds maximum lifetime (" + std::to_string(max_lifetime) + ")");
+      throw std::runtime_error("Number of active epochs ("
+                               + std::to_string(num_active_epochs)
+                               + ") exceeds maximum lifetime ("
+                               + std::to_string(max_lifetime) + ")");
     }
 
-    PQSignatureSchemePublicKey* pk_raw = nullptr;
-    PQSignatureSchemeSecretKey* sk_raw = nullptr;
+    PQSignatureSchemePublicKey *pk_raw = nullptr;
+    PQSignatureSchemeSecretKey *sk_raw = nullptr;
 
-    PQSigningError result = pq_key_gen(activation_epoch, num_active_epochs, &pk_raw, &sk_raw);
+    PQSigningError result =
+        pq_key_gen(activation_epoch, num_active_epochs, &pk_raw, &sk_raw);
     if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to generate XMSS keypair: " + getErrorDescription(result));
+      throw std::runtime_error("Failed to generate XMSS keypair: "
+                               + getErrorDescription(result));
     }
 
     PublicKeyPtr pk(pk_raw);
@@ -87,25 +95,31 @@ namespace lean::crypto::xmss {
     XmssKeypair keypair;
 
     // Serialize secret key
-    constexpr size_t kMaxSecretKeySize = 100000;  // 100KB buffer
-    qtils::ByteVec sk_buffer(kMaxSecretKeySize);
+    size_t max_secret_key_size =
+        32 * 64 * num_active_epochs;  // hash_size * number_of_hash_chains *
+                                      // num_active_epochs
+    qtils::ByteVec sk_buffer(max_secret_key_size);
     size_t sk_written = 0;
 
-    result = pq_secret_key_serialize(sk.get(), sk_buffer.data(), sk_buffer.size(), &sk_written);
+    result = pq_secret_key_serialize(
+        sk.get(), sk_buffer.data(), sk_buffer.size(), &sk_written);
     if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to serialize XMSS secret key: " + getErrorDescription(result));
+      throw std::runtime_error("Failed to serialize XMSS secret key: "
+                               + getErrorDescription(result));
     }
     sk_buffer.resize(sk_written);
     keypair.private_key = std::move(sk_buffer);
 
     // Serialize public key
-    constexpr size_t kMaxPublicKeySize = 10000;  // 10KB buffer
+    constexpr size_t kMaxPublicKeySize = 100;
     qtils::ByteVec pk_buffer(kMaxPublicKeySize);
     size_t pk_written = 0;
 
-    result = pq_public_key_serialize(pk.get(), pk_buffer.data(), pk_buffer.size(), &pk_written);
+    result = pq_public_key_serialize(
+        pk.get(), pk_buffer.data(), pk_buffer.size(), &pk_written);
     if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to serialize XMSS public key: " + getErrorDescription(result));
+      throw std::runtime_error("Failed to serialize XMSS public key: "
+                               + getErrorDescription(result));
     }
     pk_buffer.resize(pk_written);
     keypair.public_key = std::move(pk_buffer);
@@ -114,26 +128,27 @@ namespace lean::crypto::xmss {
   }
 
   XmssSignature XmssProviderImpl::sign(XmssPrivateKey xmss_private_key,
-                                        uint32_t epoch,
-                                        qtils::BytesIn message) {
+                                       uint32_t epoch,
+                                       qtils::BytesIn message) {
     // Deserialize secret key
-    PQSignatureSchemeSecretKey* sk_raw = nullptr;
+    PQSignatureSchemeSecretKey *sk_raw = nullptr;
     PQSigningError result = pq_secret_key_deserialize(
-        xmss_private_key.data(),
-        xmss_private_key.size(),
-        &sk_raw);
+        xmss_private_key.data(), xmss_private_key.size(), &sk_raw);
 
     if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to deserialize XMSS secret key: " + getErrorDescription(result));
+      throw std::runtime_error("Failed to deserialize XMSS secret key: "
+                               + getErrorDescription(result));
     }
     SecretKeyPtr sk(sk_raw);
 
     // Sign the message
-    PQSignature* signature_raw = nullptr;
-    result = pq_sign(sk.get(), epoch, message.data(), message.size(), &signature_raw);
+    PQSignature *signature_raw = nullptr;
+    result = pq_sign(
+        sk.get(), epoch, message.data(), message.size(), &signature_raw);
 
     if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to sign message with XMSS: " + getErrorDescription(result));
+      throw std::runtime_error("Failed to sign message with XMSS: "
+                               + getErrorDescription(result));
     }
     SignaturePtr signature(signature_raw);
 
@@ -142,9 +157,11 @@ namespace lean::crypto::xmss {
     qtils::ByteVec sig_buffer(kMaxSignatureSize);
     size_t sig_written = 0;
 
-    result = pq_signature_serialize(signature.get(), sig_buffer.data(), sig_buffer.size(), &sig_written);
+    result = pq_signature_serialize(
+        signature.get(), sig_buffer.data(), sig_buffer.size(), &sig_written);
     if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to serialize XMSS signature: " + getErrorDescription(result));
+      throw std::runtime_error("Failed to serialize XMSS signature: "
+                               + getErrorDescription(result));
     }
     sig_buffer.resize(sig_written);
 
@@ -160,8 +177,8 @@ namespace lean::crypto::xmss {
   }
 
   bool XmssProviderImpl::verify(XmssPublicKey xmss_public_key,
-                                 qtils::BytesIn message,
-                                 XmssSignature xmss_signature) {
+                                qtils::BytesIn message,
+                                XmssSignature xmss_signature) {
     // Extract epoch from first 4 bytes of signature
     if (xmss_signature.size() < 4) {
       throw std::runtime_error("XMSS signature too short to contain epoch");
@@ -173,31 +190,30 @@ namespace lean::crypto::xmss {
                    | (static_cast<uint32_t>(xmss_signature[3]) << 24);
 
     // Deserialize public key
-    PQSignatureSchemePublicKey* pk_raw = nullptr;
+    PQSignatureSchemePublicKey *pk_raw = nullptr;
     PQSigningError result = pq_public_key_deserialize(
-        xmss_public_key.data(),
-        xmss_public_key.size(),
-        &pk_raw);
+        xmss_public_key.data(), xmss_public_key.size(), &pk_raw);
 
     if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to deserialize XMSS public key: " + getErrorDescription(result));
+      throw std::runtime_error("Failed to deserialize XMSS public key: "
+                               + getErrorDescription(result));
     }
     PublicKeyPtr pk(pk_raw);
 
     // Deserialize signature (skip first 4 bytes which contain epoch)
-    PQSignature* signature_raw = nullptr;
+    PQSignature *signature_raw = nullptr;
     result = pq_signature_deserialize(
-        xmss_signature.data() + 4,
-        xmss_signature.size() - 4,
-        &signature_raw);
+        xmss_signature.data() + 4, xmss_signature.size() - 4, &signature_raw);
 
     if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to deserialize XMSS signature: " + getErrorDescription(result));
+      throw std::runtime_error("Failed to deserialize XMSS signature: "
+                               + getErrorDescription(result));
     }
     SignaturePtr signature(signature_raw);
 
     // Verify signature
-    int verify_result = pq_verify(pk.get(), epoch, message.data(), message.size(), signature.get());
+    int verify_result = pq_verify(
+        pk.get(), epoch, message.data(), message.size(), signature.get());
 
     if (verify_result < 0) {
       throw std::runtime_error("Error during XMSS signature verification");
@@ -207,4 +223,3 @@ namespace lean::crypto::xmss {
   }
 
 }  // namespace lean::crypto::xmss
-
