@@ -73,7 +73,8 @@ namespace lean {
     }
   }
 
-  AnchorState STF::generateGenesisState(const Config &config) {
+  AnchorState STF::generateGenesisState(
+      const Config &config, qtils::SharedRef<ValidatorRegistry> registry) {
     BlockHeader header;
     header.slot = 0;
     header.proposer_index = 0;
@@ -87,6 +88,13 @@ namespace lean {
     result.latest_block_header = header;
     result.latest_justified = Checkpoint{.root = kZeroHash, .slot = 0};
     result.latest_finalized = Checkpoint{.root = kZeroHash, .slot = 0};
+
+    // Initialize validators
+    // TODO: Unless validators pubkeys are included into validator registry, we
+    // add empty validators
+    for (size_t i = 0; i < registry->allValidatorsIndices().size(); ++i) {
+      result.validators.push_back(Validator{});
+    }
     // result.historical_block_hashes;
     // result.justified_slots;
     // result.justifications_roots;
