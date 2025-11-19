@@ -51,6 +51,10 @@ namespace lean {
   }
 
   void ForkChoiceStore::updateHead() {
+    // Compute latest justified checkpoint from all known states
+    //
+    // Scans every state in the store to find the checkpoint with the
+    // highest slot that has achieved justification.
     if (auto latest_justified = getLatestJustified()) {
       latest_justified_ = latest_justified.value();
       if (latest_justified_.slot == 0) {
@@ -61,9 +65,20 @@ namespace lean {
         }
       }
     }
+
+    // Run LMD-GHOST fork choice algorithm
+    //
+    // Selects canonical head by walking the tree from the justified root,
+    // choosing the heaviest child at each fork based on attestation weights.
     head_ = getForkChoiceHead(
         blocks_, latest_justified_, latest_known_attestations_, 0);
 
+    // Extract finalized checkpoint from head state
+    //
+    // The head state tracks the highest finalized checkpoint. If the
+    // head changed, we may have a new finalized checkpoint.
+    //
+    // Fallback to current finalized if head state unavailable (defensive).
     auto state_it = states_.find(head_);
     if (state_it != states_.end()) {
       latest_finalized_ = state_it->second.latest_finalized;
@@ -340,7 +355,14 @@ namespace lean {
     auto &attestation_slot = attestation.data.slot;
 
     if (is_from_block) {
-      // update latest known votes if this is latest
+      // On-chain attestation processing
+      //
+      // These are historical attestations from other validators included by the
+      // proposer.
+      // - They are processed immediately as "known" attestations,
+      // - They contribute to fork choice weights.
+
+      // Update known attestations if this is the latest from validator
       auto latest_known_vote = latest_known_attestations_.find(validator_id);
       if (latest_known_vote == latest_known_attestations_.end()
           or latest_known_vote->second.message.data.slot < attestation_slot) {
@@ -355,6 +377,13 @@ namespace lean {
         latest_new_attestations_.erase(latest_new_vote);
       }
     } else {
+      // Network gossip attestation processing
+      //
+      // These are attestations received via the gossip network.
+      // - They enter the "new" stage,
+      // - They must wait for interval tick acceptance before
+      //   contributing to fork choice weights.
+
       // forkchoice should be correctly ticked to current time before importing
       // gossiped attestations
       if (attestation_slot > getCurrentSlot() + 1) {
@@ -365,7 +394,8 @@ namespace lean {
       auto latest_new_vote = latest_new_attestations_.find(validator_id);
       if (latest_new_vote == latest_new_attestations_.end()
           or latest_new_vote->second.message.data.slot < attestation_slot) {
-        latest_new_attestations_.insert_or_assign(validator_id, signed_attestation);
+        latest_new_attestations_.insert_or_assign(validator_id,
+                                                  signed_attestation);
       }
     }
 
@@ -384,6 +414,25 @@ namespace lean {
       }
     }
     return true;
+  }
+
+  outcome::result<void> ForkChoiceStore::processBlockBodyAttestations(
+      const Block &block, const BlockSignatures &signatures) {
+    for (size_t index = 0; index < block.body.attestations.size(); ++index) {
+      auto &attestation = block.body.attestations[index];
+      if (index >= signatures.size()) {
+        return Error::INVALID_ATTESTATION;
+      }
+      // Extract signature at same index as attestation
+      auto &signature = signatures.data().at(index);
+      SignedAttestation signed_attestation{
+          .message = attestation,
+          .signature = signature,
+      };
+      // Process as on-chain (from block) so it enters "known" attestations
+      BOOST_OUTCOME_TRY(onAttestation(signed_attestation, true));
+    }
+    return outcome::success();
   }
 
   outcome::result<void> ForkChoiceStore::processProposerAttestation(
@@ -418,8 +467,6 @@ namespace lean {
         signed_block_with_attestation.message.proposer_attestation;
     auto &signatures = signed_block_with_attestation.signature;
 
-    auto valid_signatures = validateBlockSignatures(block, signatures);
-
     block.setHash();
     auto block_hash = block.hash();
     // If the block is already known, ignore it
@@ -427,34 +474,37 @@ namespace lean {
       return outcome::success();
     }
 
+    // Verify parent chain is available
+    //
+    // The parent state must exist before processing this block.
+    // If missing, the node must sync the parent chain first.
     auto &parent_state = states_.at(block.parent_root);
     // at this point parent state should be available so node should sync parent
     // chain if not available before adding block to forkchoice
 
+    auto valid_signatures = validateBlockSignatures(block, signatures);
+
     // Get post state from STF (State Transition Function)
-    BOOST_OUTCOME_TRY(auto state,
+    BOOST_OUTCOME_TRY(auto post_state,
                       stf_.stateTransition(block, parent_state, true));
     blocks_.emplace(block_hash, block);
-    states_.emplace(block_hash, std::move(state));
+    states_.emplace(block_hash, std::move(post_state));
 
-    // add block votes to the onchain known last votes
-    ValidatorIndex index = 0;
-    for (auto &attestation : block.body.attestations) {
-      if (index >= signatures.size()) {
-        return Error::INVALID_ATTESTATION;
-      }
-      auto &signature = signatures.data().at(index);
-      SignedAttestation signed_attestation{
-          .message = attestation,
-          .signature = signature,
-      };
-      // Add block votes to the onchain known last votes
-      BOOST_OUTCOME_TRY(onAttestation(signed_attestation, true));
-      ++index;
-    }
+    BOOST_OUTCOME_TRY(processBlockBodyAttestations(block, signatures));
 
+    // Update forkchoice head based on new block and attestations
+    //
+    // IMPORTANT: This must happen BEFORE processing proposer attestation
+    // to prevent the proposer from gaining circular weight advantage.
     updateHead();
 
+    // Process proposer attestation as if received via gossip
+    //
+    // The proposer casts their attestation in interval 1, after block
+    // proposal. This attestation should:
+    // 1. NOT affect this block's fork choice position (processed as "new")
+    // 2. Be available for inclusion in future blocks
+    // 3. Influence fork choice only after interval 3 (end of slot)
     BOOST_OUTCOME_TRY(
         processProposerAttestation(signed_block_with_attestation));
 
