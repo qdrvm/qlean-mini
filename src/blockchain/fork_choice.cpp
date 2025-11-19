@@ -149,7 +149,7 @@ namespace lean {
 
     // If there is no very recent safe target, then vote for the k'th ancestor
     // of the head
-    for (auto i = 0; i < 3; ++i) {
+    for (auto i = 0; i < JUSTIFICATION_LOOKBACK_SLOTS; ++i) {
       if (blocks_.at(target_block_root).slot > blocks_.at(safe_target_).slot) {
         target_block_root = blocks_.at(target_block_root).parent_root;
       }

@@ -139,8 +139,8 @@ namespace lean {
      *  ensuring the target is in a justifiable slot range:
      *
      *  1. **Start at Head**: Begin with the current head block
-     *  2. **Walk Toward Safe**: Move backward (up to 3 steps) if safe target is
-     * newer
+     *  2. **Walk Toward Safe**: Move backward (up to
+     * `JUSTIFICATION_LOOKBACK_SLOTS` steps) if safe target is newer
      *  3. **Ensure Justifiable**: Continue walking back until slot is
      * justifiable
      *  4. **Return Checkpoint**: Create checkpoint from selected block
