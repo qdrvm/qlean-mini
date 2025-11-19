@@ -21,6 +21,9 @@ namespace lean {
       SECONDS_PER_INTERVAL * INTERVALS_PER_SLOT;
   static constexpr uint64_t SLOT_DURATION_MS = SECONDS_PER_SLOT * 1000;
 
+  // The number of slots to lookback for justification.
+  static constexpr uint64_t JUSTIFICATION_LOOKBACK_SLOTS = 3;
+
   // State list lengths
 
   static constexpr uint64_t HISTORICAL_ROOTS_LIMIT =
