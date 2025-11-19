@@ -559,7 +559,7 @@ TEST(TestTimeAdvancement, test_advance_time_basic) {
   auto target_time = sample_store.getConfig().genesis_time + 200;
 
   // This should not throw an exception and should return empty result
-  auto result = sample_store.advanceTime(target_time);
+  auto result = sample_store.onTick(target_time);
   EXPECT_TRUE(result.empty());
   EXPECT_GT(sample_store.time(), initial_time);
 }
@@ -574,7 +574,7 @@ TEST(TestTimeAdvancement, test_advance_time_no_proposal) {
   auto target_time = sample_store.getConfig().genesis_time + 100;
 
   // This should not throw an exception and should return empty result
-  auto result = sample_store.advanceTime(target_time);
+  auto result = sample_store.onTick(target_time);
   EXPECT_TRUE(result.empty());
   EXPECT_GE(sample_store.time(), initial_time);
 }
@@ -589,7 +589,7 @@ TEST(TestTimeAdvancement, test_advance_time_already_current) {
   auto current_target = sample_store.getConfig().genesis_time + initial_time;
 
   // Try to advance to past time (should be no-op)
-  auto result = sample_store.advanceTime(current_target);
+  auto result = sample_store.onTick(current_target);
   EXPECT_TRUE(result.empty());
   EXPECT_LE(sample_store.time() - initial_time, 10);
 }
@@ -603,7 +603,7 @@ TEST(TestTimeAdvancement, test_advance_time_small_increment) {
   // Target time equal to genesis time - should be a no-op
   auto target_time = sample_store.getConfig().genesis_time + initial_time + 1;
 
-  auto result = sample_store.advanceTime(target_time);
+  auto result = sample_store.onTick(target_time);
   EXPECT_TRUE(result.empty());
   EXPECT_GE(sample_store.time(), initial_time);
 }
