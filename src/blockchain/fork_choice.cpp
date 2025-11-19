@@ -283,37 +283,39 @@ namespace lean {
       const SignedAttestation &signed_attestation) {
     auto &attestation = signed_attestation.message;
     auto &data = attestation.data;
+    auto &target = data.target;
+    auto &source = data.source;
 
     SL_TRACE(logger_,
              "Validating attestation for target {}, source {}",
-             data.target,
-             data.source);
+             target,
+             source);
     auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
 
     // Validate vote targets exist in store
-    if (not blocks_.contains(data.source.root)) {
+    if (not blocks_.contains(source.root)) {
       return Error::INVALID_ATTESTATION;
     }
-    if (not blocks_.contains(data.target.root)) {
+    if (not blocks_.contains(target.root)) {
       return Error::INVALID_ATTESTATION;
     }
 
     // Validate slot relationships
-    auto &source_block = blocks_.at(data.source.root);
-    auto &target_block = blocks_.at(data.target.root);
+    auto &source_block = blocks_.at(source.root);
+    auto &target_block = blocks_.at(target.root);
 
     if (source_block.slot > target_block.slot) {
       return Error::INVALID_ATTESTATION;
     }
-    if (data.source.slot > data.target.slot) {
+    if (source.slot > target.slot) {
       return Error::INVALID_ATTESTATION;
     }
 
     // Validate checkpoint slots match block slots
-    if (source_block.slot != data.source.slot) {
+    if (source_block.slot != source.slot) {
       return Error::INVALID_ATTESTATION;
     }
-    if (target_block.slot != data.target.slot) {
+    if (target_block.slot != target.slot) {
       return Error::INVALID_ATTESTATION;
     }
 
