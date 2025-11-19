@@ -518,7 +518,7 @@ namespace lean {
   }
 
   std::vector<std::variant<SignedAttestation, SignedBlockWithAttestation>>
-  ForkChoiceStore::advanceTime(uint64_t now_sec) {
+  ForkChoiceStore::onTick(uint64_t now_sec) {
     auto time_since_genesis = now_sec - config_.genesis_time;
 
     auto validator_count = getState(head_).validatorCount();

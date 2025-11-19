@@ -282,7 +282,7 @@ namespace lean {
     //    time: Target time in seconds since genesis.
     //    has_proposal: Whether node has proposal for current slot.
     std::vector<std::variant<SignedAttestation, SignedBlockWithAttestation>>
-    advanceTime(uint64_t now_sec);
+    onTick(uint64_t now_sec);
 
     Interval time() const {
       return time_;
