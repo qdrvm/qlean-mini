@@ -39,7 +39,7 @@ lean::BlockHash testHash(std::string_view s) {
   return hash;
 }
 
-SignedAttestation makeVote(const Block &source, const Block &target) {
+SignedAttestation makeAttestation(const Block &source, const Block &target) {
   return SignedAttestation{
       .message =
           {
@@ -56,9 +56,10 @@ SignedAttestation makeVote(const Block &source, const Block &target) {
   };
 }
 
-std::optional<Checkpoint> getVote(const ForkChoiceStore::Votes &votes) {
-  auto it = votes.find(0);
-  if (it == votes.end()) {
+std::optional<Checkpoint> getAttestation(
+    const ForkChoiceStore::AttestationMap &attestations) {
+  auto it = attestations.find(0);
+  if (it == attestations.end()) {
     return std::nullopt;
   }
   return it->second.message.data.target;
@@ -78,8 +79,8 @@ auto createTestStore(
     lean::Checkpoint latest_finalized = {},
     ForkChoiceStore::Blocks blocks = {},
     std::unordered_map<lean::BlockHash, lean::State> states = {},
-    ForkChoiceStore::Votes latest_known_attestations = {},
-    ForkChoiceStore::Votes latest_new_votes = {},
+    ForkChoiceStore::AttestationMap latest_known_attestations = {},
+    ForkChoiceStore::AttestationMap latest_new_attestations = {},
     lean::ValidatorIndex validator_index = 0) {
   auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
   static lean::ValidatorRegistry::ValidatorIndices validators;
@@ -97,7 +98,7 @@ auto createTestStore(
                          blocks,
                          states,
                          latest_known_attestations,
-                         latest_new_votes,
+                         latest_new_attestations,
                          validator_index,
                          validator_registry);
 }
@@ -265,14 +266,14 @@ TEST(TestVoteTargetCalculation,
   EXPECT_EQ(target.slot, head.slot);
 }
 
-// Test get_fork_choice_head with validator votes.
+// Test get_fork_choice_head with validator attestations.
 TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
   auto blocks = makeBlocks(3);
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::Votes votes;
-  votes[0] = SignedAttestation{
+  ForkChoiceStore::AttestationMap attestations;
+  attestations[0] = SignedAttestation{
       .message =
           {
               .validator_id = 0,
@@ -287,8 +288,8 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
       .signature = {},
   };
 
-  auto head =
-      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), votes, 0);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks), Checkpoint::from(root), attestations, 0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -304,9 +305,9 @@ TEST(TestForkChoiceHeadFunction, test_fork_choice_no_attestations) {
   auto &root = blocks.at(0);
   auto &leaf = blocks.at(2);
 
-  ForkChoiceStore::Votes empty_votes;
+  ForkChoiceStore::AttestationMap empty_attestations;
   auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), empty_votes, 0);
+      makeBlockMap(blocks), Checkpoint::from(root), empty_attestations, 0);
 
   EXPECT_EQ(head, leaf.hash());
 }
@@ -317,8 +318,8 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::Votes votes;
-  votes[0] = SignedAttestation{
+  ForkChoiceStore::AttestationMap attestations;
+  attestations[0] = SignedAttestation{
       .message =
           {
               .validator_id = 0,
@@ -333,21 +334,21 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
       .signature = {},
   };
 
-  auto head =
-      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), votes, 2);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks), Checkpoint::from(root), attestations, 2);
 
   EXPECT_EQ(head, root.hash());
 }
 
-// Test get_fork_choice_head with multiple votes.
+// Test get_fork_choice_head with multiple attestations.
 TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
   auto blocks = makeBlocks(3);
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::Votes votes;
+  ForkChoiceStore::AttestationMap attestations;
   for (int i = 0; i < 3; ++i) {
-    votes[i] = SignedAttestation{
+    attestations[i] = SignedAttestation{
         .message =
             {
                 .validator_id = static_cast<uint64_t>(i),
@@ -363,8 +364,8 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
     };
   }
 
-  auto head =
-      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), votes, 0);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks), Checkpoint::from(root), attestations, 0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -402,7 +403,7 @@ TEST(TestAttestationValidation, test_validate_attestation_valid) {
   // Create valid signed vote
   // Should validate without error
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.validateAttestation(makeVote(source, target)));
+      sample_store.validateAttestation(makeAttestation(source, target)));
 }
 
 // Test validation fails when source slot > target slot.
@@ -418,7 +419,7 @@ TEST(TestAttestationValidation, test_validate_attestation_slot_order_invalid) {
 
   // Create invalid signed vote (source > target slot)
   EXPECT_OUTCOME_ERROR(
-      sample_store.validateAttestation(makeVote(source, target)));
+      sample_store.validateAttestation(makeAttestation(source, target)));
 }
 
 // Test validation fails when referenced blocks are missing.
@@ -440,9 +441,9 @@ TEST(TestAttestationValidation,
       createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // Create signed vote with mismatched checkpoint slot
-  auto vote = makeVote(source, target);
-  ++vote.message.data.source.slot;
-  EXPECT_OUTCOME_ERROR(sample_store.validateAttestation(vote));
+  auto attestation = makeAttestation(source, target);
+  ++attestation.message.data.source.slot;
+  EXPECT_OUTCOME_ERROR(sample_store.validateAttestation(attestation));
 }
 
 // Test validation fails for attestations too far in the future.
@@ -459,7 +460,7 @@ TEST(TestAttestationValidation, test_validate_attestation_too_far_future) {
 
   // Create signed vote for future slot (target slot 9 when current is ~0)
   EXPECT_OUTCOME_ERROR(
-      sample_store.validateAttestation(makeVote(source, target)));
+      sample_store.validateAttestation(makeAttestation(source, target)));
 }
 
 // Test processing attestation from network gossip.
@@ -474,10 +475,10 @@ TEST(TestAttestationProcessing, test_process_network_attestation) {
   // Create valid signed vote
   // Process as network attestation
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.onAttestation(makeVote(source, target), false));
+      sample_store.onAttestation(makeAttestation(source, target), false));
 
-  // Vote should be added to new votes
-  EXPECT_EQ(getVote(sample_store.getLatestNewVotes()),
+  // Vote should be added to new attestations
+  EXPECT_EQ(getAttestation(sample_store.getLatestNewAttestations()),
             Checkpoint::from(target));
 }
 
@@ -493,10 +494,10 @@ TEST(TestAttestationProcessing, test_process_block_attestation) {
   // Create valid signed vote
   // Process as block attestation
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.onAttestation(makeVote(source, target), true));
+      sample_store.onAttestation(makeAttestation(source, target), true));
 
-  // Vote should be added to known votes
-  EXPECT_EQ(getVote(sample_store.getLatestKnownVotes()),
+  // Vote should be added to known attestations
+  EXPECT_EQ(getAttestation(sample_store.getLatestKnownAttestations()),
             Checkpoint::from(target));
 }
 
@@ -511,18 +512,18 @@ TEST(TestAttestationProcessing, test_process_attestation_superseding) {
 
   // Process first (older) attestation
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.onAttestation(makeVote(target_1, target_1), false));
+      sample_store.onAttestation(makeAttestation(target_1, target_1), false));
 
   // Process second (newer) attestation
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.onAttestation(makeVote(target_1, target_2), false));
+      sample_store.onAttestation(makeAttestation(target_1, target_2), false));
 
   // Should have the newer vote
-  EXPECT_EQ(getVote(sample_store.getLatestNewVotes()),
+  EXPECT_EQ(getAttestation(sample_store.getLatestNewAttestations()),
             Checkpoint::from(target_2));
 }
 
-// Test that block attestations remove corresponding new votes.
+// Test that block attestations remove corresponding new attestations.
 TEST(TestAttestationProcessing,
      test_process_attestation_from_block_supersedes_new) {
   auto blocks = makeBlocks(3);
@@ -533,18 +534,18 @@ TEST(TestAttestationProcessing,
       createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // First process as network vote
-  auto signed_vote = makeVote(source, target);
-  EXPECT_OUTCOME_SUCCESS(sample_store.onAttestation(signed_vote, false));
+  auto signed_attestation = makeAttestation(source, target);
+  EXPECT_OUTCOME_SUCCESS(sample_store.onAttestation(signed_attestation, false));
 
-  // Should be in new votes
-  ASSERT_TRUE(getVote(sample_store.getLatestNewVotes()));
+  // Should be in new attestations
+  ASSERT_TRUE(getAttestation(sample_store.getLatestNewAttestations()));
 
   // Process same vote as block attestation
-  EXPECT_OUTCOME_SUCCESS(sample_store.onAttestation(signed_vote, true));
+  EXPECT_OUTCOME_SUCCESS(sample_store.onAttestation(signed_attestation, true));
 
-  // Vote should move to known votes and be removed from new votes
-  ASSERT_FALSE(getVote(sample_store.getLatestNewVotes()));
-  EXPECT_EQ(getVote(sample_store.getLatestKnownVotes()),
+  // Vote should move to known attestations and be removed from new attestations
+  ASSERT_FALSE(getAttestation(sample_store.getLatestNewAttestations()));
+  EXPECT_EQ(getAttestation(sample_store.getLatestKnownAttestations()),
             Checkpoint::from(target));
 }
 

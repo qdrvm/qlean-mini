@@ -37,7 +37,8 @@ namespace lean {
   class ForkChoiceStore {
    public:
     using Blocks = std::unordered_map<BlockHash, Block>;
-    using Votes = std::unordered_map<ValidatorIndex, SignedAttestation>;
+    using AttestationMap =
+        std::unordered_map<ValidatorIndex, SignedAttestation>;
 
     enum class Error {
       INVALID_ATTESTATION,
@@ -76,8 +77,8 @@ namespace lean {
                     Checkpoint latest_finalized,
                     Blocks blocks,
                     std::unordered_map<BlockHash, State> states,
-                    Votes latest_known_attestations,
-                    Votes latest_new_votes,
+                    AttestationMap latest_known_attestations,
+                    AttestationMap latest_new_attestations,
                     ValidatorIndex validator_index,
                     qtils::SharedRef<ValidatorRegistry> validator_registry);
 
@@ -95,7 +96,7 @@ namespace lean {
     // at a particular time, because of safe target and view merge rules.
     // Accepts the latest new votes, merges them into the known votes, and then
     // updates the fork-choice head.
-    void acceptNewVotes();
+    void acceptNewAttestations();
 
     Slot getCurrentSlot();
 
@@ -115,14 +116,11 @@ namespace lean {
     const Blocks &getBlocks() const {
       return blocks_;
     }
-    const Votes &getLatestNewVotes() const {
-      return latest_new_votes_;
+    const AttestationMap &getLatestNewAttestations() const {
+      return latest_new_attestations_;
     }
-    const Votes &getLatestKnownVotes() const {
+    const AttestationMap &getLatestKnownAttestations() const {
       return latest_known_attestations_;
-    }
-    Votes &getLatestNewVotesRef() {
-      return latest_new_votes_;
     }
 
     /**
@@ -277,15 +275,16 @@ namespace lean {
     Checkpoint latest_finalized_;
     Blocks blocks_;
     std::unordered_map<BlockHash, State> states_;
-    Votes latest_known_attestations_;
-    Votes latest_new_votes_;
+    AttestationMap latest_known_attestations_;
+    AttestationMap latest_new_attestations_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;
   };
 
-  BlockHash getForkChoiceHead(const ForkChoiceStore::Blocks &blocks,
-                              const Checkpoint &root,
-                              const ForkChoiceStore::Votes &latest_votes,
-                              uint64_t min_score);
+  BlockHash getForkChoiceHead(
+      const ForkChoiceStore::Blocks &blocks,
+      const Checkpoint &root,
+      const ForkChoiceStore::AttestationMap &latest_attestations,
+      uint64_t min_score);
 }  // namespace lean
