@@ -37,6 +37,9 @@ namespace lean {
    * data in the state.
    */
   inline Justifications getJustifications(const State &state) {
+    // No justified roots means no justifications to reconstruct.
+    [[unlikely]] if (state.justifications_roots.size() == 0) { return {}; }
+
     auto &roots = state.justifications_roots.data();
     auto &validators = state.justifications_validators.data();
     Justifications justifications;
