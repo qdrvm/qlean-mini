@@ -58,7 +58,8 @@ SignedAttestation makeAttestation(const Block &source, const Block &target) {
   };
 }
 
-std::optional<Checkpoint> getAttestation(const ForkChoiceStore::SignedAttestations &votes) {
+std::optional<Checkpoint> getAttestation(
+    const ForkChoiceStore::SignedAttestations &votes) {
   auto it = votes.find(0);
   if (it == votes.end()) {
     return std::nullopt;
@@ -80,7 +81,7 @@ auto createTestStore(
     ForkChoiceStore::Blocks blocks = {},
     std::unordered_map<lean::BlockHash, lean::State> states = {},
     ForkChoiceStore::SignedAttestations latest_known_attestations = {},
-    ForkChoiceStore::SignedAttestations latest_new_votes = {},
+    ForkChoiceStore::SignedAttestations latest_new_attestations = {},
     lean::ValidatorIndex validator_index = 0) {
   auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
   static lean::ValidatorRegistry::ValidatorIndices validators;
@@ -98,8 +99,7 @@ auto createTestStore(
       .WillRepeatedly(testing::Return(std::nullopt));
   auto validator_keys_manifest =
       std::make_shared<lean::app::ValidatorKeysManifestMock>();
-  auto xmss_provider =
-      std::make_shared<lean::crypto::xmss::XmssProviderMock>();
+  auto xmss_provider = std::make_shared<lean::crypto::xmss::XmssProviderMock>();
   return ForkChoiceStore(time,
                          testutil::prepareLoggers(),
                          std::make_shared<lean::metrics::MetricsMock>(),
@@ -663,7 +663,8 @@ TEST(TestSszHashCompatibility, test_genesis_state_hash_matches_ream) {
 
   // Generate genesis state using our standard method
   auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
-  auto genesis_state = lean::STF::generateGenesisState(test_config, validator_registry);
+  auto genesis_state =
+      lean::STF::generateGenesisState(test_config, validator_registry);
 
   // Calculate SSZ hash
   auto calculated_hash = lean::sszHash(genesis_state);

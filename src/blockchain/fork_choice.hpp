@@ -126,10 +126,10 @@ namespace lean {
     const Blocks &getBlocks() const {
       return blocks_;
     }
-    const SignedAttestations &getLatestNewVotes() const {
+    const SignedAttestations &getLatestNewAttestations() const {
       return latest_new_attestations_;
     }
-    const SignedAttestations &getLatestKnownVotes() const {
+    const SignedAttestations &getLatestKnownAttestations() const {
       return latest_known_attestations_;
     }
     SignedAttestations &getLatestNewVotesRef() {
