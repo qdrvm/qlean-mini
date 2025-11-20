@@ -11,7 +11,7 @@
 
 namespace lean::crypto::xmss {
   using XmssPrivateKey = qtils::ByteVec;
-  using XmssPublicKey = qtils::ByteVec;
+  using XmssPublicKey = qtils::ByteArr<52>;
   struct XmssKeypair {
     XmssPrivateKey private_key;
     XmssPublicKey public_key;

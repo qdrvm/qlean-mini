@@ -8,6 +8,7 @@
 
 #include <c_hash_sig/c_hash_sig.h>
 
+#include <algorithm>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -98,17 +99,21 @@ namespace lean::crypto::xmss {
 
       // Serialize to bytes
       constexpr size_t kMaxPublicKeySize = 100;
-      XmssPublicKey pk_bytes(kMaxPublicKeySize);
+      qtils::ByteVec pk_buffer(kMaxPublicKeySize);
       size_t pk_written = 0;
 
       result = pq_public_key_serialize(
-          pk.get(), pk_bytes.data(), pk_bytes.size(), &pk_written);
+          pk.get(), pk_buffer.data(), pk_buffer.size(), &pk_written);
 
       if (result != PQ_SIGNING_ERROR_SUCCESS) {
         return XmssUtilError::SerializationFailed;
       }
 
-      pk_bytes.resize(pk_written);
+      XmssPublicKey pk_bytes;
+      if (pk_written != pk_bytes.size()) {
+        return XmssUtilError::SerializationFailed;
+      }
+      std::copy_n(pk_buffer.begin(), pk_written, pk_bytes.begin());
       return pk_bytes;
     }
 

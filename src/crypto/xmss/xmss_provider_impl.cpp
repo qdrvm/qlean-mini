@@ -6,6 +6,7 @@
 
 #include "crypto/xmss/xmss_provider_impl.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <stdexcept>
@@ -119,8 +120,9 @@ namespace lean::crypto::xmss {
       throw std::runtime_error("Failed to serialize XMSS public key: "
                                + getErrorDescription(result));
     }
-    pk_buffer.resize(pk_written);
-    keypair.public_key = std::move(pk_buffer);
+    BOOST_ASSERT_MSG(pk_written == keypair.public_key.size(),
+                     "Serialized XMSS public key size mismatch");
+    std::copy_n(pk_buffer.begin(), pk_written, keypair.public_key.begin());
 
     return keypair;
   }

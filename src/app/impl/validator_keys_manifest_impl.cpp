@@ -6,6 +6,7 @@
 
 #include "app/impl/validator_keys_manifest_impl.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <stdexcept>
 #include <string>
@@ -57,13 +58,21 @@ namespace lean::app {
 
       ValidatorIndex index = index_node.as<ValidatorIndex>();
       std::string pubkey_hex = pubkey_node.as<std::string>();
-      crypto::xmss::XmssPublicKey pubkey;
-      auto result = qtils::unhex0x(pubkey, pubkey_hex, true);
+      qtils::ByteVec pubkey_vec;
+      auto result = qtils::unhex0x(pubkey_vec, pubkey_hex, true);
       if (not result.has_value()) {
         throw std::runtime_error(
             std::string("Invalid public key hex for validator ")
             + std::to_string(index));
       }
+
+      crypto::xmss::XmssPublicKey pubkey;
+      if (pubkey_vec.size() != pubkey.size()) {
+        throw std::runtime_error(
+            std::string("Invalid public key length for validator ")
+            + std::to_string(index));
+      }
+      std::copy(pubkey_vec.begin(), pubkey_vec.end(), pubkey.begin());
 
       if (not validator_keys_.emplace(index, std::move(pubkey)).second) {
         throw std::runtime_error(
