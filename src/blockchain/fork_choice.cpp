@@ -731,7 +731,7 @@ namespace lean {
       Blocks blocks,
       std::unordered_map<BlockHash, State> states,
       SignedAttestations latest_known_attestations,
-      SignedAttestations latest_new_votes,
+      SignedAttestations latest_new_attestations,
       ValidatorIndex validator_index,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
       : stf_(metrics),
