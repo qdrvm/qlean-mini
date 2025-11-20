@@ -134,7 +134,7 @@ index dc31773..5905830 100644
 +    template <typename T1, typename T2>
 +        requires std::is_same_v<T1, ssz_container> and std::is_same_v<T2, ssz_container>
 +    friend constexpr auto operator<=>(const T1&, const T2&) {
-+        return 0 <=> 0;
++        return std::strong_ordering::equal;
 +    }
 +
 +    template <typename T1, typename T2>
