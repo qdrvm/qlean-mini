@@ -219,7 +219,7 @@ namespace lean::blockchain {
 
   outcome::result<void> BlockStorageImpl::putJustification(
       const Justification &justification, const BlockHash &hash) {
-    if(justification.empty()) {
+    if (justification.empty()) {
       return BlockStorageError::JUSTIFICATION_EMPTY;
     }
 
@@ -270,9 +270,9 @@ namespace lean::blockchain {
     return block_hash;
   }
 
-  outcome::result<std::optional<SignedBlock>> BlockStorageImpl::getBlock(
-      const BlockHash &block_hash) const {
-    SignedBlock block_data{
+  outcome::result<std::optional<SignedBlockWithAttestation>>
+  BlockStorageImpl::getBlock(const BlockHash &block_hash) const {
+    SignedBlockWithAttestation block_data{
         //      .hash = block_hash
     };
 

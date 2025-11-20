@@ -9,10 +9,10 @@
 #include <sszpp/basic_types.hpp>
 #include <sszpp/lists.hpp>
 
-#include "block_body.hpp"
-#include "block_header.hpp"
-#include "block_signature.hpp"
-#include "types.hpp"
+#include "types/block_body.hpp"
+#include "types/block_header.hpp"
+#include "types/block_signatures.hpp"
+#include "types/types.hpp"
 
 // SSZ-friendly optional encoded as List[T; max=1].
 // Empty list -> None, single element -> Some(T).
@@ -70,7 +70,7 @@ namespace lean {
     BlockHash hash;
     ssz_maybe<BlockHeader> header;
     ssz_maybe<BlockBody> body;
-    ssz_maybe<BlockSignature> signature;
+    ssz_maybe<BlockSignatures> signature;
 
     SSZ_CONT(hash, header, body, signature);
   };

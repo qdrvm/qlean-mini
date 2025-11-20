@@ -17,19 +17,20 @@
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
+#include "mock/blockchain/metrics_mock.hpp"
 #include "mock/blockchain/validator_registry_mock.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "qtils/test/outcome.hpp"
-#include "tests/mock/blockchain/metrics_mock.hpp"
 #include "testutil/prepare_loggers.hpp"
-#include "types/signed_block.hpp"
 
 using lean::Block;
 using lean::Checkpoint;
 using lean::ForkChoiceStore;
 using lean::getForkChoiceHead;
+using lean::Interval;
 using lean::INTERVALS_PER_SLOT;
-using lean::SignedVote;
+using lean::SignedAttestation;
+using lean::State;
 
 lean::BlockHash testHash(std::string_view s) {
   lean::BlockHash hash;
@@ -38,26 +39,30 @@ lean::BlockHash testHash(std::string_view s) {
   return hash;
 }
 
-SignedVote makeVote(const Block &source, const Block &target) {
-  return SignedVote{
-      .validator_id = 0,
-      .data =
+SignedAttestation makeAttestation(const Block &source, const Block &target) {
+  return SignedAttestation{
+      .message =
           {
-              .slot = target.slot,
-              .head = Checkpoint::from(target),
-              .target = Checkpoint::from(target),
-              .source = Checkpoint::from(source),
+              .validator_id = 0,
+              .data =
+                  {
+                      .slot = target.slot,
+                      .head = Checkpoint::from(target),
+                      .target = Checkpoint::from(target),
+                      .source = Checkpoint::from(source),
+                  },
           },
       .signature = {},
   };
 }
 
-std::optional<Checkpoint> getVote(const ForkChoiceStore::Votes &votes) {
-  auto it = votes.find(0);
-  if (it == votes.end()) {
+std::optional<Checkpoint> getAttestation(
+    const ForkChoiceStore::AttestationMap &attestations) {
+  auto it = attestations.find(0);
+  if (it == attestations.end()) {
     return std::nullopt;
   }
-  return it->second.data.target;
+  return it->second.message.data.target;
 }
 
 lean::Config config{
@@ -74,9 +79,14 @@ auto createTestStore(
     lean::Checkpoint latest_finalized = {},
     ForkChoiceStore::Blocks blocks = {},
     std::unordered_map<lean::BlockHash, lean::State> states = {},
-    ForkChoiceStore::Votes latest_known_votes = {},
-    ForkChoiceStore::Votes latest_new_votes = {},
+    ForkChoiceStore::AttestationMap latest_known_attestations = {},
+    ForkChoiceStore::AttestationMap latest_new_attestations = {},
     lean::ValidatorIndex validator_index = 0) {
+  auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
+  static lean::ValidatorRegistry::ValidatorIndices validators;
+  EXPECT_CALL(*validator_registry, currentValidatorIndices())
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::ReturnRef(validators));
   return ForkChoiceStore(time,
                          testutil::prepareLoggers(),
                          std::make_shared<lean::metrics::MetricsMock>(),
@@ -87,10 +97,10 @@ auto createTestStore(
                          latest_finalized,
                          blocks,
                          states,
-                         latest_known_votes,
-                         latest_new_votes,
+                         latest_known_attestations,
+                         latest_new_attestations,
                          validator_index,
-                         std::make_shared<lean::ValidatorRegistryMock>());
+                         validator_registry);
 }
 
 auto makeBlockMap(std::vector<lean::Block> blocks) {
@@ -118,6 +128,20 @@ std::vector<lean::Block> makeBlocks(lean::Slot count) {
   return blocks;
 }
 
+auto advanceTimeStore() {
+  auto blocks = makeBlocks(1);
+  auto &genesis = blocks.at(0);
+  auto finalized = Checkpoint::from(genesis);
+  return createTestStore(100,
+                         config,
+                         genesis.hash(),
+                         genesis.hash(),
+                         finalized,
+                         finalized,
+                         makeBlockMap(blocks),
+                         {{genesis.hash(), State{.config = config}}});
+}
+
 // Test basic vote target selection.
 TEST(TestVoteTargetCalculation, test_get_vote_target_basic) {
   auto blocks = makeBlocks(2);
@@ -135,7 +159,7 @@ TEST(TestVoteTargetCalculation, test_get_vote_target_basic) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getVoteTarget();
+  auto target = store.getAttestationTarget();
 
   // Should target the head block since finalization is recent
   EXPECT_EQ(target.root, block_1.hash());
@@ -160,7 +184,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_with_old_finalized) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getVoteTarget();
+  auto target = store.getAttestationTarget();
 
   // Should return a valid checkpoint
   EXPECT_TRUE(store.hasBlock(target.root));
@@ -184,7 +208,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_walks_back_from_head) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getVoteTarget();
+  auto target = store.getAttestationTarget();
 
   // Should walk back towards safe target
   EXPECT_TRUE(store.hasBlock(target.root));
@@ -209,7 +233,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_justifiable_slot_constraint) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getVoteTarget();
+  auto target = store.getAttestationTarget();
 
   // Should return a justifiable slot
   EXPECT_TRUE(store.hasBlock(target.root));
@@ -235,34 +259,37 @@ TEST(TestVoteTargetCalculation,
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getVoteTarget();
+  auto target = store.getAttestationTarget();
 
   // Should target the head (which is also safe_target)
   EXPECT_EQ(target.root, head.hash());
   EXPECT_EQ(target.slot, head.slot);
 }
 
-// Test get_fork_choice_head with validator votes.
+// Test get_fork_choice_head with validator attestations.
 TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
   auto blocks = makeBlocks(3);
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::Votes votes;
-  votes[0] = SignedVote{
-      .validator_id = 0,
-      .data =
+  ForkChoiceStore::AttestationMap attestations;
+  attestations[0] = SignedAttestation{
+      .message =
           {
-              .slot = target.slot,
-              .head = Checkpoint::from(target),
-              .target = Checkpoint::from(target),
-              .source = Checkpoint::from(root),
+              .validator_id = 0,
+              .data =
+                  {
+                      .slot = target.slot,
+                      .head = Checkpoint::from(target),
+                      .target = Checkpoint::from(target),
+                      .source = Checkpoint::from(root),
+                  },
           },
       .signature = {},
   };
 
-  auto head =
-      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), votes, 0);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks), Checkpoint::from(root), attestations, 0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -278,9 +305,9 @@ TEST(TestForkChoiceHeadFunction, test_fork_choice_no_attestations) {
   auto &root = blocks.at(0);
   auto &leaf = blocks.at(2);
 
-  ForkChoiceStore::Votes empty_votes;
+  ForkChoiceStore::AttestationMap empty_attestations;
   auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), empty_votes, 0);
+      makeBlockMap(blocks), Checkpoint::from(root), empty_attestations, 0);
 
   EXPECT_EQ(head, leaf.hash());
 }
@@ -291,122 +318,56 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::Votes votes;
-  votes[0] = SignedVote{
-      .validator_id = 0,
-      .data =
+  ForkChoiceStore::AttestationMap attestations;
+  attestations[0] = SignedAttestation{
+      .message =
           {
-              .slot = target.slot,
-              .head = Checkpoint::from(target),
-              .target = Checkpoint::from(target),
-              .source = Checkpoint::from(root),
+              .validator_id = 0,
+              .data =
+                  {
+                      .slot = target.slot,
+                      .head = Checkpoint::from(target),
+                      .target = Checkpoint::from(target),
+                      .source = Checkpoint::from(root),
+                  },
           },
       .signature = {},
   };
 
-  auto head =
-      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), votes, 2);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks), Checkpoint::from(root), attestations, 2);
 
   EXPECT_EQ(head, root.hash());
 }
 
-// Test get_fork_choice_head with multiple votes.
+// Test get_fork_choice_head with multiple attestations.
 TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
   auto blocks = makeBlocks(3);
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::Votes votes;
+  ForkChoiceStore::AttestationMap attestations;
   for (int i = 0; i < 3; ++i) {
-    votes[i] = SignedVote{
-        .validator_id = static_cast<uint64_t>(i),
-        .data =
+    attestations[i] = SignedAttestation{
+        .message =
             {
-                .slot = target.slot,
-                .head = Checkpoint::from(target),
-                .target = Checkpoint::from(target),
-                .source = Checkpoint::from(root),
+                .validator_id = static_cast<uint64_t>(i),
+                .data =
+                    {
+                        .slot = target.slot,
+                        .head = Checkpoint::from(target),
+                        .target = Checkpoint::from(target),
+                        .source = Checkpoint::from(root),
+                    },
             },
         .signature = {},
     };
   }
 
-  auto head =
-      getForkChoiceHead(makeBlockMap(blocks), Checkpoint::from(root), votes, 0);
+  auto head = getForkChoiceHead(
+      makeBlockMap(blocks), Checkpoint::from(root), attestations, 0);
 
   EXPECT_EQ(head, target.hash());
-}
-
-// Test basic safe target update.
-TEST(TestSafeTargetComputation, test_update_safe_target_basic) {
-  auto blocks = makeBlocks(1);
-  auto &genesis = blocks.at(0);
-
-  auto finalized = Checkpoint::from(genesis);
-
-  auto store = createTestStore(100,
-                               config,
-                               genesis.hash(),
-                               genesis.hash(),
-                               finalized,
-                               finalized,
-                               makeBlockMap(blocks));
-
-  // Update safe target (this tests the method exists and runs)
-  store.updateSafeTarget();
-
-  // Safe target should be set
-  EXPECT_EQ(store.getSafeTarget(), genesis.hash());
-}
-
-// Test safe target computation with votes.
-TEST(TestSafeTargetComputation, test_safe_target_with_votes) {
-  auto blocks = makeBlocks(2);
-  auto &genesis = blocks.at(0);
-  auto &block_1 = blocks.at(1);
-
-  auto finalized = Checkpoint::from(genesis);
-
-  ForkChoiceStore::Votes new_votes;
-  new_votes[0] = SignedVote{
-      .validator_id = 0,
-      .data =
-          {
-              .slot = block_1.slot,
-              .head = Checkpoint::from(block_1),
-              .target = Checkpoint::from(block_1),
-              .source = Checkpoint::from(genesis),
-          },
-      .signature = {},
-  };
-  new_votes[1] = SignedVote{
-      .validator_id = 1,
-      .data =
-          {
-              .slot = block_1.slot,
-              .head = Checkpoint::from(block_1),
-              .target = Checkpoint::from(block_1),
-              .source = Checkpoint::from(genesis),
-          },
-      .signature = {},
-  };
-
-  auto store = createTestStore(100,
-                               config,
-                               block_1.hash(),
-                               genesis.hash(),
-                               finalized,
-                               finalized,
-                               makeBlockMap(blocks),
-                               {},
-                               {},
-                               new_votes);
-
-  // Update safe target with votes
-  store.updateSafeTarget();
-
-  // Should have computed a safe target
-  EXPECT_TRUE(store.hasBlock(store.getSafeTarget()));
 }
 
 // Test vote target with only one block.
@@ -424,7 +385,7 @@ TEST(TestEdgeCases, test_vote_target_single_block) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getVoteTarget();
+  auto target = store.getAttestationTarget();
 
   EXPECT_EQ(target.root, genesis.hash());
   EXPECT_EQ(target.slot, genesis.slot);
@@ -442,7 +403,7 @@ TEST(TestAttestationValidation, test_validate_attestation_valid) {
   // Create valid signed vote
   // Should validate without error
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.validateAttestation(makeVote(source, target)));
+      sample_store.validateAttestation(makeAttestation(source, target)));
 }
 
 // Test validation fails when source slot > target slot.
@@ -458,7 +419,7 @@ TEST(TestAttestationValidation, test_validate_attestation_slot_order_invalid) {
 
   // Create invalid signed vote (source > target slot)
   EXPECT_OUTCOME_ERROR(
-      sample_store.validateAttestation(makeVote(source, target)));
+      sample_store.validateAttestation(makeAttestation(source, target)));
 }
 
 // Test validation fails when referenced blocks are missing.
@@ -480,9 +441,9 @@ TEST(TestAttestationValidation,
       createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // Create signed vote with mismatched checkpoint slot
-  auto vote = makeVote(source, target);
-  ++vote.data.source.slot;
-  EXPECT_OUTCOME_ERROR(sample_store.validateAttestation(vote));
+  auto attestation = makeAttestation(source, target);
+  ++attestation.message.data.source.slot;
+  EXPECT_OUTCOME_ERROR(sample_store.validateAttestation(attestation));
 }
 
 // Test validation fails for attestations too far in the future.
@@ -499,7 +460,7 @@ TEST(TestAttestationValidation, test_validate_attestation_too_far_future) {
 
   // Create signed vote for future slot (target slot 9 when current is ~0)
   EXPECT_OUTCOME_ERROR(
-      sample_store.validateAttestation(makeVote(source, target)));
+      sample_store.validateAttestation(makeAttestation(source, target)));
 }
 
 // Test processing attestation from network gossip.
@@ -514,10 +475,10 @@ TEST(TestAttestationProcessing, test_process_network_attestation) {
   // Create valid signed vote
   // Process as network attestation
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.processAttestation(makeVote(source, target), false));
+      sample_store.onAttestation(makeAttestation(source, target), false));
 
-  // Vote should be added to new votes
-  EXPECT_EQ(getVote(sample_store.getLatestNewVotes()),
+  // Vote should be added to new attestations
+  EXPECT_EQ(getAttestation(sample_store.getLatestNewAttestations()),
             Checkpoint::from(target));
 }
 
@@ -533,10 +494,10 @@ TEST(TestAttestationProcessing, test_process_block_attestation) {
   // Create valid signed vote
   // Process as block attestation
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.processAttestation(makeVote(source, target), true));
+      sample_store.onAttestation(makeAttestation(source, target), true));
 
-  // Vote should be added to known votes
-  EXPECT_EQ(getVote(sample_store.getLatestKnownVotes()),
+  // Vote should be added to known attestations
+  EXPECT_EQ(getAttestation(sample_store.getLatestKnownAttestations()),
             Checkpoint::from(target));
 }
 
@@ -551,18 +512,18 @@ TEST(TestAttestationProcessing, test_process_attestation_superseding) {
 
   // Process first (older) attestation
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.processAttestation(makeVote(target_1, target_1), false));
+      sample_store.onAttestation(makeAttestation(target_1, target_1), false));
 
   // Process second (newer) attestation
   EXPECT_OUTCOME_SUCCESS(
-      sample_store.processAttestation(makeVote(target_1, target_2), false));
+      sample_store.onAttestation(makeAttestation(target_1, target_2), false));
 
   // Should have the newer vote
-  EXPECT_EQ(getVote(sample_store.getLatestNewVotes()),
+  EXPECT_EQ(getAttestation(sample_store.getLatestNewAttestations()),
             Checkpoint::from(target_2));
 }
 
-// Test that block attestations remove corresponding new votes.
+// Test that block attestations remove corresponding new attestations.
 TEST(TestAttestationProcessing,
      test_process_attestation_from_block_supersedes_new) {
   auto blocks = makeBlocks(3);
@@ -573,18 +534,18 @@ TEST(TestAttestationProcessing,
       createTestStore(100, config, {}, {}, {}, {}, makeBlockMap(blocks));
 
   // First process as network vote
-  auto signed_vote = makeVote(source, target);
-  EXPECT_OUTCOME_SUCCESS(sample_store.processAttestation(signed_vote, false));
+  auto signed_attestation = makeAttestation(source, target);
+  EXPECT_OUTCOME_SUCCESS(sample_store.onAttestation(signed_attestation, false));
 
-  // Should be in new votes
-  ASSERT_TRUE(getVote(sample_store.getLatestNewVotes()));
+  // Should be in new attestations
+  ASSERT_TRUE(getAttestation(sample_store.getLatestNewAttestations()));
 
   // Process same vote as block attestation
-  EXPECT_OUTCOME_SUCCESS(sample_store.processAttestation(signed_vote, true));
+  EXPECT_OUTCOME_SUCCESS(sample_store.onAttestation(signed_attestation, true));
 
-  // Vote should move to known votes and be removed from new votes
-  ASSERT_FALSE(getVote(sample_store.getLatestNewVotes()));
-  EXPECT_EQ(getVote(sample_store.getLatestKnownVotes()),
+  // Vote should move to known attestations and be removed from new attestations
+  ASSERT_FALSE(getAttestation(sample_store.getLatestNewAttestations()));
+  EXPECT_EQ(getAttestation(sample_store.getLatestKnownAttestations()),
             Checkpoint::from(target));
 }
 
@@ -592,89 +553,60 @@ TEST(TestAttestationProcessing,
 TEST(TestTimeAdvancement, test_advance_time_basic) {
   // Create a simple store with minimal setup - use 0 time interval so
   // advanceTime is a no-op
-  auto sample_store = createTestStore(0, config);
+  auto sample_store = advanceTimeStore();
+  auto initial_time = sample_store.time();
 
   // Target time equal to genesis time - should be a no-op
-  auto target_time = sample_store.getConfig().genesis_time;
+  auto target_time = sample_store.getConfig().genesis_time + 200;
 
   // This should not throw an exception and should return empty result
   auto result = sample_store.advanceTime(target_time);
   EXPECT_TRUE(result.empty());
+  EXPECT_GT(sample_store.time(), initial_time);
 }
 
 // Test time advancement without proposal.
 TEST(TestTimeAdvancement, test_advance_time_no_proposal) {
   // Create a simple store with minimal setup
-  auto sample_store = createTestStore(0, config);
+  auto sample_store = advanceTimeStore();
+  auto initial_time = sample_store.time();
 
   // Target time equal to genesis time - should be a no-op
-  auto target_time = sample_store.getConfig().genesis_time;
+  auto target_time = sample_store.getConfig().genesis_time + 100;
 
   // This should not throw an exception and should return empty result
   auto result = sample_store.advanceTime(target_time);
   EXPECT_TRUE(result.empty());
+  EXPECT_GE(sample_store.time(), initial_time);
 }
 
 // Test advance_time when already at target time.
 TEST(TestTimeAdvancement, test_advance_time_already_current) {
   // Create a simple store with time already set
-  auto sample_store = createTestStore(100, config);
+  auto sample_store = advanceTimeStore();
+  auto initial_time = sample_store.time();
 
   // Target time is in the past relative to current time - should be a no-op
-  auto current_target = sample_store.getConfig().genesis_time;
+  auto current_target = sample_store.getConfig().genesis_time + initial_time;
 
   // Try to advance to past time (should be no-op)
   auto result = sample_store.advanceTime(current_target);
   EXPECT_TRUE(result.empty());
+  EXPECT_LE(sample_store.time() - initial_time, 10);
 }
 
 // Test advance_time with small time increment.
 TEST(TestTimeAdvancement, test_advance_time_small_increment) {
   // Create a simple store
-  auto sample_store = createTestStore(0, config);
+  auto sample_store = advanceTimeStore();
+  auto initial_time = sample_store.time();
 
   // Target time equal to genesis time - should be a no-op
-  auto target_time = sample_store.getConfig().genesis_time;
+  auto target_time = sample_store.getConfig().genesis_time + initial_time + 1;
 
   auto result = sample_store.advanceTime(target_time);
   EXPECT_TRUE(result.empty());
-}
-
-// Test basic time advancement (replacing interval ticking).
-TEST(TestTimeAdvancement, test_advance_time_step_by_step) {
-  // Create a simple store
-  auto sample_store = createTestStore(0, config);
-
-  // Multiple calls to advance time with same target - should all be no-ops
-  for (int i = 1; i <= 5; ++i) {
-    auto target_time = sample_store.getConfig().genesis_time;
-    auto result = sample_store.advanceTime(target_time);
-    EXPECT_TRUE(result.empty());
-  }
-}
-
-// Test time advancement with multiple steps.
-TEST(TestTimeAdvancement, test_advance_time_multiple_steps) {
-  // Create a simple store
-  auto sample_store = createTestStore(0, config);
-
-  // Multiple calls to advance time - should all be no-ops
-  for (int i = 1; i <= 5; ++i) {
-    auto target_time = sample_store.getConfig().genesis_time;
-    auto result = sample_store.advanceTime(target_time);
-    EXPECT_TRUE(result.empty());
-  }
-}
-
-// Test time advancement with vote processing.
-TEST(TestTimeAdvancement, test_advance_time_with_votes) {
-  // Create a simple store
-  auto sample_store = createTestStore(0, config);
-
-  // Advance time - should be no-op
-  auto target_time = sample_store.getConfig().genesis_time;
-  auto result = sample_store.advanceTime(target_time);
-  EXPECT_TRUE(result.empty());
+  EXPECT_GE(sample_store.time(), initial_time);
 }
 
 // Test getting current head.
@@ -696,17 +628,6 @@ TEST(TestHeadSelection, test_get_head_basic) {
   EXPECT_EQ(head, genesis.hash());
 }
 
-// Test that advance time functionality works.
-TEST(TestHeadSelection, test_advance_time_functionality) {
-  // Create a simple store
-  auto sample_store = createTestStore(0, config);
-
-  // Advance time - should be no-op
-  auto target_time = sample_store.getConfig().genesis_time;
-  auto result = sample_store.advanceTime(target_time);
-  EXPECT_TRUE(result.empty());
-}
-
 // Test basic block production capability.
 TEST(TestHeadSelection, test_produce_block_basic) {
   // Create a simple store
@@ -714,7 +635,7 @@ TEST(TestHeadSelection, test_produce_block_basic) {
 
   // Try to produce a block - should throw due to missing state, which is
   // expected
-  EXPECT_THROW(sample_store.produceBlock(1, 1), std::exception);
+  EXPECT_THROW(sample_store.produceBlockWithSignatures(1, 1), std::exception);
 }
 
 // Test SSZ hash calculation matches ream implementation

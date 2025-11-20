@@ -16,5 +16,6 @@ namespace lean {
     uint64_t genesis_time;
 
     SSZ_CONT(num_validators, genesis_time);
+    bool operator==(const Config &) const = default;
   };
 }  // namespace lean

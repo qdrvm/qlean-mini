@@ -8,17 +8,15 @@
 
 #include <sszpp/container.hpp>
 
-#include "types/constants.hpp"
-#include "types/signed_vote.hpp"
+#include "types/attestations.hpp"
 
 namespace lean {
-
-  using Attestations = ssz::list<SignedVote, VALIDATOR_REGISTRY_LIMIT>;
   struct BlockBody : ssz::ssz_variable_size_container {
     /// @note votes will be replaced by aggregated attestations.
     Attestations attestations;
 
     SSZ_CONT(attestations);
+    bool operator==(const BlockBody &) const = default;
   };
 
 }  // namespace lean

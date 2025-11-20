@@ -13,7 +13,6 @@
 #include "modules/shared/networking_types.tmp.hpp"
 #include "modules/shared/prodution_types.tmp.hpp"
 #include "types/block_data.hpp"
-#include "types/signed_block.hpp"
 
 namespace lean::modules {
   ProductionModuleImpl::ProductionModuleImpl(
@@ -48,14 +47,14 @@ namespace lean::modules {
     for (auto &vote_or_block : res) {
       qtils::visit_in_place(
           vote_or_block,
-          [&](const SignedVote &v) {
+          [&](const SignedAttestation &v) {
             loader_.dispatchSendSignedVote(
                 std::make_shared<messages::SendSignedVote>(v));
           },
-          [&](const SignedBlock &v) {
+          [&](const SignedBlockWithAttestation &v) {
             loader_.dispatchSendSignedBlock(
                 std::make_shared<messages::SendSignedBlock>(v));
-            auto res = block_tree_->addBlock(v.message);
+            auto res = block_tree_->addBlock(v);
             if (!res.has_value()) {
               SL_ERROR(
                   logger_, "Failed to add produced block: {}", res.error());

@@ -11,16 +11,20 @@
 #include <stdexcept>
 
 #include "blockchain/genesis_config.hpp"
+#include "blockchain/is_proposer.hpp"
 #include "metrics/impl/metrics_impl.hpp"
-#include "types/signed_block.hpp"
+#include "types/signed_block_with_attestation.hpp"
 
 namespace lean {
   void ForkChoiceStore::updateSafeTarget() {
+    // Get validator count from head state
+    auto &head_state = getState(head_);
+
     // 2/3rd majority min voting voting weight for target selection
-    auto min_target_score = ceilDiv(config_.num_validators * 2, 3);
+    auto min_target_score = ceilDiv(head_state.validatorCount() * 2, 3);
 
     safe_target_ = getForkChoiceHead(
-        blocks_, latest_justified_, latest_new_votes_, min_target_score);
+        blocks_, latest_justified_, latest_new_attestations_, min_target_score);
   }
 
   std::optional<Checkpoint> ForkChoiceStore::getLatestJustified() {
@@ -57,8 +61,8 @@ namespace lean {
         }
       }
     }
-    head_ =
-        getForkChoiceHead(blocks_, latest_justified_, latest_known_votes_, 0);
+    head_ = getForkChoiceHead(
+        blocks_, latest_justified_, latest_known_attestations_, 0);
 
     auto state_it = states_.find(head_);
     if (state_it != states_.end()) {
@@ -73,11 +77,11 @@ namespace lean {
     }
   }
 
-  void ForkChoiceStore::acceptNewVotes() {
-    for (auto &[voter, vote] : latest_new_votes_) {
-      latest_known_votes_[voter] = vote;
+  void ForkChoiceStore::acceptNewAttestations() {
+    for (auto &[validator, attestation] : latest_new_attestations_) {
+      latest_known_attestations_[validator] = attestation;
     }
-    latest_new_votes_.clear();
+    latest_new_attestations_.clear();
     updateHead();
   }
 
@@ -124,7 +128,7 @@ namespace lean {
   }
 
 
-  Checkpoint ForkChoiceStore::getVoteTarget() const {
+  Checkpoint ForkChoiceStore::getAttestationTarget() const {
     // Start from head as target candidate
     auto target_block_root = head_;
 
@@ -149,125 +153,280 @@ namespace lean {
     };
   }
 
-  outcome::result<Block> ForkChoiceStore::produceBlock(
-      Slot slot, ValidatorIndex validator_index) {
-    if (validator_index != slot % config_.num_validators) {
-      return Error::INVALID_PROPOSER;
-    }
+  outcome::result<SignedBlockWithAttestation>
+  ForkChoiceStore::produceBlockWithSignatures(Slot slot,
+                                              ValidatorIndex validator_index) {
+    // Get parent block and state to build upon
     const auto &head_root = getHead();
     const auto &head_state = getState(head_root);
 
+    // Validate proposer authorization for this slot
+    if (not isProposer(validator_index, slot, head_state.validatorCount())) {
+      return Error::INVALID_PROPOSER;
+    }
+
+    // Initialize empty attestation set for iterative collection
+    Attestations attestations;
+    BlockSignatures signatures;
+
+    // Iteratively collect valid attestations using fixed-point algorithm
+    // Continue until no new attestations can be added to the block
+    while (true) {
+      // Create candidate block with current attestation set
+      Block candidate_block{
+          .slot = slot,
+          .proposer_index = validator_index,
+          .parent_root = head_root,
+          // Temporary; updated after state computation
+          .state_root = {},
+          .body = {.attestations = attestations},
+      };
+
+      // Apply state transition to get the post-block state
+      // First advance state to target slot, then process the block
+      auto post_state = head_state;
+      BOOST_OUTCOME_TRY(stf_.processSlots(post_state, slot));
+      BOOST_OUTCOME_TRY(stf_.processBlock(post_state, candidate_block));
+
+      // Find new valid attestations matching post-state justification
+      auto new_attestations = false;
+      for (auto &signed_attestation :
+           latest_known_attestations_ | std::views::values) {
+        // Skip if target block is unknown in our store
+        auto &data = signed_attestation.message.data;
+        if (not blocks_.contains(data.head.root)) {
+          continue;
+        }
+
+        // Skip if attestation source does not match post-state's latest
+        // justified
+        if (data.source != post_state.latest_justified) {
+          continue;
+        }
+
+        if (not std::ranges::contains(attestations,
+                                      signed_attestation.message)) {
+          new_attestations = true;
+          attestations.push_back(signed_attestation.message);
+          signatures.push_back(signed_attestation.signature);
+        }
+      }
+
+      // Fixed point reached: no new attestations found
+      if (not new_attestations) {
+        break;
+      }
+    }
+
+    // Create final block with all collected attestations
     Block block{
         .slot = slot,
         .proposer_index = validator_index,
         .parent_root = head_root,
-        .state_root = {},  // to be filled after state transition
+        // Will be updated with computed hash
+        .state_root = {},
+        .body = {.attestations = attestations},
     };
-    for (auto &signed_vote : latest_known_votes_ | std::views::values) {
-      block.body.attestations.push_back(signed_vote);
-    }
+    // Apply state transition to get final post-state and compute state root
     BOOST_OUTCOME_TRY(auto state,
                       stf_.stateTransition(block, head_state, false));
     block.state_root = sszHash(state);
     block.setHash();
 
-    BOOST_OUTCOME_TRY(onBlock(block));
+    auto proposer_attestation = produceAttestation(slot, validator_index);
+    proposer_attestation.data.head = Checkpoint::from(block);
 
-    return block;
+    // Store block and state in forkchoice store
+    auto signed_block_with_attestation = signBlock({
+        .message =
+            {
+                .block = block,
+                .proposer_attestation = proposer_attestation,
+            },
+        .signature = signatures,
+    });
+    BOOST_OUTCOME_TRY(onBlock(signed_block_with_attestation));
+
+    return signed_block_with_attestation;
   }
 
+  Attestation ForkChoiceStore::produceAttestation(
+      Slot slot, ValidatorIndex validator_index) {
+    // Get the head block the validator sees for this slot
+    Checkpoint head_checkpoint{
+        .root = head_,
+        .slot = getHeadSlot(),
+    };
+
+    //  Calculate the target checkpoint for this attestation
+    //
+    //  This uses the store's current forkchoice state to determine
+    //  the appropriate attestation target, balancing between head
+    //  advancement and safety guarantees.
+    auto target_checkpoint = getAttestationTarget();
+
+    // Construct attestation data
+    AttestationData attestation_data{
+        .slot = slot,
+        .head = head_checkpoint,
+        .target = target_checkpoint,
+        .source = latest_justified_,
+    };
+
+    return Attestation{
+        .validator_id = validator_index,
+        .data = attestation_data,
+    };
+  }
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
-      const SignedVote &signed_vote) {
+      const SignedAttestation &signed_attestation) {
+    auto &attestation = signed_attestation.message;
+    auto &data = attestation.data;
+    auto &target = data.target;
+    auto &source = data.source;
+
     SL_TRACE(logger_,
              "Validating attestation for target {}, source {}",
-             signed_vote.data.target,
-             signed_vote.data.source);
+             target,
+             source);
     auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
-    auto &vote = signed_vote.data;
 
     // Validate vote targets exist in store
-    if (not blocks_.contains(vote.source.root)) {
+    if (not blocks_.contains(source.root)) {
       return Error::INVALID_ATTESTATION;
     }
-    if (not blocks_.contains(vote.target.root)) {
+    if (not blocks_.contains(target.root)) {
       return Error::INVALID_ATTESTATION;
     }
 
     // Validate slot relationships
-    auto &source_block = blocks_.at(vote.source.root);
-    auto &target_block = blocks_.at(vote.target.root);
+    auto &source_block = blocks_.at(source.root);
+    auto &target_block = blocks_.at(target.root);
 
     if (source_block.slot > target_block.slot) {
       return Error::INVALID_ATTESTATION;
     }
-    if (vote.source.slot > vote.target.slot) {
+    if (source.slot > target.slot) {
       return Error::INVALID_ATTESTATION;
     }
 
     // Validate checkpoint slots match block slots
-    if (source_block.slot != vote.source.slot) {
+    if (source_block.slot != source.slot) {
       return Error::INVALID_ATTESTATION;
     }
-    if (target_block.slot != vote.target.slot) {
+    if (target_block.slot != target.slot) {
       return Error::INVALID_ATTESTATION;
     }
 
     // Validate attestation is not too far in the future
-    if (vote.slot > getCurrentSlot() + 1) {
+    if (data.slot > getCurrentSlot() + 1) {
       return Error::INVALID_ATTESTATION;
     }
 
     return outcome::success();
   }
 
-  outcome::result<void> ForkChoiceStore::processAttestation(
-      const SignedVote &signed_vote, bool is_from_block) {
+  outcome::result<void> ForkChoiceStore::onAttestation(
+      const SignedAttestation &signed_attestation, bool is_from_block) {
     // Validate attestation structure and constraints
-    if (auto res = validateAttestation(signed_vote); res.has_value()) {
+    if (auto res = validateAttestation(signed_attestation); res.has_value()) {
       metrics_->fc_attestations_valid_total()->inc();
     } else {
       metrics_->fc_attestations_invalid_total()->inc();
       return res;
     }
 
-    auto &validator_id = signed_vote.validator_id;
-    auto &vote = signed_vote.data;
+    auto &attestation = signed_attestation.message;
+    auto &validator_id = attestation.validator_id;
+    auto &attestation_slot = attestation.data.slot;
 
     if (is_from_block) {
       // update latest known votes if this is latest
-      auto latest_known_vote = latest_known_votes_.find(validator_id);
-      if (latest_known_vote == latest_known_votes_.end()
-          or latest_known_vote->second.data.target.slot < vote.slot) {
-        latest_known_votes_.insert_or_assign(validator_id, signed_vote);
+      auto latest_known_attestation =
+          latest_known_attestations_.find(validator_id);
+      if (latest_known_attestation == latest_known_attestations_.end()
+          or latest_known_attestation->second.message.data.slot
+                 < attestation_slot) {
+        latest_known_attestations_.insert_or_assign(validator_id,
+                                                    signed_attestation);
       }
 
       // clear from new votes if this is latest
-      auto latest_new_vote = latest_new_votes_.find(validator_id);
-      if (latest_new_vote != latest_new_votes_.end()
-          and latest_new_vote->second.data.target.slot <= vote.target.slot) {
-        latest_new_votes_.erase(latest_new_vote);
+      auto latest_new_attestation = latest_new_attestations_.find(validator_id);
+      if (latest_new_attestation != latest_new_attestations_.end()
+          and latest_new_attestation->second.message.data.slot
+                  <= attestation_slot) {
+        latest_new_attestations_.erase(latest_new_attestation);
       }
     } else {
       // forkchoice should be correctly ticked to current time before importing
       // gossiped attestations
-      if (vote.slot > getCurrentSlot() + 1) {
+      if (attestation_slot > getCurrentSlot() + 1) {
         return Error::INVALID_ATTESTATION;
       }
 
       // update latest new votes if this is the latest
-      auto latest_new_vote = latest_new_votes_.find(validator_id);
-      if (latest_new_vote == latest_new_votes_.end()
-          or latest_new_vote->second.data.target.slot < vote.target.slot) {
-        latest_new_votes_.insert_or_assign(validator_id, signed_vote);
+      auto latest_new_attestation = latest_new_attestations_.find(validator_id);
+      if (latest_new_attestation == latest_new_attestations_.end()
+          or latest_new_attestation->second.message.data.slot
+                 < attestation_slot) {
+        latest_new_attestations_.insert_or_assign(validator_id,
+                                                  signed_attestation);
       }
     }
 
     return outcome::success();
   }
 
-  outcome::result<void> ForkChoiceStore::onBlock(Block block) {
+  inline bool isValidSignature(const Signature &signature) {
+    return signature == Signature{};
+  }
+
+  inline bool validateBlockSignatures(const Block &block,
+                                      const BlockSignatures &signatures) {
+    for (auto &signature : signatures) {
+      if (not isValidSignature(signature)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  outcome::result<void> ForkChoiceStore::processProposerAttestation(
+      SignedBlockWithAttestation signed_block_with_attestation) {
+    auto &block = signed_block_with_attestation.message.block;
+    auto &proposer_attestation =
+        signed_block_with_attestation.message.proposer_attestation;
+    auto &signatures = signed_block_with_attestation.signature;
+
+    if (block.body.attestations.size() >= signatures.size()) {
+      return Error::INVALID_ATTESTATION;
+    }
+    // Proposer signature is at the end of signature list (after all block body
+    // attestation signatures)
+    auto &proposer_signature =
+        signatures.data().at(block.body.attestations.size());
+    SignedAttestation signed_proposer_attestation{
+        .message = proposer_attestation,
+        .signature = proposer_signature,
+    };
+    // Process as gossip (not from block) so it enters "new" attestations and
+    // only influences fork choice after interval 3 acceptance
+    BOOST_OUTCOME_TRY(onAttestation(signed_proposer_attestation, false));
+    return outcome::success();
+  }
+
+  outcome::result<void> ForkChoiceStore::onBlock(
+      SignedBlockWithAttestation signed_block_with_attestation) {
     auto timer = metrics_->fc_block_processing_time_seconds()->timer();
+    auto &block = signed_block_with_attestation.message.block;
+    auto &proposer_attestation =
+        signed_block_with_attestation.message.proposer_attestation;
+    auto &signatures = signed_block_with_attestation.signature;
+
+    auto valid_signatures = validateBlockSignatures(block, signatures);
+
     block.setHash();
     auto block_hash = block.hash();
     // If the block is already known, ignore it
@@ -286,21 +445,37 @@ namespace lean {
     states_.emplace(block_hash, std::move(state));
 
     // add block votes to the onchain known last votes
-    for (auto &signed_vote : block.body.attestations) {
+    ValidatorIndex index = 0;
+    for (auto &attestation : block.body.attestations) {
+      if (index >= signatures.size()) {
+        return Error::INVALID_ATTESTATION;
+      }
+      auto &signature = signatures.data().at(index);
+      SignedAttestation signed_attestation{
+          .message = attestation,
+          .signature = signature,
+      };
       // Add block votes to the onchain known last votes
-      BOOST_OUTCOME_TRY(processAttestation(signed_vote, true));
+      BOOST_OUTCOME_TRY(onAttestation(signed_attestation, true));
+      ++index;
     }
 
     updateHead();
 
+    BOOST_OUTCOME_TRY(
+        processProposerAttestation(signed_block_with_attestation));
+
     return outcome::success();
   }
 
-  std::vector<std::variant<SignedVote, SignedBlock>>
+  std::vector<std::variant<SignedAttestation, SignedBlockWithAttestation>>
   ForkChoiceStore::advanceTime(uint64_t now_sec) {
     auto time_since_genesis = now_sec - config_.genesis_time;
 
-    std::vector<std::variant<SignedVote, SignedBlock>> result{};
+    auto validator_count = getState(head_).validatorCount();
+
+    std::vector<std::variant<SignedAttestation, SignedBlockWithAttestation>>
+        result{};
     while (time_ <= time_since_genesis) {
       Slot current_slot = time_ / INTERVALS_PER_SLOT;
       if (current_slot == 0) {
@@ -314,14 +489,14 @@ namespace lean {
                 "Slot {} started with time {}",
                 current_slot,
                 time_ * SECONDS_PER_INTERVAL);
-        auto producer_index = current_slot % config_.num_validators;
+        auto producer_index = current_slot % validator_count;
         auto is_producer =
             validator_registry_->currentValidatorIndices().contains(
                 producer_index);
         if (is_producer) {
-          acceptNewVotes();
+          acceptNewAttestations();
 
-          auto res = produceBlock(current_slot, producer_index);
+          auto res = produceBlockWithSignatures(current_slot, producer_index);
           if (!res.has_value()) {
             SL_ERROR(logger_,
                      "Failed to produce block for slot {}: {}",
@@ -329,15 +504,13 @@ namespace lean {
                      res.error());
             continue;
           }
-          auto &new_block = res.value();
-
-          auto new_signed_block = signBlock(std::move(new_block));
+          auto &new_signed_block = res.value();
 
           SL_INFO(logger_,
                   "Produced block {} with parent {} state {}",
-                  new_signed_block.message.slotHash(),
-                  new_signed_block.message.parent_root,
-                  new_signed_block.message.state_root);
+                  new_signed_block.message.block.slotHash(),
+                  new_signed_block.message.block.parent_root,
+                  new_signed_block.message.block.state_root);
           result.emplace_back(std::move(new_signed_block));
         }
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
@@ -351,7 +524,7 @@ namespace lean {
         }
         metrics_->fc_head_slot()->set(head_slot.value());
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
-        auto target = getVoteTarget();
+        auto target = getAttestationTarget();
         auto source = getLatestJustified();
         SL_INFO(logger_,
                 "For slot {}: head is {}, target is {}, source is {}",
@@ -361,17 +534,15 @@ namespace lean {
                 source.value());
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
-          auto signed_vote = signVote(validator_index,
-                                      Vote{
-                                          .slot = current_slot,
-                                          .head = head,
-                                          .target = target,
-                                          .source = *source,
-                                      });
+          if (isProposer(validator_index, current_slot, validator_count)) {
+            continue;
+          }
+          auto attestation = produceAttestation(current_slot, validator_index);
+          auto signed_attestation = signAttestation(attestation);
 
           // Dispatching send signed vote only broadcasts to other peers.
           // Current peer should process attestation directly
-          auto res = processAttestation(signed_vote, false);
+          auto res = onAttestation(signed_attestation, false);
           if (not res.has_value()) {
             SL_ERROR(logger_,
                      "Failed to process attestation for slot {}: {}",
@@ -379,9 +550,10 @@ namespace lean {
                      res.error());
             continue;
           }
-          SL_INFO(
-              logger_, "Produced vote for target {}", signed_vote.data.target);
-          result.emplace_back(std::move(signed_vote));
+          SL_INFO(logger_,
+                  "Produced vote for target {}",
+                  signed_attestation.message.data.target);
+          result.emplace_back(std::move(signed_attestation));
         }
       } else if (time_ % INTERVALS_PER_SLOT == 2) {
         // Interval two actions
@@ -396,31 +568,31 @@ namespace lean {
                 "Interval three of slot {} at time {}",
                 current_slot,
                 time_ * SECONDS_PER_INTERVAL);
-        acceptNewVotes();
+        acceptNewAttestations();
       }
       time_ += 1;
     }
     return result;
   }
 
-
-  BlockHash getForkChoiceHead(const ForkChoiceStore::Blocks &blocks,
-                              const Checkpoint &root,
-                              const ForkChoiceStore::Votes &latest_votes,
-                              uint64_t min_score) {
+  BlockHash getForkChoiceHead(
+      const ForkChoiceStore::Blocks &blocks,
+      const Checkpoint &root,
+      const ForkChoiceStore::AttestationMap &latest_attestations,
+      uint64_t min_score) {
     // For each block, count the number of votes for that block. A vote for
     // any descendant of a block also counts as a vote for that block
-    std::unordered_map<BlockHash, uint64_t> vote_weights;
+    std::unordered_map<BlockHash, uint64_t> attestation_weights;
     auto get_weight = [&](const BlockHash &hash) {
-      auto it = vote_weights.find(hash);
-      return it != vote_weights.end() ? it->second : 0;
+      auto it = attestation_weights.find(hash);
+      return it != attestation_weights.end() ? it->second : 0;
     };
 
-    for (auto &vote : latest_votes | std::views::values) {
-      auto block_it = blocks.find(vote.data.target.root);
+    for (auto &attestation : latest_attestations | std::views::values) {
+      auto block_it = blocks.find(attestation.message.data.target.root);
       if (block_it != blocks.end()) {
         while (block_it->second.slot > root.slot) {
-          ++vote_weights[block_it->first];
+          ++attestation_weights[block_it->first];
           block_it = blocks.find(block_it->second.parent_root);
           BOOST_ASSERT(block_it != blocks.end());
         }
@@ -506,8 +678,8 @@ namespace lean {
       Checkpoint latest_finalized,
       Blocks blocks,
       std::unordered_map<BlockHash, State> states,
-      Votes latest_known_votes,
-      Votes latest_new_votes,
+      AttestationMap latest_known_attestations,
+      AttestationMap latest_new_attestations,
       ValidatorIndex validator_index,
       qtils::SharedRef<ValidatorRegistry> validator_registry)
       : stf_(metrics),
@@ -521,8 +693,8 @@ namespace lean {
         latest_finalized_(latest_finalized),
         blocks_(std::move(blocks)),
         states_(std::move(states)),
-        latest_known_votes_(std::move(latest_known_votes)),
-        latest_new_votes_(std::move(latest_new_votes)),
+        latest_known_attestations_(std::move(latest_known_attestations)),
+        latest_new_attestations_(std::move(latest_new_attestations)),
         metrics_(std::move(metrics)),
         validator_registry_(std::move(validator_registry)) {}
 }  // namespace lean

@@ -9,8 +9,8 @@
 #include <libp2p/peer/peer_id.hpp>
 
 #include "modules/networking/types.hpp"
-#include "types/signed_block.hpp"
-#include "types/signed_vote.hpp"
+#include "types/signed_attestation.hpp"
+#include "types/signed_block_with_attestation.hpp"
 
 namespace lean::messages {
   template <typename Notification>
@@ -42,8 +42,8 @@ namespace lean::messages {
 
   using StatusMessageReceived = NotificationReceived<StatusMessage>;
 
-  using SendSignedBlock = BroadcastNotification<SignedBlock>;
+  using SendSignedBlock = BroadcastNotification<SignedBlockWithAttestation>;
 
-  using SendSignedVote = BroadcastNotification<SignedVote>;
-  using SignedVoteReceived = GossipNotificationReceived<SignedVote>;
+  using SendSignedVote = BroadcastNotification<SignedAttestation>;
+  using SignedVoteReceived = GossipNotificationReceived<SignedAttestation>;
 }  // namespace lean::messages

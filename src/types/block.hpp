@@ -18,6 +18,7 @@ namespace lean {
     BlockBody body;
 
     SSZ_CONT(slot, proposer_index, parent_root, state_root, body);
+    bool operator==(const Block &) const = default;
 
     BlockHeader getHeader() const {
       BlockHeader header;

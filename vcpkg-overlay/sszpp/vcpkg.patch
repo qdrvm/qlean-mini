@@ -120,19 +120,47 @@ index 3174735..b086711 100644
  }
  
 diff --git a/lib/container.hpp b/lib/container.hpp
-index dc31773..c1e1e57 100644
+index dc31773..5905830 100644
 --- a/lib/container.hpp
 +++ b/lib/container.hpp
-@@ -31,6 +31,8 @@
+@@ -31,27 +31,59 @@
  namespace ssz {
  
  struct ssz_container {
+-    constexpr auto operator<=>(const ssz_container &rhs) const noexcept = default;
+-    constexpr bool operator==(const ssz_container &rhs) const noexcept = default;
 +    struct variable_size : std::false_type {};
 +
-     constexpr auto operator<=>(const ssz_container &rhs) const noexcept = default;
-     constexpr bool operator==(const ssz_container &rhs) const noexcept = default;
++    template <typename T1, typename T2>
++        requires std::is_same_v<T1, ssz_container> and std::is_same_v<T2, ssz_container>
++    friend constexpr auto operator<=>(const T1&, const T2&) {
++        return std::strong_ordering::equal;
++    }
++
++    template <typename T1, typename T2>
++        requires std::is_same_v<T1, ssz_container> and std::is_same_v<T2, ssz_container>
++    friend constexpr bool operator==(const T1&, const T2&) {
++        return true;
++    }
  };
-@@ -43,15 +45,24 @@ template <class R>
+ 
+ struct ssz_variable_size_container : ssz_container {
+     struct variable_size : std::true_type {};
++
++    template <typename T1, typename T2>
++        requires std::is_same_v<T1, ssz_variable_size_container> and std::is_same_v<T2, ssz_variable_size_container>
++    friend constexpr auto operator<=>(const T1&, const T2&) {
++        return 0 <=> 0;
++    }
++
++    template <typename T1, typename T2>
++        requires std::is_same_v<T1, ssz_variable_size_container> and std::is_same_v<T2, ssz_variable_size_container>
++    friend constexpr bool operator==(const T1&, const T2&) {
++        return true;
++    }
+ };
+ 
+ template <class R>
      requires std::derived_from<R, ssz_container>
  struct is_ssz_object<R> : std::true_type {};
  
@@ -165,7 +193,7 @@ index dc31773..c1e1e57 100644
      }
  #ifdef HAVE_YAML
  #define YAML_CONT(...) \
-@@ -75,7 +86,7 @@ constexpr std::uint32_t compute_total_length(const ssz_object auto &...members)
+@@ -75,7 +107,7 @@ constexpr std::uint32_t compute_total_length(const ssz_object auto &...members)
      return (... + size_plus_placeholder(members));
  }
  
@@ -174,7 +202,7 @@ index dc31773..c1e1e57 100644
      auto fsize = compute_fixed_length(members...);
      auto variable = result + fsize;
      auto begin = result;
-@@ -174,7 +185,7 @@ namespace _detail {
+@@ -174,7 +206,7 @@ namespace _detail {
  auto _decode_member = [](const YAML::Node &node, yaml_pair auto pair) {
      return YAML::convert<std::remove_reference_t<decltype(pair.second)>>::decode(node[pair.first], pair.second);
  };
