@@ -39,12 +39,13 @@ namespace lean {
              latest_finalized,
              historical_block_hashes,
              justified_slots,
+             validators,
              justifications_roots,
              justifications_validators);
     bool operator==(const State &) const = default;
 
     ValidatorIndex validatorCount() const {
-      return config.num_validators;
+      return validators.size();
     }
   };
 

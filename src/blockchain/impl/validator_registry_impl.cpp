@@ -86,6 +86,16 @@ namespace lean {
     return current_validator_indices_;
   }
 
+  ValidatorRegistry::ValidatorIndices
+  ValidatorRegistryImpl::allValidatorsIndices() const {
+    ValidatorIndices all_indices;
+    all_indices.reserve(index_to_node_.size());
+    for (const auto &[idx, _] : index_to_node_) {
+      all_indices.insert(idx);
+    }
+    return all_indices;
+  }
+
   ValidatorRegistryImpl::ValidatorRegistryImpl(
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,

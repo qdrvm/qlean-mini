@@ -354,7 +354,7 @@ namespace lean::modules {
                              std::move(signed_block_with_attestation));
         });
     gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
-        "vote",
+        "attestation",
         [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation,
                                       std::optional<libp2p::PeerId>) {
           auto self = weak_self.lock();

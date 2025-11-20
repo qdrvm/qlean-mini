@@ -19,5 +19,13 @@ namespace lean {
 
     [[nodiscard]] virtual const ValidatorIndices &currentValidatorIndices()
         const = 0;
+
+    [[nodiscard]] virtual ValidatorIndices allValidatorsIndices() const = 0;
+
+    [[nodiscard]] virtual std::optional<std::string> nodeIdByIndex(
+        ValidatorIndex index) const = 0;
+
+    [[nodiscard]] virtual std::optional<ValidatorIndices>
+    validatorIndicesForNodeId(std::string_view node_id) const = 0;
   };
 }  // namespace lean
