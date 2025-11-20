@@ -1,5 +1,6 @@
 /**
- * Copyright Soramitsu Co., Ltd. All Rights Reserved.
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -67,6 +68,11 @@ namespace lean::app {
 
   const std::optional<size_t> &Configuration::maxBootnodes() const {
     return max_bootnodes_;
+  }
+
+  const std::filesystem::path &Configuration::validatorKeysManifestPath()
+      const {
+    return validator_keys_manifest_path_;
   }
 
   const Configuration::DatabaseConfig &Configuration::database() const {

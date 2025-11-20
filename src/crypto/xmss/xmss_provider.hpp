@@ -6,18 +6,9 @@
 
 #pragma once
 
-#include <c_hash_sig/c_hash_sig.h>
-#include <qtils/bytes.hpp>
+#include "crypto/xmss/types.hpp"
 
 namespace lean::crypto::xmss {
-
-  using XmssPrivateKey = qtils::ByteVec;
-  using XmssPublicKey = qtils::ByteVec;
-  struct XmssKeypair {
-    XmssPrivateKey private_key;
-    XmssPublicKey public_key;
-  };
-  using XmssSignature = qtils::ByteVec;
 
   class XmssProvider {
    public:
@@ -34,4 +25,4 @@ namespace lean::crypto::xmss {
                         qtils::BytesIn message,
                         XmssSignature xmss_signature) = 0;
   };
-}  // namespace lean::crypto
+}  // namespace lean::crypto::xmss

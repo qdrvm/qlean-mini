@@ -15,6 +15,9 @@ namespace lean {
     uint64_t genesis_time;
 
     SSZ_CONT(genesis_time);
-    bool operator==(const Config &) const = default;
+    
+    bool operator==(const Config &other) const {
+      return genesis_time == other.genesis_time;
+    }
   };
 }  // namespace lean

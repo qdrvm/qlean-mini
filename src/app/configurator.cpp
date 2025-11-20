@@ -1,5 +1,6 @@
 /**
- * Copyright Soramitsu Co., Ltd. All Rights Reserved.
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -25,6 +26,7 @@
 #include "app/build_version.hpp"
 #include "app/configuration.hpp"
 #include "app/default_logging_yaml.hpp"
+#include "app/validator_keys_manifest.hpp"
 #include "crypto/xmss/xmss_util.hpp"
 #include "log/formatters/filepath.hpp"
 #include "modules/networking/get_node_key.hpp"
@@ -120,6 +122,9 @@ namespace lean::app {
         ("node-key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
         ("xmss-pk", po::value<std::string>(), "Path to XMSS public key JSON file (required).")
         ("xmss-sk", po::value<std::string>(), "Path to XMSS secret key JSON file (required).")
+        ("validator-keys-manifest",
+         po::value<std::string>(),
+         "Set path to yaml file containing validator keys manifest (required).")
         ("max-bootnodes", po::value<size_t>(), "Max bootnodes count to connect to.")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
@@ -393,6 +398,16 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
+          auto validator_keys_manifest = section["validator-keys-manifest"];
+          if (validator_keys_manifest.IsDefined()) {
+            if (validator_keys_manifest.IsScalar()) {
+              auto value = validator_keys_manifest.as<std::string>();
+              config_->validator_keys_manifest_path_ = value;
+            } else {
+              file_errors_ << "E: Value 'general.validator-keys-manifest' must be scalar\n";
+              file_has_error_ = true;
+            }
+          }
         } else {
           file_errors_ << "E: Section 'general' defined, but is not map\n";
           file_has_error_ = true;
@@ -487,6 +502,10 @@ namespace lean::app {
     find_argument<std::string>(
         cli_values_map_, "xmss-sk", [&](const std::string &value) {
           config_->xmss_secret_key_path_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "validator-keys-manifest", [&](const std::string &value) {
+          config_->validator_keys_manifest_path_ = value;
         });
     if (fail) {
       return Error::CliArgsParseFailed;
@@ -625,6 +644,21 @@ namespace lean::app {
     SL_INFO(logger_, "Loaded XMSS keypair from:");
     SL_INFO(logger_, "  Public key: {}", config_->xmss_public_key_path_);
     SL_INFO(logger_, "  Secret key: {}", config_->xmss_secret_key_path_);
+
+    // Load validator keys manifest (mandatory)
+    if (config_->validator_keys_manifest_path_.empty()) {
+      SL_ERROR(logger_, "The '--validator-keys-manifest' path must be provided");
+      return Error::InvalidValue;
+    }
+
+    config_->validator_keys_manifest_path_ =
+        resolve_relative(config_->validator_keys_manifest_path_, "validator-keys-manifest");
+    if (not is_regular_file(config_->validator_keys_manifest_path_)) {
+      SL_ERROR(logger_,
+               "The 'validator-keys-manifest' file does not exist or is not a file: {}",
+               config_->validator_keys_manifest_path_);
+      return Error::InvalidValue;
+    }
 
     return outcome::success();
   }

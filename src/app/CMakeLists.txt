@@ -99,3 +99,12 @@ target_link_libraries(timeline
 #    app_configuration
 #    metrics
 )
+
+add_library(validator_keys_manifest SHARED
+    impl/validator_keys_manifest_impl.cpp
+)
+target_link_libraries(validator_keys_manifest
+    app_configuration
+    qtils::qtils
+    yaml-cpp::yaml-cpp
+)
