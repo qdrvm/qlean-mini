@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include "mock/blockchain/metrics_mock.hpp"
+#include "mock/blockchain/validator_registry_mock.hpp"
 #include "types/config.hpp"
 #include "types/state.hpp"
 
@@ -17,11 +18,15 @@ TEST(STF, Test) {
   lean::STF stf(metrics);
 
   lean::Config config{
-      .num_validators = 2,
       .genesis_time = 0,
   };
-  auto state0 = stf.generateGenesisState(config);
-  auto block0 = stf.genesisBlock(state0);
+  auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
+  lean::ValidatorRegistry::ValidatorIndices validators;
+  EXPECT_CALL(*validator_registry, allValidatorsIndices())
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(validators));
+  auto state0 = lean::STF::generateGenesisState(config, validator_registry);
+  auto block0 = lean::STF::genesisBlock(state0);
   block0.setHash();
 
   lean::Block block1{

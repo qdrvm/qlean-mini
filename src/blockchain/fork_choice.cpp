@@ -688,12 +688,16 @@ namespace lean {
       qtils::SharedRef<clock::SystemClock> clock,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
-      qtils::SharedRef<ValidatorRegistry> validator_registry)
+      qtils::SharedRef<ValidatorRegistry> validator_registry,
+      qtils::SharedRef<app::ValidatorKeysManifest> validator_manifest,
+      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
       : stf_(metrics),
         validator_registry_(validator_registry),
+        validator_keys_manifest_(validator_manifest),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
-        metrics_(std::move(metrics)) {
+        metrics_(std::move(metrics)),
+        xmss_provider_(std::move(xmss_provider)) {
     AnchorState anchor_state =
         STF::generateGenesisState(genesis_config.config, validator_registry_);
     AnchorBlock anchor_block = STF::genesisBlock(anchor_state);
@@ -716,8 +720,14 @@ namespace lean {
     SL_INFO(
         logger_, "Anchor block {} at slot {}", anchor_root, anchor_block.slot);
     states_.emplace(anchor_root, std::move(anchor_state));
+    for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
+      SL_INFO(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
+    }
+    SL_INFO(
+        logger_,
+        "Our pubkey: {}",
+        validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
   }
-
   // Test constructor implementation
   ForkChoiceStore::ForkChoiceStore(
       uint64_t now_sec,
@@ -733,7 +743,9 @@ namespace lean {
       SignedAttestations latest_known_attestations,
       SignedAttestations latest_new_attestations,
       ValidatorIndex validator_index,
-      qtils::SharedRef<ValidatorRegistry> validator_registry)
+      qtils::SharedRef<ValidatorRegistry> validator_registry,
+      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
+      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
       : stf_(metrics),
         time_(now_sec / SECONDS_PER_INTERVAL),
         logger_(
@@ -748,5 +760,7 @@ namespace lean {
         latest_known_attestations_(std::move(latest_known_attestations)),
         latest_new_attestations_(std::move(latest_new_attestations)),
         metrics_(std::move(metrics)),
-        validator_registry_(std::move(validator_registry)) {}
+        validator_registry_(std::move(validator_registry)),
+        validator_keys_manifest_(std::move(validator_keys_manifest)),
+        xmss_provider_(std::move(xmss_provider)) {}
 }  // namespace lean

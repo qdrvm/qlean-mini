@@ -26,6 +26,7 @@
 #include "app/impl/chain_spec_impl.hpp"
 #include "app/impl/state_manager_impl.hpp"
 #include "app/impl/timeline_impl.hpp"
+#include "app/impl/validator_keys_manifest_impl.hpp"
 #include "app/impl/watchdog.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
@@ -34,6 +35,7 @@
 #include "blockchain/impl/validator_registry_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
+#include "crypto/xmss/xmss_provider_impl.hpp"
 #include "injector/bind_by_lambda.hpp"
 #include "loaders/loader.hpp"
 #include "log/logger.hpp"
@@ -102,6 +104,8 @@ namespace {
         di::bind<app::Timeline>.to<app::TimelineImpl>(),
         di::bind<blockchain::BlockTree>.to<blockchain::FCBlockTree>(),
         di::bind<ValidatorRegistry>.to<ValidatorRegistryImpl>(),
+        di::bind<app::ValidatorKeysManifest>.to<app::ValidatorKeysManifestImpl>(),
+        di::bind<crypto::xmss::XmssProvider>.to<crypto::xmss::XmssProviderImpl>(),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);

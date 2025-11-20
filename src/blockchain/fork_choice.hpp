@@ -14,10 +14,12 @@
 #include <boost/di.hpp>
 #include <qtils/shared_ref.hpp>
 
+#include "app/validator_keys_manifest.hpp"
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
 #include "blockchain/validator_registry.hpp"
 #include "clock/clock.hpp"
+#include "crypto/xmss/xmss_provider.hpp"
 #include "types/block.hpp"
 #include "types/signed_attestation.hpp"
 #include "types/signed_block_with_attestation.hpp"
@@ -55,32 +57,40 @@ namespace lean {
       abort();
     }
 
-    ForkChoiceStore(const GenesisConfig &genesis_config,
-                    qtils::SharedRef<clock::SystemClock> clock,
-                    qtils::SharedRef<log::LoggingSystem> logging_system,
-                    qtils::SharedRef<metrics::Metrics> metrics,
-                    qtils::SharedRef<ValidatorRegistry> validator_registry);
+    ForkChoiceStore(
+        const GenesisConfig &genesis_config,
+        qtils::SharedRef<clock::SystemClock> clock,
+        qtils::SharedRef<log::LoggingSystem> logging_system,
+        qtils::SharedRef<metrics::Metrics> metrics,
+        qtils::SharedRef<ValidatorRegistry> validator_registry,
+        qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
+        qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider);
 
     BOOST_DI_INJECT_TRAITS(const GenesisConfig &,
                            qtils::SharedRef<clock::SystemClock>,
                            qtils::SharedRef<log::LoggingSystem>,
                            qtils::SharedRef<metrics::Metrics>,
-                           qtils::SharedRef<ValidatorRegistry>);
+                           qtils::SharedRef<ValidatorRegistry>,
+                           qtils::SharedRef<app::ValidatorKeysManifest>,
+                           qtils::SharedRef<crypto::xmss::XmssProvider>);
     // Test constructor - only for use in tests
-    ForkChoiceStore(uint64_t now_sec,
-                    qtils::SharedRef<log::LoggingSystem> logging_system,
-                    qtils::SharedRef<metrics::Metrics> metrics,
-                    Config config,
-                    BlockHash head,
-                    BlockHash safe_target,
-                    Checkpoint latest_justified,
-                    Checkpoint latest_finalized,
-                    Blocks blocks,
-                    std::unordered_map<BlockHash, State> states,
-                    SignedAttestations latest_known_attestations,
-                    SignedAttestations latest_new_votes,
-                    ValidatorIndex validator_index,
-                    qtils::SharedRef<ValidatorRegistry> validator_registry);
+    ForkChoiceStore(
+        uint64_t now_sec,
+        qtils::SharedRef<log::LoggingSystem> logging_system,
+        qtils::SharedRef<metrics::Metrics> metrics,
+        Config config,
+        BlockHash head,
+        BlockHash safe_target,
+        Checkpoint latest_justified,
+        Checkpoint latest_finalized,
+        Blocks blocks,
+        std::unordered_map<BlockHash, State> states,
+        SignedAttestations latest_known_attestations,
+        SignedAttestations latest_new_votes,
+        ValidatorIndex validator_index,
+        qtils::SharedRef<ValidatorRegistry> validator_registry,
+        qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
+        qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider);
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -301,8 +311,10 @@ namespace lean {
     SignedAttestations latest_known_attestations_;
     SignedAttestations latest_new_attestations_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
+    qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;
+    qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider_;
   };
 
   BlockHash getForkChoiceHead(

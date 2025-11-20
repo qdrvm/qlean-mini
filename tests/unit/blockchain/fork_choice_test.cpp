@@ -17,8 +17,10 @@
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
+#include "mock/app/validator_keys_manifest_mock.hpp"
 #include "mock/blockchain/metrics_mock.hpp"
 #include "mock/blockchain/validator_registry_mock.hpp"
+#include "mock/crypto/xmss_provider_mock.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "qtils/test/outcome.hpp"
 #include "testutil/prepare_loggers.hpp"
@@ -65,7 +67,6 @@ std::optional<Checkpoint> getAttestation(const ForkChoiceStore::SignedAttestatio
 }
 
 lean::Config config{
-    .num_validators = 100,
     .genesis_time = 1,
 };
 
@@ -86,6 +87,19 @@ auto createTestStore(
   EXPECT_CALL(*validator_registry, currentValidatorIndices())
       .Times(testing::AnyNumber())
       .WillRepeatedly(testing::ReturnRef(validators));
+  EXPECT_CALL(*validator_registry, allValidatorsIndices())
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(validators));
+  EXPECT_CALL(*validator_registry, nodeIdByIndex(testing::_))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(std::nullopt));
+  EXPECT_CALL(*validator_registry, validatorIndicesForNodeId(testing::_))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(std::nullopt));
+  auto validator_keys_manifest =
+      std::make_shared<lean::app::ValidatorKeysManifestMock>();
+  auto xmss_provider =
+      std::make_shared<lean::crypto::xmss::XmssProviderMock>();
   return ForkChoiceStore(time,
                          testutil::prepareLoggers(),
                          std::make_shared<lean::metrics::MetricsMock>(),
@@ -99,7 +113,9 @@ auto createTestStore(
                          latest_known_attestations,
                          latest_new_attestations,
                          validator_index,
-                         validator_registry);
+                         validator_registry,
+                         validator_keys_manifest,
+                         xmss_provider);
 }
 
 auto makeBlockMap(std::vector<lean::Block> blocks) {
@@ -127,7 +143,7 @@ std::vector<lean::Block> makeBlocks(lean::Slot count) {
   return blocks;
 }
 
-auto advanceTimeStore() {
+ForkChoiceStore advanceTimeStore() {
   auto blocks = makeBlocks(1);
   auto &genesis = blocks.at(0);
   auto finalized = Checkpoint::from(genesis);
@@ -453,7 +469,7 @@ TEST(TestAttestationValidation, test_validate_attestation_too_far_future) {
 
   // Use very low genesis time (0) so that target at slot 9 is far in future
   // (slot 9 > current slot + 1)
-  lean::Config low_time_config{.num_validators = 100, .genesis_time = 0};
+  lean::Config low_time_config{.genesis_time = 0};
   auto sample_store =
       createTestStore(0, low_time_config, {}, {}, {}, {}, makeBlockMap(blocks));
 
@@ -643,10 +659,11 @@ TEST(TestSszHashCompatibility, test_genesis_state_hash_matches_ream) {
   // implementation. Using the test vector from ream with specific genesis time
   // and configuration
 
-  lean::Config test_config{.num_validators = 4, .genesis_time = 1759672259};
+  lean::Config test_config{.genesis_time = 1759672259};
 
   // Generate genesis state using our standard method
-  auto genesis_state = lean::STF::generateGenesisState(test_config);
+  auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
+  auto genesis_state = lean::STF::generateGenesisState(test_config, validator_registry);
 
   // Calculate SSZ hash
   auto calculated_hash = lean::sszHash(genesis_state);

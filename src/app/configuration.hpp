@@ -1,5 +1,6 @@
 /**
- * Copyright Soramitsu Co., Ltd. All Rights Reserved.
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,6 +15,7 @@
 #include <libp2p/multi/multiaddress.hpp>
 #include <utils/ctor_limiters.hpp>
 
+#include "app/validator_keys_manifest.hpp"
 #include "crypto/xmss/xmss_provider.hpp"
 
 namespace lean::app {
@@ -52,6 +54,8 @@ namespace lean::app {
     [[nodiscard]] virtual const libp2p::crypto::KeyPair &nodeKey() const;
     [[nodiscard]] virtual const crypto::xmss::XmssKeypair &xmssKeypair() const;
     [[nodiscard]] virtual const std::optional<size_t> &maxBootnodes() const;
+    [[nodiscard]] virtual const std::filesystem::path &
+    validatorKeysManifestPath() const;
 
     [[nodiscard]] virtual const DatabaseConfig &database() const;
 
@@ -75,6 +79,8 @@ namespace lean::app {
     std::filesystem::path xmss_public_key_path_;
     std::filesystem::path xmss_secret_key_path_;
     std::optional<crypto::xmss::XmssKeypair> xmss_keypair_;
+
+    std::filesystem::path validator_keys_manifest_path_;
 
     DatabaseConfig database_;
     MetricsConfig metrics_;
