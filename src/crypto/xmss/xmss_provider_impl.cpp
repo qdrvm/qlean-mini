@@ -165,30 +165,24 @@ namespace lean::crypto::xmss {
     }
     sig_buffer.resize(sig_written);
 
-    // Prepend epoch to signature (4 bytes, little-endian)
-    qtils::ByteVec final_signature(4 + sig_written);
-    final_signature[0] = static_cast<uint8_t>(epoch & 0xFF);
-    final_signature[1] = static_cast<uint8_t>((epoch >> 8) & 0xFF);
-    final_signature[2] = static_cast<uint8_t>((epoch >> 16) & 0xFF);
-    final_signature[3] = static_cast<uint8_t>((epoch >> 24) & 0xFF);
-    std::memcpy(final_signature.data() + 4, sig_buffer.data(), sig_written);
+    XmssSignature final_signature;
+    std::fill(final_signature.begin(), final_signature.end(), 0);
+
+    if (sig_written > final_signature.size()) {
+      throw std::runtime_error(
+          "XMSS signature too large: " + std::to_string(sig_written)
+          + " expected: " + std::to_string(final_signature.size()));
+    }
+
+    std::memcpy(final_signature.data(), sig_buffer.data(), sig_written);
 
     return final_signature;
   }
 
   bool XmssProviderImpl::verify(XmssPublicKey xmss_public_key,
                                 qtils::BytesIn message,
+                                uint32_t epoch,
                                 XmssSignature xmss_signature) {
-    // Extract epoch from first 4 bytes of signature
-    if (xmss_signature.size() < 4) {
-      throw std::runtime_error("XMSS signature too short to contain epoch");
-    }
-
-    uint32_t epoch = static_cast<uint32_t>(xmss_signature[0])
-                   | (static_cast<uint32_t>(xmss_signature[1]) << 8)
-                   | (static_cast<uint32_t>(xmss_signature[2]) << 16)
-                   | (static_cast<uint32_t>(xmss_signature[3]) << 24);
-
     // Deserialize public key
     PQSignatureSchemePublicKey *pk_raw = nullptr;
     PQSigningError result = pq_public_key_deserialize(
@@ -200,10 +194,10 @@ namespace lean::crypto::xmss {
     }
     PublicKeyPtr pk(pk_raw);
 
-    // Deserialize signature (skip first 4 bytes which contain epoch)
+    // Deserialize signature
     PQSignature *signature_raw = nullptr;
     result = pq_signature_deserialize(
-        xmss_signature.data() + 4, xmss_signature.size() - 4, &signature_raw);
+        xmss_signature.data(), xmss_signature.size(), &signature_raw);
 
     if (result != 0) {  // Success = 0
       throw std::runtime_error("Failed to deserialize XMSS signature: "

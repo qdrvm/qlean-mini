@@ -23,6 +23,7 @@ namespace lean::crypto::xmss {
 
     virtual bool verify(XmssPublicKey xmss_public_key,
                         qtils::BytesIn message,
+                        uint32_t epoch,
                         XmssSignature xmss_signature) = 0;
   };
 }  // namespace lean::crypto::xmss

@@ -1,5 +1,5 @@
 /**
-* Copyright Quadrivium LLC
+ * Copyright Quadrivium LLC
  * All Rights Reserved
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -21,6 +21,7 @@ namespace lean::crypto::xmss {
 
     bool verify(XmssPublicKey xmss_public_key,
                 qtils::BytesIn message,
+                uint32_t epoch,
                 XmssSignature xmss_signature) override;
   };
 

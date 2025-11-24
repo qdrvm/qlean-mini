@@ -16,5 +16,5 @@ namespace lean::crypto::xmss {
     XmssPrivateKey private_key;
     XmssPublicKey public_key;
   };
-  using XmssSignature = qtils::ByteVec;
+  using XmssSignature = qtils::ByteArr<3116>;
 }  // namespace lean::crypto::xmss
