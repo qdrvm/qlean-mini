@@ -298,45 +298,51 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
       const SignedAttestation &signed_attestation) {
-    auto &attestation = signed_attestation.message;
-    auto &data = attestation.data;
-    auto &target = data.target;
-    auto &source = data.source;
+    auto &data = signed_attestation.message.data;
 
     SL_TRACE(logger_,
              "Validating attestation for target {}, source {}",
-             target,
-             source);
+             data.target,
+             data.source);
     auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
 
-    // Validate attestation targets exist in store
-    if (not blocks_.contains(source.root)) {
+    // Availability Check
+    //
+    // We cannot count a vote if we haven't seen the blocks involved.
+    if (not blocks_.contains(data.source.root)) {
       return Error::INVALID_ATTESTATION;
     }
-    if (not blocks_.contains(target.root)) {
+    if (not blocks_.contains(data.target.root)) {
+      return Error::INVALID_ATTESTATION;
+    }
+    if (not blocks_.contains(data.head.root)) {
       return Error::INVALID_ATTESTATION;
     }
 
-    // Validate slot relationships
-    auto &source_block = blocks_.at(source.root);
-    auto &target_block = blocks_.at(target.root);
+    // Topology Check
+    //
+    // History is linear and monotonic. Source must be an ancestor of Target.
+    auto &source_block = blocks_.at(data.source.root);
+    auto &target_block = blocks_.at(data.target.root);
 
     if (source_block.slot > target_block.slot) {
       return Error::INVALID_ATTESTATION;
     }
-    if (source.slot > target.slot) {
-      return Error::INVALID_ATTESTATION;
-    }
 
+    // Consistency Check
+    //
     // Validate checkpoint slots match block slots
-    if (source_block.slot != source.slot) {
+    if (source_block.slot != data.source.slot) {
       return Error::INVALID_ATTESTATION;
     }
-    if (target_block.slot != target.slot) {
+    if (target_block.slot != data.target.slot) {
       return Error::INVALID_ATTESTATION;
     }
 
+    // Time Check
+    //
     // Validate attestation is not too far in the future
+    // We allow a small margin for clock disparity (1 slot), but no further.
     if (data.slot > getCurrentSlot() + 1) {
       return Error::INVALID_ATTESTATION;
     }

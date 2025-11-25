@@ -220,8 +220,20 @@ namespace lean {
      */
     Attestation produceAttestation(Slot slot, ValidatorIndex validator_index);
 
-    // Validate incoming attestation before processing.
-    // Performs basic validation checks on attestation structure and timing.
+    /**
+     * Validate incoming attestation before processing.
+     *
+     * Ensures the vote respects the basic laws of time and topology:
+     *     1. The blocks voted for must exist in our store.
+     *     2. A vote cannot span backwards in time (source > target).
+     *     3. A vote cannot be for a future slot.
+     *
+     * Args:
+     *     signed_attestation: Attestation to validate.
+     *
+     * Returns:
+     *     Success if validation passes, error otherwise.
+     */
     outcome::result<void> validateAttestation(
         const SignedAttestation &signed_attestation);
 
