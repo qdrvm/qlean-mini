@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include "mock/app/validator_keys_manifest_mock.hpp"
 #include "mock/blockchain/metrics_mock.hpp"
 #include "mock/blockchain/validator_registry_mock.hpp"
 #include "types/config.hpp"
@@ -21,11 +22,28 @@ TEST(STF, Test) {
       .genesis_time = 0,
   };
   auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
-  lean::ValidatorRegistry::ValidatorIndices validators;
+  // Create a validator set with at least 2 validators for the test
+  lean::ValidatorRegistry::ValidatorIndices validators = {0, 1};
   EXPECT_CALL(*validator_registry, allValidatorsIndices())
       .Times(testing::AnyNumber())
       .WillRepeatedly(testing::Return(validators));
-  auto state0 = lean::STF::generateGenesisState(config, validator_registry);
+
+  auto validator_keys_manifest =
+      std::make_shared<lean::app::ValidatorKeysManifestMock>();
+  // Return a dummy public key for validators 0 and 1
+  EXPECT_CALL(*validator_keys_manifest, getXmssPubkeyByIndex(testing::_))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Invoke([](lean::ValidatorIndex idx) {
+        if (idx < 2) {
+          lean::crypto::xmss::XmssPublicKey pubkey;
+          std::fill(pubkey.begin(), pubkey.end(), static_cast<uint8_t>(idx));
+          return std::make_optional(pubkey);
+        }
+        return std::optional<lean::crypto::xmss::XmssPublicKey>{};
+      }));
+
+  auto state0 = lean::STF::generateGenesisState(
+      config, validator_registry, validator_keys_manifest);
   auto block0 = lean::STF::genesisBlock(state0);
   block0.setHash();
 
@@ -42,6 +60,7 @@ TEST(STF, Test) {
 
   lean::Block block2{
       .slot = block1.slot + 3,
+      .proposer_index = (block1.slot + 3) % 2,
       .parent_root = block1.hash(),
   };
   auto state2 = stf.stateTransition(block2, state1, false).value();

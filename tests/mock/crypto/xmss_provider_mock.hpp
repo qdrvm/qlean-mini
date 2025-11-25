@@ -23,7 +23,7 @@ namespace lean::crypto::xmss {
                 (override));
     MOCK_METHOD(bool,
                 verify,
-                (XmssPublicKey, qtils::BytesIn, XmssSignature),
+                (XmssPublicKey, qtils::BytesIn, uint32_t, XmssSignature),
                 (override));
   };
 }  // namespace lean::crypto::xmss
