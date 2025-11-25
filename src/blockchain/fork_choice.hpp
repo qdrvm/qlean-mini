@@ -299,6 +299,21 @@ namespace lean {
     }
 
    private:
+    // Verify all XMSS signatures in a signed block.
+    //
+    // This method ensures that every attestation included in the block
+    // (both on-chain attestations from the block body and the proposer's
+    // own attestation) is properly signed by the claimed validator using
+    // their registered XMSS public key.
+    //
+    // Args:
+    //     signed_block: Complete signed block containing:
+    //         - Block body with included attestations
+    //         - Proposer's attestation for this block
+    //         - XMSS signatures for all attestations (ordered)
+    //
+    // Returns:
+    //     True if all signatures are cryptographically valid.
     bool validateBlockSignatures(
         const SignedBlockWithAttestation &signed_block) const;
 

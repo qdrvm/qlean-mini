@@ -420,43 +420,73 @@ namespace lean {
 
   bool ForkChoiceStore::validateBlockSignatures(
       const SignedBlockWithAttestation &signed_block) const {
-    auto block = signed_block.message.block;
-    auto proposer_attestation = signed_block.message.proposer_attestation;
-    auto signatures = signed_block.signature;
+    // Unpack the signed block components
+    const auto &message = signed_block.message;
+    const auto &block = message.block;
+    const auto &signatures = signed_block.signature;
 
-    auto attestations = block.body.attestations;
-    attestations.push_back(proposer_attestation);
-    if (signatures.size() != attestations.size()) {
+    // Combine all attestations that need verification
+    //
+    // This creates a single list containing both:
+    // 1. Block body attestations (from other validators)
+    // 2. Proposer attestation (from the block producer)
+    auto all_attestations = block.body.attestations;
+    all_attestations.push_back(message.proposer_attestation);
+
+    // Verify signature count matches attestation count
+    //
+    // Each attestation must have exactly one corresponding signature.
+    //
+    // The ordering must be preserved:
+    // 1. Block body attestations,
+    // 2. The proposer attestation.
+    if (signatures.size() != all_attestations.size()) {
       SL_WARN(logger_,
               "Number of signatures does not match number of attestations");
       return false;
     }
 
+    // Retrieve parent state to access validator public keys
+    //
+    // We use the parent state because:
+    // - Validator set is determined at the parent block
+    // - Public keys must be registered before signing
+    // - State root is committed in the block header
     auto it = states_.find(block.parent_root);
     if (it == states_.end()) {
       SL_WARN(logger_, "Parent state not found for block");
       return false;
     }
-    const auto &state = it->second;
-    auto validators = state.validators;
+    const auto &parent_state = it->second;
+    const auto &validators = parent_state.validators;
 
-    // Validate each attestation signature
-    for (size_t index = 0; index < attestations.size() - 1; ++index) {
-      Attestation attestation = attestations[index];
-      crypto::xmss::XmssSignature signature = signatures[index];
+    // Verify each attestation signature
+    for (size_t index = 0; index < all_attestations.size(); ++index) {
+      const auto &attestation = all_attestations[index];
+      const auto &signature = signatures.data().at(index);
+
+      // Identify the validator who created this attestation
       ValidatorIndex validator_id = attestation.validator_id;
+
+      // Ensure validator exists in the active set
       if (validator_id >= validators.size()) {
         SL_WARN(logger_, "Validator index out of range");
         return false;
       }
-      Validator &validator = validators[validator_id];
-      crypto::xmss::XmssPublicKey pubkey = validator.pubkey;
+      const auto &validator = validators[validator_id];
 
+      // Verify the XMSS signature
+      //
+      // This cryptographically proves that:
+      // - The validator possesses the secret key for their public key
+      // - The attestation has not been tampered with
+      // - The signature was created at the correct epoch (slot)
       auto message = sszHash(attestation);
       Epoch epoch = attestation.data.slot;
-      if (not xmss_provider_->verify(pubkey, message, epoch, signature)) {
+      if (not xmss_provider_->verify(
+              validator.pubkey, message, epoch, signature)) {
         SL_WARN(logger_,
-                "Invalid signature for attestation from validator {}",
+                "Attestation signature verification failed for validator {}",
                 validator_id);
         return false;
       }
