@@ -27,36 +27,32 @@ namespace lean {
         blocks_, latest_justified_, latest_new_attestations_, min_target_score);
   }
 
-  std::optional<Checkpoint> ForkChoiceStore::getLatestJustified() {
-    using Key = std::tuple<Slot, BlockHash>;
-    std::optional<Key> max;
-    for (auto &state : states_ | std::views::values) {
-      Key key{state.latest_justified.slot, state.latest_justified.root};
-      if (not max.has_value() or key > max.value()) {
-        max = key;
-      }
-    }
-    if (not max.has_value()) {
-      return std::nullopt;
-    }
-    auto &[slot, hash] = max.value();
-    if (slot == 0) {
-      for (auto &[hash, block] : blocks_) {
-        if (block.slot == 0) {
-          return Checkpoint{.root = hash, .slot = slot};
-        }
-      }
-    }
-    return Checkpoint{.root = hash, .slot = slot};
-  }
-
   void ForkChoiceStore::updateHead() {
-    // Compute latest justified checkpoint from all known states
+    // Find the Latest Justified Checkpoint
     //
-    // Scans every state in the store to find the checkpoint with the
-    // highest slot that has achieved justification.
-    if (auto latest_justified = getLatestJustified()) {
-      latest_justified_ = latest_justified.value();
+    // We must first determine the anchor point for our fork choice algorithm.
+    // This anchor is the justified checkpoint (a block root and slot) with the
+    // highest slot number known across *all* known states.
+    //
+    // We find this by:
+    // a) Scanning all known states.
+    // b) Finding the state that contains the justified checkpoint with the
+    //    highest slot number.
+    // c) Extracting that specific checkpoint object to use as our anchor.
+    //
+    // If there are no states to scan (e.g., at initialization), the
+    // operation would fail. In this case, we fall back to using the
+    // store's currently recorded justified checkpoint, preserving the
+    // last known good anchor.
+    if (!states_.empty()) {
+      auto max_it = std::max_element(
+          states_.begin(),
+          states_.end(),
+          [](const auto &a, const auto &b) {
+            return a.second.latest_justified.slot
+                   < b.second.latest_justified.slot;
+          });
+      latest_justified_ = max_it->second.latest_justified;
       if (latest_justified_.slot == 0) {
         for (auto &[hash, block] : blocks_) {
           if (block.slot == 0) {
@@ -630,13 +626,12 @@ namespace lean {
         metrics_->fc_head_slot()->set(head_slot.value());
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getAttestationTarget();
-        auto source = getLatestJustified();
         SL_INFO(logger_,
                 "For slot {}: head is {}, target is {}, source is {}",
                 current_slot,
                 head,
                 target,
-                source.value());
+                latest_justified_);
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
           if (isProposer(validator_index, current_slot, validator_count)) {

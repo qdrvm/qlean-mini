@@ -96,8 +96,6 @@ namespace lean {
     // target
     void updateSafeTarget();
 
-    std::optional<Checkpoint> getLatestJustified();
-
     // Updates the store's latest justified checkpoint, head, and latest
     // finalized state.
     void updateHead();
