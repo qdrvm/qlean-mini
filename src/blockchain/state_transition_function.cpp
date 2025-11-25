@@ -168,53 +168,73 @@ namespace lean {
 
   outcome::result<void> STF::processBlockHeader(State &state,
                                                 const Block &block) const {
-    // Verify that the slots match
+    // Validation
+    auto &parent_header = state.latest_block_header;
+    parent_header.updateHash();
+    auto parent_root = parent_header.hash();
+
+    // The block must be for the current slot.
     if (block.slot != state.slot) {
       return Error::INVALID_SLOT;
     }
-    // Verify that the block is newer than latest block header
-    if (block.slot <= state.latest_block_header.slot) {
+
+    // The block must be newer than the current latest header.
+    if (block.slot <= parent_header.slot) {
       return Error::INVALID_SLOT;
     }
-    // Verify that proposer index is the correct index
+
+    // The proposer must be the expected validator for this slot.
     if (not validateProposerIndex(state, block)) {
       return Error::INVALID_PROPOSER;
     }
-    // Verify that the parent matches
-    state.latest_block_header.updateHash();
-    if (block.parent_root != state.latest_block_header.hash()) {
+
+    // The declared parent must match the hash of the latest block header.
+    if (block.parent_root != parent_root) {
       return Error::PARENT_ROOT_DOESNT_MATCH;
     }
 
-    // If this was first block post genesis, 3sf mini special treatment is
-    // required to correctly set genesis block root as already justified and
-    // finalized. This is not possible at the time of genesis state generation
-    // and are set at zero bytes because genesis block is calculated using
-    // genesis state causing a circular dependency
-    [[unlikely]] if (state.latest_block_header.slot == 0) {
+    // State Updates
+
+    // Special case: first block after genesis.
+    //
+    // Mark genesis as both justified and finalized.
+    bool is_genesis_parent = parent_header.slot == 0;
+    [[unlikely]] if (is_genesis_parent) {
       // block.parent_root is the genesis root
-      state.latest_justified.root = block.parent_root;
-      state.latest_finalized.root = block.parent_root;
+      state.latest_justified.root = parent_root;
+      state.latest_finalized.root = parent_root;
     }
 
-    // now that we can vote on parent, push it at its correct slot index in the
-    // structures
-    state.historical_block_hashes.push_back(block.parent_root);
-    // genesis block is always justified
-    state.justified_slots.push_back(state.latest_block_header.slot == 0);
+    // If there were empty slots between parent and this block, fill them.
+    auto num_empty_slots = block.slot - parent_header.slot - 1;
 
-    // if there were empty slots, push zero hash for those ancestors
-    for (auto num_empty_slots = block.slot - state.latest_block_header.slot - 1;
-         num_empty_slots > 0;
-         --num_empty_slots) {
+    // Build new historical hashes list
+    //
+    // Now that we can vote on parent, push it at its correct slot index in the
+    // structures.
+    state.historical_block_hashes.push_back(parent_root);
+
+    // If there were empty slots, push zero hash for those ancestors
+    for (auto i = num_empty_slots; i > 0; --i) {
       state.historical_block_hashes.push_back(kZeroHash);
+    }
+
+    // Build new justified slots list
+    //
+    // Genesis block is always justified
+    state.justified_slots.push_back(is_genesis_parent);
+
+    // Mark empty slots as not justified
+    for (auto i = num_empty_slots; i > 0; --i) {
       state.justified_slots.push_back(false);
     }
 
-    // Cache current block as the new latest block
+    // Construct the new latest block header.
+    //
+    // Leave state_root empty; it will be filled on the next process_slot call.
     state.latest_block_header = block.getHeader();
-    // Overwritten in the next process_slot call
     state.latest_block_header.state_root = kZeroHash;
+
     return outcome::success();
   }
 
