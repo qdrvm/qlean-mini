@@ -233,35 +233,6 @@ namespace lean {
         const SignedAttestation &signed_attestation, bool is_from_block);
 
 
-    /*
-      Process the proposer's attestation for their own block.
-
-      The proposer attestation is handled specially to prevent circular weight:
-
-      Timing
-      ------
-      - Cast during interval 1 (after block proposal in interval 0)
-      - Processed as gossip (`is_from_block=False`) to avoid circular weight
-      - Becomes "known" only in interval 3, after fork choice update
-      - Will be included in a future block by another proposer
-
-      Why This Matters
-      -----------------
-      The proposer should not gain unfair fork choice advantage by attesting
-      to their own block before it competes with alternatives. This separation
-      ensures the proposer's attestation doesn't create circular weight.
-
-      Args:
-          proposer_attestation: The proposer's attestation message.
-          signatures: Signature list from the signed block.
-          block: The block being processed (for index calculation).
-
-      Returns:
-          New Store with proposer attestation processed as gossip.
-    */
-    outcome::result<void> processProposerAttestation(
-        SignedBlockWithAttestation signed_block_with_attestation);
-
     // Processes a new block, updates the store, and triggers a head update.
     outcome::result<void> onBlock(
         SignedBlockWithAttestation signed_block_with_attestation);

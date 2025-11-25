@@ -494,30 +494,6 @@ namespace lean {
     return true;
   }
 
-  outcome::result<void> ForkChoiceStore::processProposerAttestation(
-      SignedBlockWithAttestation signed_block_with_attestation) {
-    auto &block = signed_block_with_attestation.message.block;
-    auto &proposer_attestation =
-        signed_block_with_attestation.message.proposer_attestation;
-    auto &signatures = signed_block_with_attestation.signature;
-
-    if (block.body.attestations.size() >= signatures.size()) {
-      return Error::INVALID_ATTESTATION;
-    }
-    // Proposer signature is at the end of signature list (after all block
-    // body attestation signatures)
-    auto &proposer_signature =
-        signatures.data().at(block.body.attestations.size());
-    SignedAttestation signed_proposer_attestation{
-        .message = proposer_attestation,
-        .signature = proposer_signature,
-    };
-    // Process as gossip (not from block) so it enters "new" attestations and
-    // only influences fork choice after interval 3 acceptance
-    BOOST_OUTCOME_TRY(onAttestation(signed_proposer_attestation, false));
-    return outcome::success();
-  }
-
   outcome::result<void> ForkChoiceStore::onBlock(
       SignedBlockWithAttestation signed_block_with_attestation) {
     auto timer = metrics_->fc_block_processing_time_seconds()->timer();
@@ -586,8 +562,12 @@ namespace lean {
     // 1. NOT affect this block's fork choice position (processed as "new")
     // 2. Be available for inclusion in future blocks
     // 3. Influence fork choice only after interval 3 (end of slot)
-    BOOST_OUTCOME_TRY(
-        processProposerAttestation(signed_block_with_attestation));
+    BOOST_OUTCOME_TRY(onAttestation(
+        SignedAttestation{
+            .message = proposer_attestation,
+            .signature = signatures.data().at(block.body.attestations.size()),
+        },
+        false));
 
     return outcome::success();
   }
