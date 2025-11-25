@@ -35,6 +35,8 @@ namespace lean {
   /**
    * Returns a map of `root -> justifications` constructed from the flattened
    * data in the state.
+   *
+   * Corresponds to get_justifications_map in Python spec.
    */
   inline Justifications getJustifications(const State &state) {
     // No justified roots means no justifications to reconstruct.
@@ -60,6 +62,8 @@ namespace lean {
   /**
    * Saves a map of `root -> justifications` back into the state's flattened
    * data structure.
+   *
+   * Corresponds to flatten_justifications_map in Python spec.
    */
   inline void setJustifications(State &state,
                                 const Justifications &justifications) {
@@ -265,95 +269,124 @@ namespace lean {
 
   outcome::result<void> STF::processAttestations(
       State &state, const Attestations &attestations) const {
-    // get justifications, justified slots and historical block hashes are
-    // already upto date as per the processing in process_block_header
+    // Get justifications, justified slots and historical block hashes are
+    // already up to date as per the processing in process_block_header
     auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
     auto justifications = getJustifications(state);
 
-    // From 3sf-mini/consensus.py - apply attestations
+    // Track state changes to be applied at the end
+    auto latest_justified = state.latest_justified;
+    auto latest_finalized = state.latest_finalized;
+    auto justified_slots = state.justified_slots.data();
+
+    // Process each attestation in the block.
     for (auto &attestation : attestations) {
       auto &attestation_data = attestation.data;
-      if (attestation_data.source.slot
-          >= state.historical_block_hashes.size()) {
-        return Error::INVALID_VOTE_SOURCE_SLOT;
-      }
-      if (attestation_data.target.slot
-          >= state.historical_block_hashes.size()) {
-        return Error::INVALID_VOTE_TARGET_SLOT;
-      }
+      auto &source = attestation_data.source;
+      auto &target = attestation_data.target;
+
       // Ignore attestations whose source is not already justified,
       // or whose target is not in the history, or whose target is not a
       // valid justifiable slot
-      if (not getBit(state.justified_slots.data(), attestation_data.source.slot)
-          // This condition is missing in 3sf mini but has been added here
-          // because we don't want to re-introduce the target again for
-          // remaining attestations if the slot is already justified and its
-          // tracking already cleared out from justifications map
-          or getBit(state.justified_slots.data(), attestation_data.target.slot)
-          or attestation_data.source.root
-                 != state.historical_block_hashes.data().at(
-                     attestation_data.source.slot)
-          or attestation_data.target.root
-                 != state.historical_block_hashes.data().at(
-                     attestation_data.target.slot)
-          or attestation_data.target.slot <= attestation_data.source.slot
-          or not isJustifiableSlot(state.latest_finalized.slot,
-                                   attestation_data.target.slot)) {
+      auto source_slot = source.slot;
+      auto target_slot = target.slot;
+
+      if (source_slot >= state.historical_block_hashes.size()) {
+        return Error::INVALID_VOTE_SOURCE_SLOT;
+      }
+      if (target_slot >= state.historical_block_hashes.size()) {
+        return Error::INVALID_VOTE_TARGET_SLOT;
+      }
+
+      // Source slot must be justified
+      if (not getBit(justified_slots, source_slot)) {
         continue;
       }
 
-      auto justifications_it =
-          justifications.find(attestation_data.target.root);
+      // Target slot must not be already justified
+      // This condition is missing in 3sf mini but has been added here because
+      // we don't want to re-introduce the target again for remaining votes if
+      // the slot is already justified and its tracking already cleared out
+      // from justifications map
+      if (getBit(justified_slots, target_slot)) {
+        continue;
+      }
+
+      // Source root must match the state's historical block hashes
+      if (source.root != state.historical_block_hashes.data().at(source_slot)) {
+        continue;
+      }
+
+      // Target root must match the state's historical block hashes
+      if (target.root != state.historical_block_hashes.data().at(target_slot)) {
+        continue;
+      }
+
+      // Target slot must be after source slot
+      if (target.slot <= source.slot) {
+        continue;
+      }
+
+      // Target slot must be justifiable after the latest finalized slot
+      if (not isJustifiableSlot(latest_finalized.slot, target.slot)) {
+        continue;
+      }
+
       // Track attempts to justify new hashes
+      auto justifications_it = justifications.find(target.root);
       if (justifications_it == justifications.end()) {
         justifications_it =
-            justifications
-                .emplace(attestation_data.target.root, std::vector<bool>{})
-                .first;
+            justifications.emplace(target.root, std::vector<bool>{}).first;
         justifications_it->second.resize(state.validatorCount());
       }
 
-      if (attestation.validator_id >= justifications_it->second.size()) {
+      auto validator_id = attestation.validator_id;
+      if (validator_id >= justifications_it->second.size()) {
         return Error::INVALID_VOTER;
       }
-      justifications_it->second.at(attestation.validator_id) = true;
+      if (not justifications_it->second.at(validator_id)) {
+        justifications_it->second.at(validator_id) = true;
+      }
 
       size_t count = std::ranges::count(justifications_it->second, true);
 
-      // If 2/3 voted for the same new valid hash to justify
+      // If 2/3 attested to the same new valid hash to justify
       // in 3sf mini this is strict equality, but we have updated it to >=
       // also have modified it from count >= (2 * state.config.num_validators)
-      // / 3 to prevent integer division which could lead to less than 2/3 of
-      // validators justifying specially if the num_validators is low in testing
-      // scenarios
+      // // 3 to prevent integer division which could lead to less than 2/3 of
+      // validators justifying specially if the num_validators is low in
+      // testing scenarios
       if (3 * count >= 2 * state.validatorCount()) {
-        state.latest_justified = attestation_data.target;
-        metrics_->stf_latest_justified_slot()->set(state.latest_justified.slot);
-        setBit(state.justified_slots.data(), attestation_data.target.slot);
-        justifications.erase(attestation_data.target.root);
+        latest_justified = target;
+        metrics_->stf_latest_justified_slot()->set(latest_justified.slot);
+        setBit(justified_slots, target_slot);
+        justifications.erase(target.root);
 
-        // Finalization: if the target is the next valid justifiable hash after
-        // the source
+        // Finalization: if the target is the next valid justifiable
+        // hash after the source
         auto any = false;
-        for (auto slot = attestation_data.source.slot + 1;
-             slot < attestation_data.target.slot;
-             ++slot) {
-          if (isJustifiableSlot(state.latest_finalized.slot, slot)) {
+        for (auto slot = source_slot + 1; slot < target_slot; ++slot) {
+          if (isJustifiableSlot(latest_finalized.slot, slot)) {
             any = true;
             break;
           }
         }
         if (not any) {
-          state.latest_finalized = attestation_data.source;
-          metrics_->stf_latest_finalized_slot()->set(
-              state.latest_finalized.slot);
+          latest_finalized = source;
+          metrics_->stf_latest_finalized_slot()->set(latest_finalized.slot);
         }
       }
       metrics_->stf_attestations_processed_total()->inc();
     }
 
-    // flatten and set updated justifications back to the state
+    // Flatten and set updated justifications back to the state
     setJustifications(state, justifications);
+
+    // Apply tracked state changes
+    state.justified_slots.data() = std::move(justified_slots);
+    state.latest_justified = latest_justified;
+    state.latest_finalized = latest_finalized;
+
     return outcome::success();
   }
 
