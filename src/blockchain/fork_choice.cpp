@@ -351,7 +351,7 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::onAttestation(
       const SignedAttestation &signed_attestation, bool is_from_block) {
-    // Validate attestation structure and constraints
+    // First, ensure the attestation is structurally and temporally valid.
     if (auto res = validateAttestation(signed_attestation); res.has_value()) {
       metrics_->fc_attestations_valid_total()->inc();
     } else {
@@ -359,9 +359,12 @@ namespace lean {
       return res;
     }
 
-    auto &attestation = signed_attestation.message;
-    auto &validator_id = attestation.validator_id;
-    auto &attestation_slot = attestation.data.slot;
+    // Extract the validator index that produced this attestation.
+    auto &validator_id = signed_attestation.message.validator_id;
+
+    // Extract the attestation's slot:
+    // - used to decide if this attestation is "newer" than a previous one.
+    auto &attestation_slot = signed_attestation.message.data.slot;
 
     if (is_from_block) {
       // On-chain attestation processing
@@ -371,9 +374,13 @@ namespace lean {
       // - They are processed immediately as "known" attestations,
       // - They contribute to fork choice weights.
 
-      // Update known attestations if this is the latest from validator
+      // Fetch the currently known attestation for this validator, if any.
       auto latest_known_attestation =
           latest_known_attestations_.find(validator_id);
+
+      // Update the known attestation for this validator if:
+      // - there is no known attestation yet, or
+      // - this attestation is from a later slot than the known one.
       if (latest_known_attestation == latest_known_attestations_.end()
           or latest_known_attestation->second.message.data.slot
                  < attestation_slot) {
@@ -381,8 +388,14 @@ namespace lean {
                                                     signed_attestation);
       }
 
-      // clear from new votes if this is latest
+      // Fetch any pending ("new") attestation for this validator.
       auto latest_new_attestation = latest_new_attestations_.find(validator_id);
+
+      // Remove the pending attestation if:
+      // - it exists, and
+      // - it is from an equal or earlier slot than this on-chain attestation.
+      //
+      // In that case, the on-chain attestation supersedes it.
       if (latest_new_attestation != latest_new_attestations_.end()
           and latest_new_attestation->second.message.data.slot
                   <= attestation_slot) {
@@ -396,14 +409,21 @@ namespace lean {
       // - They must wait for interval tick acceptance before
       //   contributing to fork choice weights.
 
-      // forkchoice should be correctly ticked to current time before importing
-      // gossiped attestations
-      if (attestation_slot > getCurrentSlot() + 1) {
+      // Convert Store time to slots to check for "future" attestations.
+      auto time_slots = getCurrentSlot();
+
+      // Reject the attestation if:
+      // - its slot is strictly greater than our current slot.
+      if (attestation_slot > time_slots) {
         return Error::INVALID_ATTESTATION;
       }
 
-      // update latest new votes if this is the latest
+      // Fetch the previously stored "new" attestation for this validator.
       auto latest_new_attestation = latest_new_attestations_.find(validator_id);
+
+      // Update the pending attestation for this validator if:
+      // - there is no pending attestation yet, or
+      // - this one is from a later slot than the pending one.
       if (latest_new_attestation == latest_new_attestations_.end()
           or latest_new_attestation->second.message.data.slot
                  < attestation_slot) {

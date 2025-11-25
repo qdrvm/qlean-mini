@@ -36,6 +36,23 @@ namespace lean::metrics {
 }  // namespace lean::metrics
 
 namespace lean {
+  /**
+   * Forkchoice store tracking chain state and validator attestations.
+   *
+   * This is the "local view" that a node uses to run LMD GHOST. It contains:
+   *
+   * - which blocks and states are known,
+   * - which checkpoints are justified and finalized,
+   * - which block is currently considered the head,
+   * - and, for each validator, their latest attestation that should influence
+   *   fork choice.
+   *
+   * The Store is updated whenever:
+   * - a new block is processed,
+   * - an attestation is received (via a block or gossip),
+   * - an interval tick occurs (activating new attestations),
+   * - or when the head is recomputed.
+   */
   class ForkChoiceStore {
    public:
     using Blocks = std::unordered_map<BlockHash, Block>;
@@ -237,8 +254,52 @@ namespace lean {
     outcome::result<void> validateAttestation(
         const SignedAttestation &signed_attestation);
 
-    // Validates and processes a new attestation (a signed vote), updating the
-    // store's latest votes.
+    /**
+     * Process a new attestation and place it into the correct attestation
+     * stage.
+     *
+     * Attestations can come from:
+     * - a block body (on-chain, is_from_block=true), or
+     * - the gossip network (off-chain, is_from_block=false).
+     *
+     * The Attestation Pipeline
+     * -------------------------
+     * Attestations always live in exactly one of two dictionaries:
+     *
+     * Stage 1: latest new attestations
+     *     - Holds *pending* attestations that are not yet counted in fork
+     *       choice.
+     *     - Includes the proposer's attestation for the block they just
+     *       produced.
+     *     - Await activation by an interval tick before they influence weights.
+     *
+     * Stage 2: latest known attestations
+     *     - Contains all *active* attestations used by LMD-GHOST.
+     *     - Updated during interval ticks, which promote new → known.
+     *     - Directly contributes to fork-choice subtree weights.
+     *
+     * Key Behaviors
+     * --------------
+     * Migration:
+     *     - Attestations always move forward (new → known), never backwards.
+     *
+     * Superseding:
+     *     - For each validator, only the attestation from the highest slot is
+     *       kept.
+     *     - A newer attestation overwrites an older one in either dictionary.
+     *
+     * Accumulation:
+     *     - Attestations from different validators accumulate independently.
+     *     - Only same-validator comparisons result in replacement.
+     *
+     * Args:
+     *     signed_attestation: The attestation message to ingest.
+     *     is_from_block: True if embedded in a block body (on-chain),
+     *                    False if from gossip.
+     *
+     * Returns:
+     *     Success if the attestation was processed, error otherwise.
+     */
     outcome::result<void> onAttestation(
         const SignedAttestation &signed_attestation, bool is_from_block);
 
@@ -281,14 +342,86 @@ namespace lean {
 
     STF stf_;
     Interval time_;
+
+    /// Chain configuration parameters.
     Config config_;
+
+    /**
+     * Root of the current canonical chain head block.
+     *
+     * This is the result of running the fork choice algorithm on the current
+     * contents of the Store.
+     */
     BlockHash head_;
+
+    /**
+     * Root of the current safe target for attestation.
+     *
+     * This can be used by higher-level logic to restrict which blocks are
+     * considered safe to attest to, based on additional safety conditions.
+     */
     BlockHash safe_target_;
+
+    /**
+     * Highest slot justified checkpoint known to the store.
+     *
+     * LMD GHOST starts from this checkpoint when computing the head.
+     *
+     * Only descendants of this checkpoint are considered viable.
+     */
     Checkpoint latest_justified_;
+
+    /**
+     * Highest slot finalized checkpoint known to the store.
+     *
+     * Everything strictly before this checkpoint can be considered immutable.
+     *
+     * Fork choice will never revert finalized history.
+     */
     Checkpoint latest_finalized_;
+
+    /**
+     * Mapping from block root to Block objects.
+     *
+     * This is the set of blocks that the node currently knows about.
+     *
+     * Every block that might participate in fork choice must appear here.
+     */
     Blocks blocks_;
+
+    /**
+     * Mapping from state root to State objects.
+     *
+     * For each known block, we keep its post-state.
+     *
+     * These states carry justified and finalized checkpoints that we use to
+     * update the Store's latest justified and latest finalized checkpoints.
+     */
     std::unordered_map<BlockHash, State> states_;
+    /**
+     * Active attestations that contribute to fork choice weights.
+     *
+     * Stage 2 of the attestation pipeline:
+     * - Contains all *active* attestations used by LMD-GHOST.
+     * - Updated during interval ticks, which promote new → known.
+     * - Directly contributes to fork-choice subtree weights.
+     *
+     * For each validator, stores their most recent attestation that is
+     * currently influencing the fork choice head computation.
+     */
     SignedAttestations latest_known_attestations_;
+
+    /**
+     * Pending attestations awaiting activation.
+     *
+     * Stage 1 of the attestation pipeline:
+     * - Holds *pending* attestations that are not yet counted in fork choice.
+     * - Includes the proposer's attestation for the block they just produced.
+     * - Await activation by an interval tick before they influence weights.
+     *
+     * Attestations move from this map to latest_known_attestations_ during
+     * interval ticks.
+     */
     SignedAttestations latest_new_attestations_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
