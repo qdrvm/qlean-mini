@@ -11,6 +11,7 @@
 #include <qtils/shared_ref.hpp>
 
 #include "app/impl/chain_spec_impl.hpp"
+#include "app/validator_keys_manifest.hpp"
 #include "blockchain/validator_registry.hpp"
 #include "types/block.hpp"
 #include "types/slot.hpp"
@@ -63,7 +64,9 @@ namespace lean {
     explicit STF(qtils::SharedRef<metrics::Metrics> metrics);
 
     static AnchorState generateGenesisState(
-        const Config &config, qtils::SharedRef<ValidatorRegistry>);
+        const Config &config,
+        qtils::SharedRef<ValidatorRegistry>,
+        qtils::SharedRef<app::ValidatorKeysManifest>);
     static AnchorBlock genesisBlock(const State &state);
 
     /**

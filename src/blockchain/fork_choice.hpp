@@ -299,6 +299,9 @@ namespace lean {
     }
 
    private:
+    bool validateBlockSignatures(
+        const SignedBlockWithAttestation &signed_block) const;
+
     STF stf_;
     Interval time_;
     Config config_;
@@ -322,4 +325,5 @@ namespace lean {
       const Checkpoint &root,
       const ForkChoiceStore::SignedAttestations &latest_attestations,
       uint64_t min_score);
+
 }  // namespace lean

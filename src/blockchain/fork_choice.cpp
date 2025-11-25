@@ -251,15 +251,21 @@ namespace lean {
     auto proposer_attestation = produceAttestation(slot, validator_index);
     proposer_attestation.data.head = Checkpoint::from(block);
 
-    // Store block and state in forkchoice store
-    auto signed_block_with_attestation = signBlock({
+    // Sign proposer attestation
+    auto payload = sszHash(proposer_attestation);
+    crypto::xmss::XmssSignature signature = xmss_provider_->sign(
+        validator_keys_manifest_->currentNodeXmssKeypair().private_key,
+        slot,
+        payload);
+    SignedBlockWithAttestation signed_block_with_attestation{
         .message =
             {
                 .block = block,
                 .proposer_attestation = proposer_attestation,
             },
         .signature = signatures,
-    });
+    };
+    signed_block_with_attestation.signature.data().push_back(signature);
     BOOST_OUTCOME_TRY(onBlock(signed_block_with_attestation));
 
     return signed_block_with_attestation;
@@ -412,10 +418,46 @@ namespace lean {
     return signature == Signature{};
   }
 
-  inline bool validateBlockSignatures(const Block &block,
-                                      const BlockSignatures &signatures) {
-    for (auto &signature : signatures) {
-      if (not isValidSignature(signature)) {
+  bool ForkChoiceStore::validateBlockSignatures(
+      const SignedBlockWithAttestation &signed_block) const {
+    auto block = signed_block.message.block;
+    auto proposer_attestation = signed_block.message.proposer_attestation;
+    auto signatures = signed_block.signature;
+
+    auto attestations = block.body.attestations;
+    attestations.push_back(proposer_attestation);
+    if (signatures.size() != attestations.size()) {
+      SL_WARN(logger_,
+              "Number of signatures does not match number of attestations");
+      return false;
+    }
+
+    auto it = states_.find(block.parent_root);
+    if (it == states_.end()) {
+      SL_WARN(logger_, "Parent state not found for block");
+      return false;
+    }
+    const auto &state = it->second;
+    auto validators = state.validators;
+
+    // Validate each attestation signature
+    for (size_t index = 0; index < attestations.size() - 1; ++index) {
+      Attestation attestation = attestations[index];
+      crypto::xmss::XmssSignature signature = signatures[index];
+      ValidatorIndex validator_id = attestation.validator_id;
+      if (validator_id >= validators.size()) {
+        SL_WARN(logger_, "Validator index out of range");
+        return false;
+      }
+      Validator &validator = validators[validator_id];
+      crypto::xmss::XmssPublicKey pubkey = validator.pubkey;
+
+      auto message = sszHash(attestation);
+      Epoch epoch = attestation.data.slot;
+      if (not xmss_provider_->verify(pubkey, message, epoch, signature)) {
+        SL_WARN(logger_,
+                "Invalid signature for attestation from validator {}",
+                validator_id);
         return false;
       }
     }
@@ -451,8 +493,8 @@ namespace lean {
     if (block.body.attestations.size() >= signatures.size()) {
       return Error::INVALID_ATTESTATION;
     }
-    // Proposer signature is at the end of signature list (after all block body
-    // attestation signatures)
+    // Proposer signature is at the end of signature list (after all block
+    // body attestation signatures)
     auto &proposer_signature =
         signatures.data().at(block.body.attestations.size());
     SignedAttestation signed_proposer_attestation{
@@ -485,10 +527,15 @@ namespace lean {
     // The parent state must exist before processing this block.
     // If missing, the node must sync the parent chain first.
     auto &parent_state = states_.at(block.parent_root);
-    // at this point parent state should be available so node should sync parent
-    // chain if not available before adding block to forkchoice
+    // at this point parent state should be available so node should sync
+    // parent chain if not available before adding block to forkchoice
 
-    auto valid_signatures = validateBlockSignatures(block, signatures);
+    auto valid_signatures =
+        validateBlockSignatures(signed_block_with_attestation);
+    if (not valid_signatures) {
+      SL_WARN(logger_, "Invalid signatures for block {}", block.slotHash());
+      // return Error::INVALID_ATTESTATION;
+    }
 
     // Get post state from STF (State Transition Function)
     BOOST_OUTCOME_TRY(auto post_state,
@@ -588,7 +635,14 @@ namespace lean {
             continue;
           }
           auto attestation = produceAttestation(current_slot, validator_index);
-          auto signed_attestation = signAttestation(attestation);
+          // sign attestation
+          auto payload = sszHash(attestation);
+          crypto::xmss::XmssKeypair keypair =
+              validator_keys_manifest_->currentNodeXmssKeypair();
+          crypto::xmss::XmssSignature signature =
+              xmss_provider_->sign(keypair.private_key, current_slot, payload);
+          SignedAttestation signed_attestation{.message = attestation,
+                                               .signature = signature};
 
           // Dispatching send signed vote only broadcasts to other peers.
           // Current peer should process attestation directly
@@ -698,8 +752,8 @@ namespace lean {
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         metrics_(std::move(metrics)),
         xmss_provider_(std::move(xmss_provider)) {
-    AnchorState anchor_state =
-        STF::generateGenesisState(genesis_config.config, validator_registry_);
+    AnchorState anchor_state = STF::generateGenesisState(
+        genesis_config.config, validator_registry_, validator_keys_manifest_);
     AnchorBlock anchor_block = STF::genesisBlock(anchor_state);
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();

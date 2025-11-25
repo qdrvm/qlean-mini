@@ -77,7 +77,9 @@ namespace lean {
   }
 
   AnchorState STF::generateGenesisState(
-      const Config &config, qtils::SharedRef<ValidatorRegistry> registry) {
+      const Config &config,
+      qtils::SharedRef<ValidatorRegistry> registry,
+      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest) {
     BlockHeader header;
     header.slot = 0;
     header.proposer_index = 0;
@@ -92,11 +94,12 @@ namespace lean {
     result.latest_justified = Checkpoint{.root = kZeroHash, .slot = 0};
     result.latest_finalized = Checkpoint{.root = kZeroHash, .slot = 0};
 
-    // Initialize validators
-    // TODO: Unless validators pubkeys are included into validator registry, we
-    // add empty validators
     for (size_t i = 0; i < registry->allValidatorsIndices().size(); ++i) {
-      result.validators.push_back(Validator{});
+      auto opt_pubkey = validator_keys_manifest->getXmssPubkeyByIndex(i);
+      if (not opt_pubkey) {
+        continue;
+      }
+      result.validators.push_back(Validator{.pubkey = *opt_pubkey});
     }
     // result.historical_block_hashes;
     // result.justified_slots;
