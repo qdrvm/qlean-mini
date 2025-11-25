@@ -321,17 +321,16 @@ namespace lean {
 
     // Topology Check
     //
-    // History is linear and monotonic. Source must be an ancestor of Target.
-    auto &source_block = blocks_.at(data.source.root);
-    auto &target_block = blocks_.at(data.target.root);
-
-    if (source_block.slot > target_block.slot) {
+    // History is linear and monotonic. Source must be older than Target.
+    if (data.source.slot > data.target.slot) {
       return Error::INVALID_ATTESTATION;
     }
 
     // Consistency Check
     //
     // Validate checkpoint slots match block slots
+    auto &source_block = blocks_.at(data.source.root);
+    auto &target_block = blocks_.at(data.target.root);
     if (source_block.slot != data.source.slot) {
       return Error::INVALID_ATTESTATION;
     }
