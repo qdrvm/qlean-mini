@@ -143,20 +143,37 @@ namespace lean {
     if (state.slot >= slot) {
       return Error::INVALID_SLOT;
     }
+
+    // Step through each missing slot:
     while (state.slot < slot) {
-      processSlot(state);
+      // Per-Slot Housekeeping & Slot Increment
+      //
+      // This performs two tasks for each empty slot:
+      //
+      // 1. State Root Caching (Conditional):
+      //    Check if the latest block header has an empty state root.
+      //    This is true only for the *first* empty slot immediately
+      //    following a block.
+      //
+      //    - If it is empty, we must cache the pre-block state root
+      //      (the hash of the state *before* this slot increment) into that
+      //      header.
+      //
+      //    - If the state root is *not* empty, it means we are in a
+      //      sequence of empty slots, and no action is needed.
+      //
+      // 2. Slot Increment:
+      //    Always increment the slot number by one.
+      //
+      if (state.latest_block_header.state_root == kZeroHash) {
+        state.latest_block_header.state_root = sszHash(state);
+      }
       ++state.slot;
       metrics_->stf_slots_processed_total()->inc();
     }
     return outcome::success();
   }
 
-  void STF::processSlot(State &state) const {
-    // Cache latest block header state root
-    if (state.latest_block_header.state_root == kZeroHash) {
-      state.latest_block_header.state_root = sszHash(state);
-    }
-  }
 
   outcome::result<void> STF::processBlock(State &state,
                                           const Block &block) const {

@@ -81,7 +81,6 @@ namespace lean {
     outcome::result<void> processBlock(State &state, const Block &block) const;
 
    private:
-    void processSlot(State &state) const;
     outcome::result<void> processBlockHeader(State &state,
                                              const Block &block) const;
     outcome::result<void> processOperations(State &state,
