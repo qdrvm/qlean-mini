@@ -33,33 +33,6 @@ namespace lean {
   using Justifications = std::map<BlockHash, std::vector<bool>>;
 
   /**
-   * Returns a map of `root -> justifications` constructed from the flattened
-   * data in the state.
-   *
-   * Corresponds to get_justifications_map in Python spec.
-   */
-  inline Justifications getJustifications(const State &state) {
-    // No justified roots means no justifications to reconstruct.
-    [[unlikely]] if (state.justifications_roots.size() == 0) { return {}; }
-
-    auto &roots = state.justifications_roots.data();
-    auto &validators = state.justifications_validators.data();
-    Justifications justifications;
-    size_t offset = 0;
-    BOOST_ASSERT(validators.size() == roots.size() * state.validatorCount());
-    for (auto &root : roots) {
-      auto next_offset = offset + state.validatorCount();
-      std::vector<bool> bits{
-          validators.begin() + offset,
-          validators.begin() + next_offset,
-      };
-      justifications[root] = std::move(bits);
-      offset = next_offset;
-    }
-    return justifications;
-  }
-
-  /**
    * Saves a map of `root -> justifications` back into the state's flattened
    * data structure.
    *
@@ -269,10 +242,44 @@ namespace lean {
 
   outcome::result<void> STF::processAttestations(
       State &state, const Attestations &attestations) const {
-    // Get justifications, justified slots and historical block hashes are
-    // already up to date as per the processing in process_block_header
     auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
-    auto justifications = getJustifications(state);
+
+    // NOTE:
+    // The state already contains three pieces of data:
+    //   1. A list of block roots that have received justification votes.
+    //   2. A long sequence of boolean entries representing all validator votes,
+    //      flattened into a single list.
+    //   3. The total number of validators.
+    //
+    // The flattened vote list is organized so that votes from all validators
+    // for each block root appear together, and those groups are simply placed
+    // back-to-back.
+    //
+    // To work with attestations, we must rebuild the intuitive structure:
+    //   "for each block root, here is the list of validator votes for it".
+    //
+    // Reconstructing this is done by cutting the long vote list into
+    // consecutive segments, where:
+    //   - each segment corresponds to one block root,
+    //   - each segment has length equal to the number of validators,
+    //   - and the ordering of block roots is preserved.
+    Justifications justifications;
+    if (state.justifications_roots.size() > 0) {
+      auto &roots = state.justifications_roots.data();
+      auto &flat_justifications = state.justifications_validators.data();
+      size_t offset = 0;
+      BOOST_ASSERT(flat_justifications.size()
+                   == roots.size() * state.validatorCount());
+      for (auto &root : roots) {
+        auto next_offset = offset + state.validatorCount();
+        std::vector<bool> bits{
+            flat_justifications.begin() + offset,
+            flat_justifications.begin() + next_offset,
+        };
+        justifications[root] = std::move(bits);
+        offset = next_offset;
+      }
+    }
 
     // Track state changes to be applied at the end
     auto latest_justified = state.latest_justified;
