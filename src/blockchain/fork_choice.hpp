@@ -232,25 +232,6 @@ namespace lean {
     outcome::result<void> onAttestation(
         const SignedAttestation &signed_attestation, bool is_from_block);
 
-    // Process on-chain attestations from block body.
-    //
-    //     These are historical attestations from other validators that the
-    //     proposer chose to include. They are processed as on-chain
-    //     (`is_from_block=True`) and immediately added to known attestations.
-    //
-    //     Args:
-    //         block: The block containing attestations.
-    //         signatures: Signature list matching block attestations.
-    //
-    //     Returns:
-    //         New Store with attestations processed.
-    //
-    //     Note:
-    //         Future implementation may use aggregated signatures where a
-    //         single signature covers multiple attestations.
-    outcome::result<void> processBlockBodyAttestations(
-        const Block &block, const BlockSignatures &signatures);
-
 
     /*
       Process the proposer's attestation for their own block.

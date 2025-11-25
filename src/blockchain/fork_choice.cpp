@@ -494,25 +494,6 @@ namespace lean {
     return true;
   }
 
-  outcome::result<void> ForkChoiceStore::processBlockBodyAttestations(
-      const Block &block, const BlockSignatures &signatures) {
-    for (size_t index = 0; index < block.body.attestations.size(); ++index) {
-      auto &attestation = block.body.attestations[index];
-      if (index >= signatures.size()) {
-        return Error::INVALID_ATTESTATION;
-      }
-      // Extract signature at same index as attestation
-      auto &signature = signatures.data().at(index);
-      SignedAttestation signed_attestation{
-          .message = attestation,
-          .signature = signature,
-      };
-      // Process as on-chain (from block) so it enters "known" attestations
-      BOOST_OUTCOME_TRY(onAttestation(signed_attestation, true));
-    }
-    return outcome::success();
-  }
-
   outcome::result<void> ForkChoiceStore::processProposerAttestation(
       SignedBlockWithAttestation signed_block_with_attestation) {
     auto &block = signed_block_with_attestation.message.block;
@@ -573,7 +554,24 @@ namespace lean {
     blocks_.emplace(block_hash, block);
     states_.emplace(block_hash, std::move(post_state));
 
-    BOOST_OUTCOME_TRY(processBlockBodyAttestations(block, signatures));
+    // Process block body attestations
+    //
+    // Iterate over attestations and their corresponding signatures.
+    for (size_t index = 0; index < block.body.attestations.size(); ++index) {
+      if (index >= signatures.size()) {
+        return Error::INVALID_ATTESTATION;
+      }
+      const auto &attestation = block.body.attestations[index];
+      const auto &signature = signatures.data().at(index);
+
+      // Process as on-chain attestation (immediately becomes "known")
+      BOOST_OUTCOME_TRY(onAttestation(
+          SignedAttestation{
+              .message = attestation,
+              .signature = signature,
+          },
+          true));
+    }
 
     // Update forkchoice head based on new block and attestations
     //
