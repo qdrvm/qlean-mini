@@ -27,11 +27,10 @@ TEST_F(XmssProviderTest, GenerateKeypair) {
       provider_->generateKeypair(activation_epoch, num_active_epochs);
 
   EXPECT_FALSE(keypair.public_key.empty());
-  EXPECT_FALSE(keypair.private_key.empty());
+  EXPECT_NE(keypair.private_key, nullptr);
 
   // Check reasonable sizes
   EXPECT_GT(keypair.public_key.size(), 0);
-  EXPECT_GT(keypair.private_key.size(), 0);
 }
 
 TEST_F(XmssProviderTest, SignAndVerify) {
@@ -99,6 +98,7 @@ TEST_F(XmssProviderTest, VerifyFailsWithWrongEpoch) {
 
   // Attempt to verify using a different epoch
   uint32_t wrong_epoch = 101;
-  bool result = provider_->verify(keypair.public_key, message, wrong_epoch, signature);
+  bool result =
+      provider_->verify(keypair.public_key, message, wrong_epoch, signature);
   EXPECT_FALSE(result);
 }
