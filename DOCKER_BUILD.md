@@ -179,21 +179,23 @@ Push behavior for Builder & Runtime (**up to 3 tags** can be pushed):
 - Copy only `.so` files from vcpkg (not static libs, headers, cmake files)
 - Result: **14x smaller** runtime image (240 MB vs 3.4 GB)
 
-**Dependencies Image (CI/CD friendly):**
-- Exclude vcpkg build artifacts:
+**Dependencies Image (CI/CD friendly, SAFE optimization):**
+- **Exclude only temporary vcpkg artifacts:**
   - `buildtrees/` - temporary build files (~5-8 GB)
   - `downloads/` - source archives (~1-2 GB)
   - `packages/` - pre-install files (~2-4 GB)
-- Clean `vcpkg_installed/`:
-  - Remove debug builds (`debug/` dirs)
-  - Remove static libraries (`*.a` files)
-  - Remove tools (`tools/`, `manual-tools/`)
-  - Remove docs (copyright, usage files from `share/`)
-- **KEEP critical files:**
-  - `include/` - headers (required for compilation)
-  - `lib/*.so` - shared libraries (required for linking)
-  - `share/*.cmake` - CMake configs (required for `find_package()`)
-- Result: **~3-5 GB** instead of 15-20 GB
+- **`vcpkg_installed/` copied COMPLETELY (no cleanup):**
+  - ✅ Debug builds (`debug/` dirs) - KEPT
+  - ✅ Release builds (`lib/` dirs) - KEPT
+  - ✅ Static libraries (`*.a` files) - KEPT
+  - ✅ Headers (`include/`) - KEPT
+  - ✅ CMake configs (`share/*.cmake`) - KEPT
+  - ✅ Tools (`tools/`) - KEPT
+  - **Zero risk strategy:** All files preserved, guaranteed compatibility
+- **Result:** 
+  - Size: **~5-8 GB** instead of 18-20 GB
+  - Savings: **~10-15 GB** from removing only temp files
+  - Risk: **0%** - complete vcpkg_installed, no missing files
 - Perfect for GitHub free runners (14 GB disk limit)
 
 ## When to Rebuild
