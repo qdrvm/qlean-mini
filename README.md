@@ -83,8 +83,11 @@ make docker_build              # ~3-5 min ⚡
 ```
 
 **Three stages:**
-- `qlean-mini-dependencies:latest` - vcpkg libs (~18 GB, rebuild rarely)
-- `qlean-mini-builder:latest` - project code (~19 GB, rebuild often)
+- `qlean-mini-dependencies:latest` - vcpkg libs (**~3-5 GB**, rebuild rarely) 
+  - Optimized: excludes buildtrees (~10 GB), downloads, packages, debug builds
+  - Keeps: headers, .so libs, CMake configs (required for compilation)
+  - Saves disk space on CI/CD runners (GitHub free tier: 14 GB)
+- `qlean-mini-builder:latest` - project code (~5-8 GB, rebuild often)
 - `qlean-mini:latest` - runtime image (~240 MB, production)
 
 **When to rebuild dependencies:**
@@ -92,6 +95,7 @@ make docker_build              # ~3-5 min ⚡
 - System dependencies update (`.ci/.env`: cmake, gcc, rust versions)
 - Typically: once per month or when adding new dependencies
 - **Tip:** Push dependencies to registry after rebuild for team reuse
+- **Note:** Dependencies image keeps all files needed for compilation (no rebuild)
 
 **Main commands:**
 ```bash

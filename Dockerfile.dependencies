@@ -77,10 +77,30 @@ RUN --mount=type=cache,target=/qlean-mini/.vcpkg,id=vcpkg-deps \
         ${PROJECT}; \
     mkdir -p /opt/dependencies/vcpkg; \
     if [ -d "${BUILD}/vcpkg_installed" ]; then \
+      echo "Cleaning vcpkg_installed from unnecessary files..."; \
+      find ${BUILD}/vcpkg_installed -type d -name "debug" -exec rm -rf {} + 2>/dev/null || true; \
+      find ${BUILD}/vcpkg_installed -type f -name "*.a" -delete 2>/dev/null || true; \
+      find ${BUILD}/vcpkg_installed -type d -name "tools" -exec rm -rf {} + 2>/dev/null || true; \
+      find ${BUILD}/vcpkg_installed -type d -name "manual-tools" -exec rm -rf {} + 2>/dev/null || true; \
+      find ${BUILD}/vcpkg_installed -path "*/share/*/copyright" -delete 2>/dev/null || true; \
+      find ${BUILD}/vcpkg_installed -path "*/share/*/usage" -delete 2>/dev/null || true; \
       cp -R ${BUILD}/vcpkg_installed /opt/dependencies/vcpkg/; \
+      echo "vcpkg_installed size: $(du -sh /opt/dependencies/vcpkg/vcpkg_installed | cut -f1)"; \
     fi; \
     cp -R ${VENV} /opt/dependencies/venv; \
-    cp -R ${PROJECT}/.vcpkg /opt/dependencies/vcpkg-install
+    echo "Copying only essential vcpkg files (excluding buildtrees/, downloads/, packages/)..."; \
+    mkdir -p /opt/dependencies/vcpkg-install; \
+    cp ${PROJECT}/.vcpkg/vcpkg /opt/dependencies/vcpkg-install/ 2>/dev/null || true; \
+    cp ${PROJECT}/.vcpkg/.vcpkg-root /opt/dependencies/vcpkg-install/ 2>/dev/null || true; \
+    cp ${PROJECT}/.vcpkg/vcpkg-init /opt/dependencies/vcpkg-install/ 2>/dev/null || true; \
+    if [ -d "${PROJECT}/.vcpkg/scripts" ]; then \
+      cp -R ${PROJECT}/.vcpkg/scripts /opt/dependencies/vcpkg-install/; \
+    fi; \
+    echo "=== Dependencies image optimization ==="; \
+    echo "Excluded from .vcpkg: buildtrees/, downloads/, packages/ (saves ~10-15 GB)"; \
+    echo "Excluded from vcpkg_installed: debug/, tools/, *.a, copyright/usage files"; \
+    echo "KEPT in vcpkg_installed: include/, lib/*.so, share/*.cmake (required for CMake)"; \
+    echo "vcpkg-install size: $(du -sh /opt/dependencies/vcpkg-install 2>/dev/null | cut -f1)"
 
 # Final dependencies image
 FROM ubuntu:24.04 AS dependencies-final
