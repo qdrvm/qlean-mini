@@ -236,16 +236,34 @@ jobs:
 
       - name: "Pull dependencies image"
         run: |
-          if docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG} > /dev/null 2>&1; then
-            echo "Pulling dependencies from registry..."
-            make docker_pull_dependencies
+          # Determine platform suffix
+          if [[ "${{ matrix.platform }}" == "linux/arm64" ]]; then
+            PLATFORM_SUFFIX="-arm64"
+          elif [[ "${{ matrix.platform }}" == "linux/amd64" ]]; then
+            PLATFORM_SUFFIX="-amd64"
+          else
+            echo "ERROR: Unknown platform ${{ matrix.platform }}"
+            exit 1
+          fi
+          
+          DEPS_IMAGE="${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}${PLATFORM_SUFFIX}"
+          
+          echo "Checking for dependencies image: ${DEPS_IMAGE}"
+          if docker manifest inspect ${DEPS_IMAGE} > /dev/null 2>&1; then
+            echo "✓ Found platform-specific dependencies image"
+            echo "Pulling ${DEPS_IMAGE}..."
+            docker pull ${DEPS_IMAGE}
+            docker tag ${DEPS_IMAGE} ${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}
+            echo "✓ Tagged as ${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG} for build"
           else
             echo "ERROR: Dependencies image not found in registry!"
-            echo "Image: ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}"
+            echo "Image: ${DEPS_IMAGE}"
             echo ""
             echo "To build dependencies, either:"
             echo "  1. Run workflow with 'Build dependencies image' = true"
-            echo "  2. Build and push manually: make docker_build_dependencies && make docker_push_platform_dependencies"
+            echo "  2. Build and push manually:"
+            echo "     DOCKER_PLATFORM=${{ matrix.platform }} make docker_build_dependencies"
+            echo "     DOCKER_PLATFORM=${{ matrix.platform }} make docker_push_platform_dependencies"
             exit 1
           fi
 
@@ -291,15 +309,11 @@ jobs:
 
       - name: "Create multi-arch manifests"
         run: |
-          echo "Creating multi-arch manifests..."
-          
-          # Only create dependencies manifest if we built it
-          if [[ "${{ needs.setup_matrix.outputs.should_build_deps }}" == "true" ]]; then
-            echo "Creating dependencies manifest..."
-            make docker_manifest_dependencies
-          fi
-          
-          echo "Creating builder and runtime manifests..."
+          echo "Creating multi-arch manifests for builder and runtime..."
+          echo ""
+          echo "NOTE: Dependencies images are platform-specific and NOT merged into manifest"
+          echo "      (each arch uses its own deps:latest-arm64 or deps:latest-amd64)"
+          echo ""
           make docker_manifest_create
 
       - name: "Verify manifests"
@@ -315,12 +329,6 @@ jobs:
           echo ""
           echo "Runtime manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}):"
           docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT} | grep -A 3 "Platform"
-          
-          if [[ "${{ needs.setup_matrix.outputs.should_build_deps }}" == "true" ]]; then
-            echo ""
-            echo "Dependencies manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}):"
-            docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG} | grep -A 3 "Platform"
-          fi
           
           echo ""
           echo "✅ All manifests created successfully!"
@@ -348,8 +356,10 @@ jobs:
           
           if [[ "${{ needs.setup_matrix.outputs.should_build_deps }}" == "true" ]]; then
             echo ""
-            echo "📦 Dependencies image:"
-            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}"
+            echo "📦 Dependencies images (platform-specific):"
+            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}-arm64"
+            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}-amd64"
+            echo "   (Note: dependencies are NOT multi-arch, each platform uses its own)"
           fi
           
           echo ""

@@ -146,8 +146,11 @@ DOCKER_PUSH_TAG=true DOCKER_PUSH_LATEST=true DOCKER_IMAGE_TAG=v1.0.0 make docker
 
 **Image tagging:**
 
-Dependencies (single version, shared across commits):
-- Tag: `qlean-mini-dependencies:latest` (configurable via `DOCKER_DEPS_TAG`)
+Dependencies (platform-specific, one per architecture):
+- Tags: `qlean-mini-dependencies:latest-arm64`, `qlean-mini-dependencies:latest-amd64`
+- Configurable via `DOCKER_DEPS_TAG` (default: `latest`)
+- Examples: `v2-arm64`, `staging-amd64`
+- **Note:** Dependencies are NOT multi-arch (each platform uses its own image)
 - Changes only when `vcpkg.json` or system dependencies change
 
 Builder & Runtime (per commit):

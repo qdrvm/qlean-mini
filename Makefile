@@ -35,9 +35,11 @@ GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 # Derived image names for each stage:
 #
-# Dependencies (single version for all commits, changes only when vcpkg.json changes):
-#   qlean-mini-dependencies:latest (configurable via DOCKER_DEPS_TAG)
-#   qlean-mini-dependencies:v1 (custom)
+# Dependencies (platform-specific, single version per arch, changes only when vcpkg.json changes):
+#   qlean-mini-dependencies:latest-arm64 (configurable via DOCKER_DEPS_TAG)
+#   qlean-mini-dependencies:latest-amd64
+#   qlean-mini-dependencies:v2-arm64 (custom)
+#   NOTE: Dependencies are NOT multi-arch, each platform uses its own image
 #
 # Builder and Runtime (tagged by commit):
 #   Commit tag (always): qlean-mini-builder:608f5cc, qlean-mini:608f5cc
@@ -446,23 +448,9 @@ docker_push_platform:
 	echo ""; \
 	echo "✓ Platform images pushed to $(DOCKER_REGISTRY)!"
 
-# Create manifest from already pushed platform images (no build, no pull)
-docker_manifest_dependencies:
-	@echo "=== Creating multi-arch manifest for dependencies ==="
-	@echo "Registry: $(DOCKER_REGISTRY)"
-	@echo "Tag: $(DOCKER_IMAGE_DEPS)"
-	@echo ""
-	@echo "Creating manifest from registry images..."
-	@docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS) 2>/dev/null || true
-	@docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS) \
-		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)-arm64 \
-		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)-amd64
-	@echo ""
-	@echo "Pushing manifest..."
-	@docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)
-	@echo "✓ Multi-arch manifest created: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"
-	@echo ""
-	@echo "Verify with: docker manifest inspect $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)"
+# NOTE: Dependencies are platform-specific and do NOT have a multi-arch manifest.
+# Each platform pulls its own image: deps:latest-arm64 or deps:latest-amd64
+# This is intentional to simplify CI/CD and avoid unnecessary manifest overhead.
 
 docker_manifest_create:
 	@echo "=== Creating multi-arch manifests for builder and runtime ==="
@@ -499,5 +487,5 @@ docker_manifest_create:
 	docker_build_dependencies docker_build_builder docker_build_runtime docker_build docker_build_all docker_build_ci \
 	docker_push_dependencies docker_push_builder docker_push_runtime docker_push \
 	docker_push_platform_dependencies docker_push_platform \
-	docker_manifest_dependencies docker_manifest_create \
+	docker_manifest_create \
 	docker_run docker_clean docker_clean_all docker_inspect docker_verify

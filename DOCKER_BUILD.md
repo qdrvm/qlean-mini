@@ -64,13 +64,16 @@ DOCKER_PLATFORM=linux/amd64 make docker_build
 
 ### Push to Registry
 
-**Dependencies (push once per version):**
+**Dependencies (push once per version, per platform):**
 ```bash
-# Push dependencies with default tag (latest)
-make docker_push_dependencies   # Push: qlean-mini-dependencies:latest
+# Push dependencies with default tag (latest) - adds platform suffix automatically
+make docker_push_platform_dependencies
+# Pushes: qlean-mini-dependencies:latest-arm64 (or latest-amd64)
 
 # Push dependencies with custom tag
 DOCKER_DEPS_TAG=v2 make docker_build_dependencies
+make docker_push_platform_dependencies
+# Pushes: qlean-mini-dependencies:v2-arm64 (or v2-amd64)
 make docker_push_dependencies   # Push: qlean-mini-dependencies:v2
 ```
 
@@ -100,11 +103,13 @@ make docker_push_runtime        # Push runtime only
 ### Pull from Registry
 
 ```bash
-# Pull dependencies with default tag (latest)
-make docker_pull_dependencies   # Pull: qlean-mini-dependencies:latest
+# Pull dependencies with default tag (latest) - platform-specific
+make docker_pull_dependencies
+# Pulls: qlean-mini-dependencies:latest-arm64 (or latest-amd64 based on DOCKER_PLATFORM)
 
 # Pull dependencies with custom tag
-DOCKER_DEPS_TAG=v2 make docker_pull_dependencies  # Pull: qlean-mini-dependencies:v2
+DOCKER_DEPS_TAG=v2 make docker_pull_dependencies
+# Pulls: qlean-mini-dependencies:v2-arm64 (or v2-amd64)
 ```
 
 ### Run & Verify
@@ -129,15 +134,17 @@ make docker_inspect             # Show image info
 
 ## Images
 
-- `qlean-mini-dependencies:latest` (~18 GB) - vcpkg libraries, build tools
-- `qlean-mini-builder:latest` (~19 GB) - compiled project code  
+- `qlean-mini-dependencies:latest-{arm64,amd64}` (~3-5 GB) - vcpkg libraries, build tools (**platform-specific**)
+- `qlean-mini-builder:latest` (~5-8 GB) - compiled project code  
 - `qlean-mini:latest` (~240 MB) - **optimized** runtime image for production
 
 **Image tagging:**
 
-**Dependencies** (single version, shared across all commits):
-- Tag: `qlean-mini-dependencies:latest` (default, configurable via `DOCKER_DEPS_TAG`)
-- Example: `DOCKER_DEPS_TAG=v1 make docker_build_dependencies`
+**Dependencies** (platform-specific, NOT multi-arch):
+- Tags: `qlean-mini-dependencies:latest-arm64`, `qlean-mini-dependencies:latest-amd64`
+- Configurable via `DOCKER_DEPS_TAG` (default: `latest`)
+- Example: `DOCKER_DEPS_TAG=v2 make docker_build_dependencies` → creates `v2-arm64` or `v2-amd64`
+- **Important:** Each architecture uses its own dependencies image (no unified manifest)
 - Changes only when `vcpkg.json`, `vcpkg-configuration.json`, or system deps change
 - Always uses the same tag across all code commits
 
@@ -306,10 +313,11 @@ Dependencies rebuild when these files change:
 # Check if dependencies changed
 if git diff HEAD~1 HEAD -- vcpkg.json vcpkg-configuration.json vcpkg-overlay/ .ci/.env | grep .; then
   make docker_build_dependencies
-  make docker_push_dependencies
+  make docker_push_platform_dependencies
 else
-  docker pull qdrvm/qlean-mini-dependencies:latest
-  docker tag qdrvm/qlean-mini-dependencies:latest qlean-mini-dependencies:latest
+  # Pull platform-specific dependencies
+  docker pull qdrvm/qlean-mini-dependencies:latest-arm64  # or latest-amd64
+  docker tag qdrvm/qlean-mini-dependencies:latest-arm64 qlean-mini-dependencies:latest
 fi
 make docker_build
 ```
@@ -319,9 +327,9 @@ make docker_build
 **Error: dependencies image not found**
 ```bash
 make docker_build_dependencies
-# or
-docker pull qdrvm/qlean-mini-dependencies:latest
-docker tag qdrvm/qlean-mini-dependencies:latest qlean-mini-dependencies:latest
+# or pull platform-specific image
+docker pull qdrvm/qlean-mini-dependencies:latest-arm64
+docker tag qdrvm/qlean-mini-dependencies:latest-arm64 qlean-mini-dependencies:latest
 ```
 
 **Changes not reflected**
@@ -439,7 +447,7 @@ push_version:
 
 1. **Use `docker_build_ci`** - automatically pulls dependencies from registry
 2. **Set `DOCKER_REGISTRY`** environment variable
-3. **Dependencies tag** - use `DOCKER_DEPS_TAG` to specify which dependencies version to use (default: `latest`)
+3. **Dependencies tag** - use `DOCKER_DEPS_TAG` to specify which dependencies version to use (default: `latest`, platform suffix added automatically: `latest-arm64`, `latest-amd64`)
 4. **Dependencies only rebuild** when vcpkg.json changes
 5. **Fast builds** - ~4 min instead of 25 min
 6. **Automatic tagging** - images always tagged by git commit hash
@@ -453,21 +461,28 @@ push_version:
 
 ## Working with Dependencies Tag
 
-The dependencies image is **shared across all code commits** and only needs to be rebuilt when dependencies change.
+The dependencies image is **platform-specific** and only needs to be rebuilt when dependencies change.
 
 ### Understanding `DOCKER_DEPS_TAG`
 
 - **Variable**: `DOCKER_DEPS_TAG` (default: `latest`)
-- **Purpose**: Specify which version of dependencies to use
+- **Purpose**: Specify which version of dependencies to use (will be suffixed with `-arm64` or `-amd64`)
 - **When to change**: After updating `vcpkg.json`, `vcpkg-configuration.json`, or system dependencies
+- **Important**: Dependencies are **NOT multi-arch** - each platform has its own image
 
 ### Typical Workflow
 
 **1. Team uses default (latest):**
 ```bash
-# Everyone pulls the same dependencies
-make docker_pull_dependencies  # Pulls: qlean-mini-dependencies:latest
-make docker_build              # Builds code using latest dependencies
+# ARM64 developer pulls ARM64 dependencies
+DOCKER_PLATFORM=linux/arm64 make docker_pull_dependencies  
+# Pulls: qlean-mini-dependencies:latest-arm64
+make docker_build
+
+# AMD64 developer pulls AMD64 dependencies  
+DOCKER_PLATFORM=linux/amd64 make docker_pull_dependencies
+# Pulls: qlean-mini-dependencies:latest-amd64
+make docker_build
 ```
 
 **2. Developer updates dependencies:**
@@ -475,13 +490,19 @@ make docker_build              # Builds code using latest dependencies
 # Edit vcpkg.json to add new library
 vim vcpkg.json
 
-# Build new dependencies version
+# Build new dependencies version (for your platform)
 DOCKER_DEPS_TAG=v2 make docker_build_dependencies
+# Creates: qlean-mini-dependencies:v2-arm64 (or v2-amd64)
 
-# Push for team
-DOCKER_DEPS_TAG=v2 make docker_push_dependencies
+# Push for team (both architectures needed in CI)
+DOCKER_DEPS_TAG=v2 DOCKER_PLATFORM=linux/arm64 make docker_build_dependencies
+DOCKER_DEPS_TAG=v2 make docker_push_platform_dependencies
 
-# Update CI/CD to use v2
+DOCKER_DEPS_TAG=v2 DOCKER_PLATFORM=linux/amd64 make docker_build_dependencies  
+DOCKER_DEPS_TAG=v2 make docker_push_platform_dependencies
+
+# Or use GitHub Actions to build both automatically
+# Update CI/CD workflow to use deps_tag: v2
 # Set DOCKER_DEPS_TAG=v2 in CI environment variables
 ```
 
