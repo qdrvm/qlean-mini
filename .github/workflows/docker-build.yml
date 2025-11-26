@@ -4,6 +4,41 @@
 # This workflow builds Docker images for multiple architectures (ARM64, AMD64)
 # and creates a unified multi-arch manifest for easy deployment.
 #
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Manual Trigger (workflow_dispatch) UI Structure:
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 📦 Dependencies Image (rebuild rarely, ~once per month)
+#    ☑ Build dependencies image (vcpkg libs)
+#    📝 Dependencies tag: latest
+#
+# 🏗️  Main Build Configuration
+#    ☑ Build linux/amd64
+#    ☑ Build linux/arm64
+#
+# 🚀 Push & Tagging
+#    ☐ Push images to Docker Hub
+#    📝 Custom tag: (e.g., v1.0.0, staging)
+#    ☐ Also push 'latest' tag
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Usage Examples:
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Scenario 1: Daily development (test build only)
+#   ☑ amd64  ☑ arm64  ☐ push  ☐ build_deps  → Uses deps:latest from registry
+#
+# Scenario 2: Production release (with new deps)
+#   ☑ build_deps  deps_tag: v2  ☑ push  custom_tag: v1.0.0  ☑ push_latest
+#
+# Scenario 3: Hotfix (ARM64 only, no deps rebuild)
+#   ☐ amd64  ☑ arm64  ☑ push  custom_tag: hotfix-123
+#
+# Scenario 4: Rebuild dependencies only
+#   ☑ build_deps  deps_tag: latest  ☑ push  (amd64/arm64 irrelevant)
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
 
 name: "Docker Build"
 
@@ -19,49 +54,60 @@ on:
       
   workflow_dispatch:
     inputs:
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # Dependencies Image (rebuild only when vcpkg.json changes)
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      build_dependencies:
+        description: "📦 Build dependencies image (vcpkg libs)"
+        type: boolean
+        required: false
+        default: false
+      deps_tag:
+        description: "📦 Dependencies tag to use/create (e.g., latest, v2)"
+        type: string
+        required: false
+        default: "latest"
+      
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # Main Build Configuration
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       build_amd64:
-        description: "Build linux/amd64"
+        description: "🖥️  Build linux/amd64"
         type: boolean
         required: false
         default: true
       build_arm64:
-        description: "Build linux/arm64"
+        description: "🍎 Build linux/arm64"
         type: boolean
         required: false
         default: true
-      build_dependencies:
-        description: "Build dependencies image (only when vcpkg.json changes)"
-        type: boolean
-        required: false
-        default: false
+      
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # Push & Tagging
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       push_to_registry:
-        description: "Push images to Docker Hub"
+        description: "🚀 Push images to Docker Hub"
         type: boolean
         required: false
         default: false
-      docker_push_tag:
-        description: "Push additional custom tag (e.g., v1.0.0, staging)"
+      custom_tag:
+        description: "🏷️  Custom tag (e.g., v1.0.0, staging, dev)"
         type: string
         required: false
         default: ""
-      docker_push_latest:
-        description: "Push 'latest' tag"
+      push_latest:
+        description: "🏷️  Also push 'latest' tag"
         type: boolean
         required: false
         default: false
-      docker_deps_tag:
-        description: "Dependencies image tag to use/create"
-        type: string
-        required: false
-        default: "latest"
 
 env:
   DOCKER_REGISTRY: qdrvm
   DOCKER_IMAGE_NAME: qlean-mini
-  DOCKER_DEPS_TAG: ${{ inputs.docker_deps_tag || 'latest' }}
-  DOCKER_PUSH_TAG: ${{ inputs.docker_push_tag != '' && 'true' || 'false' }}
-  DOCKER_IMAGE_TAG: ${{ inputs.docker_push_tag || 'localBuild' }}
-  DOCKER_PUSH_LATEST: ${{ inputs.push_to_registry && inputs.docker_push_latest && 'true' || 'false' }}
+  DOCKER_DEPS_TAG: ${{ inputs.deps_tag || 'latest' }}
+  DOCKER_PUSH_TAG: ${{ inputs.custom_tag != '' && 'true' || 'false' }}
+  DOCKER_IMAGE_TAG: ${{ inputs.custom_tag || 'localBuild' }}
+  DOCKER_PUSH_LATEST: ${{ inputs.push_to_registry && inputs.push_latest && 'true' || 'false' }}
   GIT_COMMIT: ${{ github.sha }}
   
   # Auto-push configuration based on event type

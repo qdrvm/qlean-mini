@@ -208,10 +208,34 @@ git push origin ci/docker
 
 # Create tag → auto-build and push with tag
 git tag v1.0.0 && git push origin v1.0.0
-
-# Manual build via GitHub UI:
-# Actions → Docker Build → Run workflow
 ```
+
+**Manual build via GitHub UI:**
+
+Go to: **Actions → Docker Build → Run workflow**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 📦 Dependencies Image (rebuild rarely)                  │
+│    ☐ Build dependencies image (vcpkg libs)             │
+│    📝 Dependencies tag: latest                          │
+├─────────────────────────────────────────────────────────┤
+│ 🏗️  Main Build Configuration                            │
+│    ☑ Build linux/amd64                                  │
+│    ☑ Build linux/arm64                                  │
+├─────────────────────────────────────────────────────────┤
+│ 🚀 Push & Tagging                                       │
+│    ☐ Push images to Docker Hub                         │
+│    📝 Custom tag: (e.g., v1.0.0, staging)               │
+│    ☐ Also push 'latest' tag                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Common scenarios:**
+- **Test build:** Just select architectures, leave rest unchecked
+- **Production:** Check `build_deps`, `push`, fill `custom_tag`, check `push_latest`
+- **Hotfix:** Select one arch, check `push`, fill `custom_tag`
+- **Dependencies only:** Check `build_deps` and `push`
 
 See [.github/workflows/README.md](.github/workflows/README.md) for CI/CD documentation.
 
