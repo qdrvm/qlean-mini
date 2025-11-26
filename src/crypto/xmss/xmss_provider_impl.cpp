@@ -95,19 +95,7 @@ namespace lean::crypto::xmss {
     // Serialize keys to byte vectors
     XmssKeypair keypair;
 
-    // Serialize secret key
-    size_t max_secret_key_size = 200 * 1024 * 1024;  // 200 MB buffer
-    qtils::ByteVec sk_buffer(max_secret_key_size);
-    size_t sk_written = 0;
-
-    result = pq_secret_key_serialize(
-        sk.get(), sk_buffer.data(), sk_buffer.size(), &sk_written);
-    if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to serialize XMSS secret key: "
-                               + getErrorDescription(result));
-    }
-    sk_buffer.resize(sk_written);
-    keypair.private_key = std::move(sk_buffer);
+    keypair.private_key = std::move(sk);
 
     // Serialize public key
     constexpr size_t kMaxPublicKeySize = 100;
@@ -130,16 +118,8 @@ namespace lean::crypto::xmss {
   XmssSignature XmssProviderImpl::sign(XmssPrivateKey xmss_private_key,
                                        uint32_t epoch,
                                        qtils::BytesIn message) {
-    // Deserialize secret key
-    PQSignatureSchemeSecretKey *sk_raw = nullptr;
-    PQSigningError result = pq_secret_key_deserialize(
-        xmss_private_key.data(), xmss_private_key.size(), &sk_raw);
-
-    if (result != 0) {  // Success = 0
-      throw std::runtime_error("Failed to deserialize XMSS secret key: "
-                               + getErrorDescription(result));
-    }
-    SecretKeyPtr sk(sk_raw);
+    auto &sk = xmss_private_key;
+    PQSigningError result{};
 
     // Sign the message
     PQSignature *signature_raw = nullptr;

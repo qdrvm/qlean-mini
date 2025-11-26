@@ -6,12 +6,12 @@
 
 #include "crypto/xmss/xmss_util.hpp"
 
-#include <c_hash_sig/c_hash_sig.h>
-
 #include <algorithm>
 #include <fstream>
 #include <memory>
 #include <sstream>
+
+#include <c_hash_sig/c_hash_sig.h>
 
 OUTCOME_CPP_DEFINE_CATEGORY(lean::crypto::xmss, XmssUtilError, e) {
   using E = lean::crypto::xmss::XmssUtilError;
@@ -69,7 +69,8 @@ namespace lean::crypto::xmss {
     }
 
     // Load entire file as string
-    outcome::result<std::string> loadFileAsString(const std::filesystem::path& path) {
+    outcome::result<std::string> loadFileAsString(
+        const std::filesystem::path &path) {
       if (!std::filesystem::exists(path)) {
         return XmssUtilError::FileNotFound;
       }
@@ -85,11 +86,13 @@ namespace lean::crypto::xmss {
     }
 
     // Parse public key from JSON file
-    outcome::result<XmssPublicKey> parsePublicKeyFromJson(const std::filesystem::path& path) {
+    outcome::result<XmssPublicKey> parsePublicKeyFromJson(
+        const std::filesystem::path &path) {
       OUTCOME_TRY(json_content, loadFileAsString(path));
 
       PQSignatureSchemePublicKey *pk_raw = nullptr;
-      PQSigningError result = pq_public_key_from_json(json_content.c_str(), &pk_raw);
+      PQSigningError result =
+          pq_public_key_from_json(json_content.c_str(), &pk_raw);
 
       if (result != PQ_SIGNING_ERROR_SUCCESS) {
         return XmssUtilError::JsonParseFailed;
@@ -118,11 +121,13 @@ namespace lean::crypto::xmss {
     }
 
     // Parse secret key from JSON file
-    outcome::result<XmssPrivateKey> parseSecretKeyFromJson(const std::filesystem::path& path) {
+    outcome::result<XmssPrivateKey> parseSecretKeyFromJson(
+        const std::filesystem::path &path) {
       OUTCOME_TRY(json_content, loadFileAsString(path));
 
       PQSignatureSchemeSecretKey *sk_raw = nullptr;
-      PQSigningError result = pq_secret_key_from_json(json_content.c_str(), &sk_raw);
+      PQSigningError result =
+          pq_secret_key_from_json(json_content.c_str(), &sk_raw);
 
       if (result != PQ_SIGNING_ERROR_SUCCESS) {
         return XmssUtilError::JsonParseFailed;
@@ -130,27 +135,13 @@ namespace lean::crypto::xmss {
 
       SecretKeyPtr sk(sk_raw);
 
-      // Serialize to bytes
-      // Secret keys can be very large (50+ MB for large epoch counts)
-      size_t max_secret_key_size = 100 * 1024 * 1024; // 100 MB buffer
-      XmssPrivateKey sk_bytes(max_secret_key_size);
-      size_t sk_written = 0;
-
-      result = pq_secret_key_serialize(
-          sk.get(), sk_bytes.data(), sk_bytes.size(), &sk_written);
-
-      if (result != PQ_SIGNING_ERROR_SUCCESS) {
-        return XmssUtilError::SerializationFailed;
-      }
-
-      sk_bytes.resize(sk_written);
-      return sk_bytes;
+      return XmssPrivateKey{std::move(sk)};
     }
-  }
+  }  // namespace
 
   outcome::result<XmssKeypair> loadKeypairFromJson(
-      const std::filesystem::path& secret_key_path,
-      const std::filesystem::path& public_key_path) {
+      const std::filesystem::path &secret_key_path,
+      const std::filesystem::path &public_key_path) {
     XmssKeypair keypair;
 
     OUTCOME_TRY(pk, parsePublicKeyFromJson(public_key_path));
@@ -163,4 +154,3 @@ namespace lean::crypto::xmss {
   }
 
 }  // namespace lean::crypto::xmss
-

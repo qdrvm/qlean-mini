@@ -6,11 +6,13 @@
 
 #pragma once
 
+#include <memory>
+
 #include <c_hash_sig/c_hash_sig.h>
 #include <qtils/bytes.hpp>
 
 namespace lean::crypto::xmss {
-  using XmssPrivateKey = qtils::ByteVec;
+  using XmssPrivateKey = std::shared_ptr<PQSignatureSchemeSecretKey>;
   using XmssPublicKey = qtils::ByteArr<52>;
   struct XmssKeypair {
     XmssPrivateKey private_key;
