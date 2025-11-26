@@ -1,21 +1,22 @@
 #
-# Docker Build Workflow - Example/Stub
+# Qlean-mini Docker Multi-arch Build
 #
-# This is a minimal stub to enable branch selection in GitHub UI.
-# The actual workflow is maintained in the ci/docker branch.
-#
-# To use:
-# 1. Merge this file to master
-# 2. Go to Actions → Docker Build → Run workflow
-# 3. Select branch "ci/docker" from dropdown
-# 4. Configure build parameters and run
-#
-# This stub will NOT trigger on push/PR to master, only manual runs.
+# This workflow builds Docker images for multiple architectures (ARM64, AMD64)
+# and creates a unified multi-arch manifest for easy deployment.
 #
 
 name: "Docker Build"
 
 on:
+  push:
+    branches:
+      - ci/docker  # TODO: Add master after testing
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - ci/docker  # TODO: Add master after testing
+      
   workflow_dispatch:
     inputs:
       build_amd64:
@@ -54,27 +55,258 @@ on:
         required: false
         default: "latest"
 
+env:
+  DOCKER_REGISTRY: qdrvm
+  DOCKER_IMAGE_NAME: qlean-mini
+  DOCKER_DEPS_TAG: ${{ inputs.docker_deps_tag || 'latest' }}
+  DOCKER_PUSH_TAG: ${{ inputs.docker_push_tag != '' && 'true' || 'false' }}
+  DOCKER_IMAGE_TAG: ${{ inputs.docker_push_tag || 'localBuild' }}
+  DOCKER_PUSH_LATEST: ${{ inputs.push_to_registry && inputs.docker_push_latest && 'true' || 'false' }}
+  GIT_COMMIT: ${{ github.sha }}
+  
+  # Auto-push configuration based on event type
+  AUTO_PUSH: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/ci/docker' || startsWith(github.ref, 'refs/tags/')) }}
+  IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
-  stub:
+  setup_matrix:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      should_build_deps: ${{ steps.config.outputs.should_build_deps }}
+      should_push: ${{ steps.config.outputs.should_push }}
     steps:
-      - name: "Workflow stub"
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Determine build configuration"
+        id: config
         run: |
-          echo "=============================================="
-          echo "This is a stub workflow for master branch"
-          echo "=============================================="
+          # Determine if we should build dependencies
+          BUILD_DEPS="false"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            BUILD_DEPS="${{ inputs.build_dependencies }}"
+          fi
+          
+          # For push events, check if vcpkg.json changed
+          if [[ "${{ github.event_name }}" == "push" ]] && [[ -n "${{ github.event.before }}" ]]; then
+            if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "vcpkg.json"; then
+              echo "vcpkg.json changed, will build dependencies"
+              BUILD_DEPS="true"
+            fi
+          fi
+          
+          echo "should_build_deps=$BUILD_DEPS" >> $GITHUB_OUTPUT
+          
+          # Determine if we should push
+          SHOULD_PUSH="${{ env.AUTO_PUSH }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            SHOULD_PUSH="${{ inputs.push_to_registry }}"
+          fi
+          echo "should_push=$SHOULD_PUSH" >> $GITHUB_OUTPUT
+          
+          echo "Configuration:"
+          echo "  Build dependencies: $BUILD_DEPS"
+          echo "  Push to registry: $SHOULD_PUSH"
+          echo "  Event: ${{ github.event_name }}"
+
+      - name: "Generate build matrix"
+        id: matrix
+        uses: ./.github/actions/docker-matrix
+        with:
+          build_amd64: ${{ inputs.build_amd64 || 'true' }}
+          build_arm64: ${{ inputs.build_arm64 || 'true' }}
+          amd64_runner: ubuntu-24.04
+          arm64_runner: ubuntu-24.04-arm
+
+  build_dependencies:
+    needs: setup_matrix
+    if: needs.setup_matrix.outputs.should_build_deps == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup_matrix.outputs.matrix) }}
+
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 180
+
+    env:
+      DOCKER_PLATFORM: ${{ matrix.platform }}
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "Build dependencies image"
+        run: |
+          echo "Building dependencies for ${{ matrix.platform }}"
+          make docker_build_dependencies
+
+      - name: "Login to Docker Hub"
+        if: needs.setup_matrix.outputs.should_push == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: "Push platform-specific dependencies"
+        if: needs.setup_matrix.outputs.should_push == 'true'
+        run: |
+          make docker_push_platform_dependencies
+
+  build:
+    needs: [setup_matrix, build_dependencies]
+    if: always() && needs.setup_matrix.result == 'success' && (needs.build_dependencies.result == 'success' || needs.build_dependencies.result == 'skipped')
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup_matrix.outputs.matrix) }}
+
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 180
+
+    env:
+      DOCKER_PLATFORM: ${{ matrix.platform }}
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "Login to Docker Hub (for pulling dependencies)"
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: "Pull dependencies image"
+        run: |
+          if docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG} > /dev/null 2>&1; then
+            echo "Pulling dependencies from registry..."
+            make docker_pull_dependencies
+          else
+            echo "ERROR: Dependencies image not found in registry!"
+            echo "Image: ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}"
+            echo ""
+            echo "To build dependencies, either:"
+            echo "  1. Run workflow with 'Build dependencies image' = true"
+            echo "  2. Build and push manually: make docker_build_dependencies && make docker_push_platform_dependencies"
+            exit 1
+          fi
+
+      - name: "Build builder and runtime images"
+        run: |
+          echo "Building for ${{ matrix.platform }}"
+          make docker_build_builder
+          make docker_build_runtime
+
+      - name: "Verify runtime image"
+        run: |
+          make docker_verify
+
+      - name: "Login to Docker Hub (for pushing)"
+        if: needs.setup_matrix.outputs.should_push == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: "Push platform-specific images"
+        if: needs.setup_matrix.outputs.should_push == 'true'
+        run: |
+          make docker_push_platform
+
+  create_manifest:
+    needs: [setup_matrix, build]
+    if: needs.setup_matrix.outputs.should_push == 'true' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Login to Docker Hub"
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: "Create multi-arch manifests"
+        run: |
+          echo "Creating multi-arch manifests..."
+          
+          # Only create dependencies manifest if we built it
+          if [[ "${{ needs.setup_matrix.outputs.should_build_deps }}" == "true" ]]; then
+            echo "Creating dependencies manifest..."
+            make docker_manifest_dependencies
+          fi
+          
+          echo "Creating builder and runtime manifests..."
+          make docker_manifest_create
+
+      - name: "Verify manifests"
+        run: |
+          echo "=== Verifying multi-arch manifests ==="
+          
+          SHORT_COMMIT=$(git rev-parse --short HEAD)
+          
           echo ""
-          echo "The actual Docker build workflow is in ci/docker branch."
+          echo "Builder manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-builder:${SHORT_COMMIT}):"
+          docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-builder:${SHORT_COMMIT} | grep -A 3 "Platform"
+          
           echo ""
-          echo "To run the actual build:"
-          echo "1. Cancel this workflow"
-          echo "2. Go back to Actions → Docker Build"
-          echo "3. Click 'Run workflow'"
-          echo "4. Select branch: ci/docker"
-          echo "5. Configure parameters"
-          echo "6. Click 'Run workflow'"
+          echo "Runtime manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}):"
+          docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT} | grep -A 3 "Platform"
+          
+          if [[ "${{ needs.setup_matrix.outputs.should_build_deps }}" == "true" ]]; then
+            echo ""
+            echo "Dependencies manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}):"
+            docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG} | grep -A 3 "Platform"
+          fi
+          
           echo ""
-          echo "=============================================="
-          echo "Current branch: ${{ github.ref_name }}"
-          echo "This stub does nothing and will exit successfully."
-          echo "=============================================="
+          echo "✅ All manifests created successfully!"
+
+      - name: "Display final image tags"
+        run: |
+          SHORT_COMMIT=$(git rev-parse --short HEAD)
+          
+          echo "=== Successfully pushed Docker images ==="
+          echo ""
+          echo "🐳 Runtime image:"
+          echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}"
+          
+          if [[ "${DOCKER_PUSH_TAG}" == "true" ]]; then
+            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+          fi
+          
+          if [[ "${DOCKER_PUSH_LATEST}" == "true" ]]; then
+            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:latest"
+          fi
+          
+          echo ""
+          echo "🔧 Builder image:"
+          echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-builder:${SHORT_COMMIT}"
+          
+          if [[ "${{ needs.setup_matrix.outputs.should_build_deps }}" == "true" ]]; then
+            echo ""
+            echo "📦 Dependencies image:"
+            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}"
+          fi
+          
+          echo ""
+          echo "Pull with: docker pull ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}"
+          echo "Run with:  docker run --rm ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT} --help"
+

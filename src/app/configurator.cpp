@@ -20,6 +20,7 @@
 #include <boost/beast/core/error.hpp>
 #include <boost/program_options.hpp>
 #include <boost/program_options/value_semantic.hpp>
+#include <fmt/format.h>
 #include <qtils/outcome.hpp>
 #include <qtils/shared_ref.hpp>
 
@@ -185,8 +186,8 @@ namespace lean::app {
       auto exe = std::filesystem::path{argv_[0]}.filename().string();
       std::cout << "Lean-node version " << buildVersion() << '\n';
       std::cout << cli_options_ << '\n';
-      std::println(std::cout, "Other commands:");
-      std::println(std::cout, "  {} key generate-node-key", exe);
+      fmt::println("Other commands:");
+      fmt::println("  {} key generate-node-key", exe);
       std::println(std::cout, "  {} generate-genesis", exe);
       return true;
     }
