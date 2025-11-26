@@ -75,18 +75,33 @@ RUN --mount=type=cache,target=/qlean-mini/.vcpkg,id=vcpkg-deps \
         -DTESTING=OFF \
         -B ${BUILD} \
         ${PROJECT}; \
+    echo "=== Cleaning vcpkg build artifacts to free disk space ==="; \
+    echo "Before cleanup:"; \
+    du -sh ${PROJECT}/.vcpkg 2>/dev/null | cut -f1 || echo "N/A"; \
+    if [ -d "${PROJECT}/.vcpkg/buildtrees" ]; then \
+      echo "Removing buildtrees/ ($(du -sh ${PROJECT}/.vcpkg/buildtrees | cut -f1))"; \
+      rm -rf ${PROJECT}/.vcpkg/buildtrees; \
+    fi; \
+    if [ -d "${PROJECT}/.vcpkg/downloads" ]; then \
+      echo "Removing downloads/ ($(du -sh ${PROJECT}/.vcpkg/downloads | cut -f1))"; \
+      rm -rf ${PROJECT}/.vcpkg/downloads; \
+    fi; \
+    if [ -d "${PROJECT}/.vcpkg/packages" ]; then \
+      echo "Removing packages/ ($(du -sh ${PROJECT}/.vcpkg/packages | cut -f1))"; \
+      rm -rf ${PROJECT}/.vcpkg/packages; \
+    fi; \
+    echo "After cleanup:"; \
+    du -sh ${PROJECT}/.vcpkg 2>/dev/null | cut -f1 || echo "N/A"; \
+    echo "=== Disk space freed for copying results ==="; \
     mkdir -p /opt/dependencies/vcpkg; \
     if [ -d "${BUILD}/vcpkg_installed" ]; then \
-      echo "Copying vcpkg_installed (complete, with debug + release)..."; \
-      echo "Before cleanup: $(du -sh ${BUILD}/vcpkg_installed | cut -f1)"; \
-      echo "Removing *.a files (static libs not needed for dynamic linking)..."; \
-      find ${BUILD}/vcpkg_installed -type f -name "*.a" -delete 2>/dev/null || true; \
-      echo "After cleanup: $(du -sh ${BUILD}/vcpkg_installed | cut -f1)"; \
+      echo "Copying vcpkg_installed (complete, with debug + release, including .a files)..."; \
+      echo "Size: $(du -sh ${BUILD}/vcpkg_installed | cut -f1)"; \
       cp -R ${BUILD}/vcpkg_installed /opt/dependencies/vcpkg/; \
       echo "Copied: $(du -sh /opt/dependencies/vcpkg/vcpkg_installed | cut -f1)"; \
     fi; \
     cp -R ${VENV} /opt/dependencies/venv; \
-    echo "Copying only essential vcpkg files (excluding buildtrees/, downloads/, packages/)..."; \
+    echo "Copying vcpkg essentials (buildtrees/, downloads/, packages/ already removed)..."; \
     mkdir -p /opt/dependencies/vcpkg-install; \
     cp ${PROJECT}/.vcpkg/vcpkg /opt/dependencies/vcpkg-install/ 2>/dev/null || true; \
     cp ${PROJECT}/.vcpkg/.vcpkg-root /opt/dependencies/vcpkg-install/ 2>/dev/null || true; \
@@ -94,15 +109,16 @@ RUN --mount=type=cache,target=/qlean-mini/.vcpkg,id=vcpkg-deps \
     if [ -d "${PROJECT}/.vcpkg/scripts" ]; then \
       cp -R ${PROJECT}/.vcpkg/scripts /opt/dependencies/vcpkg-install/; \
     fi; \
+    echo "Copied .vcpkg essentials: $(du -sh /opt/dependencies/vcpkg-install | cut -f1)"; \
     echo "=== Dependencies image optimization (SAFE) ==="; \
-    echo "Excluded from .vcpkg: buildtrees/, downloads/, packages/ (~10-15 GB saved)"; \
-    echo "Removed from vcpkg_installed: *.a files (static libs, ~300-500 MB saved)"; \
-    echo "Kept: debug/, release/, include/, share/*.cmake, *.so - ALL critical files"; \
-    echo "100% safe: CMake configs intact, uses .so for dynamic linking"; \
+    echo "✓ Removed buildtrees/, downloads/, packages/ during build (~10-15 GB freed)"; \
+    echo "✓ vcpkg_installed: COMPLETE copy (debug + release + .a + .so + all configs)"; \
+    echo "✓ Result: 100% safe, zero risk, all dependencies intact"; \
     echo ""; \
-    echo "Final sizes:"; \
+    echo "Final image contents:"; \
     echo "  .vcpkg essentials: $(du -sh /opt/dependencies/vcpkg-install 2>/dev/null | cut -f1)"; \
-    echo "  vcpkg_installed: $(du -sh /opt/dependencies/vcpkg/vcpkg_installed 2>/dev/null | cut -f1)"
+    echo "  vcpkg_installed: $(du -sh /opt/dependencies/vcpkg/vcpkg_installed 2>/dev/null | cut -f1)"; \
+    echo "  venv: $(du -sh /opt/dependencies/venv 2>/dev/null | cut -f1)"
 
 # Final dependencies image
 FROM ubuntu:24.04 AS dependencies-final

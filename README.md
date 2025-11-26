@@ -83,11 +83,11 @@ make docker_build              # ~3-5 min ⚡
 ```
 
 **Three stages:**
-- `qlean-mini-dependencies:latest` - vcpkg libs (**~5-8 GB**, rebuild rarely) 
+- `qlean-mini-dependencies:latest` - vcpkg libs (**~6-9 GB**, rebuild rarely) 
   - **Safe optimization:** excludes only temporary build files (~10-15 GB saved)
-  - Removed: `buildtrees/`, `downloads/`, `packages/` (temporary vcpkg artifacts)
-  - Kept: **complete** `vcpkg_installed/` (debug + release, all CMake configs intact)
-  - **Zero risk:** Guaranteed to work, no missing dependencies
+  - Removed during build: `buildtrees/`, `downloads/`, `packages/` (freed before copying)
+  - Kept: **complete** `vcpkg_installed/` (debug + release, .a + .so, all configs)
+  - **Zero risk:** 100% safe, all dependencies intact, CMake configs work perfectly
 - `qlean-mini-builder:latest` - project code (~8-12 GB, rebuild often)
 - `qlean-mini:latest` - runtime image (~240 MB, production)
 

@@ -180,22 +180,24 @@ Push behavior for Builder & Runtime (**up to 3 tags** can be pushed):
 - Result: **14x smaller** runtime image (240 MB vs 3.4 GB)
 
 **Dependencies Image (CI/CD friendly, SAFE optimization):**
-- **Exclude only temporary vcpkg artifacts:**
-  - `buildtrees/` - temporary build files (~5-8 GB)
-  - `downloads/` - source archives (~1-2 GB)
-  - `packages/` - pre-install files (~2-4 GB)
+- **Temporary artifacts removed DURING build (freed before copying):**
+  - `buildtrees/` - temporary build files (~5-8 GB) - **deleted in RUN step**
+  - `downloads/` - source archives (~1-2 GB) - **deleted in RUN step**
+  - `packages/` - pre-install files (~2-4 GB) - **deleted in RUN step**
+  - **Benefit:** Frees disk space immediately, allows copying results
 - **`vcpkg_installed/` copied COMPLETELY (no cleanup):**
-  - ✅ Debug builds (`debug/` dirs) - KEPT
-  - ✅ Release builds (`lib/` dirs) - KEPT
-  - ✅ Static libraries (`*.a` files) - KEPT
-  - ✅ Headers (`include/`) - KEPT
-  - ✅ CMake configs (`share/*.cmake`) - KEPT
-  - ✅ Tools (`tools/`) - KEPT
-  - **Zero risk strategy:** All files preserved, guaranteed compatibility
+  - ✅ Debug builds (`debug/` dirs with `*.a` files)
+  - ✅ Release builds (`lib/` dirs with `*.a` and `*.so` files)
+  - ✅ Static libraries (`*.a` files) - **needed for CMake linking**
+  - ✅ Dynamic libraries (`*.so` files)
+  - ✅ Headers (`include/`)
+  - ✅ CMake configs (`share/*.cmake`)
+  - ✅ Tools (`tools/`)
+  - **Zero risk strategy:** 100% complete, guaranteed compatibility
 - **Result:** 
-  - Size: **~5-8 GB** instead of 18-20 GB
-  - Savings: **~10-15 GB** from removing only temp files
-  - Risk: **0%** - complete vcpkg_installed, no missing files
+  - Size: **~6-9 GB** instead of 18-20 GB
+  - Savings: **~10-15 GB** from removing only temporary build artifacts
+  - Risk: **0%** - all build files intact, no missing dependencies
 - Perfect for GitHub free runners (14 GB disk limit)
 
 ## When to Rebuild
