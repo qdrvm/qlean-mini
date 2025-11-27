@@ -188,7 +188,7 @@ namespace lean::app {
       std::cout << cli_options_ << '\n';
       fmt::println("Other commands:");
       fmt::println("  {} key generate-node-key", exe);
-      std::println(std::cout, "  {} generate-genesis", exe);
+      fmt::println("  {} generate-genesis", exe);
       return true;
     }
 
