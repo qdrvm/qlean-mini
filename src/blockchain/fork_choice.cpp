@@ -46,11 +46,9 @@ namespace lean {
     // last known good anchor.
     if (!states_.empty()) {
       auto max_it = std::max_element(
-          states_.begin(),
-          states_.end(),
-          [](const auto &a, const auto &b) {
+          states_.begin(), states_.end(), [](const auto &a, const auto &b) {
             return a.second.latest_justified.slot
-                   < b.second.latest_justified.slot;
+                 < b.second.latest_justified.slot;
           });
       latest_justified_ = max_it->second.latest_justified;
       if (latest_justified_.slot == 0) {
@@ -148,6 +146,8 @@ namespace lean {
     for (auto i = 0; i < JUSTIFICATION_LOOKBACK_SLOTS; ++i) {
       if (blocks_.at(target_block_root).slot > blocks_.at(safe_target_).slot) {
         target_block_root = blocks_.at(target_block_root).parent_root;
+      } else {
+        break;
       }
     }
 
@@ -283,8 +283,8 @@ namespace lean {
   Attestation ForkChoiceStore::produceAttestation(
       Slot slot, ValidatorIndex validator_index) {
     return Attestation{
-      .validator_id = validator_index,
-      .data = produceAttestationData(slot),
+        .validator_id = validator_index,
+        .data = produceAttestationData(slot),
     };
   }
 
