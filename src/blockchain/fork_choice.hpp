@@ -152,6 +152,29 @@ namespace lean {
     }
 
     /**
+     * Internal implementation of LMD GHOST fork choice algorithm.
+     *
+     * Navigates the block tree from `start_root` by choosing the heaviest child
+     * at each fork, based on the provided `attestations`.
+     *
+     * This is the core fork choice logic. It walks down the tree from a given
+     * starting point (typically the latest justified checkpoint), choosing at
+     * each fork the child with the most attestation weight. When there is a
+     * tie, it breaks it lexicographically by hash.
+     *
+     * Args:
+     *     start_root: Starting point root (usually latest justified).
+     *     attestations: Attestations to consider for fork choice weights.
+     *     min_score: Minimum attestation count for block inclusion.
+     *
+     * Returns:
+     *     Hash of the chosen head block.
+     */
+    BlockHash computeLmdGhostHead(const BlockHash &start_root,
+                                  const SignedAttestations &attestations,
+                                  uint64_t min_score = 0) const;
+
+    /**
      * Calculate target checkpoint for validator attestations.
      *
      *  Determines appropriate attestation target based on head, safe target,
@@ -190,7 +213,8 @@ namespace lean {
      *
      * This helper constructs the attestation data payload that describes the
      * validator's view of the chain (head, target, source) for the requested
-     * slot. The caller can reuse the result to sign or broadcast an attestation.
+     * slot. The caller can reuse the result to sign or broadcast an
+     * attestation.
      */
     AttestationData produceAttestationData(Slot slot) const;
 
@@ -438,11 +462,5 @@ namespace lean {
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider_;
   };
-
-  BlockHash getForkChoiceHead(
-      const ForkChoiceStore::Blocks &blocks,
-      const Checkpoint &root,
-      const ForkChoiceStore::SignedAttestations &latest_attestations,
-      uint64_t min_score);
 
 }  // namespace lean

@@ -28,7 +28,6 @@
 using lean::Block;
 using lean::Checkpoint;
 using lean::ForkChoiceStore;
-using lean::getForkChoiceHead;
 using lean::Interval;
 using lean::INTERVALS_PER_SLOT;
 using lean::SignedAttestation;
@@ -154,17 +153,18 @@ ForkChoiceStore advanceTimeStore() {
   auto blocks = makeBlocks(1);
   auto &genesis = blocks.at(0);
   auto finalized = Checkpoint::from(genesis);
-  return createTestStore(100,
-                         config,
-                         genesis.hash(),
-                         genesis.hash(),
-                         finalized,
-                         finalized,
-                         makeBlockMap(blocks),
-                         {{genesis.hash(), makeStateWithSingleValidator(config)}},
-                         {},
-                         {},
-                         0);
+  return createTestStore(
+      100,
+      config,
+      genesis.hash(),
+      genesis.hash(),
+      finalized,
+      finalized,
+      makeBlockMap(blocks),
+      {{genesis.hash(), makeStateWithSingleValidator(config)}},
+      {},
+      {},
+      0);
 }
 
 // Test basic vote target selection.
@@ -313,8 +313,15 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
       .signature = {},
   };
 
-  auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), attestations, 0);
+  auto store = createTestStore(100,
+                               config,
+                               root.hash(),
+                               root.hash(),
+                               Checkpoint::from(root),
+                               Checkpoint::from(root),
+                               makeBlockMap(blocks));
+
+  auto head = store.computeLmdGhostHead(root.hash(), attestations, 0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -331,8 +338,15 @@ TEST(TestForkChoiceHeadFunction, test_fork_choice_no_attestations) {
   auto &leaf = blocks.at(2);
 
   ForkChoiceStore::SignedAttestations empty_attestations;
-  auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), empty_attestations, 0);
+  auto store = createTestStore(100,
+                               config,
+                               root.hash(),
+                               root.hash(),
+                               Checkpoint::from(root),
+                               Checkpoint::from(root),
+                               makeBlockMap(blocks));
+
+  auto head = store.computeLmdGhostHead(root.hash(), empty_attestations, 0);
 
   EXPECT_EQ(head, leaf.hash());
 }
@@ -359,8 +373,15 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
       .signature = {},
   };
 
-  auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), attestations, 2);
+  auto store = createTestStore(100,
+                               config,
+                               root.hash(),
+                               root.hash(),
+                               Checkpoint::from(root),
+                               Checkpoint::from(root),
+                               makeBlockMap(blocks));
+
+  auto head = store.computeLmdGhostHead(root.hash(), attestations, 2);
 
   EXPECT_EQ(head, root.hash());
 }
@@ -389,8 +410,15 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
     };
   }
 
-  auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), attestations, 0);
+  auto store = createTestStore(100,
+                               config,
+                               root.hash(),
+                               root.hash(),
+                               Checkpoint::from(root),
+                               Checkpoint::from(root),
+                               makeBlockMap(blocks));
+
+  auto head = store.computeLmdGhostHead(root.hash(), attestations, 0);
 
   EXPECT_EQ(head, target.hash());
 }

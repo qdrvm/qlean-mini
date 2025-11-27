@@ -23,8 +23,8 @@ namespace lean {
     // 2/3rd majority min voting voting weight for target selection
     auto min_target_score = ceilDiv(head_state.validatorCount() * 2, 3);
 
-    safe_target_ = getForkChoiceHead(
-        blocks_, latest_justified_, latest_new_attestations_, min_target_score);
+    safe_target_ = computeLmdGhostHead(
+        latest_justified_.root, latest_new_attestations_, min_target_score);
   }
 
   void ForkChoiceStore::updateHead() {
@@ -64,8 +64,8 @@ namespace lean {
     //
     // Selects canonical head by walking the tree from the justified root,
     // choosing the heaviest child at each fork based on attestation weights.
-    head_ = getForkChoiceHead(
-        blocks_, latest_justified_, latest_known_attestations_, 0);
+    head_ = computeLmdGhostHead(
+        latest_justified_.root, latest_known_attestations_, 0);
 
     // Extract finalized checkpoint from head state
     //
@@ -700,11 +700,21 @@ namespace lean {
   }
 
 
-  BlockHash getForkChoiceHead(
-      const ForkChoiceStore::Blocks &blocks,
-      const Checkpoint &root,
-      const ForkChoiceStore::SignedAttestations &latest_attestations,
-      uint64_t min_score) {
+  BlockHash ForkChoiceStore::computeLmdGhostHead(
+      const BlockHash &start_root,
+      const SignedAttestations &attestations,
+      uint64_t min_score) const {
+    // Start at genesis if root is zero hash
+    BlockHash current_root = start_root;
+    if (current_root == BlockHash{}) {
+      current_root = std::min_element(blocks_.begin(),
+                                      blocks_.end(),
+                                      [](const auto &a, const auto &b) {
+                                        return a.second.slot < b.second.slot;
+                                      })
+                         ->first;
+    }
+
     // For each block, count the number of votes for that block. A vote for
     // any descendant of a block also counts as a vote for that block
     std::unordered_map<BlockHash, uint64_t> attestation_weights;
@@ -713,30 +723,33 @@ namespace lean {
       return it != attestation_weights.end() ? it->second : 0;
     };
 
-    for (auto &attestation : latest_attestations | std::views::values) {
-      auto block_it = blocks.find(attestation.message.data.target.root);
-      if (block_it != blocks.end()) {
-        while (block_it->second.slot > root.slot) {
+    for (auto &attestation : attestations | std::views::values) {
+      auto block_it = blocks_.find(attestation.message.data.head.root);
+      if (block_it != blocks_.end()) {
+        while (block_it->second.slot > blocks_.at(current_root).slot) {
           ++attestation_weights[block_it->first];
-          block_it = blocks.find(block_it->second.parent_root);
-          BOOST_ASSERT(block_it != blocks.end());
+          block_it = blocks_.find(block_it->second.parent_root);
+          BOOST_ASSERT(block_it != blocks_.end());
         }
       }
     }
 
-    // Identify the children of each block
+    // Build children mapping for ALL blocks (not just those above min_score)
+    //
+    // This ensures fork choice works even when there are no attestations
     using Key = std::tuple<uint64_t, Slot, BlockHash>;
     std::unordered_multimap<BlockHash, Checkpoint> children_map;
-    for (auto &[hash, block] : blocks) {
-      if (block.slot > root.slot and get_weight(hash) >= min_score) {
+    for (auto &[hash, block] : blocks_) {
+      if (block.parent_root != BlockHash{}
+          and block.slot > blocks_.at(current_root).slot
+          and (min_score == 0 or get_weight(hash) >= min_score)) {
         children_map.emplace(block.parent_root, Checkpoint::from(block));
       }
     }
 
-    // Start at the root (latest justified hash or genesis) and repeatedly
-    // choose the child with the most latest votes, tiebreaking by slot then
-    // hash
-    auto current = root.root;
+    // Walk down tree, choosing child with most attestations (tiebreak by
+    // lexicographic hash)
+    auto current = current_root;
     while (true) {
       auto [begin, end] = children_map.equal_range(current);
       if (begin == end) {
