@@ -186,6 +186,15 @@ namespace lean {
     Checkpoint getAttestationTarget() const;
 
     /**
+     * Produce the attestation data for a validator at the given slot.
+     *
+     * This helper constructs the attestation data payload that describes the
+     * validator's view of the chain (head, target, source) for the requested
+     * slot. The caller can reuse the result to sign or broadcast an attestation.
+     */
+    AttestationData produceAttestationData(Slot slot) const;
+
+    /**
      * Produce a block and attestation signatures for the target slot.
      *
      *  The proposer returns the block and a naive signature list so it can

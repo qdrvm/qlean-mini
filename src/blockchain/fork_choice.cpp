@@ -164,6 +164,19 @@ namespace lean {
     };
   }
 
+  AttestationData ForkChoiceStore::produceAttestationData(Slot slot) const {
+    Checkpoint head_checkpoint{.root = head_, .slot = blocks_.at(head_).slot};
+
+    auto target_checkpoint = getAttestationTarget();
+
+    return AttestationData{
+        .slot = slot,
+        .head = head_checkpoint,
+        .target = target_checkpoint,
+        .source = latest_justified_,
+    };
+  }
+
   outcome::result<SignedBlockWithAttestation>
   ForkChoiceStore::produceBlockWithSignatures(Slot slot,
                                               ValidatorIndex validator_index) {
@@ -269,30 +282,9 @@ namespace lean {
 
   Attestation ForkChoiceStore::produceAttestation(
       Slot slot, ValidatorIndex validator_index) {
-    // Get the head block the validator sees for this slot
-    Checkpoint head_checkpoint{
-        .root = head_,
-        .slot = getHeadSlot(),
-    };
-
-    //  Calculate the target checkpoint for this attestation
-    //
-    //  This uses the store's current forkchoice state to determine
-    //  the appropriate attestation target, balancing between head
-    //  advancement and safety guarantees.
-    auto target_checkpoint = getAttestationTarget();
-
-    // Construct attestation data
-    AttestationData attestation_data{
-        .slot = slot,
-        .head = head_checkpoint,
-        .target = target_checkpoint,
-        .source = latest_justified_,
-    };
-
     return Attestation{
-        .validator_id = validator_index,
-        .data = attestation_data,
+      .validator_id = validator_index,
+      .data = produceAttestationData(slot),
     };
   }
 
