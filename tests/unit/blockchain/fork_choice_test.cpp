@@ -84,7 +84,7 @@ auto createTestStore(
     ForkChoiceStore::SignedAttestations latest_new_attestations = {},
     lean::ValidatorIndex validator_index = 0) {
   auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
-  static lean::ValidatorRegistry::ValidatorIndices validators;
+  static lean::ValidatorRegistry::ValidatorIndices validators{0};
   EXPECT_CALL(*validator_registry, currentValidatorIndices())
       .Times(testing::AnyNumber())
       .WillRepeatedly(testing::ReturnRef(validators));
@@ -143,6 +143,13 @@ std::vector<lean::Block> makeBlocks(lean::Slot count) {
   return blocks;
 }
 
+auto makeStateWithSingleValidator(const lean::Config &config) {
+  lean::State state{.config = config};
+  state.validators.push_back(lean::Validator{});
+  state.latest_justified = state.latest_finalized = Checkpoint{};
+  return state;
+}
+
 ForkChoiceStore advanceTimeStore() {
   auto blocks = makeBlocks(1);
   auto &genesis = blocks.at(0);
@@ -154,7 +161,10 @@ ForkChoiceStore advanceTimeStore() {
                          finalized,
                          finalized,
                          makeBlockMap(blocks),
-                         {{genesis.hash(), State{.config = config}}});
+                         {{genesis.hash(), makeStateWithSingleValidator(config)}},
+                         {},
+                         {},
+                         0);
 }
 
 // Test basic vote target selection.
