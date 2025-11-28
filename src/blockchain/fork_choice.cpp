@@ -30,62 +30,12 @@ namespace lean {
   }
 
   void ForkChoiceStore::updateHead() {
-    // Find the Latest Justified Checkpoint
-    //
-    // We must first determine the anchor point for our fork choice algorithm.
-    // This anchor is the justified checkpoint (a block root and slot) with the
-    // highest slot number known across *all* known states.
-    //
-    // We find this by:
-    // a) Scanning all known states.
-    // b) Finding the state that contains the justified checkpoint with the
-    //    highest slot number.
-    // c) Extracting that specific checkpoint object to use as our anchor.
-    //
-    // If there are no states to scan (e.g., at initialization), the
-    // operation would fail. In this case, we fall back to using the
-    // store's currently recorded justified checkpoint, preserving the
-    // last known good anchor.
-    if (!states_.empty()) {
-      auto max_it = std::max_element(
-          states_.begin(), states_.end(), [](const auto &a, const auto &b) {
-            return a.second.latest_justified.slot
-                 < b.second.latest_justified.slot;
-          });
-      latest_justified_ = max_it->second.latest_justified;
-      if (latest_justified_.slot == 0) {
-        for (auto &[hash, block] : blocks_) {
-          if (block.slot == 0) {
-            latest_justified_.root = hash;
-          }
-        }
-      }
-    }
-
     // Run LMD-GHOST fork choice algorithm
     //
     // Selects canonical head by walking the tree from the justified root,
     // choosing the heaviest child at each fork based on attestation weights.
     head_ = computeLmdGhostHead(
         latest_justified_.root, latest_known_attestations_, 0);
-
-    // Extract finalized checkpoint from head state
-    //
-    // The head state tracks the highest finalized checkpoint. If the
-    // head changed, we may have a new finalized checkpoint.
-    //
-    // Fallback to current finalized if head state unavailable (defensive).
-    auto state_it = states_.find(head_);
-    if (state_it != states_.end()) {
-      latest_finalized_ = state_it->second.latest_finalized;
-      if (latest_finalized_.slot == 0) {
-        for (auto &[hash, block] : blocks_) {
-          if (block.slot == 0) {
-            latest_finalized_.root = hash;
-          }
-        }
-      }
-    }
   }
 
   void ForkChoiceStore::acceptNewAttestations() {
@@ -542,6 +492,17 @@ namespace lean {
     // Get post state from STF (State Transition Function)
     BOOST_OUTCOME_TRY(auto post_state,
                       stf_.stateTransition(block, parent_state, true));
+
+    // If post-state has a higher justified checkpoint, update it to the store.
+    if (post_state.latest_justified.slot > latest_justified_.slot) {
+      latest_justified_ = post_state.latest_justified;
+    }
+
+    // If post-state has a higher finalized checkpoint, update it to the store.
+    if (post_state.latest_finalized.slot > latest_finalized_.slot) {
+      latest_finalized_ = post_state.latest_finalized;
+    }
+
     blocks_.emplace(block_hash, block);
     states_.emplace(block_hash, std::move(post_state));
 
