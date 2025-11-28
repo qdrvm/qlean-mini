@@ -14,7 +14,6 @@
 #include "types/state.hpp"
 
 namespace lean {
-  constexpr BlockHash kZeroHash;
 
   STF::STF(qtils::SharedRef<metrics::Metrics> metrics)
       : metrics_(std::move(metrics)) {}

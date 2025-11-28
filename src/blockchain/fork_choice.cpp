@@ -6,9 +6,11 @@
 
 #include "blockchain/fork_choice.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <ranges>
 #include <stdexcept>
+#include <vector>
 
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/is_proposer.hpp"
@@ -704,69 +706,98 @@ namespace lean {
       const BlockHash &start_root,
       const SignedAttestations &attestations,
       uint64_t min_score) const {
-    // Start at genesis if root is zero hash
-    BlockHash current_root = start_root;
-    if (current_root == BlockHash{}) {
-      current_root = std::min_element(blocks_.begin(),
-                                      blocks_.end(),
-                                      [](const auto &a, const auto &b) {
-                                        return a.second.slot < b.second.slot;
-                                      })
-                         ->first;
+    BOOST_ASSERT(not blocks_.empty());
+
+    // If the starting point is not defined, choose the earliest known block.
+    //
+    // This ensures that the walk always has an anchor.
+    auto anchor = start_root;
+    if (anchor == kZeroHash or not blocks_.contains(anchor)) {
+      anchor = std::min_element(blocks_.begin(),
+                                blocks_.end(),
+                                [](const auto &lhs, const auto &rhs) {
+                                  return lhs.second.slot < rhs.second.slot;
+                                })
+                   ->first;
     }
 
-    // For each block, count the number of votes for that block. A vote for
-    // any descendant of a block also counts as a vote for that block
-    std::unordered_map<BlockHash, uint64_t> attestation_weights;
+    // Remember the slot of the anchor once and reuse it during the walk.
+    //
+    // This avoids repeated lookups inside the inner loop.
+    const auto start_slot = blocks_.at(anchor).slot;
+
+    // Prepare a table that will collect voting weight for each block.
+    //
+    // Each entry starts conceptually at zero and then accumulates
+    // contributions.
+    std::unordered_map<BlockHash, uint64_t> weights;
     auto get_weight = [&](const BlockHash &hash) {
-      auto it = attestation_weights.find(hash);
-      return it != attestation_weights.end() ? it->second : 0;
+      auto it = weights.find(hash);
+      return it != weights.end() ? it->second : 0;
     };
 
-    for (auto &attestation : attestations | std::views::values) {
-      auto block_it = blocks_.find(attestation.message.data.head.root);
-      if (block_it != blocks_.end()) {
-        while (block_it->second.slot > blocks_.at(current_root).slot) {
-          ++attestation_weights[block_it->first];
-          block_it = blocks_.find(block_it->second.parent_root);
-          BOOST_ASSERT(block_it != blocks_.end());
-        }
-      }
-    }
-
-    // Build children mapping for ALL blocks (not just those above min_score)
+    // For every vote, follow the chosen head upward through its ancestors.
     //
-    // This ensures fork choice works even when there are no attestations
-    using Key = std::tuple<uint64_t, Slot, BlockHash>;
-    std::unordered_multimap<BlockHash, Checkpoint> children_map;
-    for (auto &[hash, block] : blocks_) {
-      if (block.parent_root != BlockHash{}
-          and block.slot > blocks_.at(current_root).slot
-          and (min_score == 0 or get_weight(hash) >= min_score)) {
-        children_map.emplace(block.parent_root, Checkpoint::from(block));
+    // Each visited block accumulates one unit of weight from that validator.
+    for (auto &attestation : attestations | std::views::values) {
+      auto current = attestation.message.data.head.root;
+
+      // Climb towards the anchor while staying inside the known tree.
+      //
+      // This naturally handles partial views and ongoing sync.
+      while (blocks_.contains(current)
+             and blocks_.at(current).slot > start_slot) {
+        ++weights[current];
+        current = blocks_.at(current).parent_root;
       }
     }
 
-    // Walk down tree, choosing child with most attestations (tiebreak by
-    // lexicographic hash)
-    auto current = current_root;
+    // Build the adjacency tree (parent -> children).
+    //
+    // We use a map to avoid checking if keys exist.
+    std::unordered_map<BlockHash, std::vector<BlockHash>> children_map;
+    for (auto &[hash, block] : blocks_) {
+      // 1. Structural check: skip blocks without parents (e.g., purely
+      // genesis/orphans)
+      if (block.parent_root == BlockHash{}) {
+        continue;
+      }
+
+      // 2. Heuristic check: prune branches early if they lack sufficient weight
+      if (min_score > 0 and get_weight(hash) < min_score) {
+        continue;
+      }
+
+      children_map[block.parent_root].push_back(hash);
+    }
+
+    // Now perform the greedy walk.
+    //
+    // At each step, pick the child with the highest weight among the
+    // candidates.
+    auto head = anchor;
+
+    // Descend the tree, choosing the heaviest branch at every fork.
     while (true) {
-      auto [begin, end] = children_map.equal_range(current);
-      if (begin == end) {
-        return current;
+      auto it = children_map.find(head);
+      if (it == children_map.end()) {
+        return head;
       }
-      Key max;
-      for (auto it = begin; it != end; ++it) {
-        Key key{
-            get_weight(it->second.root),
-            it->second.slot,
-            it->second.root,
-        };
-        if (it == begin or key > max) {
-          max = key;
-        }
-      }
-      current = std::get<2>(max);
+      auto &children = it->second;
+
+      // Choose best child: most attestations, then lexicographically highest
+      // hash
+      head = *std::max_element(
+          children.begin(),
+          children.end(),
+          [&get_weight](const BlockHash &lhs, const BlockHash &rhs) {
+            auto lhs_weight = get_weight(lhs);
+            auto rhs_weight = get_weight(rhs);
+            if (lhs_weight == rhs_weight) {
+              return lhs < rhs;
+            }
+            return lhs_weight < rhs_weight;
+          });
     }
   }
 

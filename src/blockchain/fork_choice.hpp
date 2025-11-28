@@ -154,13 +154,26 @@ namespace lean {
     /**
      * Internal implementation of LMD GHOST fork choice algorithm.
      *
-     * Navigates the block tree from `start_root` by choosing the heaviest child
-     * at each fork, based on the provided `attestations`.
+     * Walk the block tree according to the LMD GHOST rule.
      *
-     * This is the core fork choice logic. It walks down the tree from a given
-     * starting point (typically the latest justified checkpoint), choosing at
-     * each fork the child with the most attestation weight. When there is a
-     * tie, it breaks it lexicographically by hash.
+     * The walk starts from a chosen root.
+     * At each fork, the child subtree with the highest weight is taken.
+     * The process stops when a leaf is reached.
+     * That leaf is the chosen head.
+     *
+     * Weights are derived from votes as follows:
+     * - Each validator contributes its full weight to its most recent head
+     * vote.
+     * - The weight of that vote also flows to every ancestor of the voted
+     * block.
+     * - The weight of a subtree is the sum of all such contributions inside
+     * it.
+     *
+     * An optional threshold can be applied:
+     * - If a threshold is set, children below this threshold are ignored.
+     *
+     * When two branches have equal weight, the one with the lexicographically
+     * larger hash is chosen to break ties.
      *
      * Args:
      *     start_root: Starting point root (usually latest justified).

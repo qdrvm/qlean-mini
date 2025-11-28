@@ -10,4 +10,6 @@
 
 namespace lean {
   using BlockHash = qtils::ByteArr<32>;
+
+  constexpr BlockHash kZeroHash;
 }  // namespace lean
