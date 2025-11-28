@@ -123,7 +123,7 @@ DOCKER_PLATFORM=linux/amd64 make docker_build_all
 make docker_push_platform              # Push with -amd64 tag
 
 # Job 3 (any machine):
-make docker_manifest_create            # Create unified manifest
+make docker_manifest_create            # Create multi-arch manifest for runtime image ONLY
 
 # Run on specific platform
 make docker_run DOCKER_PLATFORM=linux/amd64 ARGS='--version'

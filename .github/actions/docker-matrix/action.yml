@@ -23,6 +23,9 @@ outputs:
   matrix:
     description: 'The generated build matrix'
     value: ${{ steps.set-matrix.outputs.matrix }}
+  is_multi_arch:
+    description: 'Whether both AMD64 and ARM64 are being built'
+    value: ${{ steps.set-matrix.outputs.is_multi_arch }}
 
 runs:
   using: 'composite'
@@ -52,4 +55,12 @@ runs:
         MATRIX_JSON="{\"include\":[$(IFS=,; echo "${MATRIX_ITEMS[*]}")]}"
         echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
         echo "Generated matrix: $MATRIX_JSON"
+        
+        # Check if both platforms are being built
+        IS_MULTI_ARCH="false"
+        if [[ "${{ inputs.build_amd64 }}" == "true" ]] && [[ "${{ inputs.build_arm64 }}" == "true" ]]; then
+          IS_MULTI_ARCH="true"
+        fi
+        echo "is_multi_arch=$IS_MULTI_ARCH" >> $GITHUB_OUTPUT
+        echo "Is multi-arch build: $IS_MULTI_ARCH"
 

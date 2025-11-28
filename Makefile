@@ -453,33 +453,27 @@ docker_push_platform:
 # This is intentional to simplify CI/CD and avoid unnecessary manifest overhead.
 
 docker_manifest_create:
-	@echo "=== Creating multi-arch manifests for builder and runtime ==="
+	@echo "=== Creating multi-arch manifest for runtime image ==="
 	@echo "Registry: $(DOCKER_REGISTRY)"
 	@echo ""
-	@echo "[1/4] Creating builder manifest..."
-	@docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER) 2>/dev/null || true
-	@docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER) \
-		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)-arm64 \
-		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)-amd64
+	@echo "NOTE: Builder image is NOT pushed to registry (intermediate build stage only)"
+	@echo "NOTE: Dependencies are platform-specific (deps:latest-arm64, deps:latest-amd64)"
 	@echo ""
-	@echo "[2/4] Pushing builder manifest..."
-	@docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)
-	@echo "✓ Builder manifest: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)"
-	@echo ""
-	@echo "[3/4] Creating runtime manifest..."
+	@echo "[1/2] Creating runtime manifest..."
 	@docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME) 2>/dev/null || true
 	@docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME) \
 		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)-arm64 \
 		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)-amd64
 	@echo ""
-	@echo "[4/4] Pushing runtime manifest..."
+	@echo "[2/2] Pushing runtime manifest..."
 	@docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)
-	@echo "✓ Runtime manifest: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"
 	@echo ""
-	@echo "✓ All multi-arch manifests created!"
+	@echo "✓ Multi-arch runtime manifest created successfully!"
+	@echo ""
+	@echo "Image: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"
+	@echo "Platforms: linux/amd64, linux/arm64"
 	@echo ""
 	@echo "Verify with:"
-	@echo "  docker manifest inspect $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)"
 	@echo "  docker manifest inspect $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"
 
 .PHONY: all init_all os init init_py init_vcpkg configure build test clean_all \

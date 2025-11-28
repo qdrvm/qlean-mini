@@ -58,12 +58,12 @@ on:
       # Dependencies Image (rebuild only when vcpkg.json changes)
       # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       build_dependencies:
-        description: "📦 Build dependencies image (vcpkg libs)"
+        description: "📦 Build dependencies (vcpkg)"
         type: boolean
         required: false
         default: false
       deps_tag:
-        description: "📦 Dependencies tag to use/create (e.g., latest, v2)"
+        description: "📦 Dependencies tag (latest, v2, etc.)"
         type: string
         required: false
         default: "latest"
@@ -86,17 +86,17 @@ on:
       # Push & Tagging
       # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       push_to_registry:
-        description: "🚀 Push images to Docker Hub"
+        description: "🚀 Push to Docker Hub"
         type: boolean
         required: false
-        default: false
+        default: true
       custom_tag:
-        description: "🏷️  Custom tag (e.g., v1.0.0, staging, dev)"
+        description: "🏷️  Custom tag (v1.0.0, dev, etc.)"
         type: string
         required: false
         default: ""
       push_latest:
-        description: "🏷️  Also push 'latest' tag"
+        description: "🏷️  Also push 'latest'"
         type: boolean
         required: false
         default: false
@@ -121,6 +121,7 @@ jobs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       should_build_deps: ${{ steps.config.outputs.should_build_deps }}
       should_push: ${{ steps.config.outputs.should_push }}
+      is_multi_arch: ${{ steps.matrix.outputs.is_multi_arch }}
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@v4
@@ -291,7 +292,10 @@ jobs:
 
   create_manifest:
     needs: [setup_matrix, build]
-    if: needs.setup_matrix.outputs.should_push == 'true' && needs.build.result == 'success'
+    if: |
+      needs.setup_matrix.outputs.should_push == 'true' &&
+      needs.setup_matrix.outputs.is_multi_arch == 'true' &&
+      needs.build.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -307,12 +311,13 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: "Create multi-arch manifests"
+      - name: "Create multi-arch manifest for runtime"
         run: |
-          echo "Creating multi-arch manifests for builder and runtime..."
+          echo "Creating multi-arch manifest for runtime image..."
           echo ""
-          echo "NOTE: Dependencies images are platform-specific and NOT merged into manifest"
-          echo "      (each arch uses its own deps:latest-arm64 or deps:latest-amd64)"
+          echo "NOTE: This step creates a manifest from platform-specific images already in registry"
+          echo "      Builder: NOT pushed (intermediate stage only)"
+          echo "      Dependencies: platform-specific (no multi-arch manifest needed)"
           echo ""
           make docker_manifest_create
 
@@ -323,15 +328,13 @@ jobs:
           SHORT_COMMIT=$(git rev-parse --short HEAD)
           
           echo ""
-          echo "Builder manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-builder:${SHORT_COMMIT}):"
-          docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-builder:${SHORT_COMMIT} | grep -A 3 "Platform"
-          
-          echo ""
           echo "Runtime manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}):"
           docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT} | grep -A 3 "Platform"
           
           echo ""
-          echo "✅ All manifests created successfully!"
+          echo "NOTE: Builder image is NOT pushed to registry (intermediate build stage only)"
+          echo ""
+          echo "✅ Runtime multi-arch manifest created successfully!"
 
       - name: "Display final image tags"
         run: |
@@ -349,10 +352,6 @@ jobs:
           if [[ "${DOCKER_PUSH_LATEST}" == "true" ]]; then
             echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:latest"
           fi
-          
-          echo ""
-          echo "🔧 Builder image:"
-          echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-builder:${SHORT_COMMIT}"
           
           if [[ "${{ needs.setup_matrix.outputs.should_build_deps }}" == "true" ]]; then
             echo ""

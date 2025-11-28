@@ -9,9 +9,9 @@ GitHub Actions workflow has been configured for automated Docker multi-arch buil
 
 Multi-stage workflow with:
 - **setup_matrix** - determines build configuration
-- **build_dependencies** - builds vcpkg dependencies (only when needed)
+- **build_dependencies** - builds vcpkg dependencies (only when needed, platform-specific)
 - **build** - parallel native builds on ARM64/AMD64 runners
-- **create_manifest** - creates unified multi-arch Docker manifest
+- **create_manifest** - creates multi-arch Docker manifest for **runtime image only**
 
 ### 2. Matrix Action
 **File:** `.github/actions/docker-matrix/action.yml`
@@ -149,8 +149,8 @@ Or manually with custom tag:
                      ▼
          ┌─────────────────────┐
          │ create_manifest     │
-         │ - Create multi-arch │
-         │ - Push unified tags │
+         │ - Create runtime    │
+         │   multi-arch ONLY   │
          └─────────────────────┘
 ```
 
@@ -169,15 +169,13 @@ Or manually with custom tag:
 │ (ARM64)            │      │ (AMD64)            │
 │ - Build deps       │      │ - Build deps       │
 │ - Push -arm64      │      │ - Push -amd64      │
-└────────┬───────────┘      └────────┬───────────┘
+└────────────────────┘      └────────────────────┘
          │                           │
-         └───────────┬───────────────┘
-                     │
-                     ▼
-         ┌─────────────────────┐
-         │ deps manifest       │
-         │ - Create multi-arch │
-         └─────────────────────┘
+         │  NOTE: Dependencies       │
+         │  remain platform-specific │
+         │  (no multi-arch manifest) │
+         │                           │
+         └───────────────────────────┘
                      │
                      ▼
          (continue with build stage)

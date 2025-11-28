@@ -627,32 +627,38 @@ make docker_build_all                  # Build on AMD64 machine
 make docker_push_platform              # Push with -amd64 tag
 
 # === Job 3: Create manifest (any machine) ===
-make docker_manifest_create            # Create unified manifest (no pull!)
+make docker_manifest_create            # Create multi-arch manifest for RUNTIME ONLY
 # Result: qlean-mini:608f5cc points to both architectures
 ```
+
+**Important notes:**
+- ✅ **Runtime image**: Gets multi-arch manifest (works on both ARM64 & AMD64)
+- ❌ **Builder image**: NOT pushed to registry (intermediate build stage only)
+- ❌ **Dependencies**: Platform-specific (each arch uses its own `-arm64`/`-amd64` image)
 
 **Verify multi-arch image:**
 
 ```bash
 docker manifest inspect qdrvm/qlean-mini:608f5cc
+# Should show both linux/amd64 and linux/arm64 platforms
 ```
 
 **How it works:**
 
 1. **Build stage**: Creates platform-specific images locally with `-arm64` and `-amd64` suffixes
-2. **Push stage**: Pushes both platform images to registry
-3. **Manifest creation**: Creates Docker manifest that points to both images
+2. **Push stage**: Pushes runtime images with arch suffix to registry
+3. **Manifest creation**: Creates Docker manifest that points to both runtime images (ONLY)
 4. **Result**: Single tag (`qlean-mini:608f5cc`) works on both ARM64 and AMD64
 5. **Auto-selection**: Docker automatically pulls correct architecture
+6. **Note**: Builder stays local, dependencies stay platform-specific
 
 **Commands:**
 
 | Command | Description |
 |---------|-------------|
-| `make docker_push_platform` | Push builder + runtime with arch suffix (`-arm64` / `-amd64`) |
+| `make docker_push_platform` | Push runtime with arch suffix (`-arm64` / `-amd64`) |
 | `make docker_push_platform_dependencies` | Push dependencies with arch suffix |
-| `make docker_manifest_create` | Create unified manifest from pushed images (builder + runtime) |
-| `make docker_manifest_dependencies` | Create unified manifest for dependencies |
+| `make docker_manifest_create` | Create multi-arch manifest for runtime ONLY (from pushed images in registry) |
 
 **CI/CD Integration (RECOMMENDED):**
 
@@ -684,8 +690,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create multi-arch manifest
-        run: make docker_manifest_create  # No build, no pull!
+      - name: Create multi-arch manifest for runtime
+        run: make docker_manifest_create  # Creates manifest from registry (no build, no pull!)
 
 # GitLab CI - Build on native runners
 build:arm64:
@@ -705,5 +711,5 @@ build:amd64:
 manifest:
   needs: [build:arm64, build:amd64]
   script:
-    - make docker_manifest_create
+    - make docker_manifest_create  # Creates multi-arch manifest for runtime
 ```
