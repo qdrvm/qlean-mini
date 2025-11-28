@@ -486,7 +486,7 @@ namespace lean {
         validateBlockSignatures(signed_block_with_attestation);
     if (not valid_signatures) {
       SL_WARN(logger_, "Invalid signatures for block {}", block.slotHash());
-      // return Error::INVALID_ATTESTATION;
+      return Error::INVALID_ATTESTATION;
     }
 
     // Get post state from STF (State Transition Function)
