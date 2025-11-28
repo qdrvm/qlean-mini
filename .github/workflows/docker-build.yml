@@ -158,6 +158,10 @@ jobs:
           echo "  Build dependencies: $BUILD_DEPS"
           echo "  Push to registry: $SHOULD_PUSH"
           echo "  Event: ${{ github.event_name }}"
+          echo ""
+          echo "Debug outputs:"
+          echo "  should_build_deps=$BUILD_DEPS"
+          echo "  should_push=$SHOULD_PUSH"
 
       - name: "Generate build matrix"
         id: matrix
@@ -167,6 +171,13 @@ jobs:
           build_arm64: ${{ inputs.build_arm64 || 'true' }}
           amd64_runner: ubuntu-24.04
           arm64_runner: ubuntu-24.04-arm
+
+      - name: "Debug outputs"
+        run: |
+          echo "=== Setup Matrix Outputs ==="
+          echo "is_multi_arch: ${{ steps.matrix.outputs.is_multi_arch }}"
+          echo "should_push: ${{ steps.config.outputs.should_push }}"
+          echo "should_build_deps: ${{ steps.config.outputs.should_build_deps }}"
 
   build_dependencies:
     needs: setup_matrix
@@ -292,14 +303,28 @@ jobs:
 
   create_manifest:
     needs: [setup_matrix, build]
-    if: |
-      needs.setup_matrix.outputs.should_push == 'true' &&
-      needs.setup_matrix.outputs.is_multi_arch == 'true' &&
-      needs.build.result == 'success'
+    if: always() && !cancelled() && needs.build.result == 'success' && needs.setup_matrix.outputs.should_push == 'true' && needs.setup_matrix.outputs.is_multi_arch == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
+      - name: "Debug conditions"
+        run: |
+          echo "=== Create Manifest Conditions ==="
+          echo "build.result: ${{ needs.build.result }}"
+          echo "should_push: ${{ needs.setup_matrix.outputs.should_push }}"
+          echo "is_multi_arch: ${{ needs.setup_matrix.outputs.is_multi_arch }}"
+          echo ""
+          if [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "❌ Build failed or skipped"
+          elif [[ "${{ needs.setup_matrix.outputs.should_push }}" != "true" ]]; then
+            echo "❌ Push disabled"
+          elif [[ "${{ needs.setup_matrix.outputs.is_multi_arch }}" != "true" ]]; then
+            echo "❌ Not multi-arch (only one platform built)"
+          else
+            echo "✅ All conditions met, creating manifest"
+          fi
+
       - name: "Checkout repository"
         uses: actions/checkout@v4
         with:

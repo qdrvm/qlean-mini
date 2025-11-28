@@ -415,14 +415,11 @@ docker_push_platform_dependencies:
 	echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_DEPS)$$ARCH_SUFFIX"
 
 docker_push_platform:
-	@echo "=== Pushing builder and runtime for platform: $(DOCKER_PLATFORM) ==="
+	@echo "=== Pushing runtime for platform: $(DOCKER_PLATFORM) ==="
 	@echo "Registry: $(DOCKER_REGISTRY)"
 	@echo ""
-	@if ! docker image inspect $(DOCKER_IMAGE_BUILDER) >/dev/null 2>&1; then \
-		echo "ERROR: Builder image not found: $(DOCKER_IMAGE_BUILDER)"; \
-		echo "Run: make docker_build_builder"; \
-		exit 1; \
-	fi
+	@echo "NOTE: Builder image is NOT pushed (intermediate build stage only)"
+	@echo ""
 	@if ! docker image inspect $(DOCKER_IMAGE_RUNTIME) >/dev/null 2>&1; then \
 		echo "ERROR: Runtime image not found: $(DOCKER_IMAGE_RUNTIME)"; \
 		echo "Run: make docker_build_runtime"; \
@@ -436,12 +433,7 @@ docker_push_platform:
 		echo "ERROR: Unknown platform $(DOCKER_PLATFORM)"; \
 		exit 1; \
 	fi; \
-	echo "[1/2] Pushing builder..."; \
-	docker tag $(DOCKER_IMAGE_BUILDER) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)$$ARCH_SUFFIX; \
-	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)$$ARCH_SUFFIX; \
-	echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_BUILDER)$$ARCH_SUFFIX"; \
-	echo ""; \
-	echo "[2/2] Pushing runtime..."; \
+	echo "Pushing runtime..."; \
 	docker tag $(DOCKER_IMAGE_RUNTIME) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)$$ARCH_SUFFIX; \
 	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)$$ARCH_SUFFIX; \
 	echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)$$ARCH_SUFFIX"; \
