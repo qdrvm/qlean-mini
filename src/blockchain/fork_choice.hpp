@@ -152,6 +152,42 @@ namespace lean {
     }
 
     /**
+     * Internal implementation of LMD GHOST fork choice algorithm.
+     *
+     * Walk the block tree according to the LMD GHOST rule.
+     *
+     * The walk starts from a chosen root.
+     * At each fork, the child subtree with the highest weight is taken.
+     * The process stops when a leaf is reached.
+     * That leaf is the chosen head.
+     *
+     * Weights are derived from votes as follows:
+     * - Each validator contributes its full weight to its most recent head
+     * vote.
+     * - The weight of that vote also flows to every ancestor of the voted
+     * block.
+     * - The weight of a subtree is the sum of all such contributions inside
+     * it.
+     *
+     * An optional threshold can be applied:
+     * - If a threshold is set, children below this threshold are ignored.
+     *
+     * When two branches have equal weight, the one with the lexicographically
+     * larger hash is chosen to break ties.
+     *
+     * Args:
+     *     start_root: Starting point root (usually latest justified).
+     *     attestations: Attestations to consider for fork choice weights.
+     *     min_score: Minimum attestation count for block inclusion.
+     *
+     * Returns:
+     *     Hash of the chosen head block.
+     */
+    BlockHash computeLmdGhostHead(const BlockHash &start_root,
+                                  const SignedAttestations &attestations,
+                                  uint64_t min_score = 0) const;
+
+    /**
      * Calculate target checkpoint for validator attestations.
      *
      *  Determines appropriate attestation target based on head, safe target,
@@ -184,6 +220,16 @@ namespace lean {
      *      Target checkpoint for attestation.
      */
     Checkpoint getAttestationTarget() const;
+
+    /**
+     * Produce the attestation data for a validator at the given slot.
+     *
+     * This helper constructs the attestation data payload that describes the
+     * validator's view of the chain (head, target, source) for the requested
+     * slot. The caller can reuse the result to sign or broadcast an
+     * attestation.
+     */
+    AttestationData produceAttestationData(Slot slot) const;
 
     /**
      * Produce a block and attestation signatures for the target slot.
@@ -429,11 +475,5 @@ namespace lean {
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider_;
   };
-
-  BlockHash getForkChoiceHead(
-      const ForkChoiceStore::Blocks &blocks,
-      const Checkpoint &root,
-      const ForkChoiceStore::SignedAttestations &latest_attestations,
-      uint64_t min_score);
 
 }  // namespace lean

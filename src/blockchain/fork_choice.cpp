@@ -6,9 +6,11 @@
 
 #include "blockchain/fork_choice.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <ranges>
 #include <stdexcept>
+#include <vector>
 
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/is_proposer.hpp"
@@ -23,69 +25,17 @@ namespace lean {
     // 2/3rd majority min voting voting weight for target selection
     auto min_target_score = ceilDiv(head_state.validatorCount() * 2, 3);
 
-    safe_target_ = getForkChoiceHead(
-        blocks_, latest_justified_, latest_new_attestations_, min_target_score);
+    safe_target_ = computeLmdGhostHead(
+        latest_justified_.root, latest_new_attestations_, min_target_score);
   }
 
   void ForkChoiceStore::updateHead() {
-    // Find the Latest Justified Checkpoint
-    //
-    // We must first determine the anchor point for our fork choice algorithm.
-    // This anchor is the justified checkpoint (a block root and slot) with the
-    // highest slot number known across *all* known states.
-    //
-    // We find this by:
-    // a) Scanning all known states.
-    // b) Finding the state that contains the justified checkpoint with the
-    //    highest slot number.
-    // c) Extracting that specific checkpoint object to use as our anchor.
-    //
-    // If there are no states to scan (e.g., at initialization), the
-    // operation would fail. In this case, we fall back to using the
-    // store's currently recorded justified checkpoint, preserving the
-    // last known good anchor.
-    if (!states_.empty()) {
-      auto max_it = std::max_element(
-          states_.begin(),
-          states_.end(),
-          [](const auto &a, const auto &b) {
-            return a.second.latest_justified.slot
-                   < b.second.latest_justified.slot;
-          });
-      latest_justified_ = max_it->second.latest_justified;
-      if (latest_justified_.slot == 0) {
-        for (auto &[hash, block] : blocks_) {
-          if (block.slot == 0) {
-            latest_justified_.root = hash;
-          }
-        }
-      }
-    }
-
     // Run LMD-GHOST fork choice algorithm
     //
     // Selects canonical head by walking the tree from the justified root,
     // choosing the heaviest child at each fork based on attestation weights.
-    head_ = getForkChoiceHead(
-        blocks_, latest_justified_, latest_known_attestations_, 0);
-
-    // Extract finalized checkpoint from head state
-    //
-    // The head state tracks the highest finalized checkpoint. If the
-    // head changed, we may have a new finalized checkpoint.
-    //
-    // Fallback to current finalized if head state unavailable (defensive).
-    auto state_it = states_.find(head_);
-    if (state_it != states_.end()) {
-      latest_finalized_ = state_it->second.latest_finalized;
-      if (latest_finalized_.slot == 0) {
-        for (auto &[hash, block] : blocks_) {
-          if (block.slot == 0) {
-            latest_finalized_.root = hash;
-          }
-        }
-      }
-    }
+    head_ = computeLmdGhostHead(
+        latest_justified_.root, latest_known_attestations_, 0);
   }
 
   void ForkChoiceStore::acceptNewAttestations() {
@@ -148,6 +98,8 @@ namespace lean {
     for (auto i = 0; i < JUSTIFICATION_LOOKBACK_SLOTS; ++i) {
       if (blocks_.at(target_block_root).slot > blocks_.at(safe_target_).slot) {
         target_block_root = blocks_.at(target_block_root).parent_root;
+      } else {
+        break;
       }
     }
 
@@ -161,6 +113,19 @@ namespace lean {
     return Checkpoint{
         .root = target_block_root,
         .slot = blocks_.at(target_block_root).slot,
+    };
+  }
+
+  AttestationData ForkChoiceStore::produceAttestationData(Slot slot) const {
+    Checkpoint head_checkpoint{.root = head_, .slot = blocks_.at(head_).slot};
+
+    auto target_checkpoint = getAttestationTarget();
+
+    return AttestationData{
+        .slot = slot,
+        .head = head_checkpoint,
+        .target = target_checkpoint,
+        .source = latest_justified_,
     };
   }
 
@@ -269,30 +234,9 @@ namespace lean {
 
   Attestation ForkChoiceStore::produceAttestation(
       Slot slot, ValidatorIndex validator_index) {
-    // Get the head block the validator sees for this slot
-    Checkpoint head_checkpoint{
-        .root = head_,
-        .slot = getHeadSlot(),
-    };
-
-    //  Calculate the target checkpoint for this attestation
-    //
-    //  This uses the store's current forkchoice state to determine
-    //  the appropriate attestation target, balancing between head
-    //  advancement and safety guarantees.
-    auto target_checkpoint = getAttestationTarget();
-
-    // Construct attestation data
-    AttestationData attestation_data{
-        .slot = slot,
-        .head = head_checkpoint,
-        .target = target_checkpoint,
-        .source = latest_justified_,
-    };
-
     return Attestation{
         .validator_id = validator_index,
-        .data = attestation_data,
+        .data = produceAttestationData(slot),
     };
   }
 
@@ -548,6 +492,17 @@ namespace lean {
     // Get post state from STF (State Transition Function)
     BOOST_OUTCOME_TRY(auto post_state,
                       stf_.stateTransition(block, parent_state, true));
+
+    // If post-state has a higher justified checkpoint, update it to the store.
+    if (post_state.latest_justified.slot > latest_justified_.slot) {
+      latest_justified_ = post_state.latest_justified;
+    }
+
+    // If post-state has a higher finalized checkpoint, update it to the store.
+    if (post_state.latest_finalized.slot > latest_finalized_.slot) {
+      latest_finalized_ = post_state.latest_finalized;
+    }
+
     blocks_.emplace(block_hash, block);
     states_.emplace(block_hash, std::move(post_state));
 
@@ -708,60 +663,102 @@ namespace lean {
   }
 
 
-  BlockHash getForkChoiceHead(
-      const ForkChoiceStore::Blocks &blocks,
-      const Checkpoint &root,
-      const ForkChoiceStore::SignedAttestations &latest_attestations,
-      uint64_t min_score) {
-    // For each block, count the number of votes for that block. A vote for
-    // any descendant of a block also counts as a vote for that block
-    std::unordered_map<BlockHash, uint64_t> attestation_weights;
+  BlockHash ForkChoiceStore::computeLmdGhostHead(
+      const BlockHash &start_root,
+      const SignedAttestations &attestations,
+      uint64_t min_score) const {
+    BOOST_ASSERT(not blocks_.empty());
+
+    // If the starting point is not defined, choose the earliest known block.
+    //
+    // This ensures that the walk always has an anchor.
+    auto anchor = start_root;
+    if (anchor == kZeroHash or not blocks_.contains(anchor)) {
+      anchor = std::min_element(blocks_.begin(),
+                                blocks_.end(),
+                                [](const auto &lhs, const auto &rhs) {
+                                  return lhs.second.slot < rhs.second.slot;
+                                })
+                   ->first;
+    }
+
+    // Remember the slot of the anchor once and reuse it during the walk.
+    //
+    // This avoids repeated lookups inside the inner loop.
+    const auto start_slot = blocks_.at(anchor).slot;
+
+    // Prepare a table that will collect voting weight for each block.
+    //
+    // Each entry starts conceptually at zero and then accumulates
+    // contributions.
+    std::unordered_map<BlockHash, uint64_t> weights;
     auto get_weight = [&](const BlockHash &hash) {
-      auto it = attestation_weights.find(hash);
-      return it != attestation_weights.end() ? it->second : 0;
+      auto it = weights.find(hash);
+      return it != weights.end() ? it->second : 0;
     };
 
-    for (auto &attestation : latest_attestations | std::views::values) {
-      auto block_it = blocks.find(attestation.message.data.target.root);
-      if (block_it != blocks.end()) {
-        while (block_it->second.slot > root.slot) {
-          ++attestation_weights[block_it->first];
-          block_it = blocks.find(block_it->second.parent_root);
-          BOOST_ASSERT(block_it != blocks.end());
-        }
+    // For every vote, follow the chosen head upward through its ancestors.
+    //
+    // Each visited block accumulates one unit of weight from that validator.
+    for (auto &attestation : attestations | std::views::values) {
+      auto current = attestation.message.data.head.root;
+
+      // Climb towards the anchor while staying inside the known tree.
+      //
+      // This naturally handles partial views and ongoing sync.
+      while (blocks_.contains(current)
+             and blocks_.at(current).slot > start_slot) {
+        ++weights[current];
+        current = blocks_.at(current).parent_root;
       }
     }
 
-    // Identify the children of each block
-    using Key = std::tuple<uint64_t, Slot, BlockHash>;
-    std::unordered_multimap<BlockHash, Checkpoint> children_map;
-    for (auto &[hash, block] : blocks) {
-      if (block.slot > root.slot and get_weight(hash) >= min_score) {
-        children_map.emplace(block.parent_root, Checkpoint::from(block));
+    // Build the adjacency tree (parent -> children).
+    //
+    // We use a map to avoid checking if keys exist.
+    std::unordered_map<BlockHash, std::vector<BlockHash>> children_map;
+    for (auto &[hash, block] : blocks_) {
+      // 1. Structural check: skip blocks without parents (e.g., purely
+      // genesis/orphans)
+      if (block.parent_root == BlockHash{}) {
+        continue;
       }
+
+      // 2. Heuristic check: prune branches early if they lack sufficient weight
+      if (min_score > 0 and get_weight(hash) < min_score) {
+        continue;
+      }
+
+      children_map[block.parent_root].push_back(hash);
     }
 
-    // Start at the root (latest justified hash or genesis) and repeatedly
-    // choose the child with the most latest votes, tiebreaking by slot then
-    // hash
-    auto current = root.root;
+    // Now perform the greedy walk.
+    //
+    // At each step, pick the child with the highest weight among the
+    // candidates.
+    auto head = anchor;
+
+    // Descend the tree, choosing the heaviest branch at every fork.
     while (true) {
-      auto [begin, end] = children_map.equal_range(current);
-      if (begin == end) {
-        return current;
+      auto it = children_map.find(head);
+      if (it == children_map.end()) {
+        return head;
       }
-      Key max;
-      for (auto it = begin; it != end; ++it) {
-        Key key{
-            get_weight(it->second.root),
-            it->second.slot,
-            it->second.root,
-        };
-        if (it == begin or key > max) {
-          max = key;
-        }
-      }
-      current = std::get<2>(max);
+      auto &children = it->second;
+
+      // Choose best child: most attestations, then lexicographically highest
+      // hash
+      head = *std::max_element(
+          children.begin(),
+          children.end(),
+          [&get_weight](const BlockHash &lhs, const BlockHash &rhs) {
+            auto lhs_weight = get_weight(lhs);
+            auto rhs_weight = get_weight(rhs);
+            if (lhs_weight == rhs_weight) {
+              return lhs < rhs;
+            }
+            return lhs_weight < rhs_weight;
+          });
     }
   }
 

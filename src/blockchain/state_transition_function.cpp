@@ -14,7 +14,6 @@
 #include "types/state.hpp"
 
 namespace lean {
-  constexpr BlockHash kZeroHash;
 
   STF::STF(qtils::SharedRef<metrics::Metrics> metrics)
       : metrics_(std::move(metrics)) {}
@@ -72,11 +71,11 @@ namespace lean {
     result.latest_finalized = Checkpoint{.root = kZeroHash, .slot = 0};
 
     for (size_t i = 0; i < registry->allValidatorsIndices().size(); ++i) {
-      auto opt_pubkey = validator_keys_manifest->getXmssPubkeyByIndex(i);
-      if (not opt_pubkey) {
-        continue;
-      }
-      result.validators.push_back(Validator{.pubkey = *opt_pubkey});
+      auto pubkey = validator_keys_manifest->getXmssPubkeyByIndex(i).value();
+      result.validators.push_back(Validator{
+          .pubkey = pubkey,
+          .index = i,
+      });
     }
     // result.historical_block_hashes;
     // result.justified_slots;
