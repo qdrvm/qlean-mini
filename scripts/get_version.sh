@@ -53,7 +53,10 @@ cd "$(dirname "$(realpath "$0")")"
 SANITIZED=false
 [ "$#" -gt 0 ] && [ "$1" = "--sanitized" ] && SANITIZED=true
 
-if [ -x "$(command -v git)" ] && [ -d "$(git rev-parse --git-dir 2>/dev/null)" ]; then
+# Use GIT_COMMIT environment variable if available (for Docker builds)
+if [ -n "${GIT_COMMIT:-}" ]; then
+  RESULT="$GIT_COMMIT"
+elif [ -x "$(command -v git)" ] && [ -d "$(git rev-parse --git-dir 2>/dev/null)" ]; then
   HEAD=$(git rev-parse --short HEAD)
 
   # Determine the main branch (fallback to default names if necessary)

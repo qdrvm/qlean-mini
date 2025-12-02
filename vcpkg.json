@@ -12,6 +12,7 @@
     "prometheus-cpp",
     "qdrvm-crates",
     "qtils",
+    "qdrvm-crates",
     "rocksdb",
     "snappy",
     "soralog",

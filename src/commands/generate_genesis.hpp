@@ -10,6 +10,7 @@
 #include <fstream>
 #include <print>
 
+#include <fmt/format.h>
 #include <yaml-cpp/yaml.h>
 
 #include "crypto/xmss/xmss_provider_impl.hpp"
@@ -124,7 +125,7 @@ inline int cmdGenerateGenesis(auto &&getArg) {
     for (auto &peer : peers) {
       std::ofstream node_key{genesis_directory
                              / std::format("{}.key", node_id(peer.index))};
-      std::println(node_key,
+      fmt::println(node_key,
                    "{}",
                    qtils::ByteView{peer.keypair.privateKey.data}.toHex());
       node_key.close();
@@ -177,7 +178,7 @@ inline int cmdGenerateGenesis(auto &&getArg) {
     }
   }
   auto exe = std::filesystem::path{getArg(0).value()}.filename().string();
-  std::println(std::cerr,
+  fmt::println(std::cerr,
                "Usage: {} generate-genesis (genesis_directory) "
                "(validator_count) (shadow?)",
                exe);
