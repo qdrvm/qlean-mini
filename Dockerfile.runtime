@@ -1,43 +1,38 @@
-# Use existing builder image
-FROM qlean-mini:latest-builder AS builder
+# Stage 3: Minimal runtime image
+# Production-ready image with binaries only
 
-# ==================== Stage 2: Runtime ====================
+ARG BUILDER_IMAGE=qlean-mini-builder:latest
+FROM ${BUILDER_IMAGE} AS builder
+
 FROM ubuntu:24.04 AS runtime
 
-# Install minimal runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libstdc++6 \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Environment variables for runtime
-ENV LD_LIBRARY_PATH=/opt/qlean/lib:/opt/qlean/vcpkg/installed/x64-linux/lib:/opt/qlean/vcpkg/installed/x64-linux-dynamic/lib:/opt/qlean/vcpkg/installed/lib:/usr/local/lib
+ENV LD_LIBRARY_PATH=/opt/qlean/lib:/opt/qlean/vcpkg:/usr/local/lib
 ENV QLEAN_MODULES_DIR=/opt/qlean/modules
 
 WORKDIR /work
 
-# Copy binary
-COPY --from=builder /qlean-mini/.build/src/executable/qlean /usr/local/bin/qlean
-# Copy all project .so libraries
-COPY --from=builder /qlean-mini/.build/src/app/*.so /opt/qlean/lib/
-COPY --from=builder /qlean-mini/.build/src/utils/*.so /opt/qlean/lib/
-# Copy modules
-COPY --from=builder /qlean-mini/.build/src/modules/example/libexample_module.so /opt/qlean/modules/
-COPY --from=builder /qlean-mini/.build/src/modules/networking/libnetworking_module.so /opt/qlean/modules/
-COPY --from=builder /qlean-mini/.build/src/modules/production/libproduction_module.so /opt/qlean/modules/
-COPY --from=builder /qlean-mini/.build/src/modules/synchronizer/libsynchronizer_module.so /opt/qlean/modules/
-# Copy vcpkg libraries
-COPY --from=builder /qlean-mini/.build/vcpkg_installed/ /opt/qlean/vcpkg/installed/
+# Copy artifacts from builder (binaries are already stripped)
+COPY --from=builder /opt/artifacts/bin/qlean /usr/local/bin/qlean
+COPY --from=builder /opt/artifacts/lib/ /opt/qlean/lib/
+COPY --from=builder /opt/artifacts/modules/ /opt/qlean/modules/
+COPY --from=builder /opt/artifacts/vcpkg/ /opt/qlean/vcpkg/
 
-# Verify artifacts
+# Verify runtime image
 RUN echo "=== Runtime image contents ===" && \
-    ls -lh /usr/local/bin/qlean && \
-    echo "=== Project libraries ===" && \
-    ls -lh /opt/qlean/lib/ || true && \
-    echo "=== Modules ===" && \
-    ls -lh /opt/qlean/modules/ || true
+    echo "Binary:" && ls -lh /usr/local/bin/qlean && \
+    echo "" && echo "Project libraries:" && ls -lh /opt/qlean/lib/ 2>/dev/null || echo "  (none)" && \
+    echo "" && echo "Modules:" && ls -lh /opt/qlean/modules/ 2>/dev/null || echo "  (none)" && \
+    echo "" && echo "Vcpkg libraries:" && ls /opt/qlean/vcpkg/ | wc -l && echo " files" && \
+    echo "" && echo "Total image libraries:" && find /opt/qlean -name "*.so*" | wc -l && echo " .so files"
+
+LABEL org.opencontainers.image.description="Qlean-mini runtime image (optimized)"
+LABEL stage=runtime
 
 ENTRYPOINT ["qlean", "--modules-dir", "/opt/qlean/modules"]
 CMD ["--help"]
-

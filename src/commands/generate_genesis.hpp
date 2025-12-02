@@ -10,6 +10,7 @@
 #include <fstream>
 #include <print>
 
+#include <fmt/format.h>
 #include <yaml-cpp/yaml.h>
 
 #include "crypto/xmss/xmss_provider_impl.hpp"
@@ -65,17 +66,17 @@ inline int cmdGenerateGenesis(auto &&getArg) {
         auto keypair_result = lean::crypto::xmss::loadKeypairFromJson(
             xmss_private_key_path, xmss_public_key_path);
         if (not keypair_result) {
-          std::println(std::cerr,
+          fmt::println(std::cerr,
                        "Error loading XMSS keypair: {}",
                        keypair_result.error().message());
-          std::println(std::cerr, "  {}", xmss_public_key_path.string());
-          std::println(std::cerr, "  {}", xmss_private_key_path.string());
+          fmt::println(std::cerr, "  {}", xmss_public_key_path.string());
+          fmt::println(std::cerr, "  {}", xmss_private_key_path.string());
           return EXIT_FAILURE;
         }
         auto &keypair = keypair_result.value();
         xmss_public_keys.emplace_back(keypair.public_key);
       } else {
-        std::println(
+        fmt::println(
             std::cerr, "Generating XMSS keypair for validator {}", index);
         auto keypair = lean::crypto::xmss::XmssProviderImpl{}.generateKeypair(
             xmss_activation_epoch, xmss_active_epoch);
@@ -124,7 +125,7 @@ inline int cmdGenerateGenesis(auto &&getArg) {
     for (auto &peer : peers) {
       std::ofstream node_key{genesis_directory
                              / std::format("{}.key", node_id(peer.index))};
-      std::println(node_key,
+      fmt::println(node_key,
                    "{}",
                    qtils::ByteView{peer.keypair.privateKey.data}.toHex());
       node_key.close();
@@ -177,7 +178,7 @@ inline int cmdGenerateGenesis(auto &&getArg) {
     }
   }
   auto exe = std::filesystem::path{getArg(0).value()}.filename().string();
-  std::println(std::cerr,
+  fmt::println(std::cerr,
                "Usage: {} generate-genesis (genesis_directory) "
                "(validator_count) (shadow?)",
                exe);

@@ -19,6 +19,6 @@ inline void cmdKeyGenerateNodeKey() {
       std::make_shared<libp2p::crypto::random::BoostRandomGenerator>()};
   auto keypair = secp256k1.generate().value();
   auto peer_id = libp2p::peerIdFromSecp256k1(keypair.public_key);
-  std::println("{}", fmt::format("{:0xx}", qtils::Hex{keypair.private_key}));
-  std::println("{}", peer_id.toBase58());
+  fmt::println("{}", fmt::format("{:0xx}", qtils::Hex{keypair.private_key}));
+  fmt::println("{}", peer_id.toBase58());
 }
