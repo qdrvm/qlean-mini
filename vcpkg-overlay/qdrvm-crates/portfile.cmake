@@ -1,13 +1,13 @@
 vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 vcpkg_from_github(
   OUT_SOURCE_PATH SOURCE_PATH
-  REPO qdrvm/kagome-crates
-  REF ab20d915257159a3499f1355168831ce01e1c063
-  SHA512 8aee6dedf09c2f8aa660c2e400672ed9d652529ccb6dddde0110d7e929712462853903981e5b0549ece20b0a37e246cc5a14a0a6502169f7fe497ebff0e03ebe
+  REPO qdrvm/qdrvm-crates
+  REF refs/tags/v1.0.6
+  SHA512 bede49cb4d42ada9daefee57b8b2ba7726231fcfbdfff28ed8c0f91fdb97cb56bfdc4baef611943454424668bdc9bc2fd9e284426934e19bb822452c10cf7be9
 )
 vcpkg_cmake_configure(SOURCE_PATH "${SOURCE_PATH}" OPTIONS
-  "-DQDRVM_BIND_CRATES=schnorrkel;ark_vrf"
+  "-DQDRVM_BIND_CRATES=c_hash_sig"
 )
 vcpkg_cmake_install()
-vcpkg_cmake_config_fixup(PACKAGE_NAME "qdrvm-crates")
+vcpkg_cmake_config_fixup(PACKAGE_NAME "qdrvm-crates" CONFIG_PATH "lib/cmake/qdrvm-crates")
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")

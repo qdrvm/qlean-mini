@@ -1,5 +1,2 @@
 # Genesis Settings
-GENESIS_TIME: 946684803
-
-# Validator Settings
-VALIDATOR_COUNT: 1
+GENESIS_TIME: 1763468331

@@ -8,6 +8,8 @@
 
 #include <qtils/byte_arr.hpp>
 
+#include "crypto/xmss/types.hpp"
+
 namespace lean {
-  using Signature = qtils::ByteArr<3100>;
+  using Signature = crypto::xmss::XmssSignature;
 }

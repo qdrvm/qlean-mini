@@ -14,7 +14,6 @@
 #include "types/state.hpp"
 
 namespace lean {
-  constexpr BlockHash kZeroHash;
 
   STF::STF(qtils::SharedRef<metrics::Metrics> metrics)
       : metrics_(std::move(metrics)) {}
@@ -33,30 +32,10 @@ namespace lean {
   using Justifications = std::map<BlockHash, std::vector<bool>>;
 
   /**
-   * Returns a map of `root -> justifications` constructed from the flattened
-   * data in the state.
-   */
-  inline Justifications getJustifications(const State &state) {
-    auto &roots = state.justifications_roots.data();
-    auto &validators = state.justifications_validators.data();
-    Justifications justifications;
-    size_t offset = 0;
-    BOOST_ASSERT(validators.size() == roots.size() * state.validatorCount());
-    for (auto &root : roots) {
-      auto next_offset = offset + state.validatorCount();
-      std::vector<bool> bits{
-          validators.begin() + offset,
-          validators.begin() + next_offset,
-      };
-      justifications[root] = std::move(bits);
-      offset = next_offset;
-    }
-    return justifications;
-  }
-
-  /**
    * Saves a map of `root -> justifications` back into the state's flattened
    * data structure.
+   *
+   * Corresponds to flatten_justifications_map in Python spec.
    */
   inline void setJustifications(State &state,
                                 const Justifications &justifications) {
@@ -73,7 +52,9 @@ namespace lean {
     }
   }
 
-  AnchorState STF::generateGenesisState(const Config &config) {
+  AnchorState STF::generateGenesisState(
+      const Config &config,
+      std::span<const crypto::xmss::XmssPublicKey> validators_pubkeys) {
     BlockHeader header;
     header.slot = 0;
     header.proposer_index = 0;
@@ -87,6 +68,15 @@ namespace lean {
     result.latest_block_header = header;
     result.latest_justified = Checkpoint{.root = kZeroHash, .slot = 0};
     result.latest_finalized = Checkpoint{.root = kZeroHash, .slot = 0};
+
+    ValidatorIndex validator_index = 0;
+    for (auto &validator_pubkey : validators_pubkeys) {
+      result.validators.push_back(Validator{
+          .pubkey = validator_pubkey,
+          .index = validator_index,
+      });
+      ++validator_index;
+    }
     // result.historical_block_hashes;
     // result.justified_slots;
     // result.justifications_roots;
@@ -129,20 +119,37 @@ namespace lean {
     if (state.slot >= slot) {
       return Error::INVALID_SLOT;
     }
+
+    // Step through each missing slot:
     while (state.slot < slot) {
-      processSlot(state);
+      // Per-Slot Housekeeping & Slot Increment
+      //
+      // This performs two tasks for each empty slot:
+      //
+      // 1. State Root Caching (Conditional):
+      //    Check if the latest block header has an empty state root.
+      //    This is true only for the *first* empty slot immediately
+      //    following a block.
+      //
+      //    - If it is empty, we must cache the pre-block state root
+      //      (the hash of the state *before* this slot increment) into that
+      //      header.
+      //
+      //    - If the state root is *not* empty, it means we are in a
+      //      sequence of empty slots, and no action is needed.
+      //
+      // 2. Slot Increment:
+      //    Always increment the slot number by one.
+      //
+      if (state.latest_block_header.state_root == kZeroHash) {
+        state.latest_block_header.state_root = sszHash(state);
+      }
       ++state.slot;
       metrics_->stf_slots_processed_total()->inc();
     }
     return outcome::success();
   }
 
-  void STF::processSlot(State &state) const {
-    // Cache latest block header state root
-    if (state.latest_block_header.state_root == kZeroHash) {
-      state.latest_block_header.state_root = sszHash(state);
-    }
-  }
 
   outcome::result<void> STF::processBlock(State &state,
                                           const Block &block) const {
@@ -154,53 +161,73 @@ namespace lean {
 
   outcome::result<void> STF::processBlockHeader(State &state,
                                                 const Block &block) const {
-    // Verify that the slots match
+    // Validation
+    auto &parent_header = state.latest_block_header;
+    parent_header.updateHash();
+    auto parent_root = parent_header.hash();
+
+    // The block must be for the current slot.
     if (block.slot != state.slot) {
       return Error::INVALID_SLOT;
     }
-    // Verify that the block is newer than latest block header
-    if (block.slot <= state.latest_block_header.slot) {
+
+    // The block must be newer than the current latest header.
+    if (block.slot <= parent_header.slot) {
       return Error::INVALID_SLOT;
     }
-    // Verify that proposer index is the correct index
+
+    // The proposer must be the expected validator for this slot.
     if (not validateProposerIndex(state, block)) {
       return Error::INVALID_PROPOSER;
     }
-    // Verify that the parent matches
-    state.latest_block_header.updateHash();
-    if (block.parent_root != state.latest_block_header.hash()) {
+
+    // The declared parent must match the hash of the latest block header.
+    if (block.parent_root != parent_root) {
       return Error::PARENT_ROOT_DOESNT_MATCH;
     }
 
-    // If this was first block post genesis, 3sf mini special treatment is
-    // required to correctly set genesis block root as already justified and
-    // finalized. This is not possible at the time of genesis state generation
-    // and are set at zero bytes because genesis block is calculated using
-    // genesis state causing a circular dependency
-    [[unlikely]] if (state.latest_block_header.slot == 0) {
+    // State Updates
+
+    // Special case: first block after genesis.
+    //
+    // Mark genesis as both justified and finalized.
+    bool is_genesis_parent = parent_header.slot == 0;
+    [[unlikely]] if (is_genesis_parent) {
       // block.parent_root is the genesis root
-      state.latest_justified.root = block.parent_root;
-      state.latest_finalized.root = block.parent_root;
+      state.latest_justified.root = parent_root;
+      state.latest_finalized.root = parent_root;
     }
 
-    // now that we can vote on parent, push it at its correct slot index in the
-    // structures
-    state.historical_block_hashes.push_back(block.parent_root);
-    // genesis block is always justified
-    state.justified_slots.push_back(state.latest_block_header.slot == 0);
+    // If there were empty slots between parent and this block, fill them.
+    auto num_empty_slots = block.slot - parent_header.slot - 1;
 
-    // if there were empty slots, push zero hash for those ancestors
-    for (auto num_empty_slots = block.slot - state.latest_block_header.slot - 1;
-         num_empty_slots > 0;
-         --num_empty_slots) {
+    // Build new historical hashes list
+    //
+    // Now that we can vote on parent, push it at its correct slot index in the
+    // structures.
+    state.historical_block_hashes.push_back(parent_root);
+
+    // If there were empty slots, push zero hash for those ancestors
+    for (auto i = num_empty_slots; i > 0; --i) {
       state.historical_block_hashes.push_back(kZeroHash);
+    }
+
+    // Build new justified slots list
+    //
+    // Genesis block is always justified
+    state.justified_slots.push_back(is_genesis_parent);
+
+    // Mark empty slots as not justified
+    for (auto i = num_empty_slots; i > 0; --i) {
       state.justified_slots.push_back(false);
     }
 
-    // Cache current block as the new latest block
+    // Construct the new latest block header.
+    //
+    // Leave state_root empty; it will be filled on the next process_slot call.
     state.latest_block_header = block.getHeader();
-    // Overwritten in the next process_slot call
     state.latest_block_header.state_root = kZeroHash;
+
     return outcome::success();
   }
 
@@ -214,87 +241,158 @@ namespace lean {
 
   outcome::result<void> STF::processAttestations(
       State &state, const Attestations &attestations) const {
-    // get justifications, justified slots and historical block hashes are
-    // already upto date as per the processing in process_block_header
     auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
-    auto justifications = getJustifications(state);
 
-    // From 3sf-mini/consensus.py - apply votes
+    // NOTE:
+    // The state already contains three pieces of data:
+    //   1. A list of block roots that have received justification votes.
+    //   2. A long sequence of boolean entries representing all validator votes,
+    //      flattened into a single list.
+    //   3. The total number of validators.
+    //
+    // The flattened vote list is organized so that votes from all validators
+    // for each block root appear together, and those groups are simply placed
+    // back-to-back.
+    //
+    // To work with attestations, we must rebuild the intuitive structure:
+    //   "for each block root, here is the list of validator votes for it".
+    //
+    // Reconstructing this is done by cutting the long vote list into
+    // consecutive segments, where:
+    //   - each segment corresponds to one block root,
+    //   - each segment has length equal to the number of validators,
+    //   - and the ordering of block roots is preserved.
+    Justifications justifications;
+    if (state.justifications_roots.size() > 0) {
+      auto &roots = state.justifications_roots.data();
+      auto &flat_justifications = state.justifications_validators.data();
+      size_t offset = 0;
+      BOOST_ASSERT(flat_justifications.size()
+                   == roots.size() * state.validatorCount());
+      for (auto &root : roots) {
+        auto next_offset = offset + state.validatorCount();
+        std::vector<bool> bits{
+            flat_justifications.begin() + offset,
+            flat_justifications.begin() + next_offset,
+        };
+        justifications[root] = std::move(bits);
+        offset = next_offset;
+      }
+    }
+
+    // Track state changes to be applied at the end
+    auto latest_justified = state.latest_justified;
+    auto latest_finalized = state.latest_finalized;
+    auto justified_slots = state.justified_slots.data();
+
+    // Process each attestation in the block.
     for (auto &attestation : attestations) {
-      auto &vote = attestation.data;
-      if (vote.source.slot >= state.historical_block_hashes.size()) {
-        return Error::INVALID_VOTE_SOURCE_SLOT;
-      }
-      if (vote.target.slot >= state.historical_block_hashes.size()) {
-        return Error::INVALID_VOTE_TARGET_SLOT;
-      }
-      // Ignore votes whose source is not already justified,
+      auto &attestation_data = attestation.data;
+      auto &source = attestation_data.source;
+      auto &target = attestation_data.target;
+
+      // Ignore attestations whose source is not already justified,
       // or whose target is not in the history, or whose target is not a
       // valid justifiable slot
-      if (not getBit(state.justified_slots.data(), vote.source.slot)
-          // This condition is missing in 3sf mini but has been added here
-          // because we don't want to re-introduce the target again for
-          // remaining votes if the slot is already justified and its tracking
-          // already cleared out from justifications map
-          or getBit(state.justified_slots.data(), vote.target.slot)
-          or vote.source.root
-                 != state.historical_block_hashes.data().at(vote.source.slot)
-          or vote.target.root
-                 != state.historical_block_hashes.data().at(vote.target.slot)
-          or vote.target.slot <= vote.source.slot
-          or not isJustifiableSlot(state.latest_finalized.slot,
-                                   vote.target.slot)) {
+      auto source_slot = source.slot;
+      auto target_slot = target.slot;
+
+      if (source_slot >= state.historical_block_hashes.size()) {
+        return Error::INVALID_VOTE_SOURCE_SLOT;
+      }
+      if (target_slot >= state.historical_block_hashes.size()) {
+        return Error::INVALID_VOTE_TARGET_SLOT;
+      }
+
+      // Source slot must be justified
+      if (not getBit(justified_slots, source_slot)) {
         continue;
       }
 
-      auto justifications_it = justifications.find(vote.target.root);
+      // Target slot must not be already justified
+      // This condition is missing in 3sf mini but has been added here because
+      // we don't want to re-introduce the target again for remaining votes if
+      // the slot is already justified and its tracking already cleared out
+      // from justifications map
+      if (getBit(justified_slots, target_slot)) {
+        continue;
+      }
+
+      // Source root must match the state's historical block hashes
+      if (source.root != state.historical_block_hashes.data().at(source_slot)) {
+        continue;
+      }
+
+      // Target root must match the state's historical block hashes
+      if (target.root != state.historical_block_hashes.data().at(target_slot)) {
+        continue;
+      }
+
+      // Target slot must be after source slot
+      if (target.slot <= source.slot) {
+        continue;
+      }
+
+      // Target slot must be justifiable after the latest finalized slot
+      if (not isJustifiableSlot(latest_finalized.slot, target.slot)) {
+        continue;
+      }
+
       // Track attempts to justify new hashes
+      auto justifications_it = justifications.find(target.root);
       if (justifications_it == justifications.end()) {
         justifications_it =
-            justifications.emplace(vote.target.root, std::vector<bool>{}).first;
+            justifications.emplace(target.root, std::vector<bool>{}).first;
         justifications_it->second.resize(state.validatorCount());
       }
 
-      if (attestation.validator_id >= justifications_it->second.size()) {
+      auto validator_id = attestation.validator_id;
+      if (validator_id >= justifications_it->second.size()) {
         return Error::INVALID_VOTER;
       }
-      justifications_it->second.at(attestation.validator_id) = true;
+      if (not justifications_it->second.at(validator_id)) {
+        justifications_it->second.at(validator_id) = true;
+      }
 
       size_t count = std::ranges::count(justifications_it->second, true);
 
-      // If 2/3 voted for the same new valid hash to justify
+      // If 2/3 attested to the same new valid hash to justify
       // in 3sf mini this is strict equality, but we have updated it to >=
       // also have modified it from count >= (2 * state.config.num_validators)
-      // / 3 to prevent integer division which could lead to less than 2/3 of
-      // validators justifying specially if the num_validators is low in testing
-      // scenarios
+      // // 3 to prevent integer division which could lead to less than 2/3 of
+      // validators justifying specially if the num_validators is low in
+      // testing scenarios
       if (3 * count >= 2 * state.validatorCount()) {
-        state.latest_justified = vote.target;
-        metrics_->stf_latest_justified_slot()->set(state.latest_justified.slot);
-        setBit(state.justified_slots.data(), vote.target.slot);
-        justifications.erase(vote.target.root);
+        latest_justified = target;
+        metrics_->stf_latest_justified_slot()->set(latest_justified.slot);
+        setBit(justified_slots, target_slot);
+        justifications.erase(target.root);
 
-        // Finalization: if the target is the next valid justifiable hash after
-        // the source
+        // Finalization: if the target is the next valid justifiable
+        // hash after the source
         auto any = false;
-        for (auto slot = vote.source.slot + 1; slot < vote.target.slot;
-             ++slot) {
-          if (isJustifiableSlot(state.latest_finalized.slot, slot)) {
+        for (auto slot = source_slot + 1; slot < target_slot; ++slot) {
+          if (isJustifiableSlot(latest_finalized.slot, slot)) {
             any = true;
             break;
           }
         }
         if (not any) {
-          state.latest_finalized = vote.source;
-          metrics_->stf_latest_finalized_slot()->set(
-              state.latest_finalized.slot);
+          latest_finalized = source;
+          metrics_->stf_latest_finalized_slot()->set(latest_finalized.slot);
         }
       }
       metrics_->stf_attestations_processed_total()->inc();
     }
 
-    // flatten and set updated justifications back to the state
+    // Flatten and set updated justifications back to the state
     setJustifications(state, justifications);
+
+    // Apply tracked state changes
+    state.justified_slots.data() = std::move(justified_slots);
+    state.latest_justified = latest_justified;
+    state.latest_finalized = latest_finalized;
+
     return outcome::success();
   }
 

@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 
-#include "mock/blockchain/metrics_mock.hpp"
+#include "mock/metrics_mock.hpp"
 #include "types/config.hpp"
 #include "types/state.hpp"
 
@@ -17,11 +17,14 @@ TEST(STF, Test) {
   lean::STF stf(metrics);
 
   lean::Config config{
-      .num_validators = 2,
       .genesis_time = 0,
   };
-  auto state0 = stf.generateGenesisState(config);
-  auto block0 = stf.genesisBlock(state0);
+
+  std::vector<lean::crypto::xmss::XmssPublicKey> validators_pubkeys;
+  validators_pubkeys.resize(2);
+
+  auto state0 = lean::STF::generateGenesisState(config, validators_pubkeys);
+  auto block0 = lean::STF::genesisBlock(state0);
   block0.setHash();
 
   lean::Block block1{
@@ -37,6 +40,7 @@ TEST(STF, Test) {
 
   lean::Block block2{
       .slot = block1.slot + 3,
+      .proposer_index = (block1.slot + 3) % 2,
       .parent_root = block1.hash(),
   };
   auto state2 = stf.stateTransition(block2, state1, false).value();

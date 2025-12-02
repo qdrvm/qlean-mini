@@ -55,11 +55,13 @@ namespace lean {
     [[nodiscard]] const ValidatorIndices &currentValidatorIndices()
         const override;
 
+    [[nodiscard]] ValidatorIndices allValidatorsIndices() const override;
+
     [[nodiscard]] std::optional<std::string> nodeIdByIndex(
-        ValidatorIndex index) const;
+        ValidatorIndex index) const override;
 
     [[nodiscard]] std::optional<ValidatorIndices> validatorIndicesForNodeId(
-        std::string_view node_id) const;
+        std::string_view node_id) const override;
 
    private:
     ValidatorRegistryImpl(qtils::SharedRef<log::LoggingSystem> logging_system,

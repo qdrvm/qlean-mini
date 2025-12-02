@@ -9,11 +9,15 @@
 #include <qtils/byte_arr.hpp>
 #include <sszpp/container.hpp>
 
+#include "crypto/xmss/types.hpp"
+#include "types/validator_index.hpp"
+
 namespace lean {
   struct Validator : ssz::ssz_container {
-    qtils::ByteArr<52> pubkey;
+    crypto::xmss::XmssPublicKey pubkey;
+    ValidatorIndex index;
 
-    SSZ_CONT(pubkey);
+    SSZ_CONT(pubkey, index);
     bool operator==(const Validator &) const = default;
   };
 }  // namespace lean

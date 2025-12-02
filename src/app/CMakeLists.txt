@@ -46,6 +46,7 @@ target_link_libraries(app_configurator
     app_configuration
     Boost::program_options
     build_version
+    xmss_provider
     p2p::libp2p
     yaml-cpp::yaml-cpp
 )
@@ -97,4 +98,13 @@ target_link_libraries(timeline
     sszpp
 #    app_configuration
 #    metrics
+)
+
+add_library(validator_keys_manifest SHARED
+    impl/validator_keys_manifest_impl.cpp
+)
+target_link_libraries(validator_keys_manifest
+    app_configuration
+    qtils::qtils
+    yaml-cpp::yaml-cpp
 )

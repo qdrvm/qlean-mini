@@ -9,6 +9,7 @@
 #include <qtils/shared_ref.hpp>
 
 #include "types/config.hpp"
+#include "types/state.hpp"
 
 namespace lean::app {
   class Configuration;
@@ -24,6 +25,7 @@ namespace lean {
     GenesisConfig(const log::LoggingSystem &logsys,
                   const app::Configuration &app_config);
 
-    Config config;
+    State state;
+    const Config &config;
   };
 }  // namespace lean

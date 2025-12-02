@@ -11,6 +11,8 @@
 #include <qtils/shared_ref.hpp>
 
 #include "app/impl/chain_spec_impl.hpp"
+#include "app/validator_keys_manifest.hpp"
+#include "blockchain/validator_registry.hpp"
 #include "types/block.hpp"
 #include "types/slot.hpp"
 #include "types/state.hpp"
@@ -61,7 +63,9 @@ namespace lean {
 
     explicit STF(qtils::SharedRef<metrics::Metrics> metrics);
 
-    static AnchorState generateGenesisState(const Config &config);
+    static AnchorState generateGenesisState(
+        const Config &config,
+        std::span<const crypto::xmss::XmssPublicKey> validators_pubkeys);
     static AnchorBlock genesisBlock(const State &state);
 
     /**
@@ -76,7 +80,6 @@ namespace lean {
     outcome::result<void> processBlock(State &state, const Block &block) const;
 
    private:
-    void processSlot(State &state) const;
     outcome::result<void> processBlockHeader(State &state,
                                              const Block &block) const;
     outcome::result<void> processOperations(State &state,

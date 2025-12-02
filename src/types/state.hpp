@@ -10,6 +10,7 @@
 #include "types/checkpoint.hpp"
 #include "types/config.hpp"
 #include "types/constants.hpp"
+#include "types/validator_index.hpp"
 #include "types/validators.hpp"
 
 namespace lean {
@@ -39,12 +40,13 @@ namespace lean {
              latest_finalized,
              historical_block_hashes,
              justified_slots,
+             validators,
              justifications_roots,
              justifications_validators);
     bool operator==(const State &) const = default;
 
     ValidatorIndex validatorCount() const {
-      return config.num_validators;
+      return validators.size();
     }
   };
 

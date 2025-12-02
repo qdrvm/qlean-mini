@@ -17,8 +17,10 @@
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
-#include "mock/blockchain/metrics_mock.hpp"
+#include "mock/app/validator_keys_manifest_mock.hpp"
 #include "mock/blockchain/validator_registry_mock.hpp"
+#include "mock/crypto/xmss_provider_mock.hpp"
+#include "mock/metrics_mock.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "qtils/test/outcome.hpp"
 #include "testutil/prepare_loggers.hpp"
@@ -26,7 +28,6 @@
 using lean::Block;
 using lean::Checkpoint;
 using lean::ForkChoiceStore;
-using lean::getForkChoiceHead;
 using lean::Interval;
 using lean::INTERVALS_PER_SLOT;
 using lean::SignedAttestation;
@@ -57,16 +58,15 @@ SignedAttestation makeAttestation(const Block &source, const Block &target) {
 }
 
 std::optional<Checkpoint> getAttestation(
-    const ForkChoiceStore::AttestationMap &attestations) {
-  auto it = attestations.find(0);
-  if (it == attestations.end()) {
+    const ForkChoiceStore::SignedAttestations &votes) {
+  auto it = votes.find(0);
+  if (it == votes.end()) {
     return std::nullopt;
   }
   return it->second.message.data.target;
 }
 
 lean::Config config{
-    .num_validators = 100,
     .genesis_time = 1,
 };
 
@@ -79,14 +79,26 @@ auto createTestStore(
     lean::Checkpoint latest_finalized = {},
     ForkChoiceStore::Blocks blocks = {},
     std::unordered_map<lean::BlockHash, lean::State> states = {},
-    ForkChoiceStore::AttestationMap latest_known_attestations = {},
-    ForkChoiceStore::AttestationMap latest_new_attestations = {},
+    ForkChoiceStore::SignedAttestations latest_known_attestations = {},
+    ForkChoiceStore::SignedAttestations latest_new_attestations = {},
     lean::ValidatorIndex validator_index = 0) {
   auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
-  static lean::ValidatorRegistry::ValidatorIndices validators;
+  static lean::ValidatorRegistry::ValidatorIndices validators{0};
   EXPECT_CALL(*validator_registry, currentValidatorIndices())
       .Times(testing::AnyNumber())
       .WillRepeatedly(testing::ReturnRef(validators));
+  EXPECT_CALL(*validator_registry, allValidatorsIndices())
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(validators));
+  EXPECT_CALL(*validator_registry, nodeIdByIndex(testing::_))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(std::nullopt));
+  EXPECT_CALL(*validator_registry, validatorIndicesForNodeId(testing::_))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(std::nullopt));
+  auto validator_keys_manifest =
+      std::make_shared<lean::app::ValidatorKeysManifestMock>();
+  auto xmss_provider = std::make_shared<lean::crypto::xmss::XmssProviderMock>();
   return ForkChoiceStore(time,
                          testutil::prepareLoggers(),
                          std::make_shared<lean::metrics::MetricsMock>(),
@@ -100,7 +112,9 @@ auto createTestStore(
                          latest_known_attestations,
                          latest_new_attestations,
                          validator_index,
-                         validator_registry);
+                         validator_registry,
+                         validator_keys_manifest,
+                         xmss_provider);
 }
 
 auto makeBlockMap(std::vector<lean::Block> blocks) {
@@ -128,18 +142,29 @@ std::vector<lean::Block> makeBlocks(lean::Slot count) {
   return blocks;
 }
 
-auto advanceTimeStore() {
+auto makeStateWithSingleValidator(const lean::Config &config) {
+  lean::State state{.config = config};
+  state.validators.push_back(lean::Validator{});
+  state.latest_justified = state.latest_finalized = Checkpoint{};
+  return state;
+}
+
+ForkChoiceStore advanceTimeStore() {
   auto blocks = makeBlocks(1);
   auto &genesis = blocks.at(0);
   auto finalized = Checkpoint::from(genesis);
-  return createTestStore(100,
-                         config,
-                         genesis.hash(),
-                         genesis.hash(),
-                         finalized,
-                         finalized,
-                         makeBlockMap(blocks),
-                         {{genesis.hash(), State{.config = config}}});
+  return createTestStore(
+      100,
+      config,
+      genesis.hash(),
+      genesis.hash(),
+      finalized,
+      finalized,
+      makeBlockMap(blocks),
+      {{genesis.hash(), makeStateWithSingleValidator(config)}},
+      {},
+      {},
+      0);
 }
 
 // Test basic vote target selection.
@@ -272,7 +297,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::AttestationMap attestations;
+  ForkChoiceStore::SignedAttestations attestations;
   attestations[0] = SignedAttestation{
       .message =
           {
@@ -288,8 +313,15 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
       .signature = {},
   };
 
-  auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), attestations, 0);
+  auto store = createTestStore(100,
+                               config,
+                               root.hash(),
+                               root.hash(),
+                               Checkpoint::from(root),
+                               Checkpoint::from(root),
+                               makeBlockMap(blocks));
+
+  auto head = store.computeLmdGhostHead(root.hash(), attestations, 0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -305,9 +337,16 @@ TEST(TestForkChoiceHeadFunction, test_fork_choice_no_attestations) {
   auto &root = blocks.at(0);
   auto &leaf = blocks.at(2);
 
-  ForkChoiceStore::AttestationMap empty_attestations;
-  auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), empty_attestations, 0);
+  ForkChoiceStore::SignedAttestations empty_attestations;
+  auto store = createTestStore(100,
+                               config,
+                               root.hash(),
+                               root.hash(),
+                               Checkpoint::from(root),
+                               Checkpoint::from(root),
+                               makeBlockMap(blocks));
+
+  auto head = store.computeLmdGhostHead(root.hash(), empty_attestations, 0);
 
   EXPECT_EQ(head, leaf.hash());
 }
@@ -318,7 +357,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::AttestationMap attestations;
+  ForkChoiceStore::SignedAttestations attestations;
   attestations[0] = SignedAttestation{
       .message =
           {
@@ -334,8 +373,15 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
       .signature = {},
   };
 
-  auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), attestations, 2);
+  auto store = createTestStore(100,
+                               config,
+                               root.hash(),
+                               root.hash(),
+                               Checkpoint::from(root),
+                               Checkpoint::from(root),
+                               makeBlockMap(blocks));
+
+  auto head = store.computeLmdGhostHead(root.hash(), attestations, 2);
 
   EXPECT_EQ(head, root.hash());
 }
@@ -346,7 +392,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::AttestationMap attestations;
+  ForkChoiceStore::SignedAttestations attestations;
   for (int i = 0; i < 3; ++i) {
     attestations[i] = SignedAttestation{
         .message =
@@ -364,8 +410,15 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
     };
   }
 
-  auto head = getForkChoiceHead(
-      makeBlockMap(blocks), Checkpoint::from(root), attestations, 0);
+  auto store = createTestStore(100,
+                               config,
+                               root.hash(),
+                               root.hash(),
+                               Checkpoint::from(root),
+                               Checkpoint::from(root),
+                               makeBlockMap(blocks));
+
+  auto head = store.computeLmdGhostHead(root.hash(), attestations, 0);
 
   EXPECT_EQ(head, target.hash());
 }
@@ -454,7 +507,7 @@ TEST(TestAttestationValidation, test_validate_attestation_too_far_future) {
 
   // Use very low genesis time (0) so that target at slot 9 is far in future
   // (slot 9 > current slot + 1)
-  lean::Config low_time_config{.num_validators = 100, .genesis_time = 0};
+  lean::Config low_time_config{.genesis_time = 0};
   auto sample_store =
       createTestStore(0, low_time_config, {}, {}, {}, {}, makeBlockMap(blocks));
 
@@ -560,7 +613,7 @@ TEST(TestTimeAdvancement, test_advance_time_basic) {
   auto target_time = sample_store.getConfig().genesis_time + 200;
 
   // This should not throw an exception and should return empty result
-  auto result = sample_store.advanceTime(target_time);
+  auto result = sample_store.onTick(target_time);
   EXPECT_TRUE(result.empty());
   EXPECT_GT(sample_store.time(), initial_time);
 }
@@ -575,7 +628,7 @@ TEST(TestTimeAdvancement, test_advance_time_no_proposal) {
   auto target_time = sample_store.getConfig().genesis_time + 100;
 
   // This should not throw an exception and should return empty result
-  auto result = sample_store.advanceTime(target_time);
+  auto result = sample_store.onTick(target_time);
   EXPECT_TRUE(result.empty());
   EXPECT_GE(sample_store.time(), initial_time);
 }
@@ -590,7 +643,7 @@ TEST(TestTimeAdvancement, test_advance_time_already_current) {
   auto current_target = sample_store.getConfig().genesis_time + initial_time;
 
   // Try to advance to past time (should be no-op)
-  auto result = sample_store.advanceTime(current_target);
+  auto result = sample_store.onTick(current_target);
   EXPECT_TRUE(result.empty());
   EXPECT_LE(sample_store.time() - initial_time, 10);
 }
@@ -604,7 +657,7 @@ TEST(TestTimeAdvancement, test_advance_time_small_increment) {
   // Target time equal to genesis time - should be a no-op
   auto target_time = sample_store.getConfig().genesis_time + initial_time + 1;
 
-  auto result = sample_store.advanceTime(target_time);
+  auto result = sample_store.onTick(target_time);
   EXPECT_TRUE(result.empty());
   EXPECT_GE(sample_store.time(), initial_time);
 }
@@ -636,43 +689,4 @@ TEST(TestHeadSelection, test_produce_block_basic) {
   // Try to produce a block - should throw due to missing state, which is
   // expected
   EXPECT_THROW(sample_store.produceBlockWithSignatures(1, 1), std::exception);
-}
-
-// Test SSZ hash calculation matches ream implementation
-TEST(TestSszHashCompatibility, test_genesis_state_hash_matches_ream) {
-  // Test that our SSZ hash calculation produces the same result as ream's Rust
-  // implementation. Using the test vector from ream with specific genesis time
-  // and configuration
-
-  lean::Config test_config{.num_validators = 4, .genesis_time = 1759672259};
-
-  // Generate genesis state using our standard method
-  auto genesis_state = lean::STF::generateGenesisState(test_config);
-
-  // Calculate SSZ hash
-  auto calculated_hash = lean::sszHash(genesis_state);
-
-  // Expected hash from ream's test vector:
-  // 0xd3e483e76de397f74e4d072fcca01b8d6988b70df60db896537fe4715322cbfd
-  qtils::ByteArr<32> expected_hash =
-      qtils::ByteArr<32>::fromHex(
-          "d3e483e76de397f74e4d072fcca01b8d6988b70df60db896537fe4715322cbfd")
-          .value();
-
-  // Verify our SSZ hash calculation matches ream's implementation
-  EXPECT_EQ(calculated_hash, expected_hash)
-      << "Genesis state SSZ hash does not match ream implementation. "
-      << "This indicates incompatibility in SSZ serialization between C++ and "
-         "Rust implementations.";
-
-  Block block = lean::STF::genesisBlock(genesis_state);
-  qtils::ByteArr<32> expected_block_root =
-      qtils::ByteArr<32>::fromHex(
-          "aacb28e55e6c6a17fd7c61971d98844350474727af7e9bdadf337750bd11d41f")
-          .value();
-  auto calculated_block_root = lean::sszHash(block);
-  EXPECT_EQ(calculated_block_root, expected_block_root)
-      << "Genesis block SSZ hash does not match ream implementation. "
-      << "This indicates incompatibility in SSZ serialization between C++ and "
-         "Rust implementations.";
 }

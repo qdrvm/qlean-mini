@@ -24,5 +24,7 @@ target_link_libraries(node_injector
     storage
     timeline
     p2p::p2p_key_validator
+    validator_keys_manifest
     validator_registry
+    xmss_provider
 )
