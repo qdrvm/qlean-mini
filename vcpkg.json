@@ -12,6 +12,7 @@
     "prometheus-cpp",
     "qdrvm-crates",
     "qtils",
+    "rapidjson",
     "rocksdb",
     "snappy",
     "soralog",

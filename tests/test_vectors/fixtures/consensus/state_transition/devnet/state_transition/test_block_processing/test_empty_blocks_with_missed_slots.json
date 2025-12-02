@@ -1,0 +1,127 @@
+{
+    "tests/consensus/devnet/state_transition/test_block_processing.py::test_empty_blocks_with_missed_slots[fork_Devnet][fork_devnet-state_transition_test]": {
+        "network": "Devnet",
+        "pre": {
+            "config": {
+                "genesisTime": 0
+            },
+            "slot": 0,
+            "latestBlockHeader": {
+                "slot": 0,
+                "proposerIndex": 0,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "bodyRoot": "0xdba9671bac9513c9482f1416a53aabd2c6ce90d5a5f865ce5a55c775325c9136"
+            },
+            "latestJustified": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "latestFinalized": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "historicalBlockHashes": {
+                "data": []
+            },
+            "justifiedSlots": {
+                "data": []
+            },
+            "validators": {
+                "data": [
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 0
+                    },
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 0
+                    },
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 0
+                    },
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 0
+                    }
+                ]
+            },
+            "justificationsRoots": {
+                "data": []
+            },
+            "justificationsValidators": {
+                "data": []
+            }
+        },
+        "blocks": [
+            {
+                "slot": 1,
+                "proposerIndex": 1,
+                "parentRoot": "0x3fa63c7ac9858f673d7c1f843553bf1a2a7fb5fd050a806d8029ad5cd8e7c557",
+                "stateRoot": "0xcff2c49e60f9d9847c1c668b505aa03602f27018b4818195a365a97192a0cf0b",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 2,
+                "proposerIndex": 2,
+                "parentRoot": "0x6b92086b46fd1520c9b8b7dfe8b654203563d4c0d046ea305ed532bb631fe7a8",
+                "stateRoot": "0xd1fea41b0e7d5550ed3af3a621a6c8171dce3a1376b36fa37d3a21d761d61b67",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 3,
+                "proposerIndex": 3,
+                "parentRoot": "0xb081538f568bb4e06404935a0c69b9e80ebd4c68dbb025901d2e387ca87fd973",
+                "stateRoot": "0x49dd61728f5e5dddaa3704c595a62d9705ed0f54359e4d31e35ccbe16067f900",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 5,
+                "proposerIndex": 1,
+                "parentRoot": "0x65cbebbc96b85f27112ea3fc2f7126634dcd8b1a1a743ef178e09605bd193e55",
+                "stateRoot": "0x804edac8aafa926d76eda93ed7cf8d7b26ccb30afbbbbc4e3a891101288fec59",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 6,
+                "proposerIndex": 2,
+                "parentRoot": "0xa74eef4e68f39d9312b3c01288613d79df54d1abac37500d394c5fbca4701e74",
+                "stateRoot": "0xa0896a90a98041395ae6e3ac7e44764adbe53a7fbe858fa1cb246fdb7f2bda4d",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            }
+        ],
+        "post": {
+            "slot": 6,
+            "latestBlockHeaderSlot": 6,
+            "historicalBlockHashesCount": 6
+        },
+        "_info": {
+            "hash": "0x6028015ea1496a052c050b8f49d00f5e81a4b36b858b62af915e5ddd775e087e",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/state_transition/test_block_processing.py::test_empty_blocks_with_missed_slots[fork_Devnet]",
+            "description": "Test processing blocks with empty body (no attestations) combined with missed slots.\n\nScenario\n --------\n Build chain of blocks with empty body + missed slot:\n - Slot 1: Block\n - Slot 2: Block, Empty body\n - Slot 3: BLock, Empty body\n - Slot 4: Missed\n - Slot 5: Block, Empty body\n - Slot 6: Block\n\n Expected Behavior\n -----------------\n 1. Blocks process at specified slots\n 2. Empty slots handled automatically\n 3. State advances to slot 6",
+            "fixtureFormat": "state_transition_test"
+        }
+    }
+}

@@ -1,0 +1,79 @@
+{
+    "tests/consensus/devnet/state_transition/test_block_processing.py::test_block_with_invalid_proposer[fork_Devnet][fork_devnet-state_transition_test]": {
+        "network": "Devnet",
+        "pre": {
+            "config": {
+                "genesisTime": 0
+            },
+            "slot": 0,
+            "latestBlockHeader": {
+                "slot": 0,
+                "proposerIndex": 0,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "bodyRoot": "0xdba9671bac9513c9482f1416a53aabd2c6ce90d5a5f865ce5a55c775325c9136"
+            },
+            "latestJustified": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "latestFinalized": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "historicalBlockHashes": {
+                "data": []
+            },
+            "justifiedSlots": {
+                "data": []
+            },
+            "validators": {
+                "data": [
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 0
+                    },
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 0
+                    },
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 0
+                    },
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 0
+                    }
+                ]
+            },
+            "justificationsRoots": {
+                "data": []
+            },
+            "justificationsValidators": {
+                "data": []
+            }
+        },
+        "blocks": [
+            {
+                "slot": 1,
+                "proposerIndex": 3,
+                "parentRoot": "0x3fa63c7ac9858f673d7c1f843553bf1a2a7fb5fd050a806d8029ad5cd8e7c557",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            }
+        ],
+        "expectException": "AssertionError",
+        "_info": {
+            "hash": "0x80877bfb8bdd48fa563d5cb0139699915e7860db634db1c14ded9a371324865f",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/state_transition/test_block_processing.py::test_block_with_invalid_proposer[fork_Devnet]",
+            "description": "Test that blocks from wrong proposer are rejected.\n\nScenario\n--------\nAttempt to process a block where proposer index doesn't match\nthe expected proposer for that slot.\n\nExpected Behavior\n-----------------\nBlock processing fails with AssertionError: \"Incorrect block proposer\"\n\nWhy This Matters\n----------------\nPrevents unauthorized block production:\n- Only designated proposer can produce blocks\n- Prevents validator impersonation\n- Maintains protocol security\n- Essential for consensus integrity\n\nWithout this check, any validator could produce blocks for any slot.",
+            "fixtureFormat": "state_transition_test"
+        }
+    }
+}

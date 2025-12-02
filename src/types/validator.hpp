@@ -10,6 +10,7 @@
 #include <sszpp/container.hpp>
 
 #include "crypto/xmss/types.hpp"
+#include "serde/json_fwd.hpp"
 #include "types/validator_index.hpp"
 
 namespace lean {
@@ -19,5 +20,7 @@ namespace lean {
 
     SSZ_CONT(pubkey, index);
     bool operator==(const Validator &) const = default;
+
+    JSON_CAMEL(pubkey, index);
   };
 }  // namespace lean

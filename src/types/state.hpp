@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "serde/json_fwd.hpp"
 #include "types/block_header.hpp"
 #include "types/checkpoint.hpp"
 #include "types/config.hpp"
@@ -44,6 +45,17 @@ namespace lean {
              justifications_roots,
              justifications_validators);
     bool operator==(const State &) const = default;
+
+    JSON_CAMEL(config,
+               slot,
+               latest_block_header,
+               latest_justified,
+               latest_finalized,
+               historical_block_hashes,
+               justified_slots,
+               validators,
+               justifications_roots,
+               justifications_validators);
 
     ValidatorIndex validatorCount() const {
       return validators.size();

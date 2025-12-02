@@ -8,6 +8,7 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/attestation_data.hpp"
 #include "types/validator_index.hpp"
 
@@ -18,5 +19,7 @@ namespace lean {
 
     SSZ_CONT(validator_id, data);
     bool operator==(const Attestation &) const = default;
+
+    JSON_CAMEL(validator_id, data);
   };
 }  // namespace lean
