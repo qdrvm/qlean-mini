@@ -23,6 +23,8 @@
 #include "types/fork_choice_test_json.hpp"
 #include "types/state_transition_test_json.hpp"
 
+using testing::_;
+
 #define FIXTURE_INSTANTIATE(test_name, directory)                              \
   INSTANTIATE_TEST_SUITE_P(                                                    \
       Fixture,                                                                 \
@@ -131,6 +133,16 @@ TEST_P(ForkChoiceTest, ForkChoice) {
   EXPECT_CALL(*validator_registry, currentValidatorIndices())
       .Times(testing::AnyNumber())
       .WillRepeatedly(testing::ReturnRef(validator_indices));
+  auto validator_key_manifest =
+      std::make_shared<lean::app::ValidatorKeysManifestMock>();
+  EXPECT_CALL(*validator_key_manifest, getAllXmssPubkeys())
+      .Times(testing::AnyNumber());
+  EXPECT_CALL(*validator_key_manifest, currentNodeXmssKeypair())
+      .Times(testing::AnyNumber());
+  auto xmss_provider = std::make_shared<lean::crypto::xmss::XmssProviderMock>();
+  EXPECT_CALL(*xmss_provider, verify(_, _, _, _))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(true));
   lean::ForkChoiceStore store{
       fixture.anchor_state,
       fixture.anchor_block,
@@ -138,8 +150,8 @@ TEST_P(ForkChoiceTest, ForkChoice) {
       testutil::prepareLoggers(),
       std::make_shared<lean::metrics::MetricsMock>(),
       validator_registry,
-      std::make_shared<lean::app::ValidatorKeysManifestMock>(),
-      std::make_shared<lean::crypto::xmss::XmssProviderMock>(),
+      validator_key_manifest,
+      xmss_provider,
   };
   auto check = [&](const lean::BaseForkChoiceStep &step, auto &&f) {
     outcome::result<void> r = f();

@@ -30,40 +30,40 @@
             "validators": {
                 "data": [
                     {
-                        "pubkey": "0xbb636d2c13e16129052a081a765b3c12c6b9343be5cb852cdd89ed10c9145339624ce033482e6b6ba8afda1fed0735109c95814f",
+                        "pubkey": "0x52a0b128a2c37f2a6a3c90587a4e1f79f2787972c8215e3e604c2c6cb907464867aefa03401c8c10b318ac7d34326a7cb824e800",
                         "index": 0
                     },
                     {
-                        "pubkey": "0xe558d9475d9ac2018cb89b478ac2d32592e7e61d80038d78e36c033c5e8edb2d72ace6699124465de3edc71d653664759aa3d710",
-                        "index": 0
+                        "pubkey": "0x1e412e3c4b980d1816027c301b496e73d67bfc7b4b18130229cc2e75b9056031793fb63df88104467cfe3f19f8b9227a5068654f",
+                        "index": 1
                     },
                     {
-                        "pubkey": "0xc41fd530cd602519832cb223588d1778bad88b5ad7e3b04ab9a56a4f93804a5bdff04633eec6e90c950a956bf3e80a158898275c",
-                        "index": 0
+                        "pubkey": "0x081d204ef8d439786dd68231a79c2a4e41b837128477f5356293077b9b85ab4cb28d5d0dd7df644a43cb0631748d076a9049006d",
+                        "index": 2
                     },
                     {
-                        "pubkey": "0x0514af059ec534350a62550f61ffca688a9e7b283055b251669bd54cd76ee96fffc7214e5350e531d9f2e31f8e128f3724041e66",
-                        "index": 0
+                        "pubkey": "0x209e8c1cb34889756bdd045c5b57190b664f8e79a89b043b31e2c32f52648443ece75c4dcfd39251844deb1d1bf5f52a8dc60c4e",
+                        "index": 3
                     },
                     {
-                        "pubkey": "0xec6272079ba3081f64a8787ed673e21e4598903a605913527033dd4b02b87b0b525c317ba56eec69d7612d41df0e417835123f3a",
-                        "index": 0
+                        "pubkey": "0x4251390932051e208b39ea62194e02085ed11218cd8e5117d126a26b131d3e172915311a0ff35f56f10db737b00e9277cc80af02",
+                        "index": 4
                     },
                     {
-                        "pubkey": "0xa31743628a18f626d89c293130cbd4475625720103a804590141df1db024845e9131a42cb98f7174dd08dc1cc6b11807b689b77e",
-                        "index": 0
+                        "pubkey": "0xad5a6c64e66607145d00ad31baee5d4614f86317a4857d00fed3bf437dea015183d7ee04caa0920a19542626568fb14e3fb4f15e",
+                        "index": 5
                     },
                     {
-                        "pubkey": "0x251d447ad5fbcc4e7d34b95b35067645a695b23b2908b8326db0a20a652a8e000588482290d1080dcdd4c720a941444c08c87233",
-                        "index": 0
+                        "pubkey": "0xcc5a81072e36a40fe2c46d5215feef6a2c08930ee26ff70f8a9f5e5946caeb23cf12912ab09e0f41d9257e0b7520e66ff400e61e",
+                        "index": 6
                     },
                     {
-                        "pubkey": "0xc520575ad049eb0bcae941305f166365709d480f224c9a42c6beab0373ec34158d44476673c3c52a941ca25fe12ab1715c5e8340",
-                        "index": 0
+                        "pubkey": "0xd33f30792f27d33ed14f437aca83ce337a329971503ef957c3a162526e9c952abf5fd330dfbcae21e949622be072093d54fd4768",
+                        "index": 7
                     },
                     {
-                        "pubkey": "0xeca7513598a4a22c303a3434fc41a00e866b78185bf1d57be0158e54ed87895849245e5fb32f842ae6ffa111c1f555450d02b44a",
-                        "index": 0
+                        "pubkey": "0x778ade5662bd7f5669e7cc413d94b64f00b3915fdd0d151329e63d2c86e4f12637609d57b85dd34deee1e961aed1c459d0ce6124",
+                        "index": 8
                     }
                 ]
             },
@@ -78,7 +78,7 @@
             "slot": 0,
             "proposerIndex": 0,
             "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
-            "stateRoot": "0x96c6412fb71d0bae2c2383f3502ce186154fbdee22123f017760e6aae6b43997",
+            "stateRoot": "0xa5da51368a2112877be16fed7182f7cc52836c520d1fe918a72681aacaceb7b6",
             "body": {
                 "attestations": {
                     "data": []
@@ -90,7 +90,7 @@
                 "valid": true,
                 "checks": {
                     "headSlot": 1,
-                    "headRoot": "0x94ae88c1d074ccaa2d26b4ed2f504e55d60e15d25dc0de51826abd67d09ae782",
+                    "headRoot": "0x4344d0e27a0db13dcc7392e16f2a82fdc28d1c517765cd4f025e989667838caa",
                     "headRootLabel": "base"
                 },
                 "stepType": "block",
@@ -98,8 +98,8 @@
                     "block": {
                         "slot": 1,
                         "proposerIndex": 1,
-                        "parentRoot": "0x71729e54cb84e2f8f24b457340bd63d4fd354c23edbe2ea2f647a32e577a1489",
-                        "stateRoot": "0x0b18270e672c030936aa05a2637a5a60cfae6e0f1a1a5d32f158156a92f1179a",
+                        "parentRoot": "0x6122819b44291a2f6b68911a5656f2e0f1c99807ca9c52b22a72d952d6a99a5f",
+                        "stateRoot": "0x519577e3c564375689b44f2978230f45cd45ac79502f1730148f0815ef689f39",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -111,26 +111,27 @@
                         "data": {
                             "slot": 1,
                             "head": {
-                                "root": "0x94ae88c1d074ccaa2d26b4ed2f504e55d60e15d25dc0de51826abd67d09ae782",
+                                "root": "0x4344d0e27a0db13dcc7392e16f2a82fdc28d1c517765cd4f025e989667838caa",
                                 "slot": 1
                             },
                             "target": {
-                                "root": "0x94ae88c1d074ccaa2d26b4ed2f504e55d60e15d25dc0de51826abd67d09ae782",
+                                "root": "0x4344d0e27a0db13dcc7392e16f2a82fdc28d1c517765cd4f025e989667838caa",
                                 "slot": 1
                             },
                             "source": {
-                                "root": "0x71729e54cb84e2f8f24b457340bd63d4fd354c23edbe2ea2f647a32e577a1489",
+                                "root": "0x6122819b44291a2f6b68911a5656f2e0f1c99807ca9c52b22a72d952d6a99a5f",
                                 "slot": 0
                             }
                         }
-                    }
+                    },
+                    "blockRootLabel": "base"
                 }
             },
             {
                 "valid": true,
                 "checks": {
                     "headSlot": 2,
-                    "headRoot": "0x9a534bf1a58f391ce761afffcb93ec871a75d5c1f00b6a39cf81a0b1b126111b",
+                    "headRoot": "0xe627e8b35161355fcc14ca814c3a16b500dccee1271f8859152464f727277e38",
                     "headRootLabel": "fork_a_1"
                 },
                 "stepType": "block",
@@ -138,8 +139,8 @@
                     "block": {
                         "slot": 2,
                         "proposerIndex": 2,
-                        "parentRoot": "0x94ae88c1d074ccaa2d26b4ed2f504e55d60e15d25dc0de51826abd67d09ae782",
-                        "stateRoot": "0xf14bcd61bed485b5a2344daf82527f9ea4931994ac8947d67a4a9ad1a261f928",
+                        "parentRoot": "0x4344d0e27a0db13dcc7392e16f2a82fdc28d1c517765cd4f025e989667838caa",
+                        "stateRoot": "0x4d18cedc29fe901886fcbbe79404678cc59497d99f8eb69999ac0af3bd20255c",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -151,26 +152,27 @@
                         "data": {
                             "slot": 2,
                             "head": {
-                                "root": "0x9a534bf1a58f391ce761afffcb93ec871a75d5c1f00b6a39cf81a0b1b126111b",
+                                "root": "0xe627e8b35161355fcc14ca814c3a16b500dccee1271f8859152464f727277e38",
                                 "slot": 2
                             },
                             "target": {
-                                "root": "0x9a534bf1a58f391ce761afffcb93ec871a75d5c1f00b6a39cf81a0b1b126111b",
+                                "root": "0xe627e8b35161355fcc14ca814c3a16b500dccee1271f8859152464f727277e38",
                                 "slot": 2
                             },
                             "source": {
-                                "root": "0x94ae88c1d074ccaa2d26b4ed2f504e55d60e15d25dc0de51826abd67d09ae782",
+                                "root": "0x4344d0e27a0db13dcc7392e16f2a82fdc28d1c517765cd4f025e989667838caa",
                                 "slot": 1
                             }
                         }
-                    }
+                    },
+                    "blockRootLabel": "fork_a_1"
                 }
             },
             {
                 "valid": true,
                 "checks": {
                     "headSlot": 3,
-                    "headRoot": "0xe43e9985961d68f94701cf200b59da6844309550b627418456bfeed3b7d03b6d",
+                    "headRoot": "0x646afcc8ef7340da60d61312739beeb8bb718bbe2943ba45a3d2db304f301b90",
                     "headRootLabel": "fork_a_2"
                 },
                 "stepType": "block",
@@ -178,8 +180,8 @@
                     "block": {
                         "slot": 3,
                         "proposerIndex": 3,
-                        "parentRoot": "0x9a534bf1a58f391ce761afffcb93ec871a75d5c1f00b6a39cf81a0b1b126111b",
-                        "stateRoot": "0x964fb43a33a783ce99b9338023ab709afccbb939503d34285f72e5daa0e99369",
+                        "parentRoot": "0xe627e8b35161355fcc14ca814c3a16b500dccee1271f8859152464f727277e38",
+                        "stateRoot": "0x862adca6993abb73611b4698729624cbd0970b36be9419c8522f69b028c14294",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -191,26 +193,27 @@
                         "data": {
                             "slot": 3,
                             "head": {
-                                "root": "0xe43e9985961d68f94701cf200b59da6844309550b627418456bfeed3b7d03b6d",
+                                "root": "0x646afcc8ef7340da60d61312739beeb8bb718bbe2943ba45a3d2db304f301b90",
                                 "slot": 3
                             },
                             "target": {
-                                "root": "0xe43e9985961d68f94701cf200b59da6844309550b627418456bfeed3b7d03b6d",
+                                "root": "0x646afcc8ef7340da60d61312739beeb8bb718bbe2943ba45a3d2db304f301b90",
                                 "slot": 3
                             },
                             "source": {
-                                "root": "0x9a534bf1a58f391ce761afffcb93ec871a75d5c1f00b6a39cf81a0b1b126111b",
+                                "root": "0xe627e8b35161355fcc14ca814c3a16b500dccee1271f8859152464f727277e38",
                                 "slot": 2
                             }
                         }
-                    }
+                    },
+                    "blockRootLabel": "fork_a_2"
                 }
             },
             {
                 "valid": true,
                 "checks": {
                     "headSlot": 4,
-                    "headRoot": "0xc2bdd73c668240c86ad74799491191471f6959da194c90f90ff620df833554fd",
+                    "headRoot": "0x18d7abd999922661013fcc494184c30a1c585207fbde17ea97bec46e702eb332",
                     "headRootLabel": "fork_a_3"
                 },
                 "stepType": "block",
@@ -218,8 +221,8 @@
                     "block": {
                         "slot": 4,
                         "proposerIndex": 4,
-                        "parentRoot": "0xe43e9985961d68f94701cf200b59da6844309550b627418456bfeed3b7d03b6d",
-                        "stateRoot": "0x8502a65546f88683285ea93034a23f99b77ebe3cd9566fdb8d819458ce933ff1",
+                        "parentRoot": "0x646afcc8ef7340da60d61312739beeb8bb718bbe2943ba45a3d2db304f301b90",
+                        "stateRoot": "0x4145b4e472534a7c8ea25c729a66d247f720e819a4854a8843d6ed3aed2624df",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -231,26 +234,27 @@
                         "data": {
                             "slot": 4,
                             "head": {
-                                "root": "0xc2bdd73c668240c86ad74799491191471f6959da194c90f90ff620df833554fd",
+                                "root": "0x18d7abd999922661013fcc494184c30a1c585207fbde17ea97bec46e702eb332",
                                 "slot": 4
                             },
                             "target": {
-                                "root": "0xc2bdd73c668240c86ad74799491191471f6959da194c90f90ff620df833554fd",
+                                "root": "0x18d7abd999922661013fcc494184c30a1c585207fbde17ea97bec46e702eb332",
                                 "slot": 4
                             },
                             "source": {
-                                "root": "0xe43e9985961d68f94701cf200b59da6844309550b627418456bfeed3b7d03b6d",
+                                "root": "0x646afcc8ef7340da60d61312739beeb8bb718bbe2943ba45a3d2db304f301b90",
                                 "slot": 3
                             }
                         }
-                    }
+                    },
+                    "blockRootLabel": "fork_a_3"
                 }
             },
             {
                 "valid": true,
                 "checks": {
                     "headSlot": 4,
-                    "headRoot": "0xc2bdd73c668240c86ad74799491191471f6959da194c90f90ff620df833554fd",
+                    "headRoot": "0x18d7abd999922661013fcc494184c30a1c585207fbde17ea97bec46e702eb332",
                     "headRootLabel": "fork_a_3"
                 },
                 "stepType": "block",
@@ -258,8 +262,8 @@
                     "block": {
                         "slot": 5,
                         "proposerIndex": 5,
-                        "parentRoot": "0x94ae88c1d074ccaa2d26b4ed2f504e55d60e15d25dc0de51826abd67d09ae782",
-                        "stateRoot": "0x98bec07c007b63fe469364b6818385416bed94848cecf2ca271bc901426accc3",
+                        "parentRoot": "0x4344d0e27a0db13dcc7392e16f2a82fdc28d1c517765cd4f025e989667838caa",
+                        "stateRoot": "0xf50a444600fe5baa1204dae6ed63c48541006af55c98fd7e65db56b356afa1ee",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -271,29 +275,30 @@
                         "data": {
                             "slot": 5,
                             "head": {
-                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                 "slot": 5
                             },
                             "target": {
-                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                 "slot": 5
                             },
                             "source": {
-                                "root": "0x94ae88c1d074ccaa2d26b4ed2f504e55d60e15d25dc0de51826abd67d09ae782",
+                                "root": "0x4344d0e27a0db13dcc7392e16f2a82fdc28d1c517765cd4f025e989667838caa",
                                 "slot": 1
                             }
                         }
-                    }
+                    },
+                    "blockRootLabel": "fork_b_1"
                 }
             },
             {
                 "valid": true,
                 "checks": {
                     "headSlot": 6,
-                    "headRoot": "0x7604eda648d5853a96f14ea25641dafb18fee30a73e21fd64ba51f9e508b7752",
+                    "headRoot": "0x8450c2df6b28b57963630b79f347312315e7fb152d83aa67c0c69addb0f8cf2d",
                     "headRootLabel": "fork_b_2",
                     "latestJustifiedSlot": 5,
-                    "latestJustifiedRoot": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                    "latestJustifiedRoot": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                     "latestJustifiedRootLabel": "fork_b_1"
                 },
                 "stepType": "block",
@@ -301,8 +306,8 @@
                     "block": {
                         "slot": 6,
                         "proposerIndex": 6,
-                        "parentRoot": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
-                        "stateRoot": "0xeb332fb6f7734d8577f78831f58a455074124ca34cef704d8a0003962597ca5a",
+                        "parentRoot": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
+                        "stateRoot": "0x9222e572e0a4622a85005767adb584f9a31ab37557960f694618b5ad3d78c553",
                         "body": {
                             "attestations": {
                                 "data": [
@@ -311,15 +316,15 @@
                                         "data": {
                                             "slot": 5,
                                             "head": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "target": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "source": {
-                                                "root": "0x71729e54cb84e2f8f24b457340bd63d4fd354c23edbe2ea2f647a32e577a1489",
+                                                "root": "0x6122819b44291a2f6b68911a5656f2e0f1c99807ca9c52b22a72d952d6a99a5f",
                                                 "slot": 0
                                             }
                                         }
@@ -329,15 +334,15 @@
                                         "data": {
                                             "slot": 5,
                                             "head": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "target": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "source": {
-                                                "root": "0x71729e54cb84e2f8f24b457340bd63d4fd354c23edbe2ea2f647a32e577a1489",
+                                                "root": "0x6122819b44291a2f6b68911a5656f2e0f1c99807ca9c52b22a72d952d6a99a5f",
                                                 "slot": 0
                                             }
                                         }
@@ -347,15 +352,15 @@
                                         "data": {
                                             "slot": 5,
                                             "head": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "target": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "source": {
-                                                "root": "0x71729e54cb84e2f8f24b457340bd63d4fd354c23edbe2ea2f647a32e577a1489",
+                                                "root": "0x6122819b44291a2f6b68911a5656f2e0f1c99807ca9c52b22a72d952d6a99a5f",
                                                 "slot": 0
                                             }
                                         }
@@ -365,15 +370,15 @@
                                         "data": {
                                             "slot": 5,
                                             "head": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "target": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "source": {
-                                                "root": "0x71729e54cb84e2f8f24b457340bd63d4fd354c23edbe2ea2f647a32e577a1489",
+                                                "root": "0x6122819b44291a2f6b68911a5656f2e0f1c99807ca9c52b22a72d952d6a99a5f",
                                                 "slot": 0
                                             }
                                         }
@@ -383,15 +388,15 @@
                                         "data": {
                                             "slot": 5,
                                             "head": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "target": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "source": {
-                                                "root": "0x71729e54cb84e2f8f24b457340bd63d4fd354c23edbe2ea2f647a32e577a1489",
+                                                "root": "0x6122819b44291a2f6b68911a5656f2e0f1c99807ca9c52b22a72d952d6a99a5f",
                                                 "slot": 0
                                             }
                                         }
@@ -401,15 +406,15 @@
                                         "data": {
                                             "slot": 5,
                                             "head": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "target": {
-                                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                                 "slot": 5
                                             },
                                             "source": {
-                                                "root": "0x71729e54cb84e2f8f24b457340bd63d4fd354c23edbe2ea2f647a32e577a1489",
+                                                "root": "0x6122819b44291a2f6b68911a5656f2e0f1c99807ca9c52b22a72d952d6a99a5f",
                                                 "slot": 0
                                             }
                                         }
@@ -423,25 +428,26 @@
                         "data": {
                             "slot": 6,
                             "head": {
-                                "root": "0x7604eda648d5853a96f14ea25641dafb18fee30a73e21fd64ba51f9e508b7752",
+                                "root": "0x8450c2df6b28b57963630b79f347312315e7fb152d83aa67c0c69addb0f8cf2d",
                                 "slot": 6
                             },
                             "target": {
-                                "root": "0x7604eda648d5853a96f14ea25641dafb18fee30a73e21fd64ba51f9e508b7752",
+                                "root": "0x8450c2df6b28b57963630b79f347312315e7fb152d83aa67c0c69addb0f8cf2d",
                                 "slot": 6
                             },
                             "source": {
-                                "root": "0x5505398f6db8810d97c56f786d16001cfc33adb6f6e173b2a228c062231b5b0b",
+                                "root": "0xcaa31ba4cc318004f5ded2a27cc337eca43f73c64ed882d6e56763ae7e2c02d7",
                                 "slot": 5
                             }
                         }
-                    }
+                    },
+                    "blockRootLabel": "fork_b_2"
                 }
             }
         ],
         "maxSlot": 6,
         "_info": {
-            "hash": "0x94b970d912fc44238024f59223a8f6aafd0a7d6b6c728de5b7114a08449f196b",
+            "hash": "0xc7192b9dce707a85ab9d84959936cc9533fecc76c8d563a39e80ecee9675388f",
             "comment": "`leanSpec` generated test",
             "testId": "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_on_newly_justified_slot[fork_Devnet]",
             "description": "Reorg occurs correctly when forks cross justification boundaries.\n\nScenario\n--------\nTwo forks compete. Fork A is heavier and longer, but Fork B manages to\nbecome justified. Fork choice must switch to the justified fork regardless\nof weight/length.\n\n- Slot 1: Base\n- Slots 2-4: Fork A extends (becomes head with depth 3)\n- Slot 5: Fork B appears (descending from Base, skipping slots 2-4)\n- Slot 6: Fork B extends. This block contains enough attestations to\n          justify Fork B at Slot 5.\n\nExpected Behavior\n-----------------\n1. Fork A takes the lead initially (Slots 2-4) as the heaviest chain.\n2. Fork B appears at Slot 5 but is initially lighter.\n3. At Slot 6, the new block includes attestations that justify Fork B at Slot 5.\n4. The justified checkpoint updates to Slot 5 (fork_b_1).\n5. Fork A is immediately discarded because it does not descend from the new\n   justified checkpoint (Fork A is on a branch from Slot 1).\n6. Fork B becomes the canonical head.\n\nWhy This Matters\n----------------\nJustification is a critical safety mechanism:\n- Limits which blocks can be attested to\n- Ensures fork choice respects finality constraints\n\nThis test ensures:\n- Reorgs respect justification boundaries\n- Fork choice works correctly across justifiable slots\n- Safety guarantees maintained during reorgs",

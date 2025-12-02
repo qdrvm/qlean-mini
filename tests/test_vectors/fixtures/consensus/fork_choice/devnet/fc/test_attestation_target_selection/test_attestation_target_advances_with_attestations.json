@@ -30,20 +30,20 @@
             "validators": {
                 "data": [
                     {
-                        "pubkey": "0xbb636d2c13e16129052a081a765b3c12c6b9343be5cb852cdd89ed10c9145339624ce033482e6b6ba8afda1fed0735109c95814f",
+                        "pubkey": "0x52a0b128a2c37f2a6a3c90587a4e1f79f2787972c8215e3e604c2c6cb907464867aefa03401c8c10b318ac7d34326a7cb824e800",
                         "index": 0
                     },
                     {
-                        "pubkey": "0xe558d9475d9ac2018cb89b478ac2d32592e7e61d80038d78e36c033c5e8edb2d72ace6699124465de3edc71d653664759aa3d710",
-                        "index": 0
+                        "pubkey": "0x1e412e3c4b980d1816027c301b496e73d67bfc7b4b18130229cc2e75b9056031793fb63df88104467cfe3f19f8b9227a5068654f",
+                        "index": 1
                     },
                     {
-                        "pubkey": "0xc41fd530cd602519832cb223588d1778bad88b5ad7e3b04ab9a56a4f93804a5bdff04633eec6e90c950a956bf3e80a158898275c",
-                        "index": 0
+                        "pubkey": "0x081d204ef8d439786dd68231a79c2a4e41b837128477f5356293077b9b85ab4cb28d5d0dd7df644a43cb0631748d076a9049006d",
+                        "index": 2
                     },
                     {
-                        "pubkey": "0x0514af059ec534350a62550f61ffca688a9e7b283055b251669bd54cd76ee96fffc7214e5350e531d9f2e31f8e128f3724041e66",
-                        "index": 0
+                        "pubkey": "0x209e8c1cb34889756bdd045c5b57190b664f8e79a89b043b31e2c32f52648443ece75c4dcfd39251844deb1d1bf5f52a8dc60c4e",
+                        "index": 3
                     }
                 ]
             },
@@ -58,7 +58,7 @@
             "slot": 0,
             "proposerIndex": 0,
             "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
-            "stateRoot": "0xe7d6cf0928f5ac4dcb725034e073c6d6734d1dd81db8520682793fee889388ac",
+            "stateRoot": "0xbc9b2d86697f4a1b1c4968f020285912717ec43eb1c00f05e93bb9c51ee9df25",
             "body": {
                 "attestations": {
                     "data": []
@@ -77,8 +77,8 @@
                     "block": {
                         "slot": 1,
                         "proposerIndex": 1,
-                        "parentRoot": "0x1b2493575a2bf0c5b93447925cdd994c064debc3696775ccc924eea97603875e",
-                        "stateRoot": "0x1ca1e3406062883926d7f10a4b96d18f0f20114d45bcfddb72c27138c470f7f1",
+                        "parentRoot": "0x52ebe8b6d8a416928e3145bb7031deb974d991aeb97b0f427c345046d8e45b22",
+                        "stateRoot": "0xd56a97e2c5d0622ddfa2e3701e053bae5c77811a32d83e00d90ebb12d6fe9507",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -90,15 +90,15 @@
                         "data": {
                             "slot": 1,
                             "head": {
-                                "root": "0x6577c92fc78aec66afb0db8e8e6f7d3e28c6d952d92e48b0cef106528a40beef",
+                                "root": "0x98bd6e07acd1b58443246f6685da123f6263546f47af185637db4b488eec9302",
                                 "slot": 1
                             },
                             "target": {
-                                "root": "0x6577c92fc78aec66afb0db8e8e6f7d3e28c6d952d92e48b0cef106528a40beef",
+                                "root": "0x98bd6e07acd1b58443246f6685da123f6263546f47af185637db4b488eec9302",
                                 "slot": 1
                             },
                             "source": {
-                                "root": "0x1b2493575a2bf0c5b93447925cdd994c064debc3696775ccc924eea97603875e",
+                                "root": "0x52ebe8b6d8a416928e3145bb7031deb974d991aeb97b0f427c345046d8e45b22",
                                 "slot": 0
                             }
                         }
@@ -116,8 +116,8 @@
                     "block": {
                         "slot": 2,
                         "proposerIndex": 2,
-                        "parentRoot": "0x6577c92fc78aec66afb0db8e8e6f7d3e28c6d952d92e48b0cef106528a40beef",
-                        "stateRoot": "0xdce5ce83c0c5bd1b3155d83b430da7b73fea74908d22756db604854b649abcb0",
+                        "parentRoot": "0x98bd6e07acd1b58443246f6685da123f6263546f47af185637db4b488eec9302",
+                        "stateRoot": "0xf0d53f86ba36f03189f8b7e69a6ed370f6b3a674f6c4c709c0b94314b8c31b3d",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -129,15 +129,15 @@
                         "data": {
                             "slot": 2,
                             "head": {
-                                "root": "0x81499775ebdbc5523e96910f1483252c9685dffa381f38b5559b0956af808d44",
+                                "root": "0xa8405e710d350250aad48257572cc6675a70f6b8b91a5f4138b353d422f47151",
                                 "slot": 2
                             },
                             "target": {
-                                "root": "0x81499775ebdbc5523e96910f1483252c9685dffa381f38b5559b0956af808d44",
+                                "root": "0xa8405e710d350250aad48257572cc6675a70f6b8b91a5f4138b353d422f47151",
                                 "slot": 2
                             },
                             "source": {
-                                "root": "0x6577c92fc78aec66afb0db8e8e6f7d3e28c6d952d92e48b0cef106528a40beef",
+                                "root": "0x98bd6e07acd1b58443246f6685da123f6263546f47af185637db4b488eec9302",
                                 "slot": 1
                             }
                         }
@@ -155,8 +155,8 @@
                     "block": {
                         "slot": 3,
                         "proposerIndex": 3,
-                        "parentRoot": "0x81499775ebdbc5523e96910f1483252c9685dffa381f38b5559b0956af808d44",
-                        "stateRoot": "0x37ebaba3cf7b9c5d9b0fdf7ae2c5e75ae5f95cc9d7b24029f7f056ead927c459",
+                        "parentRoot": "0xa8405e710d350250aad48257572cc6675a70f6b8b91a5f4138b353d422f47151",
+                        "stateRoot": "0x1ecff71b91f823263c790685da835d50f81d4ee41391b0b0944b5fcf0cffa07f",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -168,15 +168,15 @@
                         "data": {
                             "slot": 3,
                             "head": {
-                                "root": "0x3d0a51cc1d50dd9d8b30e7b253093e149ad1ff65385a264916498d1cb8e43fcd",
+                                "root": "0x4573e8f28a03352db68476fd5901330d9fd63aee58d7fd282eb9645440b1e8cf",
                                 "slot": 3
                             },
                             "target": {
-                                "root": "0x3d0a51cc1d50dd9d8b30e7b253093e149ad1ff65385a264916498d1cb8e43fcd",
+                                "root": "0x4573e8f28a03352db68476fd5901330d9fd63aee58d7fd282eb9645440b1e8cf",
                                 "slot": 3
                             },
                             "source": {
-                                "root": "0x81499775ebdbc5523e96910f1483252c9685dffa381f38b5559b0956af808d44",
+                                "root": "0xa8405e710d350250aad48257572cc6675a70f6b8b91a5f4138b353d422f47151",
                                 "slot": 2
                             }
                         }
@@ -194,8 +194,8 @@
                     "block": {
                         "slot": 4,
                         "proposerIndex": 0,
-                        "parentRoot": "0x3d0a51cc1d50dd9d8b30e7b253093e149ad1ff65385a264916498d1cb8e43fcd",
-                        "stateRoot": "0xdf95fc60197c6e18f5bc7c719184f8eb933be5f0d6b59e413fc6d6697956b316",
+                        "parentRoot": "0x4573e8f28a03352db68476fd5901330d9fd63aee58d7fd282eb9645440b1e8cf",
+                        "stateRoot": "0x6991fe4776a3a756d96035af09d0329aa69de036b81a78a5f8e845a1d699674c",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -207,15 +207,15 @@
                         "data": {
                             "slot": 4,
                             "head": {
-                                "root": "0x10320d6e074557cbf764817ad52b07262e2724cf720f58b97a8040dd6e342385",
+                                "root": "0x43e759608e4063a4e6f57646d97a1dfaf246d33762b2a306be81d9c7a4155816",
                                 "slot": 4
                             },
                             "target": {
-                                "root": "0x10320d6e074557cbf764817ad52b07262e2724cf720f58b97a8040dd6e342385",
+                                "root": "0x43e759608e4063a4e6f57646d97a1dfaf246d33762b2a306be81d9c7a4155816",
                                 "slot": 4
                             },
                             "source": {
-                                "root": "0x3d0a51cc1d50dd9d8b30e7b253093e149ad1ff65385a264916498d1cb8e43fcd",
+                                "root": "0x4573e8f28a03352db68476fd5901330d9fd63aee58d7fd282eb9645440b1e8cf",
                                 "slot": 3
                             }
                         }
@@ -233,8 +233,8 @@
                     "block": {
                         "slot": 5,
                         "proposerIndex": 1,
-                        "parentRoot": "0x10320d6e074557cbf764817ad52b07262e2724cf720f58b97a8040dd6e342385",
-                        "stateRoot": "0x8263243daf1601c38c8f618ae52635a0c9c0736e1398b5b0a17954f36597f9f1",
+                        "parentRoot": "0x43e759608e4063a4e6f57646d97a1dfaf246d33762b2a306be81d9c7a4155816",
+                        "stateRoot": "0xbe35c27ff4f7e0a5a2cb21d6760815985b114e04310e9c08a93ecdb4a6c87d47",
                         "body": {
                             "attestations": {
                                 "data": []
@@ -246,15 +246,15 @@
                         "data": {
                             "slot": 5,
                             "head": {
-                                "root": "0x7f6cbe13ef20910bbccc7cfe054fe9ee0297e466d990473b26a430869fceecdf",
+                                "root": "0x7888b0a44c5e6cf03a7a25c950ac7a0d37f51b58c971bc158cbc3e3924801ad7",
                                 "slot": 5
                             },
                             "target": {
-                                "root": "0x7f6cbe13ef20910bbccc7cfe054fe9ee0297e466d990473b26a430869fceecdf",
+                                "root": "0x7888b0a44c5e6cf03a7a25c950ac7a0d37f51b58c971bc158cbc3e3924801ad7",
                                 "slot": 5
                             },
                             "source": {
-                                "root": "0x10320d6e074557cbf764817ad52b07262e2724cf720f58b97a8040dd6e342385",
+                                "root": "0x43e759608e4063a4e6f57646d97a1dfaf246d33762b2a306be81d9c7a4155816",
                                 "slot": 4
                             }
                         }
@@ -264,7 +264,7 @@
         ],
         "maxSlot": 5,
         "_info": {
-            "hash": "0xa40672a9cc7479cfa3cf25ae9f4bce4d0e87acacda92db945975e29b8c6cfcb0",
+            "hash": "0xc48a0961253f9926ca8ecb38f45ea898afd7a0ebadddc640d8991107a780e7ce",
             "comment": "`leanSpec` generated test",
             "testId": "tests/consensus/devnet/fc/test_attestation_target_selection.py::test_attestation_target_advances_with_attestations[fork_Devnet]",
             "description": "Attestation target advances as attestation weight accumulates.\n\nScenario\n--------\nBuild a longer chain (slots 1-5) where attestations cause target advancement.\n\nExpected:\n    - Initial blocks: target stays at genesis (slot 0)\n    - Later blocks: target advances as attestations accumulate\n    - Target remains behind head for safety\n\nWhy This Matters\n----------------\nAs validators attest to blocks, the safe target advances, which in turn\nallows the attestation target to move forward.\n\nThis demonstrates the dynamic nature of target selection: conservative initially,\nbut advancing as consensus strengthens through attestation accumulation.\n\nThe target advances only when sufficient attestation weight supports it.",

@@ -35,31 +35,31 @@
                     },
                     {
                         "pubkey": "0x01010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
-                        "index": 0
+                        "index": 1
                     },
                     {
                         "pubkey": "0x02020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202",
-                        "index": 0
+                        "index": 2
                     },
                     {
                         "pubkey": "0x03030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303",
-                        "index": 0
+                        "index": 3
                     },
                     {
                         "pubkey": "0x04040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404",
-                        "index": 0
+                        "index": 4
                     },
                     {
                         "pubkey": "0x05050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505050505",
-                        "index": 0
+                        "index": 5
                     },
                     {
                         "pubkey": "0x06060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606060606",
-                        "index": 0
+                        "index": 6
                     },
                     {
                         "pubkey": "0x07070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707",
-                        "index": 0
+                        "index": 7
                     }
                 ]
             },
@@ -98,7 +98,7 @@
             }
         },
         "_info": {
-            "hash": "0x9451447c4074c0de3b1de13ee64b266681e97b3350cec0289f8e90e8cd06e9ef",
+            "hash": "0xb6c4400812a4e5c70a7e165fba8cd0cf1d5b8dd38b6602dcc9a29d7351d393ac",
             "comment": "`leanSpec` generated test",
             "testId": "tests/consensus/devnet/state_transition/test_genesis.py::test_genesis_custom_validator_set[fork_Devnet]",
             "description": "Test genesis state with custom validator set.\n\nScenario\n--------\nGenerate a genesis state with:\n- 8 validators instead of default 4\n- Custom validator pubkeys\n\nExpected Behavior\n-----------------\nGenesis state should contain exactly 8 validators while\nmaintaining all other genesis properties.",

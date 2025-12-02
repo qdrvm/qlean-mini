@@ -35,15 +35,15 @@
                     },
                     {
                         "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                        "index": 0
+                        "index": 1
                     },
                     {
                         "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                        "index": 0
+                        "index": 2
                     },
                     {
                         "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                        "index": 0
+                        "index": 3
                     }
                 ]
             },
@@ -58,8 +58,8 @@
             {
                 "slot": 100,
                 "proposerIndex": 0,
-                "parentRoot": "0x3fa63c7ac9858f673d7c1f843553bf1a2a7fb5fd050a806d8029ad5cd8e7c557",
-                "stateRoot": "0x49b40b7d4abc2874d36dd2afa813795c564fab8a4b880e530f56ac05a047490a",
+                "parentRoot": "0xe3c1f53019f7fac3d402915e5171449ab0f9aa9aa89857e87dcdcc16983781b4",
+                "stateRoot": "0xdaf207f3a7508c9a7cd9c8465c96f39574f7a260eeb6d1e523d2a244b6313a77",
                 "body": {
                     "attestations": {
                         "data": []
@@ -71,7 +71,7 @@
             "slot": 100
         },
         "_info": {
-            "hash": "0xa5563f171eef944cb7066e4d8a318b2efde426d013bfd0a3aa6da6825e4805ad",
+            "hash": "0x7f660383e3aaa4604e1e2d7c392dfb766a45628ca9bcf58c88242546763d7a21",
             "comment": "`leanSpec` generated test",
             "testId": "tests/consensus/devnet/state_transition/test_block_processing.py::test_block_at_large_slot_number[fork_Devnet]",
             "description": "Test block processing at high slot numbers.\n\nScenario\n--------\nJump directly from genesis to slot 100, simulating:\n- Network bootstrap after long downtime\n- Test environment with artificial time jump\n- Integer overflow boundary testing\n\nExpected Behavior\n-----------------\n1. Process 99 empty slots: 1\u21922\u2192...\u219299\u2192100\n2. Block at slot 100 processes correctly\n3. No integer overflow or wraparound\n4. State remains consistent",

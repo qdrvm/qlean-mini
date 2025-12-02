@@ -35,15 +35,15 @@
                     },
                     {
                         "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                        "index": 0
+                        "index": 1
                     },
                     {
                         "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                        "index": 0
+                        "index": 2
                     },
                     {
                         "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                        "index": 0
+                        "index": 3
                     }
                 ]
             },
@@ -82,7 +82,7 @@
             }
         },
         "_info": {
-            "hash": "0x12b6d891c7193afa8bca60a6f3b03e167b173052a7d014c97fb2867db042daa7",
+            "hash": "0x256e9217484ebc59567ca40c327c7d11c7216964c1ecd69987e81d37e8844028",
             "comment": "`leanSpec` generated test",
             "testId": "tests/consensus/devnet/state_transition/test_genesis.py::test_genesis_default_configuration[fork_Devnet]",
             "description": "Test genesis state with default configuration.\n\nScenario\n--------\nGenerate a genesis state with default parameters:\n- genesis_time = 0\n- 4 validators with zero pubkeys",
