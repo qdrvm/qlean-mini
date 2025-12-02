@@ -7,17 +7,21 @@ encoding: TargetSum
 lifetime: 4294967296
 log_num_active_epochs: 18
 num_active_epochs: 262144
-num_validators: 3
+num_validators: 4
 
 validators:
   - index: 0
-    pubkey_hex: 0x55b78e0dafb43b570691db3bc5934b352ef8af5c106f872e5760f35c35de6d01da7e466718ed0a34a0735817b966866dc282b13e
+    pubkey_hex: 0xb3183808a14d1875748fd96989441855092ef73c6bf5a7680f03b32d1c12f96ec4659e64fd526f3d975eb168907ee7589946f972
     privkey_file: validator_0_sk.json
 
   - index: 1
-    pubkey_hex: 0xa0bc96234f1ad130003eb4312d21e77882b0420c698fd4241ca99909929068565b12ee70a14215467d999560a76ed01d9f43bb70
+    pubkey_hex: 0xd89fef7b41821a67c118e26808f48e28d00cbe082a1f88369b8828147f3905656b3b04785a5b26403a0c0a574b4f333bd4d48a03
     privkey_file: validator_1_sk.json
 
   - index: 2
-    pubkey_hex: 0x38043b58279598091c4d8f3ee9bd8554e86c165228b5091352bd2f0efbd20056342b500067b7e41a4a733a76963fe21501db512e
+    pubkey_hex: 0xd404bb1091a750710952a64b22240d0013bcc66a64b5b1780b89b120c0dd7d212fa3cb5e42f56e74fcc68950e6b493647524a627
     privkey_file: validator_2_sk.json
+
+  - index: 3
+    pubkey_hex: 0xb196071b88a6f16d658e512f753be6222e54e91a19e0d676201ac5161cd90e1e40210d36e024f81ae30ee67714092009c20b415c
+    privkey_file: validator_3_sk.json
