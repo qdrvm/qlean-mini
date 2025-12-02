@@ -11,4 +11,5 @@
 namespace lean {
   using Slot = uint64_t;
   using Interval = uint64_t;
+  using TimestampSeconds = uint64_t;
 }  // namespace lean

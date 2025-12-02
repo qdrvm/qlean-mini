@@ -12,7 +12,7 @@
 #include <qtils/outcome.hpp>
 #include <yaml-cpp/yaml.h>
 
-#include "types/config.hpp"
+#include "blockchain/state_transition_function.hpp"
 
 namespace lean {
   enum class ConfigYamlError {
@@ -30,7 +30,7 @@ namespace lean {
   /**
    * Read GENESIS_TIME and VALIDATOR_COUNT from config.yaml
    */
-  inline outcome::result<Config> readConfigYaml(
+  inline outcome::result<State> readConfigYaml(
       const std::filesystem::path &path) {
     auto yaml = YAML::LoadFile(path);
     if (not yaml.IsMap()) {
@@ -40,8 +40,21 @@ namespace lean {
     if (not yaml_genesis_time.IsScalar()) {
       return ConfigYamlError::INVALID;
     }
-    return Config{
-        .genesis_time = yaml_genesis_time.as<uint64_t>(),
-    };
+    auto yaml_genesis_validators = yaml["GENESIS_VALIDATORS"];
+    if (not yaml_genesis_validators.IsSequence()) {
+      return ConfigYamlError::INVALID;
+    }
+    std::vector<crypto::xmss::XmssPublicKey> validators;
+    for (auto &&yaml_validator : yaml_genesis_validators) {
+      if (not yaml_validator.IsScalar()) {
+        return ConfigYamlError::INVALID;
+      }
+      auto validator_str = yaml_validator.as<std::string>();
+      BOOST_OUTCOME_TRY(auto validator,
+                        crypto::xmss::XmssPublicKey::fromHex(validator_str));
+      validators.emplace_back(validator);
+    }
+    Config config{.genesis_time = yaml_genesis_time.as<uint64_t>()};
+    return STF::generateGenesisState(config, validators);
   }
 }  // namespace lean

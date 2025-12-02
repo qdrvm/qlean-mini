@@ -29,10 +29,11 @@ namespace lean::crypto::xmss {
    * @return Loaded XMSS keypair or error
    */
   outcome::result<XmssKeypair> loadKeypairFromJson(
-      const std::filesystem::path& secret_key_path,
-      const std::filesystem::path& public_key_path);
+      const std::filesystem::path &secret_key_path,
+      const std::filesystem::path &public_key_path);
 
+  std::string toJson(const XmssPrivateKey &sk);
+  std::string toJson(const XmssPublicKey &pk_bytes);
 }  // namespace lean::crypto::xmss
 
 OUTCOME_HPP_DECLARE_ERROR(lean::crypto::xmss, XmssUtilError);
-

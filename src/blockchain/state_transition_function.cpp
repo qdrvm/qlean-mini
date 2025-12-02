@@ -54,8 +54,7 @@ namespace lean {
 
   AnchorState STF::generateGenesisState(
       const Config &config,
-      qtils::SharedRef<ValidatorRegistry> registry,
-      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest) {
+      std::span<const crypto::xmss::XmssPublicKey> validators_pubkeys) {
     BlockHeader header;
     header.slot = 0;
     header.proposer_index = 0;
@@ -70,12 +69,13 @@ namespace lean {
     result.latest_justified = Checkpoint{.root = kZeroHash, .slot = 0};
     result.latest_finalized = Checkpoint{.root = kZeroHash, .slot = 0};
 
-    for (size_t i = 0; i < registry->allValidatorsIndices().size(); ++i) {
-      auto pubkey = validator_keys_manifest->getXmssPubkeyByIndex(i).value();
+    ValidatorIndex validator_index = 0;
+    for (auto &validator_pubkey : validators_pubkeys) {
       result.validators.push_back(Validator{
-          .pubkey = pubkey,
-          .index = i,
+          .pubkey = validator_pubkey,
+          .index = validator_index,
       });
+      ++validator_index;
     }
     // result.historical_block_hashes;
     // result.justified_slots;

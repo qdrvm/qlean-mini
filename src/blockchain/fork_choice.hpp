@@ -82,6 +82,15 @@ namespace lean {
         qtils::SharedRef<ValidatorRegistry> validator_registry,
         qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
         qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider);
+    ForkChoiceStore(
+        const State &anchor_state,
+        const Block &anchor_block,
+        qtils::SharedRef<clock::SystemClock> clock,
+        qtils::SharedRef<log::LoggingSystem> logging_system,
+        qtils::SharedRef<metrics::Metrics> metrics,
+        qtils::SharedRef<ValidatorRegistry> validator_registry,
+        qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
+        qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider);
 
     BOOST_DI_INJECT_TRAITS(const GenesisConfig &,
                            qtils::SharedRef<clock::SystemClock>,
@@ -133,6 +142,7 @@ namespace lean {
     Slot getHeadSlot() const;
     const Config &getConfig() const;
     Checkpoint getLatestFinalized() const;
+    Checkpoint getLatestJustified() const;
 
     // Test helper methods
     BlockHash getSafeTarget() const {
@@ -359,7 +369,6 @@ namespace lean {
     // actions for each interval type.
     // Args:
     //    time: Target time in seconds since genesis.
-    //    has_proposal: Whether node has proposal for current slot.
     std::vector<std::variant<SignedAttestation, SignedBlockWithAttestation>>
     onTick(uint64_t now_sec);
 

@@ -10,6 +10,7 @@
     "cppcodec",
     "leanp2p",
     "prometheus-cpp",
+    "qdrvm-crates",
     "qtils",
     "qdrvm-crates",
     "rocksdb",
@@ -18,6 +19,6 @@
     "sszpp"
   ],
   "features": {
-    "test": { "description": "Test", "dependencies": ["gtest"]}
+    "test": { "description": "Test", "dependencies": ["gtest"] }
   }
 }

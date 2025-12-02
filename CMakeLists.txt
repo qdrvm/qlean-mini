@@ -17,6 +17,10 @@ set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API ON)
 
+# Reconfigure cmake when vcpkg-overlay files change
+file(GLOB_RECURSE vcpkg_overlay_files "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg-overlay/*")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${vcpkg_overlay_files}")
+
 project(qlean-mini
     VERSION 0.0.1
     LANGUAGES CXX C
@@ -40,6 +44,7 @@ find_package(lsquic CONFIG REQUIRED)
 find_package(OpenSSL CONFIG REQUIRED)
 find_package(prometheus-cpp CONFIG REQUIRED)
 find_package(Protobuf CONFIG REQUIRED)
+find_package(qdrvm-crates CONFIG REQUIRED)
 find_package(qtils CONFIG REQUIRED)
 find_package(qdrvm-crates CONFIG REQUIRED)
 find_package(RocksDB CONFIG REQUIRED)

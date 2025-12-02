@@ -18,12 +18,4 @@ namespace lean {
 
     SSZ_CONT(message, signature);
   };
-
-  /**
-   * Stub method to sign vote.
-   */
-  inline SignedAttestation signAttestation(Attestation attestation) {
-    auto payload = sszHash(attestation);
-    return SignedAttestation{.message = attestation, .signature = {}};
-  }
 }  // namespace lean
