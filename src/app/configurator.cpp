@@ -133,6 +133,7 @@ namespace lean::app {
           "Log levels: trace, debug, verbose, info, warn, error, critical, off.\n"
           "Default: all targets log at `info`.\n"
           "Global log level can be set with: -l<level>.")
+        ("shadow", "Run with shadow compatibility (fake xmss provider)")
         ;
 
     po::options_description storage_options("Storage options");
@@ -405,7 +406,8 @@ namespace lean::app {
               auto value = validator_keys_manifest.as<std::string>();
               config_->validator_keys_manifest_path_ = value;
             } else {
-              file_errors_ << "E: Value 'general.validator-keys-manifest' must be scalar\n";
+              file_errors_ << "E: Value 'general.validator-keys-manifest' must "
+                              "be scalar\n";
               file_has_error_ = true;
             }
           }
@@ -504,10 +506,11 @@ namespace lean::app {
         cli_values_map_, "xmss-sk", [&](const std::string &value) {
           config_->xmss_secret_key_path_ = value;
         });
-    find_argument<std::string>(
-        cli_values_map_, "validator-keys-manifest", [&](const std::string &value) {
-          config_->validator_keys_manifest_path_ = value;
-        });
+    find_argument<std::string>(cli_values_map_,
+                               "validator-keys-manifest",
+                               [&](const std::string &value) {
+                                 config_->validator_keys_manifest_path_ = value;
+                               });
     if (fail) {
       return Error::CliArgsParseFailed;
     }
@@ -608,55 +611,65 @@ namespace lean::app {
       return Error::InvalidValue;
     }
 
-    // Validate and load XMSS keys (mandatory)
-    if (config_->xmss_public_key_path_.empty()) {
-      SL_ERROR(logger_, "The '--xmss-pk' (XMSS public key) path must be provided");
-      return Error::InvalidValue;
+    if (find_argument(cli_values_map_, "shadow")) {
+      config_->fake_xmss_ = true;
     }
-    if (config_->xmss_secret_key_path_.empty()) {
-      SL_ERROR(logger_, "The '--xmss-sk' (XMSS secret key) path must be provided");
-      return Error::InvalidValue;
-    }
+    if (not config_->fakeXmss()) {
+      // Validate and load XMSS keys (mandatory)
+      if (config_->xmss_public_key_path_.empty()) {
+        SL_ERROR(logger_,
+                 "The '--xmss-pk' (XMSS public key) path must be provided");
+        return Error::InvalidValue;
+      }
+      if (config_->xmss_secret_key_path_.empty()) {
+        SL_ERROR(logger_,
+                 "The '--xmss-sk' (XMSS secret key) path must be provided");
+        return Error::InvalidValue;
+      }
 
-    config_->xmss_public_key_path_ =
-        resolve_relative(config_->xmss_public_key_path_, "xmss-pk");
-    if (not is_regular_file(config_->xmss_public_key_path_)) {
-      SL_ERROR(logger_,
-               "The 'xmss-pk' file does not exist or is not a file: {}",
-               config_->xmss_public_key_path_);
-      return Error::InvalidValue;
-    }
+      config_->xmss_public_key_path_ =
+          resolve_relative(config_->xmss_public_key_path_, "xmss-pk");
+      if (not is_regular_file(config_->xmss_public_key_path_)) {
+        SL_ERROR(logger_,
+                 "The 'xmss-pk' file does not exist or is not a file: {}",
+                 config_->xmss_public_key_path_);
+        return Error::InvalidValue;
+      }
 
-    config_->xmss_secret_key_path_ =
-        resolve_relative(config_->xmss_secret_key_path_, "xmss-sk");
-    if (not is_regular_file(config_->xmss_secret_key_path_)) {
-      SL_ERROR(logger_,
-               "The 'xmss-sk' file does not exist or is not a file: {}",
-               config_->xmss_secret_key_path_);
-      return Error::InvalidValue;
-    }
+      config_->xmss_secret_key_path_ =
+          resolve_relative(config_->xmss_secret_key_path_, "xmss-sk");
+      if (not is_regular_file(config_->xmss_secret_key_path_)) {
+        SL_ERROR(logger_,
+                 "The 'xmss-sk' file does not exist or is not a file: {}",
+                 config_->xmss_secret_key_path_);
+        return Error::InvalidValue;
+      }
 
-    // Load XMSS keypair from JSON files
-    OUTCOME_TRY(keypair, crypto::xmss::loadKeypairFromJson(
-        config_->xmss_secret_key_path_,
-        config_->xmss_public_key_path_
-    ));
-    config_->xmss_keypair_ = std::move(keypair);
-    SL_INFO(logger_, "Loaded XMSS keypair from:");
-    SL_INFO(logger_, "  Public key: {}", config_->xmss_public_key_path_);
-    SL_INFO(logger_, "  Secret key: {}", config_->xmss_secret_key_path_);
+      // Load XMSS keypair from JSON files
+      BOOST_OUTCOME_TRY(
+          config_->xmss_keypair_,
+          crypto::xmss::loadKeypairFromJson(config_->xmss_secret_key_path_,
+                                            config_->xmss_public_key_path_));
+      SL_INFO(logger_, "Loaded XMSS keypair from:");
+      SL_INFO(logger_, "  Public key: {}", config_->xmss_public_key_path_);
+      SL_INFO(logger_, "  Secret key: {}", config_->xmss_secret_key_path_);
+    } else {
+      config_->xmss_keypair_.emplace();
+    }
 
     // Load validator keys manifest (mandatory)
     if (config_->validator_keys_manifest_path_.empty()) {
-      SL_ERROR(logger_, "The '--validator-keys-manifest' path must be provided");
+      SL_ERROR(logger_,
+               "The '--validator-keys-manifest' path must be provided");
       return Error::InvalidValue;
     }
 
-    config_->validator_keys_manifest_path_ =
-        resolve_relative(config_->validator_keys_manifest_path_, "validator-keys-manifest");
+    config_->validator_keys_manifest_path_ = resolve_relative(
+        config_->validator_keys_manifest_path_, "validator-keys-manifest");
     if (not is_regular_file(config_->validator_keys_manifest_path_)) {
       SL_ERROR(logger_,
-               "The 'validator-keys-manifest' file does not exist or is not a file: {}",
+               "The 'validator-keys-manifest' file does not exist or is not a "
+               "file: {}",
                config_->validator_keys_manifest_path_);
       return Error::InvalidValue;
     }
