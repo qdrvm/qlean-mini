@@ -433,11 +433,25 @@ docker_push_platform:
 		echo "ERROR: Unknown platform $(DOCKER_PLATFORM)"; \
 		exit 1; \
 	fi; \
-	echo "Pushing runtime..."; \
+	echo "[1/N] Pushing commit tag ($(GIT_COMMIT)$$ARCH_SUFFIX)..."; \
 	docker tag $(DOCKER_IMAGE_RUNTIME) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)$$ARCH_SUFFIX; \
 	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)$$ARCH_SUFFIX; \
 	echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)$$ARCH_SUFFIX"; \
 	echo ""; \
+	if [ "$(DOCKER_PUSH_TAG)" = "true" ]; then \
+		echo "[2/N] Pushing custom tag ($(DOCKER_IMAGE_TAG)$$ARCH_SUFFIX)..."; \
+		docker tag $(DOCKER_IMAGE_RUNTIME) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)$$ARCH_SUFFIX; \
+		docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)$$ARCH_SUFFIX; \
+		echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)$$ARCH_SUFFIX"; \
+		echo ""; \
+	fi; \
+	if [ "$(DOCKER_PUSH_LATEST)" = "true" ]; then \
+		echo "[3/N] Pushing latest tag (latest$$ARCH_SUFFIX)..."; \
+		docker tag $(DOCKER_IMAGE_RUNTIME) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest$$ARCH_SUFFIX; \
+		docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest$$ARCH_SUFFIX; \
+		echo "✓ Pushed: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest$$ARCH_SUFFIX"; \
+		echo ""; \
+	fi; \
 	echo "✓ Platform images pushed to $(DOCKER_REGISTRY)!"
 
 # NOTE: Dependencies are platform-specific and do NOT have a multi-arch manifest.
@@ -445,24 +459,51 @@ docker_push_platform:
 # This is intentional to simplify CI/CD and avoid unnecessary manifest overhead.
 
 docker_manifest_create:
-	@echo "=== Creating multi-arch manifest for runtime image ==="
+	@echo "=== Creating multi-arch manifests for runtime image ==="
 	@echo "Registry: $(DOCKER_REGISTRY)"
 	@echo ""
 	@echo "NOTE: Builder image is NOT pushed to registry (intermediate build stage only)"
 	@echo "NOTE: Dependencies are platform-specific (deps:latest-arm64, deps:latest-amd64)"
 	@echo ""
-	@echo "[1/2] Creating runtime manifest..."
+	@echo "[1/N] Creating commit tag manifest ($(GIT_COMMIT))..."
 	@docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME) 2>/dev/null || true
 	@docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME) \
 		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)-arm64 \
 		--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)-amd64
-	@echo ""
-	@echo "[2/2] Pushing runtime manifest..."
 	@docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)
+	@echo "✓ Pushed manifest: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"
 	@echo ""
-	@echo "✓ Multi-arch runtime manifest created successfully!"
+	@if [ "$(DOCKER_PUSH_TAG)" = "true" ]; then \
+		echo "[2/N] Creating custom tag manifest ($(DOCKER_IMAGE_TAG))..."; \
+		docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) 2>/dev/null || true; \
+		docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) \
+			--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)-arm64 \
+			--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)-amd64; \
+		docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG); \
+		echo "✓ Pushed manifest: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)"; \
+		echo ""; \
+	fi
+	@if [ "$(DOCKER_PUSH_LATEST)" = "true" ]; then \
+		echo "[3/N] Creating latest tag manifest..."; \
+		docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest 2>/dev/null || true; \
+		docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest \
+			--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest-arm64 \
+			--amend $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest-amd64; \
+		docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest; \
+		echo "✓ Pushed manifest: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest"; \
+		echo ""; \
+	fi
+	@echo "✓ Multi-arch runtime manifests created successfully!"
 	@echo ""
-	@echo "Image: $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"
+	@echo "Images pushed:"
+	@echo "  • $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_RUNTIME)"
+	@if [ "$(DOCKER_PUSH_TAG)" = "true" ]; then \
+		echo "  • $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)"; \
+	fi
+	@if [ "$(DOCKER_PUSH_LATEST)" = "true" ]; then \
+		echo "  • $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):latest"; \
+	fi
+	@echo ""
 	@echo "Platforms: linux/amd64, linux/arm64"
 	@echo ""
 	@echo "Verify with:"
