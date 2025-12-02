@@ -353,16 +353,28 @@ jobs:
           SHORT_COMMIT=$(git rev-parse --short HEAD)
           
           echo ""
-          echo "Runtime manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}):"
-          
-          # Get manifest and extract platforms
+          echo "[1/N] Commit tag manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}):"
           MANIFEST=$(docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT})
           echo "$MANIFEST" | jq -r '.manifests[] | "  • \(.platform.os)/\(.platform.architecture)"' || echo "$MANIFEST"
+          
+          if [[ "${DOCKER_PUSH_TAG}" == "true" ]]; then
+            echo ""
+            echo "[2/N] Custom tag manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}):"
+            MANIFEST=$(docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG})
+            echo "$MANIFEST" | jq -r '.manifests[] | "  • \(.platform.os)/\(.platform.architecture)"' || echo "$MANIFEST"
+          fi
+          
+          if [[ "${DOCKER_PUSH_LATEST}" == "true" ]]; then
+            echo ""
+            echo "[3/N] Latest tag manifest (${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:latest):"
+            MANIFEST=$(docker manifest inspect ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:latest)
+            echo "$MANIFEST" | jq -r '.manifests[] | "  • \(.platform.os)/\(.platform.architecture)"' || echo "$MANIFEST"
+          fi
           
           echo ""
           echo "NOTE: Builder image is NOT pushed to registry (intermediate build stage only)"
           echo ""
-          echo "✅ Runtime multi-arch manifest created successfully!"
+          echo "✅ All multi-arch manifests created successfully!"
 
       - name: "Display final image tags"
         run: |
@@ -370,26 +382,28 @@ jobs:
           
           echo "=== Successfully pushed Docker images ==="
           echo ""
-          echo "🐳 Runtime image:"
-          echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}"
+          echo "🐳 Runtime multi-arch images:"
+          echo "   • ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT} (commit)"
           
           if [[ "${DOCKER_PUSH_TAG}" == "true" ]]; then
-            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+            echo "   • ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} (custom tag)"
           fi
           
           if [[ "${DOCKER_PUSH_LATEST}" == "true" ]]; then
-            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:latest"
+            echo "   • ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:latest"
           fi
           
           if [[ "${{ needs.setup_matrix.outputs.should_build_deps }}" == "true" ]]; then
             echo ""
             echo "📦 Dependencies images (platform-specific):"
-            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}-arm64"
-            echo "   ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}-amd64"
+            echo "   • ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}-arm64"
+            echo "   • ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}-dependencies:${DOCKER_DEPS_TAG}-amd64"
             echo "   (Note: dependencies are NOT multi-arch, each platform uses its own)"
           fi
           
           echo ""
-          echo "Pull with: docker pull ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}"
-          echo "Run with:  docker run --rm ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT} --help"
+          echo "📋 Quick commands:"
+          echo "  Pull: docker pull ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT}"
+          echo "  Run:  docker run --rm ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${SHORT_COMMIT} --help"
+
 
