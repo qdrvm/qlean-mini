@@ -8,6 +8,7 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/attestation.hpp"
 #include "types/signature.hpp"
 
@@ -17,5 +18,7 @@ namespace lean {
     Signature signature;
 
     SSZ_CONT(message, signature);
+
+    JSON_CAMEL(message, signature);
   };
 }  // namespace lean
