@@ -10,6 +10,7 @@
 #include "types/checkpoint.hpp"
 #include "types/config.hpp"
 #include "types/constants.hpp"
+#include "types/validator_index.hpp"
 #include "types/validators.hpp"
 
 namespace lean {

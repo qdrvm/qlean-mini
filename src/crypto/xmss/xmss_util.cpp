@@ -12,6 +12,10 @@
 #include <sstream>
 
 #include <c_hash_sig/c_hash_sig.h>
+#include <qtils/bytestr.hpp>
+
+#include "crypto/xmss/ffi.hpp"
+#include "qtils/read_file.hpp"
 
 OUTCOME_CPP_DEFINE_CATEGORY(lean::crypto::xmss, XmssUtilError, e) {
   using E = lean::crypto::xmss::XmssUtilError;
@@ -31,111 +35,35 @@ OUTCOME_CPP_DEFINE_CATEGORY(lean::crypto::xmss, XmssUtilError, e) {
 namespace lean::crypto::xmss {
 
   namespace {
-    // RAII wrapper for PQSignatureSchemeSecretKey
-    struct SecretKeyDeleter {
-      void operator()(PQSignatureSchemeSecretKey *key) const {
-        if (key) {
-          pq_secret_key_free(key);
-        }
-      }
-    };
-    using SecretKeyPtr =
-        std::unique_ptr<PQSignatureSchemeSecretKey, SecretKeyDeleter>;
-
-    // RAII wrapper for PQSignatureSchemePublicKey
-    struct PublicKeyDeleter {
-      void operator()(PQSignatureSchemePublicKey *key) const {
-        if (key) {
-          pq_public_key_free(key);
-        }
-      }
-    };
-    using PublicKeyPtr =
-        std::unique_ptr<PQSignatureSchemePublicKey, PublicKeyDeleter>;
-
-    // RAII wrapper for error description string
-    struct StringDeleter {
-      void operator()(char *str) const {
-        if (str) {
-          pq_string_free(str);
-        }
-      }
-    };
-    using CStringPtr = std::unique_ptr<char, StringDeleter>;
-
-    std::string getErrorDescription(PQSigningError error) {
-      CStringPtr error_str(pq_error_description(error));
-      return error_str ? std::string(error_str.get()) : "Unknown error";
-    }
-
-    // Load entire file as string
-    outcome::result<std::string> loadFileAsString(
-        const std::filesystem::path &path) {
-      if (!std::filesystem::exists(path)) {
-        return XmssUtilError::FileNotFound;
-      }
-
-      std::ifstream file(path);
-      if (!file.is_open()) {
-        return XmssUtilError::FileOpenFailed;
-      }
-
-      std::stringstream buffer;
-      buffer << file.rdbuf();
-      return buffer.str();
-    }
-
     // Parse public key from JSON file
     outcome::result<XmssPublicKey> parsePublicKeyFromJson(
         const std::filesystem::path &path) {
-      OUTCOME_TRY(json_content, loadFileAsString(path));
+      BOOST_OUTCOME_TRY(auto json, qtils::readBytes(path));
 
-      PQSignatureSchemePublicKey *pk_raw = nullptr;
-      PQSigningError result =
-          pq_public_key_from_json(json_content.c_str(), &pk_raw);
+      PQPublicKey *public_key_raw = nullptr;
+      BOOST_OUTCOME_TRY(ffi::asOutcome(
+          pq_public_key_from_json(json.data(), json.size(), &public_key_raw)));
 
-      if (result != PQ_SIGNING_ERROR_SUCCESS) {
-        return XmssUtilError::JsonParseFailed;
-      }
-
-      PublicKeyPtr pk(pk_raw);
+      ffi::PublicKey public_key{public_key_raw};
 
       // Serialize to bytes
-      constexpr size_t kMaxPublicKeySize = 100;
-      qtils::ByteVec pk_buffer(kMaxPublicKeySize);
-      size_t pk_written = 0;
-
-      result = pq_public_key_serialize(
-          pk.get(), pk_buffer.data(), pk_buffer.size(), &pk_written);
-
-      if (result != PQ_SIGNING_ERROR_SUCCESS) {
-        return XmssUtilError::SerializationFailed;
-      }
-
-      XmssPublicKey pk_bytes;
-      if (pk_written != pk_bytes.size()) {
-        return XmssUtilError::SerializationFailed;
-      }
-      std::copy_n(pk_buffer.begin(), pk_written, pk_bytes.begin());
-      return pk_bytes;
+      XmssPublicKey public_key_bytes;
+      pq_public_key_to_bytes(public_key.get(), public_key_bytes.data());
+      return public_key_bytes;
     }
 
     // Parse secret key from JSON file
     outcome::result<XmssPrivateKey> parseSecretKeyFromJson(
         const std::filesystem::path &path) {
-      OUTCOME_TRY(json_content, loadFileAsString(path));
+      BOOST_OUTCOME_TRY(auto json, qtils::readBytes(path));
 
-      PQSignatureSchemeSecretKey *sk_raw = nullptr;
-      PQSigningError result =
-          pq_secret_key_from_json(json_content.c_str(), &sk_raw);
+      PQSecretKey *secret_key_raw = nullptr;
+      BOOST_OUTCOME_TRY(ffi::asOutcome(
+          pq_secret_key_from_json(json.data(), json.size(), &secret_key_raw)));
 
-      if (result != PQ_SIGNING_ERROR_SUCCESS) {
-        return XmssUtilError::JsonParseFailed;
-      }
+      ffi::SecretKey secret_key{secret_key_raw};
 
-      SecretKeyPtr sk(sk_raw);
-
-      return XmssPrivateKey{std::move(sk)};
+      return XmssPrivateKey{std::move(secret_key)};
     }
   }  // namespace
 
@@ -144,13 +72,31 @@ namespace lean::crypto::xmss {
       const std::filesystem::path &public_key_path) {
     XmssKeypair keypair;
 
-    OUTCOME_TRY(pk, parsePublicKeyFromJson(public_key_path));
-    keypair.public_key = std::move(pk);
+    BOOST_OUTCOME_TRY(auto public_key, parsePublicKeyFromJson(public_key_path));
+    keypair.public_key = std::move(public_key);
 
-    OUTCOME_TRY(sk, parseSecretKeyFromJson(secret_key_path));
-    keypair.private_key = std::move(sk);
+    BOOST_OUTCOME_TRY(auto secret_key, parseSecretKeyFromJson(secret_key_path));
+    keypair.private_key = std::move(secret_key);
 
     return keypair;
   }
 
+  std::string toJson(const XmssPrivateKey &secret_key) {
+    auto ffi_bytevec = pq_secret_key_to_json(secret_key.get());
+    std::string json{qtils::byte2str({ffi_bytevec.ptr, ffi_bytevec.size})};
+    PQByteVec_drop(ffi_bytevec);
+    return json;
+  }
+
+  std::string toJson(const XmssPublicKey &public_key_bytes) {
+    PQPublicKey *public_key_raw = nullptr;
+    ffi::asOutcome(
+        pq_public_key_from_bytes(public_key_bytes.data(), &public_key_raw))
+        .value();
+    ffi::PublicKey public_key{public_key_raw};
+    auto ffi_bytevec = pq_public_key_to_json(public_key.get());
+    std::string json{qtils::byte2str({ffi_bytevec.ptr, ffi_bytevec.size})};
+    PQByteVec_drop(ffi_bytevec);
+    return json;
+  }
 }  // namespace lean::crypto::xmss

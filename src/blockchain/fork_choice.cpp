@@ -88,6 +88,10 @@ namespace lean {
     return latest_finalized_;
   }
 
+  Checkpoint ForkChoiceStore::getLatestJustified() const {
+    return latest_justified_;
+  }
+
 
   Checkpoint ForkChoiceStore::getAttestationTarget() const {
     // Start from head as target candidate
@@ -768,18 +772,35 @@ namespace lean {
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<ValidatorRegistry> validator_registry,
-      qtils::SharedRef<app::ValidatorKeysManifest> validator_manifest,
+      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
+      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
+      : ForkChoiceStore{
+            genesis_config.state,
+            STF::genesisBlock(genesis_config.state),
+            std::move(clock),
+            std::move(logging_system),
+            std::move(metrics),
+            std::move(validator_registry),
+            std::move(validator_keys_manifest),
+            std::move(xmss_provider),
+        } {}
+
+  ForkChoiceStore::ForkChoiceStore(
+      const State &anchor_state,
+      const Block &anchor_block,
+      qtils::SharedRef<clock::SystemClock> clock,
+      qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
+      qtils::SharedRef<ValidatorRegistry> validator_registry,
+      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
       qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
       : stf_(metrics),
         validator_registry_(validator_registry),
-        validator_keys_manifest_(validator_manifest),
+        validator_keys_manifest_(validator_keys_manifest),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         metrics_(std::move(metrics)),
         xmss_provider_(std::move(xmss_provider)) {
-    AnchorState anchor_state = STF::generateGenesisState(
-        genesis_config.config, validator_registry_, validator_keys_manifest_);
-    AnchorBlock anchor_block = STF::genesisBlock(anchor_state);
     BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
     anchor_block.setHash();
     auto anchor_root = anchor_block.hash();
@@ -798,7 +819,7 @@ namespace lean {
     blocks_.emplace(anchor_root, std::move(anchor_block));
     SL_INFO(
         logger_, "Anchor block {} at slot {}", anchor_root, anchor_block.slot);
-    states_.emplace(anchor_root, std::move(anchor_state));
+    states_.emplace(anchor_root, anchor_state);
     for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
       SL_INFO(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
     }

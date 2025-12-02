@@ -10,14 +10,14 @@
     "cppcodec",
     "leanp2p",
     "prometheus-cpp",
-    "qtils",
     "qdrvm-crates",
+    "qtils",
     "rocksdb",
     "snappy",
     "soralog",
     "sszpp"
   ],
   "features": {
-    "test": { "description": "Test", "dependencies": ["gtest"]}
+    "test": { "description": "Test", "dependencies": ["gtest"] }
   }
 }

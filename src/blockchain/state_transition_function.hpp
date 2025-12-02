@@ -65,8 +65,7 @@ namespace lean {
 
     static AnchorState generateGenesisState(
         const Config &config,
-        qtils::SharedRef<ValidatorRegistry>,
-        qtils::SharedRef<app::ValidatorKeysManifest>);
+        std::span<const crypto::xmss::XmssPublicKey> validators_pubkeys);
     static AnchorBlock genesisBlock(const State &state);
 
     /**
