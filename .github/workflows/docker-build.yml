@@ -63,13 +63,11 @@ on:
   push:
     branches:
       - master      # Auto-build on master push
-      - ci/docker   # Testing branch
     tags:
       - '*'         # Auto-build on any git tag (release)
   pull_request:
     branches:
       - master
-      - ci/docker
       
   workflow_dispatch:
     inputs:
