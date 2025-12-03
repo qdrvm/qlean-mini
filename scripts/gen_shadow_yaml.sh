@@ -99,6 +99,7 @@ OUTPUT_YAML_ABS="$(py_abspath "$(dirname "$OUTPUT_YAML")")/$(basename "$OUTPUT_Y
 
 CONFIG_YAML="$GENESIS_DIR_ABS/config.yaml"
 VALIDATORS_YAML="$GENESIS_DIR_ABS/validators.yaml"
+VALIDATOR_KEYS_MANIFEST_YAML="$GENESIS_DIR_ABS/hash-sig-keys/validator-keys-manifest.yaml"
 VALIDATOR_CONFIG_YAML="$GENESIS_DIR_ABS/validator-config.yaml"
 NODES_YAML="$GENESIS_DIR_ABS/nodes.yaml"
 
@@ -283,10 +284,12 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
       "--bootnodes" "$NODES_YAML"
       "--genesis" "$CONFIG_YAML"
       "--validator-registry-path" "$VALIDATORS_YAML"
+      "--validator-keys-manifest" "$VALIDATOR_KEYS_MANIFEST_YAML"
       "--node-id" "node_${i}"
       "--node-key" "$key_file"
       "--listen-addr" "/ip4/0.0.0.0/udp/${udp_port}/quic-v1"
       "--prometheus-port" "$prom_port"
+      "--shadow"
     )
     # Join args preserving spaces
     IFS=' ' read -r -a _dummy <<< "" # reset
