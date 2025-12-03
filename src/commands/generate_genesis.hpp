@@ -116,7 +116,7 @@ inline int cmdGenerateGenesis(auto &&getArg) {
     build_yaml(genesis_directory / "config.yaml", [&](YAML::Node &yaml) {
       yaml["GENESIS_TIME"] = genesis_time;
       yaml["VALIDATOR_COUNT"] = validator_count;
-      auto &&yaml_validators = yaml["VALIDATORS"];
+      auto &&yaml_validators = yaml["GENESIS_VALIDATORS"];
       for (auto &xmss_public_key : xmss_public_keys) {
         yaml_validators.push_back(xmss_public_key.toHex());
       }
