@@ -47,3 +47,5 @@ METRIC_GAUGE_LABELS(
 METRIC_GAUGE(app_process_start_time,
              "lean_process_start_time_seconds",
              "UNIX timestamp of the moment the process started")
+
+METRIC_GAUGE(connected_peer_count, "TODO_NAME_connected_peer_count", "TODO_HELP")

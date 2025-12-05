@@ -33,6 +33,7 @@
 
 #include "blockchain/block_tree.hpp"
 #include "blockchain/impl/fc_block_tree.hpp"
+#include "metrics/metrics.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
@@ -72,12 +73,14 @@ namespace lean::modules {
   NetworkingImpl::NetworkingImpl(
       NetworkingLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
       qtils::SharedRef<app::ChainSpec> chain_spec,
       qtils::SharedRef<app::Configuration> config)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
+        metrics_{std::move(metrics)},
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)},
         chain_spec_{std::move(chain_spec)},
@@ -124,6 +127,7 @@ namespace lean::modules {
     io_context_ = injector->create<std::shared_ptr<boost::asio::io_context>>();
 
     auto host = injector->create<std::shared_ptr<libp2p::host::BasicHost>>();
+    host_ = host;
 
     bool has_enr_listen_address = false;
     const auto &bootnodes = chain_spec_->getBootnodes();
@@ -253,6 +257,7 @@ namespace lean::modules {
       if (not self) {
         return;
       }
+      self->updateMetricConnectedPeerCount();
       auto peer_id = connection->remotePeer();
       self->loader_.dispatch_peer_connected(
           qtils::toSharedPtr(messages::PeerConnectedMessage{peer_id}));
@@ -295,6 +300,7 @@ namespace lean::modules {
           if (not self) {
             return;
           }
+          self->updateMetricConnectedPeerCount();
           self->loader_.dispatch_peer_disconnected(
               qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
         };
@@ -344,7 +350,8 @@ namespace lean::modules {
     gossip_blocks_topic_ = gossipSubscribe<SignedBlockWithAttestation>(
         "block",
         [weak_self{weak_from_this()}](
-            SignedBlockWithAttestation &&signed_block_with_attestation, std::optional<libp2p::PeerId> received_from) {
+            SignedBlockWithAttestation &&signed_block_with_attestation,
+            std::optional<libp2p::PeerId> received_from) {
           auto self = weak_self.lock();
           if (not self) {
             return;
@@ -546,5 +553,9 @@ namespace lean::modules {
       return slot_hash.slot == expected.value();
     }
     return slot_hash.slot > block_tree_->lastFinalized().slot;
+  }
+
+  void NetworkingImpl::updateMetricConnectedPeerCount() {
+    metrics_->connected_peer_count()->set(host_->getConnectedPeerCount());
   }
 }  // namespace lean::modules
