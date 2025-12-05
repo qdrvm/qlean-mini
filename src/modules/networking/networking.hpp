@@ -19,6 +19,10 @@ namespace boost::asio {
   class io_context;
 }  // namespace boost::asio
 
+namespace libp2p::host {
+  class BasicHost;
+}  // namespace libp2p::host
+
 namespace libp2p::protocol {
   class Ping;
   class Identify;
@@ -33,14 +37,18 @@ namespace lean {
   class ForkChoiceStore;
 }  // namespace lean
 
-namespace lean::blockchain {
-  class BlockTree;
-}  // namespace lean::blockchain
-
 namespace lean::app {
   class ChainSpec;
   class Configuration;
 }  // namespace lean::app
+
+namespace lean::blockchain {
+  class BlockTree;
+}  // namespace lean::blockchain
+
+namespace lean::metrics {
+  class Metrics;
+}  // namespace lean::metrics
 
 namespace lean::modules {
   class StatusProtocol;
@@ -61,6 +69,7 @@ namespace lean::modules {
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
     NetworkingImpl(NetworkingLoader &loader,
                    qtils::SharedRef<log::LoggingSystem> logging_system,
+                   qtils::SharedRef<metrics::Metrics> metrics,
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
                    qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -91,8 +100,11 @@ namespace lean::modules {
                       SignedBlockWithAttestation &&block);
     bool statusFinalizedIsGood(const BlockIndex &slot_hash);
 
+    void updateMetricConnectedPeerCount();
+
     NetworkingLoader &loader_;
     log::Logger logger_;
+    qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
@@ -106,6 +118,7 @@ namespace lean::modules {
     std::shared_ptr<BlockRequestProtocol> block_request_protocol_;
     std::shared_ptr<libp2p::protocol::gossip::Gossip> gossip_;
     std::shared_ptr<libp2p::protocol::Ping> ping_;
+    std::shared_ptr<libp2p::host::BasicHost> host_;
     std::shared_ptr<libp2p::protocol::Identify> identify_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_blocks_topic_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
