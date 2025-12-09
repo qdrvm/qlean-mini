@@ -585,6 +585,7 @@ namespace lean::modules {
     }
     want -= active;
     while (want != 0 and not connectable_peers_.empty()) {
+      --want;
       size_t i = std::uniform_int_distribution<size_t>{
           0, connectable_peers_.size() - 1}(random_);
       std::swap(connectable_peers_.at(i), connectable_peers_.back());
