@@ -599,13 +599,13 @@ namespace lean::modules {
           *io_context_,
           [weak_self{weak_from_this()},
            host{host_},
-           &state,
            peer_info{state.info}]() -> libp2p::Coro<void> {
             auto r = co_await host->connect(peer_info);
             auto self = weak_self.lock();
             if (not self) {
               co_return;
             }
+            auto &state = self->peer_states_.at(peer_info.id);
             auto &connecting = std::get<PeerState::Connecting>(state.state);
             if (r.has_value()) {
               // Connecting => Connected
