@@ -54,18 +54,49 @@ namespace lean::modules {
 
   using Clock = std::chrono::steady_clock;
 
+  /**
+   * Peer information and state.
+   * Peer can be in connectable list, be connecting, be connected, be backedoff.
+   */
   struct PeerState {
+    /**
+     * Peer not connected.
+     */
     struct Connectable {
+      /**
+       * Backoff to use on next connect failure.
+       */
       std::chrono::milliseconds backoff;
     };
+    /**
+     * Connecting to peer.
+     */
     struct Connecting {
+      /**
+       * Backoff to use on next connect failure.
+       */
       std::chrono::milliseconds backoff;
     };
+    /**
+     * Connected to peer.
+     */
     struct Connected {};
+    /**
+     * Don't connect
+     */
     struct Backoff {
+      /**
+       * Backoff to use on next connect failure.
+       */
       std::chrono::milliseconds backoff;
+      /**
+       * Won't attempt to connect until this time.
+       */
       Clock::time_point backoff_until;
     };
+    /**
+     * Peer id and addresses to connect to.
+     */
     libp2p::PeerInfo info;
     std::variant<Connectable, Connecting, Connected, Backoff> state;
   };
@@ -114,6 +145,10 @@ namespace lean::modules {
     void receiveBlock(std::optional<libp2p::PeerId> peer_id,
                       SignedBlockWithAttestation &&block);
     bool statusFinalizedIsGood(const BlockIndex &slot_hash);
+    /**
+     * Called periodically to connect to more peers if there are not enough
+     * connections.
+     */
     void connectToPeers();
 
     NetworkingLoader &loader_;
@@ -138,7 +173,13 @@ namespace lean::modules {
     std::unordered_map<BlockHash, SignedBlockWithAttestation> block_cache_;
     std::unordered_multimap<BlockHash, BlockHash> block_children_;
     std::default_random_engine random_;
+    /**
+     * Array of connectable peers to pick random peer from.
+     */
     std::vector<libp2p::PeerId> connectable_peers_;
+    /**
+     * Bootnode peers states.
+     */
     std::unordered_map<libp2p::PeerId, PeerState> peer_states_;
   };
 
