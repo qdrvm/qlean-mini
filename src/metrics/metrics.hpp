@@ -171,10 +171,7 @@ namespace lean::metrics {
      */
     ~HistogramTimer() {
       if (running_) {
-        const auto elapsed_time = stop();
-        if (histogram_) {
-          histogram_->observe(elapsed_time);
-        }
+        stop();
       }
     }
 
@@ -193,10 +190,7 @@ namespace lean::metrics {
     HistogramTimer &operator=(HistogramTimer &&other) noexcept {
       if (this != &other) {
         if (running_) {
-          const auto elapsed_time = stop();
-          if (histogram_) {
-            histogram_->observe(elapsed_time);
-          }
+          stop();
         }
         histogram_ = other.histogram_;
         start_time_ = other.start_time_;
@@ -207,13 +201,32 @@ namespace lean::metrics {
     }
 
     /**
-     * @brief Manually stop the timer
+     * @brief Stop the timer and record the elapsed time to the histogram
      * @return Elapsed time in seconds
      *
-     * After calling stop(), the timer is considered stopped and the destructor
-     * will not record the time to the histogram.
      */
     double stop() {
+      if (!running_) {
+        return 0.0;
+      }
+
+      const auto elapsed_time = elapsed();
+      running_ = false;
+
+      // Automatically observe the elapsed time
+      if (histogram_) {
+        histogram_->observe(elapsed_time);
+      }
+
+      return elapsed_time;
+    }
+
+    /**
+     * @brief Stop the timer without recording to the histogram
+     * @return Elapsed time in seconds
+     *
+     */
+    double stopWithoutObserving() {
       if (!running_) {
         return 0.0;
       }
