@@ -254,6 +254,24 @@ namespace lean::modules {
         return;
       }
       auto peer_id = connection->remotePeer();
+      auto state_it = self->peer_states_.find(peer_id);
+      if (state_it != self->peer_states_.end()) {
+        auto &state = state_it->second;
+        if (not std::holds_alternative<PeerState::Connected>(state.state)) {
+          if (std::holds_alternative<PeerState::Connectable>(state.state)) {
+            // Connectable => Connected
+            auto connectable_it =
+                std::ranges::find(self->connectable_peers_, peer_id);
+            if (connectable_it == self->connectable_peers_.end()) {
+              throw std::logic_error{
+                  "inconsistent connectable_peers_ and peer_states_"};
+            }
+            self->connectable_peers_.erase(connectable_it);
+          }
+          // Connectable | Connecting | Backoff => Connected
+          state.state = PeerState::Connected{};
+        }
+      }
       self->loader_.dispatch_peer_connected(
           qtils::toSharedPtr(messages::PeerConnectedMessage{peer_id}));
       if (connection->isInitiator()) {
@@ -607,20 +625,19 @@ namespace lean::modules {
               co_return;
             }
             auto &state = self->peer_states_.at(peer_info.id);
-            auto &connecting = std::get<PeerState::Connecting>(state.state);
-            if (r.has_value()) {
-              // Connecting => Connected
-              state.state = PeerState::Connected{};
-            } else {
+            if (not r.has_value()) {
               SL_WARN(self->logger_,
                       "connect {} error: {}",
                       peer_info.id,
                       r.error());
-              // Connecting => Backoff
-              state.state = PeerState::Backoff{
-                  .backoff = std::min(2 * connecting.backoff, kMaxBackoff),
-                  .backoff_until = Clock::now() + connecting.backoff,
-              };
+              if (auto *connecting =
+                      std::get_if<PeerState::Connecting>(&state.state)) {
+                // Connecting => Backoff
+                state.state = PeerState::Backoff{
+                    .backoff = std::min(2 * connecting->backoff, kMaxBackoff),
+                    .backoff_until = Clock::now() + connecting->backoff,
+                };
+              }
             }
           });
     }
