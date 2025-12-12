@@ -41,12 +41,14 @@
 METRIC_GAUGE(fc_head_slot, "lean_head_slot", "Latest slot of the beacon chain")
 
 // Attestation validation
-METRIC_COUNTER(fc_attestations_valid_total,
-               "lean_attestations_valid_total",
-               "Total number of valid attestations")
-METRIC_COUNTER(fc_attestations_invalid_total,
-               "lean_attestations_invalid_total",
-               "Total number of invalid attestations")
+METRIC_COUNTER_LABELS(fc_attestations_valid_total,
+                      "lean_attestations_valid_total",
+                      "Total number of valid attestations",
+                      {"source"})
+METRIC_COUNTER_LABELS(fc_attestations_invalid_total,
+                      "lean_attestations_invalid_total",
+                      "Total number of invalid attestations",
+                      {"source"})
 METRIC_HISTOGRAM(fc_attestation_validation_time_seconds,
                  "lean_attestation_validation_time_seconds",
                  "Time taken to validate attestation",
