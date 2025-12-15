@@ -311,10 +311,11 @@ namespace lean {
   outcome::result<void> ForkChoiceStore::onAttestation(
       const SignedAttestation &signed_attestation, bool is_from_block) {
     // First, ensure the attestation is structurally and temporally valid.
+    auto source = is_from_block ? "block" : "gossip";
     if (auto res = validateAttestation(signed_attestation); res.has_value()) {
-      metrics_->fc_attestations_valid_total()->inc();
+      metrics_->fc_attestations_valid_total({{"source", source}})->inc();
     } else {
-      metrics_->fc_attestations_invalid_total()->inc();
+      metrics_->fc_attestations_invalid_total({{"source", source}})->inc();
       return res;
     }
 
