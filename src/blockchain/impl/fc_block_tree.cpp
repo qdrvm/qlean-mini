@@ -111,8 +111,7 @@ namespace lean::blockchain {
     if (it == blocks.end()) {
       return std::nullopt;
     }
-    // TODO(turuslan): signature
-    return SignedBlockWithAttestation{.message = it->second};
+    return it->second;
   }
 
   void FCBlockTree::import(std::vector<SignedBlockWithAttestation> blocks) {}
