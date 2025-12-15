@@ -225,10 +225,14 @@ namespace lean {
 
     // Sign proposer attestation
     auto payload = sszHash(proposer_attestation);
+    auto timer =
+        metrics_->crypto_pq_signature_attestation_signing_time_seconds()
+            ->timer();
     crypto::xmss::XmssSignature signature = xmss_provider_->sign(
         validator_keys_manifest_->currentNodeXmssKeypair().private_key,
         slot,
         payload);
+    timer.stop();
     SignedBlockWithAttestation signed_block_with_attestation{
         .message =
             {
@@ -459,8 +463,15 @@ namespace lean {
       // - The signature was created at the correct epoch (slot)
       auto message = sszHash(attestation);
       Epoch epoch = attestation.data.slot;
-      if (not xmss_provider_->verify(
-              validator.pubkey, message, epoch, signature)) {
+
+      auto timer =
+          metrics_->crypto_pq_signature_attestation_verification_time_seconds()
+              ->timer();
+      bool verify_result =
+          xmss_provider_->verify(validator.pubkey, message, epoch, signature);
+      timer.stop();
+
+      if (not verify_result) {
         SL_WARN(logger_,
                 "Attestation signature verification failed for validator {}",
                 validator_id);
@@ -633,8 +644,12 @@ namespace lean {
           auto payload = sszHash(attestation);
           crypto::xmss::XmssKeypair keypair =
               validator_keys_manifest_->currentNodeXmssKeypair();
+          auto timer =
+              metrics_->crypto_pq_signature_attestation_signing_time_seconds()
+                  ->timer();
           crypto::xmss::XmssSignature signature =
               xmss_provider_->sign(keypair.private_key, current_slot, payload);
+          timer.stop();
           SignedAttestation signed_attestation{.message = attestation,
                                                .signature = signature};
 
