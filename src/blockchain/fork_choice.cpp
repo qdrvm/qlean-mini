@@ -73,11 +73,11 @@ namespace lean {
     if (not blocks_.contains(block_hash)) {
       return std::nullopt;
     }
-    return blocks_.at(block_hash).slot;
+    return blocks_.at(block_hash).message.block.slot;
   }
 
   Slot ForkChoiceStore::getHeadSlot() const {
-    return blocks_.at(head_).slot;
+    return blocks_.at(head_).message.block.slot;
   }
 
   const Config &ForkChoiceStore::getConfig() const {
@@ -100,8 +100,10 @@ namespace lean {
     // If there is no very recent safe target, then vote for the k'th ancestor
     // of the head
     for (auto i = 0; i < JUSTIFICATION_LOOKBACK_SLOTS; ++i) {
-      if (blocks_.at(target_block_root).slot > blocks_.at(safe_target_).slot) {
-        target_block_root = blocks_.at(target_block_root).parent_root;
+      if (blocks_.at(target_block_root).message.block.slot
+          > blocks_.at(safe_target_).message.block.slot) {
+        target_block_root =
+            blocks_.at(target_block_root).message.block.parent_root;
       } else {
         break;
       }
@@ -109,19 +111,24 @@ namespace lean {
 
     // If the latest finalized slot is very far back, then only some slots are
     // valid to justify, make sure the target is one of those
-    while (not isJustifiableSlot(latest_finalized_.slot,
-                                 blocks_.at(target_block_root).slot)) {
-      target_block_root = blocks_.at(target_block_root).parent_root;
+    while (not isJustifiableSlot(
+        latest_finalized_.slot,
+        blocks_.at(target_block_root).message.block.slot)) {
+      target_block_root =
+          blocks_.at(target_block_root).message.block.parent_root;
     }
 
     return Checkpoint{
         .root = target_block_root,
-        .slot = blocks_.at(target_block_root).slot,
+        .slot = blocks_.at(target_block_root).message.block.slot,
     };
   }
 
   AttestationData ForkChoiceStore::produceAttestationData(Slot slot) const {
-    Checkpoint head_checkpoint{.root = head_, .slot = blocks_.at(head_).slot};
+    Checkpoint head_checkpoint{
+        .root = head_,
+        .slot = blocks_.at(head_).message.block.slot,
+    };
 
     auto target_checkpoint = getAttestationTarget();
 
@@ -218,10 +225,14 @@ namespace lean {
 
     // Sign proposer attestation
     auto payload = sszHash(proposer_attestation);
+    auto timer =
+        metrics_->crypto_pq_signature_attestation_signing_time_seconds()
+            ->timer();
     crypto::xmss::XmssSignature signature = xmss_provider_->sign(
         validator_keys_manifest_->currentNodeXmssKeypair().private_key,
         slot,
         payload);
+    timer.stop();
     SignedBlockWithAttestation signed_block_with_attestation{
         .message =
             {
@@ -277,8 +288,8 @@ namespace lean {
     // Consistency Check
     //
     // Validate checkpoint slots match block slots
-    auto &source_block = blocks_.at(data.source.root);
-    auto &target_block = blocks_.at(data.target.root);
+    auto &source_block = blocks_.at(data.source.root).message.block;
+    auto &target_block = blocks_.at(data.target.root).message.block;
     if (source_block.slot != data.source.slot) {
       return Error::INVALID_ATTESTATION;
     }
@@ -453,8 +464,15 @@ namespace lean {
       // - The signature was created at the correct epoch (slot)
       auto message = sszHash(attestation);
       Epoch epoch = attestation.data.slot;
-      if (not xmss_provider_->verify(
-              validator.pubkey, message, epoch, signature)) {
+
+      auto timer =
+          metrics_->crypto_pq_signature_attestation_verification_time_seconds()
+              ->timer();
+      bool verify_result =
+          xmss_provider_->verify(validator.pubkey, message, epoch, signature);
+      timer.stop();
+
+      if (not verify_result) {
         SL_WARN(logger_,
                 "Attestation signature verification failed for validator {}",
                 validator_id);
@@ -508,7 +526,7 @@ namespace lean {
       latest_finalized_ = post_state.latest_finalized;
     }
 
-    blocks_.emplace(block_hash, block);
+    blocks_.emplace(block_hash, signed_block_with_attestation);
     states_.emplace(block_hash, std::move(post_state));
 
     // Process block body attestations
@@ -627,8 +645,12 @@ namespace lean {
           auto payload = sszHash(attestation);
           crypto::xmss::XmssKeypair keypair =
               validator_keys_manifest_->currentNodeXmssKeypair();
+          auto timer =
+              metrics_->crypto_pq_signature_attestation_signing_time_seconds()
+                  ->timer();
           crypto::xmss::XmssSignature signature =
               xmss_provider_->sign(keypair.private_key, current_slot, payload);
+          timer.stop();
           SignedAttestation signed_attestation{.message = attestation,
                                                .signature = signature};
 
@@ -682,7 +704,8 @@ namespace lean {
       anchor = std::min_element(blocks_.begin(),
                                 blocks_.end(),
                                 [](const auto &lhs, const auto &rhs) {
-                                  return lhs.second.slot < rhs.second.slot;
+                                  return lhs.second.message.block.slot
+                                       < rhs.second.message.block.slot;
                                 })
                    ->first;
     }
@@ -690,7 +713,7 @@ namespace lean {
     // Remember the slot of the anchor once and reuse it during the walk.
     //
     // This avoids repeated lookups inside the inner loop.
-    const auto start_slot = blocks_.at(anchor).slot;
+    const auto start_slot = blocks_.at(anchor).message.block.slot;
 
     // Prepare a table that will collect voting weight for each block.
     //
@@ -712,9 +735,9 @@ namespace lean {
       //
       // This naturally handles partial views and ongoing sync.
       while (blocks_.contains(current)
-             and blocks_.at(current).slot > start_slot) {
+             and blocks_.at(current).message.block.slot > start_slot) {
         ++weights[current];
-        current = blocks_.at(current).parent_root;
+        current = blocks_.at(current).message.block.parent_root;
       }
     }
 
@@ -725,7 +748,7 @@ namespace lean {
     for (auto &[hash, block] : blocks_) {
       // 1. Structural check: skip blocks without parents (e.g., purely
       // genesis/orphans)
-      if (block.parent_root == BlockHash{}) {
+      if (block.message.block.parent_root == BlockHash{}) {
         continue;
       }
 
@@ -734,7 +757,7 @@ namespace lean {
         continue;
       }
 
-      children_map[block.parent_root].push_back(hash);
+      children_map[block.message.block.parent_root].push_back(hash);
     }
 
     // Now perform the greedy walk.
@@ -817,7 +840,10 @@ namespace lean {
     latest_justified_ = Checkpoint::from(anchor_block);
     latest_finalized_ = Checkpoint::from(anchor_block);
 
-    blocks_.emplace(anchor_root, std::move(anchor_block));
+    blocks_.emplace(anchor_root,
+                    SignedBlockWithAttestation{
+                        .message = {.block = std::move(anchor_block)},
+                    });
     SL_INFO(
         logger_, "Anchor block {} at slot {}", anchor_root, anchor_block.slot);
     states_.emplace(anchor_root, anchor_state);
