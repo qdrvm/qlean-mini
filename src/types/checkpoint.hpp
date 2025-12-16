@@ -9,6 +9,7 @@
 #include <sszpp/ssz++.hpp>
 
 #include "log/formatters/block_index_ref.hpp"
+#include "serde/json_fwd.hpp"
 
 namespace lean {
 
@@ -22,6 +23,8 @@ namespace lean {
 
     SSZ_CONT(root, slot);
     bool operator==(const Checkpoint &) const = default;
+
+    JSON_CAMEL(root, slot);
   };
 
 }  // namespace lean

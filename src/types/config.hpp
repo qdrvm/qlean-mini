@@ -8,6 +8,8 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
+
 namespace lean {
   struct Config : ssz::ssz_container {
     uint64_t genesis_time;
@@ -15,5 +17,7 @@ namespace lean {
     SSZ_CONT(genesis_time);
 
     bool operator==(const Config &) const = default;
+
+    JSON_CAMEL(genesis_time);
   };
 }  // namespace lean
