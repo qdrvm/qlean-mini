@@ -105,6 +105,7 @@ GENESIS_DIR_ABS="$(py_abspath "$GENESIS_DIR")"
 QLEAN_PATH_ABS="$(py_abspath "$QLEAN_PATH")"
 MODULES_DIR_ABS="$(py_abspath "$MODULES_DIR")"
 OUTPUT_YAML_ABS="$(py_abspath "$(dirname "$OUTPUT_YAML")")/$(basename "$OUTPUT_YAML")"
+GRAPH_FILE_ABS="$(py_abspath "$GRAPH_FILE")"
 
 CONFIG_YAML="$GENESIS_DIR_ABS/config.yaml"
 VALIDATORS_YAML="$GENESIS_DIR_ABS/validators.yaml"
@@ -267,12 +268,12 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
 
     printf "      ]\n"
   else
-    # Use external GML file
-    printf "    source:\n"
-    printf "      file:\n"
-    printf "        path: \"%s\"\n" "$GRAPH_FILE"
-    printf "  use_shortest_path: true\n"
+    # Use external GML file (absolute path)
+    printf "    file:\n"
+    printf "      path: \"%s\"\n" "$GRAPH_FILE_ABS"
   fi
+
+  printf "  use_shortest_path: true\n"
 
   printf "hosts:\n"
 
@@ -314,6 +315,8 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
     joined="${args_str[*]}"
 
     printf "  %s:\n" "$node_name"
+  printf "    bandwidth_up: \"%s\"\n" "$BANDWIDTH_HOST"
+  printf "    bandwidth_down: \"%s\"\n" "$BANDWIDTH_HOST"
     printf "    network_node_id: %d\n" "$i"
     printf "    ip_addr: %s\n" "$ip"
     printf "    processes:\n"
