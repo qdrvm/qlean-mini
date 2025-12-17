@@ -15,6 +15,9 @@
 
 namespace lean {
   struct State : ssz::ssz_variable_size_container {
+    State() = default;
+    State(const State&) = default;
+
     Config config;
     Slot slot;
     BlockHeader latest_block_header;
@@ -50,5 +53,12 @@ namespace lean {
     }
   };
 
-  using AnchorState = qtils::Tagged<State, struct AnchorStateTag>;
+  struct AnchorState : State {
+    using State::State;
+    virtual ~AnchorState() = 0;
+  };
+  inline AnchorState::~AnchorState() = default;
+
+  // using AnchorState = qtils::Tagged<State, struct AnchorStateTag>;
+
 }  // namespace lean

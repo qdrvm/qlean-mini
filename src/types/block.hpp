@@ -48,5 +48,12 @@ namespace lean {
     }
   };
 
-  using AnchorBlock = qtils::Tagged<Block, struct AnchorBlockTag>;
+  struct AnchorBlock : Block {
+    using Block::Block;
+    virtual ~AnchorBlock() = 0;
+  };
+  inline AnchorBlock::~AnchorBlock() = default;
+
+  // using AnchorBlock = qtils::Tagged<Block, struct AnchorBlockTag>;
+
 }  // namespace lean

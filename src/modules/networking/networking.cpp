@@ -88,7 +88,7 @@ namespace lean::modules {
         config_{std::move(config)},
         random_{std::random_device{}()} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
-    block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
+//    block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }
 
   NetworkingImpl::~NetworkingImpl() {

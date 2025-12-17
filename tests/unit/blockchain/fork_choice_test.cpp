@@ -15,9 +15,11 @@
 #include <iostream>
 #include <sstream>
 
+#include "blockchain/block_tree.hpp"
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
 #include "mock/app/validator_keys_manifest_mock.hpp"
+#include "mock/blockchain/block_tree_mock.hpp"
 #include "mock/blockchain/validator_registry_mock.hpp"
 #include "mock/crypto/xmss_provider_mock.hpp"
 #include "mock/metrics_mock.hpp"
@@ -99,6 +101,7 @@ auto createTestStore(
   auto validator_keys_manifest =
       std::make_shared<lean::app::ValidatorKeysManifestMock>();
   auto xmss_provider = std::make_shared<lean::crypto::xmss::XmssProviderMock>();
+  auto block_tree = std::make_shared<lean::blockchain::BlockTreeMock>();
   return ForkChoiceStore(time,
                          testutil::prepareLoggers(),
                          std::make_shared<lean::metrics::MetricsMock>(),
@@ -114,7 +117,8 @@ auto createTestStore(
                          validator_index,
                          validator_registry,
                          validator_keys_manifest,
-                         xmss_provider);
+                         xmss_provider,
+                         block_tree);
 }
 
 auto makeBlockMap(std::vector<lean::Block> blocks) {
@@ -144,7 +148,8 @@ std::vector<lean::Block> makeBlocks(lean::Slot count) {
 }
 
 auto makeStateWithSingleValidator(const lean::Config &config) {
-  lean::State state{.config = config};
+  lean::State state;
+  state.config = config;
   state.validators.push_back(lean::Validator{});
   state.latest_justified = state.latest_finalized = Checkpoint{};
   return state;

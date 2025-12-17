@@ -17,6 +17,9 @@ target_link_libraries(validator_registry
 add_library(blockchain
     fork_choice.cpp
     genesis_config.cpp
+    impl/anchor_block_impl.cpp
+    impl/anchor_state_impl.cpp
+    impl/genesis_block_header_impl.cpp
     impl/block_storage_error.cpp
     impl/block_storage_impl.cpp
     impl/block_storage_initializer.cpp

@@ -10,10 +10,12 @@
 #include <filesystem>
 #include <ranges>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/is_proposer.hpp"
+#include "impl/block_tree_impl.hpp"
 #include "metrics/impl/metrics_impl.hpp"
 #include "types/signed_block_with_attestation.hpp"
 
@@ -50,7 +52,6 @@ namespace lean {
     Slot current_slot = time_ / INTERVALS_PER_SLOT;
     return current_slot;
   }
-
 
   BlockHash ForkChoiceStore::getHead() {
     return head_;
@@ -482,9 +483,66 @@ namespace lean {
     return true;
   }
 
+  void ForkChoiceStore::updateLastFinalized(const Checkpoint &checkpoint) {
+    BOOST_ASSERT(checkpoint.slot > latest_finalized_.slot);
+    latest_finalized_ = checkpoint;
+
+    pruneStatesAfterFinalized();
+
+    // Safety: pull up head/safe_target up to the finalized root (just in case).
+    if (not blocks_.contains(head_)) {
+      head_ = latest_finalized_.root;
+    }
+    if (not blocks_.contains(safe_target_)) {
+      safe_target_ = latest_finalized_.root;
+    }
+  }
+
+  void ForkChoiceStore::pruneStatesAfterFinalized() {
+    const auto &finalized_root = latest_finalized_.root;
+    const auto &finalized_slot = latest_finalized_.slot;
+
+    // Collect block hashes to erase
+    std::vector<BlockHash> to_erase;
+    to_erase.reserve(blocks_.size());
+
+    for (const auto &[hash, signed_block] : blocks_) {
+      const auto &block = signed_block.message.block;
+
+      if (hash == finalized_root) {
+        continue;
+      }
+      if (block.slot < finalized_slot) {
+        to_erase.push_back(hash);
+      }
+    }
+
+    for (const auto &hash : to_erase) {
+      blocks_.erase(hash);
+      states_.erase(hash);
+    }
+
+    // Erase attestations relate of pruned blocks
+    auto prune_attestation_set = [this](SignedAttestations &set) {
+      for (auto it = set.begin(); it != set.end();) {
+        const auto &data = it->second.message.data;
+        const bool ok = blocks_.contains(data.source.root)
+                    and blocks_.contains(data.target.root)
+                    and blocks_.contains(data.head.root);
+        if (not ok) {
+          it = set.erase(it);
+        } else {
+          ++it;
+        }
+      }
+    };
+
+    prune_attestation_set(latest_known_attestations_);
+    prune_attestation_set(latest_new_attestations_);
+  }
+
   outcome::result<void> ForkChoiceStore::onBlock(
       SignedBlockWithAttestation signed_block_with_attestation) {
-    auto timer = metrics_->fc_block_processing_time_seconds()->timer();
     auto &block = signed_block_with_attestation.message.block;
     auto &proposer_attestation =
         signed_block_with_attestation.message.proposer_attestation;
@@ -497,13 +555,15 @@ namespace lean {
       return outcome::success();
     }
 
-    // Verify parent chain is available
+    auto timer = metrics_->fc_block_processing_time_seconds()->timer();
+
+    // Verify parent-chain is available
     //
     // The parent state must exist before processing this block.
     // If missing, the node must sync the parent chain first.
     auto &parent_state = states_.at(block.parent_root);
     // at this point parent state should be available so node should sync
-    // parent chain if not available before adding block to forkchoice
+    // parent-chain if not available before adding block to forkchoice
 
     auto valid_signatures =
         validateBlockSignatures(signed_block_with_attestation);
@@ -523,7 +583,7 @@ namespace lean {
 
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > latest_finalized_.slot) {
-      latest_finalized_ = post_state.latest_finalized;
+      updateLastFinalized(post_state.latest_finalized);
     }
 
     blocks_.emplace(block_hash, signed_block_with_attestation);
@@ -790,45 +850,46 @@ namespace lean {
     }
   }
 
-  ForkChoiceStore::ForkChoiceStore(
-      const GenesisConfig &genesis_config,
-      qtils::SharedRef<clock::SystemClock> clock,
-      qtils::SharedRef<log::LoggingSystem> logging_system,
-      qtils::SharedRef<metrics::Metrics> metrics,
-      qtils::SharedRef<ValidatorRegistry> validator_registry,
-      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
-      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
-      : ForkChoiceStore{
-            genesis_config.state,
-            STF::genesisBlock(genesis_config.state),
-            std::move(clock),
-            std::move(logging_system),
-            std::move(metrics),
-            std::move(validator_registry),
-            std::move(validator_keys_manifest),
-            std::move(xmss_provider),
-        } {}
+  // ForkChoiceStore::ForkChoiceStore(
+  //     const GenesisConfig &genesis_config,
+  //     qtils::SharedRef<clock::SystemClock> clock,
+  //     qtils::SharedRef<log::LoggingSystem> logging_system,
+  //     qtils::SharedRef<metrics::Metrics> metrics,
+  //     qtils::SharedRef<ValidatorRegistry> validator_registry,
+  //     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
+  //     qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
+  //     qtils::SharedRef<blockchain::BlockTree> block_tree)
+  //     : ForkChoiceStore{genesis_config.state,
+  //                       STF::genesisBlock(genesis_config.state),
+  //                       std::move(clock),
+  //                       std::move(logging_system),
+  //                       std::move(metrics),
+  //                       std::move(validator_registry),
+  //                       std::move(validator_keys_manifest),
+  //                       std::move(xmss_provider),
+  //                       std::move(block_tree)} {}
 
   ForkChoiceStore::ForkChoiceStore(
-      const State &anchor_state,
-      const Block &anchor_block,
+      qtils::SharedRef<AnchorState> anchor_state,
+      qtils::SharedRef<AnchorBlock> anchor_block,
       qtils::SharedRef<clock::SystemClock> clock,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
-      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
-      : stf_(metrics),
-        validator_registry_(validator_registry),
-        validator_keys_manifest_(validator_keys_manifest),
-        logger_(
-            logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
+      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
+      qtils::SharedRef<blockchain::BlockTree> block_tree)
+      : logger_(logging_system->getLogger("ForkChoice", "fork_choice")),
         metrics_(std::move(metrics)),
-        xmss_provider_(std::move(xmss_provider)) {
-    BOOST_ASSERT(anchor_block.state_root == sszHash(anchor_state));
-    anchor_block.setHash();
-    auto anchor_root = anchor_block.hash();
-    config_ = anchor_state.config;
+        xmss_provider_(std::move(xmss_provider)),
+        block_tree_(std::move(block_tree)),
+        stf_(metrics_),
+        validator_registry_(std::move(validator_registry)),
+        validator_keys_manifest_(std::move(validator_keys_manifest)) {
+    BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
+    anchor_block->setHash();
+    auto anchor_root = anchor_block->hash();
+    config_ = anchor_state->config;
     auto now_sec = clock->nowSec();
     time_ = now_sec > config_.genesis_time
               ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
@@ -837,16 +898,16 @@ namespace lean {
     safe_target_ = anchor_root;
 
     // TODO: ensure latest justified and finalized are set correctly
-    latest_justified_ = Checkpoint::from(anchor_block);
-    latest_finalized_ = Checkpoint::from(anchor_block);
+    latest_justified_ = Checkpoint::from(*anchor_block);
+    latest_finalized_ = Checkpoint::from(*anchor_block);
 
     blocks_.emplace(anchor_root,
                     SignedBlockWithAttestation{
-                        .message = {.block = std::move(anchor_block)},
+                        .message = {.block = static_cast<Block&>(*anchor_block)},
                     });
     SL_INFO(
-        logger_, "Anchor block {} at slot {}", anchor_root, anchor_block.slot);
-    states_.emplace(anchor_root, anchor_state);
+        logger_, "Anchor block {} at slot {}", anchor_root, anchor_block->slot);
+    states_.emplace(anchor_root, *anchor_state);
     for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
       SL_INFO(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
     }
@@ -855,6 +916,7 @@ namespace lean {
         "Our pubkey: {}",
         validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
   }
+
   // Test constructor implementation
   ForkChoiceStore::ForkChoiceStore(
       uint64_t now_sec,
@@ -872,11 +934,14 @@ namespace lean {
       ValidatorIndex validator_index,
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
-      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
-      : stf_(metrics),
+      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
+      qtils::SharedRef<blockchain::BlockTree> block_tree)
+      : logger_(logging_system->getLogger("ForkChoice", "fork_choice")),
+        metrics_(metrics),
+        xmss_provider_(std::move(xmss_provider)),
+        block_tree_(std::move(block_tree)),
+        stf_(std::move(metrics)),
         time_(now_sec / SECONDS_PER_INTERVAL),
-        logger_(
-            logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         config_(config),
         head_(head),
         safe_target_(safe_target),
@@ -886,8 +951,6 @@ namespace lean {
         states_(std::move(states)),
         latest_known_attestations_(std::move(latest_known_attestations)),
         latest_new_attestations_(std::move(latest_new_attestations)),
-        metrics_(std::move(metrics)),
         validator_registry_(std::move(validator_registry)),
-        validator_keys_manifest_(std::move(validator_keys_manifest)),
-        xmss_provider_(std::move(xmss_provider)) {}
+        validator_keys_manifest_(std::move(validator_keys_manifest)) {}
 }  // namespace lean
