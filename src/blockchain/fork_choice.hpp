@@ -395,6 +395,10 @@ namespace lean {
     bool validateBlockSignatures(
         const SignedBlockWithAttestation &signed_block) const;
 
+    void updateLastFinalized(const Checkpoint &checkpoint);
+
+    void pruneStatesAfterFinalized();
+
     STF stf_;
     Interval time_;
 
@@ -453,6 +457,7 @@ namespace lean {
      * update the Store's latest justified and latest finalized checkpoints.
      */
     std::unordered_map<BlockHash, State> states_;
+
     /**
      * Active attestations that contribute to fork choice weights.
      *

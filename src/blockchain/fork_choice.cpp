@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <ranges>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "blockchain/genesis_config.hpp"
@@ -482,6 +483,64 @@ namespace lean {
     return true;
   }
 
+  void ForkChoiceStore::updateLastFinalized(const Checkpoint& checkpoint) {
+    BOOST_ASSERT(checkpoint.slot > latest_finalized_.slot);
+    latest_finalized_ = checkpoint;
+
+    pruneStatesAfterFinalized();
+
+    // Safety: pull up head/safe_target up to the finalized root (just in case).
+    if (not blocks_.contains(head_)) {
+      head_ = latest_finalized_.root;
+    }
+    if (not blocks_.contains(safe_target_)) {
+      safe_target_ = latest_finalized_.root;
+    }
+  }
+
+  void ForkChoiceStore::pruneStatesAfterFinalized() {
+    const auto& finalized_root = latest_finalized_.root;
+    const auto& finalized_slot = latest_finalized_.slot;
+
+    // Collect block hashes to erase
+    std::vector<BlockHash> to_erase;
+    to_erase.reserve(blocks_.size());
+
+    for (const auto &[hash, signed_block] : blocks_) {
+      const auto &block = signed_block.message.block;
+
+      if (hash == finalized_root) {
+        continue;
+      }
+      if (block.slot < finalized_slot) {
+        to_erase.push_back(hash);
+      }
+    }
+
+    for (const auto &hash : to_erase) {
+      blocks_.erase(hash);
+      states_.erase(hash);
+    }
+
+    // Erase attestations relate of pruned blocks
+    auto prune_attestation_set = [this](SignedAttestations &set) {
+      for (auto it = set.begin(); it != set.end();) {
+        const auto &data = it->second.message.data;
+        const bool ok = blocks_.contains(data.source.root)
+                     and blocks_.contains(data.target.root)
+                     and blocks_.contains(data.head.root);
+        if (not ok) {
+          it = set.erase(it);
+        } else {
+          ++it;
+        }
+      }
+    };
+
+    prune_attestation_set(latest_known_attestations_);
+    prune_attestation_set(latest_new_attestations_);
+  }
+
   outcome::result<void> ForkChoiceStore::onBlock(
       SignedBlockWithAttestation signed_block_with_attestation) {
     auto timer = metrics_->fc_block_processing_time_seconds()->timer();
@@ -523,7 +582,7 @@ namespace lean {
 
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > latest_finalized_.slot) {
-      latest_finalized_ = post_state.latest_finalized;
+      updateLastFinalized(post_state.latest_finalized);
     }
 
     blocks_.emplace(block_hash, signed_block_with_attestation);
@@ -819,8 +878,8 @@ namespace lean {
       qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
       qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
       : stf_(metrics),
-        validator_registry_(validator_registry),
-        validator_keys_manifest_(validator_keys_manifest),
+        validator_registry_(std::move(validator_registry)),
+        validator_keys_manifest_(std::move(validator_keys_manifest)),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
         metrics_(std::move(metrics)),
@@ -855,6 +914,7 @@ namespace lean {
         "Our pubkey: {}",
         validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
   }
+
   // Test constructor implementation
   ForkChoiceStore::ForkChoiceStore(
       uint64_t now_sec,
