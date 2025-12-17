@@ -14,7 +14,9 @@
 #   -m MODULES_DIR           Path to modules dir (default: <repo_root>/build/src/modules)
 #   -r PROJECT_ROOT          Project root to use for defaults (default: parent dir of this script)
 #   -G GRAPH_FILE            Path to GML graph file (default: atlas_v201801.shadow_v2.gml.xz)
+#   -b MAX_BOOTNODES         Max bootnodes to pass to each node (short for --max-bootnodes)
 #   --use-inline-graph       Use inline graph instead of external GML file (default: use external graph)
+#   --max-bootnodes          Max bootnodes to pass to each node (supported: --max-bootnodes=5 or --max-bootnodes 5)
 #
 # Notes:
 # - Node count is inferred from node_*.key files in GENESIS_DIR.
@@ -44,6 +46,7 @@ MODULES_DIR="$MODULES_DIR_DEFAULT"
 GENESIS_DIR=""
 GRAPH_FILE="atlas_v201801.shadow_v2.gml.xz"
 USE_INLINE_GRAPH=false
+MAX_BOOTNODES=""
 
 # Network/graph defaults (host/switched bandwidth, latency, packet loss)
 BANDWIDTH_HOST="100 Mbit"
@@ -51,7 +54,7 @@ BANDWIDTH_SWITCH="1 Gbit"
 LINK_LATENCY="1 ms"
 PACKET_LOSS="0.0"
 
-while getopts ":g:o:t:u:p:i:x:m:r:G:h-:" opt; do
+while getopts ":g:o:t:u:p:i:x:m:r:G:b:h-:" opt; do
   case $opt in
     g) GENESIS_DIR="$OPTARG" ;;
     o) OUTPUT_YAML="$OPTARG" ;;
@@ -63,9 +66,17 @@ while getopts ":g:o:t:u:p:i:x:m:r:G:h-:" opt; do
     m) MODULES_DIR="$OPTARG" ;;
     r) PROJECT_ROOT="$OPTARG" ; QLEAN_PATH_DEFAULT="$PROJECT_ROOT/build/src/executable/qlean"; MODULES_DIR_DEFAULT="$PROJECT_ROOT/build/src/modules" ;;
     G) GRAPH_FILE="$OPTARG" ;;
+    b) MAX_BOOTNODES="$OPTARG" ;;
     h) print_usage; exit 0 ;;
     -) case "${OPTARG}" in
          use-inline-graph) USE_INLINE_GRAPH=true ;;
+         max-bootnodes)
+           # support: --max-bootnodes 5
+           MAX_BOOTNODES="${!OPTIND}"
+           OPTIND=$((OPTIND + 1)) ;;
+         max-bootnodes=*)
+           # support: --max-bootnodes=5
+           MAX_BOOTNODES="${OPTARG#*=}" ;;
          *) echo "Error: Invalid option --${OPTARG}" >&2; print_usage; exit 2 ;;
        esac ;;
     :) echo "Error: Option -$OPTARG requires an argument" >&2; print_usage; exit 2 ;;
@@ -310,6 +321,10 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
       "--prometheus-port" "$prom_port"
       "--shadow"
     )
+    # Append max bootnodes flag if requested
+    if [[ -n "$MAX_BOOTNODES" ]]; then
+      args_str+=("--max-bootnodes" "$MAX_BOOTNODES")
+    fi
     # Join args preserving spaces
     IFS=' ' read -r -a _dummy <<< "" # reset
     joined="${args_str[*]}"
