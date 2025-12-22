@@ -55,7 +55,7 @@ namespace lean {
    */
   class ForkChoiceStore {
    public:
-    using Blocks = std::unordered_map<BlockHash, Block>;
+    using Blocks = std::unordered_map<BlockHash, SignedBlockWithAttestation>;
     using SignedAttestations =
         std::unordered_map<ValidatorIndex, SignedAttestation>;
 

@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <random>
 #include <thread>
 
 #include <libp2p/event/bus.hpp>
+#include <libp2p/peer/peer_info.hpp>
 #include <log/logger.hpp>
 #include <modules/networking/interfaces.hpp>
 #include <qtils/create_smart_pointer_macros.hpp>
@@ -18,6 +20,10 @@
 namespace boost::asio {
   class io_context;
 }  // namespace boost::asio
+
+namespace libp2p::host {
+  class BasicHost;
+}  // namespace libp2p::host
 
 namespace libp2p::protocol {
   class Ping;
@@ -45,6 +51,55 @@ namespace lean::app {
 namespace lean::modules {
   class StatusProtocol;
   class BlockRequestProtocol;
+
+  using Clock = std::chrono::steady_clock;
+
+  /**
+   * Peer information and state.
+   * Peer can be in connectable list, be connecting, be connected, be backedoff.
+   */
+  struct PeerState {
+    /**
+     * Peer not connected.
+     */
+    struct Connectable {
+      /**
+       * Backoff to use on next connect failure.
+       */
+      std::chrono::milliseconds backoff;
+    };
+    /**
+     * Connecting to peer.
+     */
+    struct Connecting {
+      /**
+       * Backoff to use on next connect failure.
+       */
+      std::chrono::milliseconds backoff;
+    };
+    /**
+     * Connected to peer.
+     */
+    struct Connected {};
+    /**
+     * Don't connect
+     */
+    struct Backoff {
+      /**
+       * Backoff to use on next connect failure.
+       */
+      std::chrono::milliseconds backoff;
+      /**
+       * Won't attempt to connect until this time.
+       */
+      Clock::time_point backoff_until;
+    };
+    /**
+     * Peer id and addresses to connect to.
+     */
+    libp2p::PeerInfo info;
+    std::variant<Connectable, Connecting, Connected, Backoff> state;
+  };
 
   /**
    * Network module.
@@ -90,6 +145,11 @@ namespace lean::modules {
     void receiveBlock(std::optional<libp2p::PeerId> peer_id,
                       SignedBlockWithAttestation &&block);
     bool statusFinalizedIsGood(const BlockIndex &slot_hash);
+    /**
+     * Called periodically to connect to more peers if there are not enough
+     * connections.
+     */
+    void connectToPeers();
 
     NetworkingLoader &loader_;
     log::Logger logger_;
@@ -106,11 +166,21 @@ namespace lean::modules {
     std::shared_ptr<BlockRequestProtocol> block_request_protocol_;
     std::shared_ptr<libp2p::protocol::gossip::Gossip> gossip_;
     std::shared_ptr<libp2p::protocol::Ping> ping_;
+    std::shared_ptr<libp2p::host::BasicHost> host_;
     std::shared_ptr<libp2p::protocol::Identify> identify_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_blocks_topic_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
     std::unordered_map<BlockHash, SignedBlockWithAttestation> block_cache_;
     std::unordered_multimap<BlockHash, BlockHash> block_children_;
+    std::default_random_engine random_;
+    /**
+     * Array of connectable peers to pick random peer from.
+     */
+    std::vector<libp2p::PeerId> connectable_peers_;
+    /**
+     * Bootnode peers states.
+     */
+    std::unordered_map<libp2p::PeerId, PeerState> peer_states_;
   };
 
 }  // namespace lean::modules

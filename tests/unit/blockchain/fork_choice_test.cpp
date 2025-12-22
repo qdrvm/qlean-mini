@@ -121,7 +121,8 @@ auto makeBlockMap(std::vector<lean::Block> blocks) {
   ForkChoiceStore::Blocks map;
   for (auto block : blocks) {
     block.setHash();
-    map.emplace(block.hash(), block);
+    map.emplace(block.hash(),
+                lean::SignedBlockWithAttestation{.message = {.block = block}});
   }
   return map;
 }

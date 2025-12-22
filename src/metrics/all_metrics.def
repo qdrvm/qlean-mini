@@ -2,3 +2,4 @@
 #include "blockchain/fork_choice_metrics.def"
 #include "blockchain/impl/validator_metrics.def"
 #include "blockchain/state_transition_metrics.def"
+#include "crypto/crypto_metrics.def"

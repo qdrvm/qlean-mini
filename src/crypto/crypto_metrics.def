@@ -1,0 +1,49 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * @brief Cryptography metrics definitions
+ *
+ * Format:
+ *   METRIC_GAUGE(field_name,
+ *                "prometheus_metric_name",
+ *                "help_text")
+ *
+ *   METRIC_GAUGE_LABELS(field_name,
+ *                       "prometheus_metric_name",
+ *                       "help_text",
+ *                       {"label1", "label2", ...})
+ *
+ *   METRIC_COUNTER(field_name,
+ *                  "prometheus_metric_name",
+ *                  "help_text")
+ *
+ *   METRIC_COUNTER_LABELS(field_name,
+ *                         "prometheus_metric_name",
+ *                         "help_text",
+ *                         {"label1", "label2", ...})
+ *
+ *   METRIC_HISTOGRAM(field_name,
+ *                    "prometheus_metric_name",
+ *                    "help_text",
+ *                    {bucket1, bucket2, ...})
+ *
+ *   METRIC_HISTOGRAM_LABELS(field_name,
+ *                           "prometheus_metric_name",
+ *                           "help_text",
+ *                           {bucket1, bucket2, ...},
+ *                           {"label1", "label2", ...})
+ */
+
+// PQ signatures
+METRIC_HISTOGRAM(crypto_pq_signature_attestation_signing_time_seconds,
+                 "lean_pq_signature_attestation_signing_time_seconds",
+                 "Time taken to sign an attestation",
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+METRIC_HISTOGRAM(crypto_pq_signature_attestation_verification_time_seconds,
+                 "lean_pq_signature_attestation_verification_time_seconds",
+                 "Time taken to verify an attestation signature",
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
