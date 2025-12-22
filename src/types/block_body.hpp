@@ -8,12 +8,11 @@
 
 #include <sszpp/container.hpp>
 
-#include "types/attestations.hpp"
+#include "types/aggregated_attestations.hpp"
 
 namespace lean {
   struct BlockBody : ssz::ssz_variable_size_container {
-    /// @note attestations will be replaced by aggregated attestations.
-    Attestations attestations;
+    AggregatedAttestations attestations;
 
     SSZ_CONT(attestations);
     bool operator==(const BlockBody &) const = default;

@@ -85,7 +85,7 @@ namespace lean {
     outcome::result<void> processOperations(State &state,
                                             const BlockBody &body) const;
     outcome::result<void> processAttestations(
-        State &state, const Attestations &attestations) const;
+        State &state, const AggregatedAttestations &attestations) const;
     bool validateProposerIndex(const State &state, const Block &block) const;
 
    private:

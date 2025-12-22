@@ -26,6 +26,7 @@
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
 #include "utils/ceil_div.hpp"
+#include "utils/tuple_hash.hpp"
 
 namespace lean {
   struct GenesisConfig;
@@ -56,12 +57,13 @@ namespace lean {
   class ForkChoiceStore {
    public:
     using Blocks = std::unordered_map<BlockHash, SignedBlockWithAttestation>;
-    using SignedAttestations =
-        std::unordered_map<ValidatorIndex, SignedAttestation>;
+    using AttestationDataByValidator =
+        std::unordered_map<ValidatorIndex, AttestationData>;
 
     enum class Error {
       INVALID_ATTESTATION,
       INVALID_PROPOSER,
+      SIGNATURE_COUNT_MISMATCH,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
@@ -70,6 +72,8 @@ namespace lean {
           return "Invalid attestation";
         case E::INVALID_PROPOSER:
           return "Invalid proposer";
+        case E::SIGNATURE_COUNT_MISMATCH:
+          return "Signature count must match attestation count";
       }
       abort();
     }
@@ -111,8 +115,8 @@ namespace lean {
         Checkpoint latest_finalized,
         Blocks blocks,
         std::unordered_map<BlockHash, State> states,
-        SignedAttestations latest_known_attestations,
-        SignedAttestations latest_new_votes,
+        AttestationDataByValidator latest_known_attestations,
+        AttestationDataByValidator latest_new_votes,
         ValidatorIndex validator_index,
         qtils::SharedRef<ValidatorRegistry> validator_registry,
         qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
@@ -151,13 +155,13 @@ namespace lean {
     const Blocks &getBlocks() const {
       return blocks_;
     }
-    const SignedAttestations &getLatestNewAttestations() const {
+    const AttestationDataByValidator &getLatestNewAttestations() const {
       return latest_new_attestations_;
     }
-    const SignedAttestations &getLatestKnownAttestations() const {
+    const AttestationDataByValidator &getLatestKnownAttestations() const {
       return latest_known_attestations_;
     }
-    SignedAttestations &getLatestNewVotesRef() {
+    AttestationDataByValidator &getLatestNewVotesRef() {
       return latest_new_attestations_;
     }
 
@@ -193,9 +197,10 @@ namespace lean {
      * Returns:
      *     Hash of the chosen head block.
      */
-    BlockHash computeLmdGhostHead(const BlockHash &start_root,
-                                  const SignedAttestations &attestations,
-                                  uint64_t min_score = 0) const;
+    BlockHash computeLmdGhostHead(
+        const BlockHash &start_root,
+        const AttestationDataByValidator &attestations,
+        uint64_t min_score = 0) const;
 
     /**
      * Calculate target checkpoint for validator attestations.
@@ -307,7 +312,18 @@ namespace lean {
      * Returns:
      *     Success if validation passes, error otherwise.
      */
-    outcome::result<void> validateAttestation(
+    outcome::result<void> validateAttestation(const Attestation &attestation);
+
+    /**
+     * Process a signed attestation received via gossip network.
+     * This method:
+     * 1. Verifies the XMSS signature
+     * 2. Stores the signature in the gossip signature map
+     * 3. Processes the attestation data via on_attestation
+     * Args:
+     *     signed_attestation: The signed attestation from gossip.
+     */
+    outcome::result<void> onGossipAttestation(
         const SignedAttestation &signed_attestation);
 
     /**
@@ -356,8 +372,8 @@ namespace lean {
      * Returns:
      *     Success if the attestation was processed, error otherwise.
      */
-    outcome::result<void> onAttestation(
-        const SignedAttestation &signed_attestation, bool is_from_block);
+    outcome::result<void> onAttestation(const Attestation &attestation,
+                                        bool is_from_block);
 
 
     // Processes a new block, updates the store, and triggers a head update.
@@ -377,6 +393,12 @@ namespace lean {
     }
 
    private:
+    using ValidatorAttestationKey = std::tuple<ValidatorIndex, BlockHash>;
+
+    static ValidatorAttestationKey validatorAttestationKey(
+        ValidatorIndex validator_index,
+        const AttestationData &attestation_data);
+
     // Verify all XMSS signatures in a signed block.
     //
     // This method ensures that every attestation included in the block
@@ -464,7 +486,7 @@ namespace lean {
      * For each validator, stores their most recent attestation that is
      * currently influencing the fork choice head computation.
      */
-    SignedAttestations latest_known_attestations_;
+    AttestationDataByValidator latest_known_attestations_;
 
     /**
      * Pending attestations awaiting activation.
@@ -477,7 +499,24 @@ namespace lean {
      * Attestations move from this map to latest_known_attestations_ during
      * interval ticks.
      */
-    SignedAttestations latest_new_attestations_;
+    AttestationDataByValidator latest_new_attestations_;
+    /**
+     * Map of validator id and attestation root to the XMSS signature.
+     */
+    std::unordered_map<ValidatorAttestationKey, Signature>
+        gossip_attestation_signatures_;
+    /**
+     * Aggregated signature payloads for attestations from blocks.
+     * - Keyed by (validator_id, attestation_data_root).
+     * - Values are lists because same (validator_id, data) can appear in
+     * multiple aggregations.
+     * - Used for recursive signature aggregation when building blocks.
+     * - Populated by on_block.
+     */
+    std::unordered_map<ValidatorAttestationKey,
+                       std::vector<std::shared_ptr<LeanAggregatedSignature>>>
+        block_attestation_signatures_;
+
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
     log::Logger logger_;

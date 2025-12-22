@@ -240,7 +240,7 @@ namespace lean {
   }
 
   outcome::result<void> STF::processAttestations(
-      State &state, const Attestations &attestations) const {
+      State &state, const AggregatedAttestations &attestations) const {
     auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
 
     // NOTE:
@@ -346,12 +346,14 @@ namespace lean {
         justifications_it->second.resize(state.validatorCount());
       }
 
-      auto validator_id = attestation.validator_id;
-      if (validator_id >= justifications_it->second.size()) {
-        return Error::INVALID_VOTER;
-      }
-      if (not justifications_it->second.at(validator_id)) {
-        justifications_it->second.at(validator_id) = true;
+      for (auto &&validator_id :
+           getAggregatedValidators(attestation.aggregation_bits)) {
+        if (validator_id >= justifications_it->second.size()) {
+          return Error::INVALID_VOTER;
+        }
+        if (not justifications_it->second.at(validator_id)) {
+          justifications_it->second.at(validator_id) = true;
+        }
       }
 
       size_t count = std::ranges::count(justifications_it->second, true);
