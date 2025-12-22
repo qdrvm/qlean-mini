@@ -19,13 +19,4 @@ namespace lean {
     SSZ_CONT(message, signature);
     bool operator==(const SignedBlockWithAttestation &) const = default;
   };
-
-  /**
-   * Stub method to sign block.
-   */
-  inline SignedBlockWithAttestation signBlock(
-      SignedBlockWithAttestation signed_block_with_attestation) {
-    signed_block_with_attestation.signature.data().emplace_back();
-    return signed_block_with_attestation;
-  }
 }  // namespace lean
