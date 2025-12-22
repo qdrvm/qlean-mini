@@ -13,6 +13,10 @@
 #   -x QLEAN_PATH            Path to qlean executable (default: <repo_root>/build/src/executable/qlean)
 #   -m MODULES_DIR           Path to modules dir (default: <repo_root>/build/src/modules)
 #   -r PROJECT_ROOT          Project root to use for defaults (default: parent dir of this script)
+#   -G GRAPH_FILE            Path to GML graph file (default: atlas_v201801.shadow_v2.gml.xz)
+#   -b MAX_BOOTNODES         Max bootnodes to pass to each node (short for --max-bootnodes)
+#   --use-inline-graph       Use inline graph instead of external GML file (default: use external graph)
+#   --max-bootnodes          Max bootnodes to pass to each node (supported: --max-bootnodes=5 or --max-bootnodes 5)
 #
 # Notes:
 # - Node count is inferred from node_*.key files in GENESIS_DIR.
@@ -40,6 +44,9 @@ MODULES_DIR_DEFAULT="$PROJECT_ROOT/build/src/modules"
 QLEAN_PATH="$QLEAN_PATH_DEFAULT"
 MODULES_DIR="$MODULES_DIR_DEFAULT"
 GENESIS_DIR=""
+GRAPH_FILE="atlas_v201801.shadow_v2.gml.xz"
+USE_INLINE_GRAPH=false
+MAX_BOOTNODES=""
 
 # Network/graph defaults (host/switched bandwidth, latency, packet loss)
 BANDWIDTH_HOST="100 Mbit"
@@ -47,7 +54,7 @@ BANDWIDTH_SWITCH="1 Gbit"
 LINK_LATENCY="1 ms"
 PACKET_LOSS="0.0"
 
-while getopts ":g:o:t:u:p:i:x:m:r:h" opt; do
+while getopts ":g:o:t:u:p:i:x:m:r:G:b:h-:" opt; do
   case $opt in
     g) GENESIS_DIR="$OPTARG" ;;
     o) OUTPUT_YAML="$OPTARG" ;;
@@ -58,7 +65,20 @@ while getopts ":g:o:t:u:p:i:x:m:r:h" opt; do
     x) QLEAN_PATH="$OPTARG" ;;
     m) MODULES_DIR="$OPTARG" ;;
     r) PROJECT_ROOT="$OPTARG" ; QLEAN_PATH_DEFAULT="$PROJECT_ROOT/build/src/executable/qlean"; MODULES_DIR_DEFAULT="$PROJECT_ROOT/build/src/modules" ;;
+    G) GRAPH_FILE="$OPTARG" ;;
+    b) MAX_BOOTNODES="$OPTARG" ;;
     h) print_usage; exit 0 ;;
+    -) case "${OPTARG}" in
+         use-inline-graph) USE_INLINE_GRAPH=true ;;
+         max-bootnodes)
+           # support: --max-bootnodes 5
+           MAX_BOOTNODES="${!OPTIND}"
+           OPTIND=$((OPTIND + 1)) ;;
+         max-bootnodes=*)
+           # support: --max-bootnodes=5
+           MAX_BOOTNODES="${OPTARG#*=}" ;;
+         *) echo "Error: Invalid option --${OPTARG}" >&2; print_usage; exit 2 ;;
+       esac ;;
     :) echo "Error: Option -$OPTARG requires an argument" >&2; print_usage; exit 2 ;;
     \?) echo "Error: Invalid option -$OPTARG" >&2; print_usage; exit 2 ;;
   esac
@@ -96,9 +116,11 @@ GENESIS_DIR_ABS="$(py_abspath "$GENESIS_DIR")"
 QLEAN_PATH_ABS="$(py_abspath "$QLEAN_PATH")"
 MODULES_DIR_ABS="$(py_abspath "$MODULES_DIR")"
 OUTPUT_YAML_ABS="$(py_abspath "$(dirname "$OUTPUT_YAML")")/$(basename "$OUTPUT_YAML")"
+GRAPH_FILE_ABS="$(py_abspath "$GRAPH_FILE")"
 
 CONFIG_YAML="$GENESIS_DIR_ABS/config.yaml"
 VALIDATORS_YAML="$GENESIS_DIR_ABS/validators.yaml"
+VALIDATOR_KEYS_MANIFEST_YAML="$GENESIS_DIR_ABS/hash-sig-keys/validator-keys-manifest.yaml"
 VALIDATOR_CONFIG_YAML="$GENESIS_DIR_ABS/validator-config.yaml"
 NODES_YAML="$GENESIS_DIR_ABS/nodes.yaml"
 
@@ -209,51 +231,60 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
   printf "experimental:\n"
   printf "  native_preemption_enabled: true\n"
   printf "network:\n"
-  # Emit an inline GML graph: create one node per host with 100 Mbit and a central switch with 1 Gbit
   printf "  graph:\n"
   printf "    type: gml\n"
-  printf "    inline: |\n"
-  printf "      graph [\n"
-  printf "        directed 0\n"
+  
+  if [[ "$USE_INLINE_GRAPH" == "true" ]]; then
+    # Emit inline GML graph
+    printf "    inline: |\n"
+    printf "      graph [\n"
+    printf "        directed 0\n"
 
-  # Print node entries for each host
-  for ((i=0; i<NODE_COUNT; i++)); do
+    # Print node entries for each host
+    for ((i=0; i<NODE_COUNT; i++)); do
+      printf "        node [\n"
+      printf "          id %d\n" "$i"
+      printf "          host_bandwidth_up \"%s\"\n" "$BANDWIDTH_HOST"
+      printf "          host_bandwidth_down \"%s\"\n" "$BANDWIDTH_HOST"
+      printf "        ]\n"
+    done
+
+    # Central switch node (id = NODE_COUNT)
+    central_id=$NODE_COUNT
     printf "        node [\n"
-    printf "          id %d\n" "$i"
-    printf "          host_bandwidth_up \"%s\"\n" "$BANDWIDTH_HOST"
-    printf "          host_bandwidth_down \"%s\"\n" "$BANDWIDTH_HOST"
+    printf "          id %d\n" "$central_id"
+    printf "          host_bandwidth_up \"%s\"\n" "$BANDWIDTH_SWITCH"
+    printf "          host_bandwidth_down \"%s\"\n" "$BANDWIDTH_SWITCH"
     printf "        ]\n"
-  done
 
-  # Central switch node (id = NODE_COUNT)
-  central_id=$NODE_COUNT
-  printf "        node [\n"
-  printf "          id %d\n" "$central_id"
-  printf "          host_bandwidth_up \"%s\"\n" "$BANDWIDTH_SWITCH"
-  printf "          host_bandwidth_down \"%s\"\n" "$BANDWIDTH_SWITCH"
-  printf "        ]\n"
+    # Self-loop edges for hosts and switch
+    for ((i=0; i<=NODE_COUNT; i++)); do
+      printf "        edge [\n"
+      printf "          source %d\n" "$i"
+      printf "          target %d\n" "$i"
+      printf "          latency \"%s\"\n" "$LINK_LATENCY"
+      printf "          packet_loss %s\n" "$PACKET_LOSS"
+      printf "        ]\n"
+    done
 
-  # Self-loop edges for hosts and switch
-  for ((i=0; i<=NODE_COUNT; i++)); do
-    printf "        edge [\n"
-    printf "          source %d\n" "$i"
-    printf "          target %d\n" "$i"
-    printf "          latency \"%s\"\n" "$LINK_LATENCY"
-    printf "          packet_loss %s\n" "$PACKET_LOSS"
-    printf "        ]\n"
-  done
+    # Edges from each host to central switch
+    for ((i=0; i<NODE_COUNT; i++)); do
+      printf "        edge [\n"
+      printf "          source %d\n" "$i"
+      printf "          target %d\n" "$central_id"
+      printf "          latency \"%s\"\n" "$LINK_LATENCY"
+      printf "          packet_loss %s\n" "$PACKET_LOSS"
+      printf "        ]\n"
+    done
 
-  # Edges from each host to central switch
-  for ((i=0; i<NODE_COUNT; i++)); do
-    printf "        edge [\n"
-    printf "          source %d\n" "$i"
-    printf "          target %d\n" "$central_id"
-    printf "          latency \"%s\"\n" "$LINK_LATENCY"
-    printf "          packet_loss %s\n" "$PACKET_LOSS"
-    printf "        ]\n"
-  done
+    printf "      ]\n"
+  else
+    # Use external GML file (absolute path)
+    printf "    file:\n"
+    printf "      path: \"%s\"\n" "$GRAPH_FILE_ABS"
+  fi
 
-  printf "      ]\n"
+  printf "  use_shortest_path: true\n"
 
   printf "hosts:\n"
 
@@ -283,16 +314,24 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
       "--bootnodes" "$NODES_YAML"
       "--genesis" "$CONFIG_YAML"
       "--validator-registry-path" "$VALIDATORS_YAML"
+      "--validator-keys-manifest" "$VALIDATOR_KEYS_MANIFEST_YAML"
       "--node-id" "node_${i}"
       "--node-key" "$key_file"
       "--listen-addr" "/ip4/0.0.0.0/udp/${udp_port}/quic-v1"
       "--prometheus-port" "$prom_port"
+      "--shadow"
     )
+    # Append max bootnodes flag if requested
+    if [[ -n "$MAX_BOOTNODES" ]]; then
+      args_str+=("--max-bootnodes" "$MAX_BOOTNODES")
+    fi
     # Join args preserving spaces
     IFS=' ' read -r -a _dummy <<< "" # reset
     joined="${args_str[*]}"
 
     printf "  %s:\n" "$node_name"
+  printf "    bandwidth_up: \"%s\"\n" "$BANDWIDTH_HOST"
+  printf "    bandwidth_down: \"%s\"\n" "$BANDWIDTH_HOST"
     printf "    network_node_id: %d\n" "$i"
     printf "    ip_addr: %s\n" "$ip"
     printf "    processes:\n"

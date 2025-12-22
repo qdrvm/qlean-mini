@@ -5,6 +5,7 @@
 #
 
 add_library(xmss_provider
+    xmss_provider_fake.cpp
     xmss_provider_impl.cpp
     xmss_util.cpp
 )

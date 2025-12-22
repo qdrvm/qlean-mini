@@ -55,35 +55,41 @@ inline int cmdGenerateGenesis(auto &&getArg) {
     auto hashsig_directory = genesis_directory / "hash-sig-keys";
     std::filesystem::create_directories(hashsig_directory);
 
+    auto fake_xmss = shadow;
+
     std::vector<lean::crypto::xmss::XmssPublicKey> xmss_public_keys;
-    for (size_t index = 0; index < validator_count; ++index) {
-      auto xmss_public_key_path =
-          hashsig_directory / xmss_public_key_name(index);
-      auto xmss_private_key_path =
-          hashsig_directory / xmss_private_key_name(index);
-      if (std::filesystem::exists(xmss_public_key_path)
-          and std::filesystem::exists(xmss_private_key_path)) {
-        auto keypair_result = lean::crypto::xmss::loadKeypairFromJson(
-            xmss_private_key_path, xmss_public_key_path);
-        if (not keypair_result) {
-          fmt::println(std::cerr,
-                       "Error loading XMSS keypair: {}",
-                       keypair_result.error().message());
-          fmt::println(std::cerr, "  {}", xmss_public_key_path.string());
-          fmt::println(std::cerr, "  {}", xmss_private_key_path.string());
-          return EXIT_FAILURE;
+    if (not fake_xmss) {
+      for (size_t index = 0; index < validator_count; ++index) {
+        auto xmss_public_key_path =
+            hashsig_directory / xmss_public_key_name(index);
+        auto xmss_private_key_path =
+            hashsig_directory / xmss_private_key_name(index);
+        if (std::filesystem::exists(xmss_public_key_path)
+            and std::filesystem::exists(xmss_private_key_path)) {
+          auto keypair_result = lean::crypto::xmss::loadKeypairFromJson(
+              xmss_private_key_path, xmss_public_key_path);
+          if (not keypair_result) {
+            fmt::println(std::cerr,
+                         "Error loading XMSS keypair: {}",
+                         keypair_result.error().message());
+            fmt::println(std::cerr, "  {}", xmss_public_key_path.string());
+            fmt::println(std::cerr, "  {}", xmss_private_key_path.string());
+            return EXIT_FAILURE;
+          }
+          auto &keypair = keypair_result.value();
+          xmss_public_keys.emplace_back(keypair.public_key);
+        } else {
+          fmt::println(
+              std::cerr, "Generating XMSS keypair for validator {}", index);
+          auto keypair = lean::crypto::xmss::XmssProviderImpl{}.generateKeypair(
+              xmss_activation_epoch, xmss_active_epoch);
+          write_json(xmss_private_key_path, keypair.private_key);
+          write_json(xmss_public_key_path, keypair.public_key);
+          xmss_public_keys.emplace_back(keypair.public_key);
         }
-        auto &keypair = keypair_result.value();
-        xmss_public_keys.emplace_back(keypair.public_key);
-      } else {
-        fmt::println(
-            std::cerr, "Generating XMSS keypair for validator {}", index);
-        auto keypair = lean::crypto::xmss::XmssProviderImpl{}.generateKeypair(
-            xmss_activation_epoch, xmss_active_epoch);
-        write_json(xmss_private_key_path, keypair.private_key);
-        write_json(xmss_public_key_path, keypair.public_key);
-        xmss_public_keys.emplace_back(keypair.public_key);
       }
+    } else {
+      xmss_public_keys.resize(validator_count);
     }
 
     build_yaml(
@@ -110,7 +116,7 @@ inline int cmdGenerateGenesis(auto &&getArg) {
     build_yaml(genesis_directory / "config.yaml", [&](YAML::Node &yaml) {
       yaml["GENESIS_TIME"] = genesis_time;
       yaml["VALIDATOR_COUNT"] = validator_count;
-      auto &&yaml_validators = yaml["VALIDATORS"];
+      auto &&yaml_validators = yaml["GENESIS_VALIDATORS"];
       for (auto &xmss_public_key : xmss_public_keys) {
         yaml_validators.push_back(xmss_public_key.toHex());
       }
