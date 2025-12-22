@@ -393,8 +393,9 @@ namespace lean::modules {
           if (not self) {
             return;
           }
-          self->logger_->info("receive-attestation-{}",
-                              Debug{signed_attestation.message});
+          SL_INFO(self->logger_,
+                  "receive-attestation-{}",
+                  Debug{signed_attestation.message});
           auto res = self->fork_choice_store_->onAttestation(signed_attestation,
                                                              false);
           if (not res.has_value()) {
@@ -421,7 +422,7 @@ namespace lean::modules {
 
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
-    logger_->info("publish-block-{}", Debug{message->notification.message});
+    SL_INFO(logger_, "publish-block-{}", Debug{message->notification.message});
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_blocks_topic_->publish(
           encodeSszSnappy(message->notification));
@@ -430,8 +431,9 @@ namespace lean::modules {
 
   void NetworkingImpl::onSendSignedVote(
       std::shared_ptr<const messages::SendSignedVote> message) {
-    logger_->info("publish-attestation-{}",
-                  Debug{message->notification.message});
+    SL_INFO(logger_,
+            "publish-attestation-{}",
+            Debug{message->notification.message});
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_votes_topic_->publish(
           encodeSszSnappy(message->notification));
@@ -502,8 +504,9 @@ namespace lean::modules {
   void NetworkingImpl::receiveBlock(
       std::optional<libp2p::PeerId> from_peer,
       SignedBlockWithAttestation &&signed_block_with_attestation) {
-    logger_->info("receive-block-{}",
-                  Debug{signed_block_with_attestation.message});
+    SL_INFO(logger_,
+            "receive-block-{}",
+            Debug{signed_block_with_attestation.message});
     auto slot_hash = signed_block_with_attestation.message.block.slotHash();
     SL_INFO(logger_,
             "receiveBlock slot {} hash {} parent {}",
