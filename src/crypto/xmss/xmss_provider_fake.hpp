@@ -27,5 +27,7 @@ namespace lean::crypto::xmss {
                 qtils::BytesIn,
                 uint32_t,
                 XmssSignature) override;
+
+    static XmssKeypair loadKeypair(std::string_view private_key_path);
   };
 }  // namespace lean::crypto::xmss

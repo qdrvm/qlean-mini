@@ -28,6 +28,7 @@
 #include "app/configuration.hpp"
 #include "app/default_logging_yaml.hpp"
 #include "app/validator_keys_manifest.hpp"
+#include "crypto/xmss/xmss_provider_fake.hpp"
 #include "crypto/xmss/xmss_util.hpp"
 #include "log/formatters/filepath.hpp"
 #include "modules/networking/get_node_key.hpp"
@@ -654,7 +655,8 @@ namespace lean::app {
       SL_INFO(logger_, "  Public key: {}", config_->xmss_public_key_path_);
       SL_INFO(logger_, "  Secret key: {}", config_->xmss_secret_key_path_);
     } else {
-      config_->xmss_keypair_.emplace();
+      config_->xmss_keypair_ = crypto::xmss::XmssProviderFake::loadKeypair(
+          config_->xmss_secret_key_path_.string());
     }
 
     // Load validator keys manifest (mandatory)
