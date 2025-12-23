@@ -88,7 +88,6 @@ namespace lean::modules {
         config_{std::move(config)},
         random_{std::random_device{}()} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
-//    block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }
 
   NetworkingImpl::~NetworkingImpl() {
@@ -573,7 +572,7 @@ namespace lean::modules {
   }
 
   bool NetworkingImpl::statusFinalizedIsGood(const BlockIndex &slot_hash) {
-    if (auto expected = block_tree_->getNumberByHash(slot_hash.hash)) {
+    if (auto expected = block_tree_->getSlotByHash(slot_hash.hash)) {
       return slot_hash.slot == expected.value();
     }
     return slot_hash.slot > block_tree_->lastFinalized().slot;

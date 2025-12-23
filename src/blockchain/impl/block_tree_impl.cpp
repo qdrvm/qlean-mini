@@ -151,7 +151,7 @@ namespace lean::blockchain {
             OUTCOME_TRY(header, getBlockHeader(block_hash));
             // OUTCOME_TRY(p.storage_->removeJustification(finalized.hash));
 
-            OUTCOME_TRY(slot, getNumberByHash(header.parent_root));
+            OUTCOME_TRY(slot, getSlotByHash(header.parent_root));
             auto parent = BlockIndex(slot, header.parent_root);
 
             ReorgAndPrune changes{
@@ -828,7 +828,7 @@ namespace lean::blockchain {
 
   // BlockHeaderRepository methods
 
-  outcome::result<Slot> BlockTreeImpl::getNumberByHash(
+  outcome::result<Slot> BlockTreeImpl::getSlotByHash(
       const BlockHash &block_hash) const {
     auto slot_opt = block_tree_data_.sharedAccess(
         [&](const BlockTreeData &p) -> std::optional<Slot> {

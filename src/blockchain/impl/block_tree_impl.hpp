@@ -114,7 +114,7 @@ namespace lean::blockchain {
 
     // BlockHeaderRepository methods
 
-    outcome::result<Slot> getNumberByHash(
+    outcome::result<Slot> getSlotByHash(
         const BlockHash &block_hash) const override;
 
     // outcome::result<BlockHash> getHashByNumber(

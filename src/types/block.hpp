@@ -46,6 +46,10 @@ namespace lean {
     BlockIndex slotHash() const {
       return {slot, hash()};
     }
+
+    BlockIndex index() const {
+      return {slot, hash()};
+    }
   };
 
   struct AnchorBlock : Block {

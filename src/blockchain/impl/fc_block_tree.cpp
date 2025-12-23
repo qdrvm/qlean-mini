@@ -106,19 +106,19 @@ namespace lean::blockchain {
 
   outcome::result<std::optional<SignedBlockWithAttestation>>
   FCBlockTree::tryGetSignedBlock(const BlockHash block_hash) const {
-    auto &blocks = fork_choice_store_->getBlocks();
-    auto it = blocks.find(block_hash);
-    if (it == blocks.end()) {
+    // auto &blocks = fork_choice_store_->getBlocks();
+    // auto it = blocks.find(block_hash);
+    // if (it == blocks.end()) {
       return std::nullopt;
-    }
-    return it->second;
+    // }
+    // return it->second;
   }
 
   void FCBlockTree::import(std::vector<SignedBlockWithAttestation> blocks) {}
 
   // BlockHeaderRepository methods
 
-  outcome::result<Slot> FCBlockTree::getNumberByHash(
+  outcome::result<Slot> FCBlockTree::getSlotByHash(
       const BlockHash &block_hash) const {
     auto opt = fork_choice_store_->getBlockSlot(block_hash);
     if (not opt.has_value()) {

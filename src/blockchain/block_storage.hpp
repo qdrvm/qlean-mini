@@ -17,6 +17,9 @@
 #include "types/signed_block_with_attestation.hpp"
 #include "types/types.hpp"
 
+namespace lean {
+  struct State;
+}
 namespace lean::blockchain {
 
   /**
@@ -147,7 +150,7 @@ namespace lean::blockchain {
     // -- body --
 
     /**
-     * Saves provided body of block to  block storage
+     * Saves provided body of block to block storage
      * @returns result of saving
      */
     virtual outcome::result<void> putBlockBody(const BlockHash &block_hash,
@@ -165,6 +168,22 @@ namespace lean::blockchain {
      * @returns result of saving
      */
     virtual outcome::result<void> removeBlockBody(
+        const BlockHash &block_hash) = 0;
+
+    // -- state --
+    // TODO: refactoring is needed - make special separated storage for states
+
+    /**
+     * Saves provided state to block storage
+     * @returns result of saving
+     */
+    virtual outcome::result<void> putState(const BlockHash &block_hash,
+                                                const State &state) = 0;
+
+    [[nodiscard]] virtual outcome::result<std::optional<State>> getState(
+        const BlockHash &block_hash) const = 0;
+
+    virtual outcome::result<void> removeState(
         const BlockHash &block_hash) = 0;
 
     // -- justification --

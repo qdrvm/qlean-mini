@@ -13,6 +13,7 @@
 #include "sszpp/ssz++.hpp"
 #include "storage/predefined_keys.hpp"
 #include "types/block_data.hpp"
+#include "types/state.hpp"
 
 namespace lean::blockchain {
 
@@ -217,6 +218,30 @@ namespace lean::blockchain {
     return space->remove(block_hash);
   }
 
+  outcome::result<void> BlockStorageImpl::putState(const BlockHash &block_hash,
+                                                   const State &state) {
+    OUTCOME_TRY(encoded_state, encode(state));
+    return putToSpace(
+        *storage_, storage::Space::State, block_hash, std::move(encoded_state));
+  }
+
+  outcome::result<std::optional<State>> BlockStorageImpl::getState(
+      const BlockHash &block_hash) const {
+    OUTCOME_TRY(encoded_state_opt,
+                getFromSpace(*storage_, storage::Space::State, block_hash));
+    if (encoded_state_opt.has_value()) {
+      OUTCOME_TRY(state, decode<State>(encoded_state_opt.value()));
+      return std::make_optional(std::move(state));
+    }
+    return std::nullopt;
+  }
+
+  outcome::result<void> BlockStorageImpl::removeState(
+      const BlockHash &block_hash) {
+    auto space = storage_->getSpace(storage::Space::State);
+    return space->remove(block_hash);
+  }
+
   outcome::result<void> BlockStorageImpl::putJustification(
       const Justification &justification, const BlockHash &hash) {
     if (justification.empty()) {
@@ -255,6 +280,14 @@ namespace lean::blockchain {
       const BlockData &block) {
     // insert provided block's parts into the database
     OUTCOME_TRY(block_hash, putBlockHeader(*block.header));
+
+    if (block.body.has_value()) {
+      OUTCOME_TRY(encoded_body, encode(*block.body));
+      OUTCOME_TRY(putToSpace(*storage_,
+                             storage::Space::Body,
+                             block_hash,
+                             std::move(encoded_body)));
+    }
 
     if (block.body.has_value()) {
       OUTCOME_TRY(encoded_body, encode(*block.body));

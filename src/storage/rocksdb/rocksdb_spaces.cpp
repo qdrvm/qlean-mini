@@ -21,11 +21,13 @@ namespace lean::storage {
       "lookup_key",
       "header",
       "extrinsic",
+      "state",
       "justification",
   };
   constexpr std::span<const std::string_view> kNames = kNamesArr;
 
-  // static_assert(kNames.size() == (SpacesCount - 1));
+  static_assert(kNames.size() == (SpacesCount - 1),
+                "The amount of names must correspond to amount of spaces");
 
   std::string_view spaceName(Space space) {
     if (space != Space::Default) {

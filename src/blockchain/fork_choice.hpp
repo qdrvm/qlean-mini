@@ -32,6 +32,7 @@ namespace lean {
 }  // namespace lean
 
 namespace lean::blockchain {
+  class BlockStorage;
   class BlockTree;
 }
 
@@ -59,7 +60,8 @@ namespace lean {
    */
   class ForkChoiceStore {
    public:
-    using Blocks = std::unordered_map<BlockHash, SignedBlockWithAttestation>;
+    //    using Blocks = std::unordered_map<BlockHash,
+    //    SignedBlockWithAttestation>;
     using SignedAttestations =
         std::unordered_map<ValidatorIndex, SignedAttestation>;
 
@@ -78,16 +80,6 @@ namespace lean {
       abort();
     }
 
-    // ForkChoiceStore(
-    //     const GenesisConfig &genesis_config,
-    //     qtils::SharedRef<clock::SystemClock> clock,
-    //     qtils::SharedRef<log::LoggingSystem> logging_system,
-    //     qtils::SharedRef<metrics::Metrics> metrics,
-    //     qtils::SharedRef<ValidatorRegistry> validator_registry,
-    //     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
-    //     qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
-    //     qtils::SharedRef<blockchain::BlockTree> block_tree);
-
     ForkChoiceStore(
         qtils::SharedRef<AnchorState> anchor_state,
         qtils::SharedRef<AnchorBlock> anchor_block,
@@ -97,7 +89,8 @@ namespace lean {
         qtils::SharedRef<ValidatorRegistry> validator_registry,
         qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
         qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
-        qtils::SharedRef<blockchain::BlockTree> block_tree);
+        qtils::SharedRef<blockchain::BlockTree> block_tree,
+        qtils::SharedRef<blockchain::BlockStorage> block_storage);
 
     BOOST_DI_INJECT_TRAITS(qtils::SharedRef<AnchorState>,
                            qtils::SharedRef<AnchorBlock>,
@@ -107,16 +100,8 @@ namespace lean {
                            qtils::SharedRef<ValidatorRegistry>,
                            qtils::SharedRef<app::ValidatorKeysManifest>,
                            qtils::SharedRef<crypto::xmss::XmssProvider>,
-                           qtils::SharedRef<blockchain::BlockTree> block_tree);
-
-    //BOOST_DI_INJECT_TRAITS(const GenesisConfig &,
-    //                       qtils::SharedRef<clock::SystemClock>,
-    //                       qtils::SharedRef<log::LoggingSystem>,
-    //                       qtils::SharedRef<metrics::Metrics>,
-    //                       qtils::SharedRef<ValidatorRegistry>,
-    //                       qtils::SharedRef<app::ValidatorKeysManifest>,
-    //                       qtils::SharedRef<crypto::xmss::XmssProvider>,
-    //                       qtils::SharedRef<blockchain::BlockTree> block_tree);
+                           qtils::SharedRef<blockchain::BlockTree>,
+                           qtils::SharedRef<blockchain::BlockStorage>);
 
     // Test constructor - only for use in tests
     ForkChoiceStore(
@@ -128,15 +113,16 @@ namespace lean {
         BlockHash safe_target,
         Checkpoint latest_justified,
         Checkpoint latest_finalized,
-        Blocks blocks,
-        std::unordered_map<BlockHash, State> states,
+        // Blocks blocks,
+        // std::unordered_map<BlockHash, State> states,
         SignedAttestations latest_known_attestations,
         SignedAttestations latest_new_votes,
         ValidatorIndex validator_index,
         qtils::SharedRef<ValidatorRegistry> validator_registry,
         qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
         qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
-        qtils::SharedRef<blockchain::BlockTree> block_tree);
+        qtils::SharedRef<blockchain::BlockTree> block_tree,
+        qtils::SharedRef<blockchain::BlockStorage> block_storage);
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -155,7 +141,7 @@ namespace lean {
     Slot getCurrentSlot();
 
     BlockHash getHead();
-    const State &getState(const BlockHash &block_hash) const;
+    State getState(const BlockHash &block_hash) const;
 
     bool hasBlock(const BlockHash &hash) const;
     std::optional<Slot> getBlockSlot(const BlockHash &block_hash) const;
@@ -168,9 +154,9 @@ namespace lean {
     BlockHash getSafeTarget() const {
       return safe_target_;
     }
-    const Blocks &getBlocks() const {
-      return blocks_;
-    }
+    // const Blocks &getBlocks() const {
+    //   return blocks_;
+    // }
     const SignedAttestations &getLatestNewAttestations() const {
       return latest_new_attestations_;
     }
@@ -424,6 +410,8 @@ namespace lean {
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
+    qtils::SharedRef<blockchain::BlockStorage> block_storage_;
+
 
     STF stf_;
     Interval time_;
@@ -472,7 +460,7 @@ namespace lean {
      *
      * Every block that might participate in fork choice must appear here.
      */
-    Blocks blocks_;
+    // Blocks blocks_;
 
     /**
      * Mapping from state root to State objects.
@@ -482,7 +470,7 @@ namespace lean {
      * These states carry justified and finalized checkpoints that we use to
      * update the Store's latest justified and latest finalized checkpoints.
      */
-    std::unordered_map<BlockHash, State> states_;
+    // std::unordered_map<BlockHash, State> states_;
 
     /**
      * Active attestations that contribute to fork choice weights.
