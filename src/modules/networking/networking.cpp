@@ -636,7 +636,7 @@ namespace lean::modules {
             if (not r.has_value()) {
               SL_WARN(self->logger_,
                       "connect {} error: {}",
-                      peer_info.id,
+                      peer_info.id.toBase58(),
                       r.error());
               if (auto *connecting =
                       std::get_if<PeerState::Connecting>(&state.state)) {
