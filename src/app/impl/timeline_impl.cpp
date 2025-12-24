@@ -76,7 +76,7 @@ namespace lean::app {
 
   void TimelineImpl::on_slot_started(
       std::shared_ptr<const messages::SlotStarted> msg) {
-    SL_INFO(logger_, "Slot {} started", msg->slot);
+    SL_INFO(logger_, "⚡ Slot {} started", msg->slot);
     if (stopped_) [[unlikely]] {
       SL_INFO(logger_, "Timeline is stopped on slot {}", msg->slot);
       return;
