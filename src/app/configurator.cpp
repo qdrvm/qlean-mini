@@ -10,6 +10,7 @@
 #include <charconv>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -245,14 +246,71 @@ namespace lean::app {
       }
     };
 
+    YAML::Node logging;
     if (not config_file_.has_value()) {
-      return load_default();
+      auto res = load_default();
+      if (res.has_error()) {
+        return res.error();
+      }
+      logging = res.value();
+    } else {
+      auto node = (*config_file_)["logging"];
+      if (node.IsDefined()) {
+        logging = node;
+      } else {
+        auto res = load_default();
+        if (res.has_error()) {
+          return res.error();
+        }
+        logging = res.value();
+      }
     }
-    auto logging = (*config_file_)["logging"];
-    if (logging.IsDefined()) {
-      return logging;
+
+    if (cli_values_map_.count("log")) {
+      auto log_options = cli_values_map_["log"].as<std::vector<std::string>>();
+      auto groups = logging["groups"];
+
+      std::function<void(YAML::Node, const std::string &, const std::string &)>
+          set_level = [&](YAML::Node groups,
+                          const std::string &target,
+                          const std::string &level) {
+            if (!groups.IsSequence()) {
+              return;
+            }
+            for (auto group : groups) {
+              if (group["name"].IsDefined()
+                  and group["name"].as<std::string>() == target) {
+                group["level"] = level;
+              }
+              if (group["children"].IsDefined()) {
+                set_level(group["children"], target, level);
+              }
+            }
+          };
+
+      for (const auto &opt : log_options) {
+        auto eq_pos = opt.find('=');
+        if (eq_pos != std::string::npos) {
+          auto target = opt.substr(0, eq_pos);
+          auto level = opt.substr(eq_pos + 1);
+          set_level(groups, target, level);
+        } else {
+          // Global level
+          if (groups.IsSequence()) {
+            for (auto group : groups) {
+              if ((group["is_fallback"].IsDefined()
+                   and group["is_fallback"].as<bool>())
+                  or (group["name"].IsDefined()
+                      and group["name"].as<std::string>() == "main")) {
+                group["level"] = opt;
+              }
+            }
+          }
+        }
+      }
     }
-    return load_default();
+
+    return logging;
   }
   outcome::result<std::shared_ptr<Configuration>> Configurator::calculateConfig(
       qtils::SharedRef<soralog::Logger> logger) {
