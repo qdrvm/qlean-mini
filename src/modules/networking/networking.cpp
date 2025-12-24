@@ -497,11 +497,12 @@ namespace lean::modules {
       std::optional<libp2p::PeerId> from_peer,
       SignedBlockWithAttestation &&signed_block_with_attestation) {
     auto slot_hash = signed_block_with_attestation.message.block.slotHash();
-    SL_INFO(logger_,
-            "Received block slot {} hash {:xx} parent {:xx}",
-            slot_hash.slot,
-            slot_hash.hash,
-            signed_block_with_attestation.message.block.parent_root);
+    SL_DEBUG(logger_,
+             "Received block slot {} hash {:xx} parent {:xx} from peer {}",
+             slot_hash.slot,
+             slot_hash.hash,
+             signed_block_with_attestation.message.block.parent_root,
+             from_peer.has_value() ? from_peer->toBase58() : "unknown");
 
     // Remove function for cached children
     auto remove = [&](auto f) {
@@ -544,14 +545,14 @@ namespace lean::modules {
         auto res = fork_choice_store_->onBlock(block);
         if (not res.has_value()) {
           SL_WARN(logger_,
-                  "Error importing block {}: {}",
+                  "❌ Error importing block {}: {}",
                   block.message.block.slotHash(),
                   res.error());
           break;
         }
       }
       SL_INFO(logger_,
-              "Imported blocks: {}",
+              "✅ Imported blocks: {}",
               fmt::join(blocks
                             | std::views::transform(
                                 [](const SignedBlockWithAttestation &block) {

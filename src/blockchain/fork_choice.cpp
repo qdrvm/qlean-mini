@@ -548,9 +548,8 @@ namespace lean {
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > latest_finalized_.slot) {
       SL_INFO(logger_,
-              "Finalized block {} at slot {} with state root {:xx}",
-              block.slotHash(),
-              post_state.latest_finalized.slot,
+              "🔒 Finalized block {:xx}, state root {:xx}",
+              block.slotHash().hash,
               post_state.latest_finalized.root);
       latest_finalized_ = post_state.latest_finalized;
     }
@@ -618,9 +617,9 @@ namespace lean {
       if (time_ % INTERVALS_PER_SLOT == 0) {
         // Slot start
         SL_DEBUG(logger_,
-                "Slot {} started with time {}",
-                current_slot,
-                time_ * SECONDS_PER_INTERVAL);
+                 "Slot {} started with time {}",
+                 current_slot,
+                 time_ * SECONDS_PER_INTERVAL);
         auto producer_index = current_slot % validator_count;
         auto is_producer =
             validator_registry_->currentValidatorIndices().contains(
@@ -640,7 +639,7 @@ namespace lean {
           auto &new_signed_block = res.value();
 
           SL_INFO(logger_,
-                  "Produced block {} with parent {} state {}",
+                  "👷 Produced block {} with parent {} state {}",
                   new_signed_block.message.block.slotHash(),
                   new_signed_block.message.block.parent_root,
                   new_signed_block.message.block.state_root);
@@ -659,9 +658,9 @@ namespace lean {
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getAttestationTarget();
 
-        SL_INFO(logger_, "Head: {}", head);
-        SL_INFO(logger_, "Target: {}", target);
-        SL_INFO(logger_, "Source: {}", latest_justified_);
+        SL_INFO(logger_, "🔷 Head: {}", head);
+        SL_INFO(logger_, "🎯 Target: {}", target);
+        SL_INFO(logger_, "📌 Source: {}", latest_justified_);
 
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
@@ -693,23 +692,23 @@ namespace lean {
             continue;
           }
           SL_DEBUG(logger_,
-                  "Produced vote for target {}",
-                  signed_attestation.message.data.target);
+                   "Produced vote for target {}",
+                   signed_attestation.message.data.target);
           result.emplace_back(std::move(signed_attestation));
         }
       } else if (time_ % INTERVALS_PER_SLOT == 2) {
         // Interval two actions
         SL_DEBUG(logger_,
-                "Interval two of slot {} at time {}",
-                current_slot,
-                time_ * SECONDS_PER_INTERVAL);
+                 "Interval two of slot {} at time {}",
+                 current_slot,
+                 time_ * SECONDS_PER_INTERVAL);
         updateSafeTarget();
       } else if (time_ % INTERVALS_PER_SLOT == 3) {
         // Interval three actions
         SL_DEBUG(logger_,
-                "Interval three of slot {} at time {}",
-                current_slot,
-                time_ * SECONDS_PER_INTERVAL);
+                 "Interval three of slot {} at time {}",
+                 current_slot,
+                 time_ * SECONDS_PER_INTERVAL);
         acceptNewAttestations();
       }
       time_ += 1;
