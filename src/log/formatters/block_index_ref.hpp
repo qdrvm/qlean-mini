@@ -19,7 +19,7 @@ namespace lean {
 template <>
 struct fmt::formatter<lean::BlockIndexRef> {
   // Presentation format
-  bool long_form = false;
+  bool long_form = true;
 
   // Parses format specifications of the form ['s' | 'l'].
   constexpr auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {

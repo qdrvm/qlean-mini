@@ -312,10 +312,34 @@ namespace lean {
       const SignedAttestation &signed_attestation, bool is_from_block) {
     // First, ensure the attestation is structurally and temporally valid.
     auto source = is_from_block ? "block" : "gossip";
+
+    // Extract node id
+    auto node_id_opt = validator_registry_->nodeIdByIndex(
+        signed_attestation.message.validator_id);
+    if (not node_id_opt.has_value()) {
+      SL_WARN(logger_,
+              "Received attestation from unknown validator index {}",
+              signed_attestation.message.validator_id);
+      return Error::INVALID_ATTESTATION;
+    }
+
     if (auto res = validateAttestation(signed_attestation); res.has_value()) {
       metrics_->fc_attestations_valid_total({{"source", source}})->inc();
+      SL_TRACE(logger_,
+               "Processing valid attestation from validator {} for target {}, "
+               "source {}",
+               node_id_opt.value(),
+               signed_attestation.message.data.target,
+               signed_attestation.message.data.source);
     } else {
       metrics_->fc_attestations_invalid_total({{"source", source}})->inc();
+      SL_WARN(
+          logger_,
+          "Invalid attestation from validator {} for target {}, source {}: {}",
+          node_id_opt.value(),
+          signed_attestation.message.data.target,
+          signed_attestation.message.data.source,
+          res.error());
       return res;
     }
 
@@ -523,6 +547,11 @@ namespace lean {
 
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > latest_finalized_.slot) {
+      SL_INFO(logger_,
+              "Finalized block {} at slot {} with state root {:xx}",
+              block.slotHash(),
+              post_state.latest_finalized.slot,
+              post_state.latest_finalized.root);
       latest_finalized_ = post_state.latest_finalized;
     }
 
@@ -818,7 +847,7 @@ namespace lean {
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
       qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
-      : stf_(metrics),
+      : stf_(metrics, logging_system->getLogger("STF", "blockchain")),
         validator_registry_(validator_registry),
         validator_keys_manifest_(validator_keys_manifest),
         logger_(
@@ -873,7 +902,7 @@ namespace lean {
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
       qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
-      : stf_(metrics),
+      : stf_(metrics, logging_system->getLogger("STF", "blockchain")),
         time_(now_sec / SECONDS_PER_INTERVAL),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),

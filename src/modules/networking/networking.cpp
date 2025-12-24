@@ -498,10 +498,12 @@ namespace lean::modules {
       SignedBlockWithAttestation &&signed_block_with_attestation) {
     auto slot_hash = signed_block_with_attestation.message.block.slotHash();
     SL_INFO(logger_,
-            "receiveBlock slot {} hash {} parent {}",
+            "Received block slot {} hash {:xx} parent {:xx}",
             slot_hash.slot,
             slot_hash.hash,
             signed_block_with_attestation.message.block.parent_root);
+
+    // Remove function for cached children
     auto remove = [&](auto f) {
       std::vector<BlockHash> queue{slot_hash.hash};
       while (not queue.empty()) {
@@ -533,6 +535,8 @@ namespace lean::modules {
     if (block_tree_->has(parent_hash)) {
       std::vector<SignedBlockWithAttestation> blocks{
           std::move(signed_block_with_attestation)};
+
+      // Import all cached children
       remove([&](const BlockHash &block_hash) {
         blocks.emplace_back(block_cache_.extract(block_hash).mapped());
       });
@@ -547,8 +551,7 @@ namespace lean::modules {
         }
       }
       SL_INFO(logger_,
-              "receiveBlock {} => import {}",
-              slot_hash.slot,
+              "Imported blocks: {}",
               fmt::join(blocks
                             | std::views::transform(
                                 [](const SignedBlockWithAttestation &block) {
