@@ -437,6 +437,9 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedVote(
       std::shared_ptr<const messages::SendSignedVote> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
+      SL_DEBUG(self->logger_,
+               "📣 Gossiped vote for target {} 🗳️",
+               message->notification.message.data.target);
       self->gossip_votes_topic_->publish(
           encodeSszSnappy(message->notification));
     });
