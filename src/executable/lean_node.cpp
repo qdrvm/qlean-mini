@@ -177,6 +177,8 @@ int main(int argc, const char **argv, const char **env) {
     std::make_shared<lean::log::LoggingSystem>(std::move(logging_system));
   });
 
+  logging_system->tuneLoggingSystem(app_configurator->logger_tuning_config_);
+
   // Parse remaining args
   if (auto res = app_configurator->step2(); res.has_value()) {
     if (res.value()) {

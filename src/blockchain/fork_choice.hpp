@@ -26,6 +26,7 @@
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
 #include "utils/ceil_div.hpp"
+#include "utils/lru_cache.hpp"
 
 namespace lean {
   struct GenesisConfig;
@@ -68,6 +69,7 @@ namespace lean {
     enum class Error {
       INVALID_ATTESTATION,
       INVALID_PROPOSER,
+      STATE_NOT_FOUND,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
@@ -76,6 +78,8 @@ namespace lean {
           return "Invalid attestation";
         case E::INVALID_PROPOSER:
           return "Invalid proposer";
+        case E::STATE_NOT_FOUND:
+          return "Parent state not found";
       }
       abort();
     }
@@ -126,7 +130,7 @@ namespace lean {
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
-    void updateSafeTarget();
+    outcome::result<void> updateSafeTarget();
 
     // Updates the store's latest justified checkpoint, head, and latest
     // finalized state.
@@ -138,10 +142,11 @@ namespace lean {
     // votes, and then updates the fork-choice head.
     void acceptNewAttestations();
 
-    Slot getCurrentSlot();
+    Slot getCurrentSlot() const;
 
     BlockHash getHead();
-    State getState(const BlockHash &block_hash) const;
+    outcome::result<std::shared_ptr<const State>> getState(
+        const BlockHash &block_hash) const;
 
     bool hasBlock(const BlockHash &hash) const;
     std::optional<Slot> getBlockSlot(const BlockHash &block_hash) const;
@@ -297,7 +302,8 @@ namespace lean {
      *     A fully constructed Attestation object ready for signing and
      * broadcast.
      */
-    Attestation produceAttestation(Slot slot, ValidatorIndex validator_index);
+    Attestation produceAttestation(Slot slot,
+                                   ValidatorIndex validator_index) const;
 
     /**
      * Validate incoming attestation before processing.
@@ -403,15 +409,11 @@ namespace lean {
 
     void updateLastFinalized(const Checkpoint &checkpoint);
 
-    void pruneStatesAfterFinalized();
-
-
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<blockchain::BlockStorage> block_storage_;
-
 
     STF stf_;
     Interval time_;
@@ -451,7 +453,7 @@ namespace lean {
      *
      * Fork choice will never revert finalized history.
      */
-    Checkpoint latest_finalized_;
+    // Checkpoint latest_finalized_;
 
     /**
      * Mapping from block root to Block objects.
@@ -471,6 +473,8 @@ namespace lean {
      * update the Store's latest justified and latest finalized checkpoints.
      */
     // std::unordered_map<BlockHash, State> states_;
+    mutable LruCache<BlockHash, State> states_{8};
+
 
     /**
      * Active attestations that contribute to fork choice weights.

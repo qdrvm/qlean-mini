@@ -161,9 +161,17 @@ namespace lean::app {
     namespace po = boost::program_options;
     namespace fs = std::filesystem;
 
+    // clang-format off
+
     po::options_description options;
-    options.add_options()("help,h", "show help")("version,v", "show version")(
-        "config,c", po::value<std::string>(), "config-file path");
+    options.add_options()
+        ("help,h", "show help")
+        ("version,v", "show version")
+        ("config,c", po::value<std::string>(), "config-file path")
+        ("log,l", po::value<std::vector<std::string>>(), "Sets a custom logging filter")
+        ;
+
+    // clang-format on
 
     po::variables_map vm;
 
@@ -209,6 +217,10 @@ namespace lean::app {
                   << "Try run with option '--help' for more information\n";
         return Error::ConfigFileParseFailed;
       }
+    }
+
+    if (vm.contains("log")) {
+      logger_tuning_config_ = vm["log"].as<std::vector<std::string>>();
     }
 
     return false;

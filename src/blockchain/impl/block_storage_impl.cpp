@@ -242,40 +242,6 @@ namespace lean::blockchain {
     return space->remove(block_hash);
   }
 
-  outcome::result<void> BlockStorageImpl::putJustification(
-      const Justification &justification, const BlockHash &hash) {
-    if (justification.empty()) {
-      return BlockStorageError::JUSTIFICATION_EMPTY;
-    }
-
-    OUTCOME_TRY(encoded_justification, encode(justification));
-    OUTCOME_TRY(putToSpace(*storage_,
-                           storage::Space::Justification,
-                           hash,
-                           std::move(encoded_justification)));
-
-    return outcome::success();
-  }
-
-  outcome::result<std::optional<Justification>>
-  BlockStorageImpl::getJustification(const BlockHash &block_hash) const {
-    OUTCOME_TRY(
-        encoded_justification_opt,
-        getFromSpace(*storage_, storage::Space::Justification, block_hash));
-    if (encoded_justification_opt.has_value()) {
-      OUTCOME_TRY(justification,
-                  decode<Justification>(encoded_justification_opt.value()));
-      return justification;
-    }
-    return std::nullopt;
-  }
-
-  outcome::result<void> BlockStorageImpl::removeJustification(
-      const BlockHash &block_hash) {
-    auto space = storage_->getSpace(storage::Space::Justification);
-    return space->remove(block_hash);
-  }
-
   outcome::result<BlockHash> BlockStorageImpl::putBlock(
       const BlockData &block) {
     // insert provided block's parts into the database
@@ -362,16 +328,6 @@ namespace lean::blockchain {
                "could not remove body of block {} from the storage: {}",
                block_index,
                res.error());
-      return res;
-    }
-
-    // Remove justification for a block
-    if (auto res = removeJustification(block_index.hash); res.has_error()) {
-      SL_ERROR(
-          logger_,
-          "could not remove justification of block {} from the storage: {}",
-          block_index,
-          res.error());
       return res;
     }
 

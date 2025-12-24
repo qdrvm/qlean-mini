@@ -33,7 +33,6 @@
 #include "blockchain/impl/anchor_state_impl.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/block_tree_impl.hpp"
-#include "blockchain/impl/fc_block_tree.hpp"
 #include "blockchain/impl/genesis_block_header_impl.hpp"
 #include "blockchain/impl/validator_registry_impl.hpp"
 #include "clock/impl/clock_impl.hpp"

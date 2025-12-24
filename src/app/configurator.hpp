@@ -70,6 +70,7 @@ namespace lean::app {
     bool file_has_warn_ = false;
     bool file_has_error_ = false;
     std::ostringstream file_errors_;
+  public:std::vector<std::string> logger_tuning_config_;
 
     boost::program_options::options_description cli_options_;
     boost::program_options::variables_map cli_values_map_;

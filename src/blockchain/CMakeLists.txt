@@ -27,7 +27,6 @@ add_library(blockchain
     impl/block_tree_impl.cpp
     impl/block_tree_initializer.cpp
     impl/cached_tree.cpp
-    impl/fc_block_tree.cpp
     impl/storage_util.cpp
     state_transition_function.cpp
 )

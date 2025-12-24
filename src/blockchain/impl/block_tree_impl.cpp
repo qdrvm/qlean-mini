@@ -339,67 +339,52 @@ namespace lean::blockchain {
         });
   }
 
-  outcome::result<void> BlockTreeImpl::finalize(
-      const BlockHash &block_hash, const Justification &justification) {
-    return block_tree_data_.exclusiveAccess([&](BlockTreeData &p)
-                                                -> outcome::result<void> {
-      auto last_finalized_block_info = getLastFinalizedNoLock(p);
-      if (block_hash == last_finalized_block_info.hash) {
-        return outcome::success();
-      }
-      const auto node_opt = p.tree_->find(block_hash);
-      if (node_opt.has_value()) {
-        auto &node = node_opt.value();
+  outcome::result<void> BlockTreeImpl::finalize(const BlockHash &block_hash) {
+    return block_tree_data_.exclusiveAccess(
+        [&](BlockTreeData &p) -> outcome::result<void> {
+          auto last_finalized_block_info = getLastFinalizedNoLock(p);
+          if (block_hash == last_finalized_block_info.hash) {
+            return outcome::success();
+          }
+          const auto node_opt = p.tree_->find(block_hash);
+          if (node_opt.has_value()) {
+            auto &node = node_opt.value();
 
-        SL_DEBUG(log_, "Finalizing block {}", node->index);
+            SL_DEBUG(log_, "Finalizing block {}", node->index);
 
-        OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
+            OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
 
-        OUTCOME_TRY(p.storage_->putJustification(justification, block_hash));
+            // Block which is finalized as ancestors of last finalized
+            std::vector<BlockIndex> retired_blocks;
+            for (auto parent = node->parent(); parent;
+                 parent = parent->parent()) {
+              retired_blocks.emplace_back(parent->index);
+            }
 
-        std::vector<BlockIndex> retired_hashes;
-        for (auto parent = node->parent(); parent; parent = parent->parent()) {
-          retired_hashes.emplace_back(parent->index);
-        }
+            auto changes = p.tree_->finalize(node);
+            OUTCOME_TRY(reorgAndPrune(p, changes));
 
-        auto changes = p.tree_->finalize(node);
-        OUTCOME_TRY(reorgAndPrune(p, changes));
+            auto msg = std::make_shared<messages::Finalized>(
+                header.index(), std::move(retired_blocks));
+            se_manager_->notify(EventTypes::BlockFinalized, msg);
 
-        auto msg = std::make_shared<messages::Finalized>(
-            header.index(), std::move(retired_hashes));
-        se_manager_->notify(EventTypes::BlockFinalized, msg);
+            log_->info("Finalized block {}", node->index);
 
+          } else {
+            OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
+            const auto slot = header.slot;
+            if (slot >= last_finalized_block_info.slot) {
+              return BlockTreeError::NON_FINALIZED_BLOCK_NOT_FOUND;
+            }
 
-        log_->info("Finalized block {}", node->index);
+            OUTCOME_TRY(hashes, p.storage_->getBlockHash(slot));
 
-      } else {
-        OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
-        const auto header_number = header.slot;
-        if (header_number >= last_finalized_block_info.slot) {
-          return BlockTreeError::NON_FINALIZED_BLOCK_NOT_FOUND;
-        }
-
-        OUTCOME_TRY(hashes, p.storage_->getBlockHash(header_number));
-
-        if (not qtils::cxx23::ranges::contains(hashes, block_hash)) {
-          return BlockTreeError::BLOCK_ON_DEAD_END;
-        }
-
-        // if (not p.justification_storage_policy_
-        //             ->shouldStoreFor(header, last_finalized_block_info.slot)
-        //             .value()) {
-        //   return outcome::success();
-        // }
-        OUTCOME_TRY(justification_opt,
-                    p.storage_->getJustification(block_hash));
-        if (justification_opt.has_value()) {
-          // block already has justification (in DB), fine
+            if (not qtils::cxx23::ranges::contains(hashes, block_hash)) {
+              return BlockTreeError::BLOCK_ON_DEAD_END;
+            }
+          }
           return outcome::success();
-        }
-        OUTCOME_TRY(p.storage_->putJustification(justification, block_hash));
-      }
-      return outcome::success();
-    });
+        });
   }
 
   bool BlockTreeImpl::has(const BlockHash &hash) const {

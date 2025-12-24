@@ -13,7 +13,6 @@
 #include "types/block_body.hpp"
 #include "types/block_data.hpp"
 #include "types/block_header.hpp"
-#include "types/justification.hpp"
 #include "types/signed_block_with_attestation.hpp"
 #include "types/types.hpp"
 
@@ -184,31 +183,6 @@ namespace lean::blockchain {
         const BlockHash &block_hash) const = 0;
 
     virtual outcome::result<void> removeState(
-        const BlockHash &block_hash) = 0;
-
-    // -- justification --
-
-    /**
-     * Saves {@param justification} of block with hash {@param block_hash} to
-     * block storage
-     * @returns result of saving
-     */
-    virtual outcome::result<void> putJustification(
-        const Justification &justification, const BlockHash &block_hash) = 0;
-
-    /**
-     * Tries to get justification of block finality by {@param block_hash}
-     * @returns justification or error
-     */
-    virtual outcome::result<std::optional<Justification>> getJustification(
-        const BlockHash &block_hash) const = 0;
-
-    /**
-     * Removes justification of block with hash {@param block_hash} from block
-     * storage
-     * @returns result of saving
-     */
-    virtual outcome::result<void> removeJustification(
         const BlockHash &block_hash) = 0;
 
     // -- combined

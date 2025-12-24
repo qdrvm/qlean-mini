@@ -77,8 +77,7 @@ namespace lean::blockchain {
     outcome::result<void> addBlockBody(const BlockHash &block_hash,
                                        const BlockBody &body) override;
 
-    outcome::result<void> finalize(const BlockHash &block_hash,
-                                   const Justification &justification) override;
+    outcome::result<void> finalize(const BlockHash &block_hash) override;
 
     outcome::result<std::vector<BlockHash>> getBestChainFromBlock(
         const BlockHash &block, uint64_t maximum) const override;
