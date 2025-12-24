@@ -387,11 +387,18 @@ namespace lean::modules {
     gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
         "attestation",
         [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation,
-                                      std::optional<libp2p::PeerId>) {
+                                      std::optional<libp2p::PeerId> peer_id) {
           auto self = weak_self.lock();
           if (not self) {
             return;
           }
+
+          SL_DEBUG(self->logger_,
+                   "Received vote for target {} 🗳️ from peer {} 👤 validator id {} ✅",
+                   signed_attestation.message.data.target,
+                   peer_id.has_value() ? peer_id->toBase58() : "unknown",
+                   signed_attestation.message.validator_id);
+
           auto res = self->fork_choice_store_->onAttestation(signed_attestation,
                                                              false);
           if (not res.has_value()) {
@@ -401,9 +408,6 @@ namespace lean::modules {
                     res.error());
             return;
           }
-          SL_DEBUG(self->logger_,
-                   "Received vote for target {}",
-                   signed_attestation.message.data.target);
         });
 
     io_thread_.emplace([io_context{io_context_}] {

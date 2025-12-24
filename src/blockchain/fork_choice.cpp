@@ -325,21 +325,21 @@ namespace lean {
 
     if (auto res = validateAttestation(signed_attestation); res.has_value()) {
       metrics_->fc_attestations_valid_total({{"source", source}})->inc();
-      SL_TRACE(logger_,
-               "Processing valid attestation from validator {} for target {}, "
-               "source {}",
+      SL_DEBUG(logger_,
+               "⚙️ Processing valid attestation from validator {} for target "
+               "{}, source {}",
                node_id_opt.value(),
                signed_attestation.message.data.target,
                signed_attestation.message.data.source);
     } else {
       metrics_->fc_attestations_invalid_total({{"source", source}})->inc();
-      SL_WARN(
-          logger_,
-          "Invalid attestation from validator {} for target {}, source {}: {}",
-          node_id_opt.value(),
-          signed_attestation.message.data.target,
-          signed_attestation.message.data.source,
-          res.error());
+      SL_WARN(logger_,
+              "❌ Invalid attestation from validator {} for target {}, source "
+              "{}: {}",
+              node_id_opt.value(),
+              signed_attestation.message.data.target,
+              signed_attestation.message.data.source,
+              res.error());
       return res;
     }
 
@@ -503,6 +503,9 @@ namespace lean {
         return false;
       }
     }
+    SL_TRACE(logger_,
+             "All block signatures are valid in block {}",
+             block.slotHash());
     return true;
   }
 
@@ -871,15 +874,17 @@ namespace lean {
                     SignedBlockWithAttestation{
                         .message = {.block = std::move(anchor_block)},
                     });
-    SL_INFO(
-        logger_, "Anchor block {} at slot {}", anchor_root, anchor_block.slot);
+    SL_INFO(logger_,
+            "Anchor block {:xx} at slot {}",
+            anchor_root,
+            anchor_block.slot);
     states_.emplace(anchor_root, anchor_state);
     for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
-      SL_INFO(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
+      SL_DEBUG(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
     }
     SL_INFO(
         logger_,
-        "Our pubkey: {}",
+        "🔑 Our pubkey: {}",
         validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
   }
   // Test constructor implementation
