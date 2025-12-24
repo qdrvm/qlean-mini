@@ -76,6 +76,7 @@ namespace lean::app {
 
   void TimelineImpl::on_slot_started(
       std::shared_ptr<const messages::SlotStarted> msg) {
+    SL_INFO(logger_, "Slot {} started", msg->slot);
     if (stopped_) [[unlikely]] {
       SL_INFO(logger_, "Timeline is stopped on slot {}", msg->slot);
       return;
@@ -86,8 +87,6 @@ namespace lean::app {
         (now - config_->config.genesis_time * 1000) / SLOT_DURATION_MS + 1;
     auto time_to_next_slot = config_->config.genesis_time * 1000
                            + SLOT_DURATION_MS * next_slot - now;
-
-    SL_INFO(logger_, "Next slot is {} in {}ms", next_slot, time_to_next_slot);
 
     const auto slot_start_abs =
         config_->config.genesis_time * 1000

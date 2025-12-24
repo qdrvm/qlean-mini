@@ -658,12 +658,11 @@ namespace lean {
         metrics_->fc_head_slot()->set(head_slot.value());
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getAttestationTarget();
-        SL_INFO(logger_,
-                "During slot {}: head is {}, target is {}, source is {}",
-                current_slot,
-                head,
-                target,
-                latest_justified_);
+
+        SL_INFO(logger_, "Head: {}", head);
+        SL_INFO(logger_, "Target: {}", target);
+        SL_INFO(logger_, "Source: {}", latest_justified_);
+
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
           if (isProposer(validator_index, current_slot, validator_count)) {
