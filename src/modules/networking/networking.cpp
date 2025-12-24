@@ -394,7 +394,8 @@ namespace lean::modules {
           }
 
           SL_DEBUG(self->logger_,
-                   "Received vote for target {} 🗳️ from peer {} 👤 validator id {} ✅",
+                   "Received vote for target {} 🗳️ from peer {} 👤 validator "
+                   "id {} ✅",
                    signed_attestation.message.data.target,
                    peer_id.has_value() ? peer_id->toBase58() : "unknown",
                    signed_attestation.message.validator_id);
@@ -423,6 +424,11 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
+      auto slot_hash = message->notification.message.block.slotHash();
+      SL_DEBUG(self->logger_,
+               "📣 Gossiped block slot {} hash {:xx} 🔗",
+               slot_hash.slot,
+               slot_hash.hash);
       self->gossip_blocks_topic_->publish(
           encodeSszSnappy(message->notification));
     });
