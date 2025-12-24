@@ -109,7 +109,7 @@ namespace lean::modules {
         std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(nullptr)};
     auto peer_id = identity_manager.getId();
 
-    SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
+    SL_INFO(logger_, "Networking loaded with PeerId={}", peer_id.toBase58());
 
     libp2p::protocol::gossip::Config gossip_config;
     gossip_config.validation_mode =
@@ -300,7 +300,7 @@ namespace lean::modules {
                     libp2p::peer::ttl::kRecentlyConnected);
             not result.has_value()) {
           SL_WARN(self->logger_,
-                  "Failed to add addresses for peer {}: {}",
+                  "Failed to add addresses for peer={}: {}",
                   peer_id,
                   result.error());
         }
@@ -394,8 +394,8 @@ namespace lean::modules {
           }
 
           SL_DEBUG(self->logger_,
-                   "Received vote for target {} 🗳️ from peer {} 👤 validator "
-                   "id {} ✅",
+                   "Received vote for target={} 🗳️ from peer={} 👤 "
+                   "validator_id={} ✅",
                    signed_attestation.message.data.target,
                    peer_id.has_value() ? peer_id->toBase58() : "unknown",
                    signed_attestation.message.validator_id);
@@ -404,7 +404,7 @@ namespace lean::modules {
                                                              false);
           if (not res.has_value()) {
             SL_WARN(self->logger_,
-                    "Error processing vote for target {}: {}",
+                    "Error processing vote for target={}: {}",
                     signed_attestation.message.data.target,
                     res.error());
             return;
@@ -426,7 +426,7 @@ namespace lean::modules {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       auto slot_hash = message->notification.message.block.slotHash();
       SL_DEBUG(self->logger_,
-               "📣 Gossiped block slot {} hash {:xx} 🔗",
+               "📣 Gossiped block in slot {} hash={:xx} 🔗",
                slot_hash.slot,
                slot_hash.hash);
       self->gossip_blocks_topic_->publish(
@@ -438,7 +438,7 @@ namespace lean::modules {
       std::shared_ptr<const messages::SendSignedVote> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       SL_DEBUG(self->logger_,
-               "📣 Gossiped vote for target {} 🗳️",
+               "📣 Gossiped vote for target={} 🗳️",
                message->notification.message.data.target);
       self->gossip_votes_topic_->publish(
           encodeSszSnappy(message->notification));
@@ -511,7 +511,7 @@ namespace lean::modules {
       SignedBlockWithAttestation &&signed_block_with_attestation) {
     auto slot_hash = signed_block_with_attestation.message.block.slotHash();
     SL_DEBUG(logger_,
-             "Received block slot {} hash {:xx} parent {:xx} from peer {}",
+             "Received block slot {} hash={:xx} parent={:xx} from peer={}",
              slot_hash.slot,
              slot_hash.hash,
              signed_block_with_attestation.message.block.parent_root,
@@ -558,7 +558,7 @@ namespace lean::modules {
         auto res = fork_choice_store_->onBlock(block);
         if (not res.has_value()) {
           SL_WARN(logger_,
-                  "❌ Error importing block {}: {}",
+                  "❌ Error importing block={}: {}",
                   block.message.block.slotHash(),
                   res.error());
           break;
@@ -644,7 +644,7 @@ namespace lean::modules {
             auto &state = self->peer_states_.at(peer_info.id);
             if (not r.has_value()) {
               SL_WARN(self->logger_,
-                      "connect {} error: {}",
+                      "connect={} error: {}",
                       peer_info.id.toBase58(),
                       r.error());
               if (auto *connecting =

@@ -260,7 +260,7 @@ namespace lean {
     auto &data = signed_attestation.message.data;
 
     SL_TRACE(logger_,
-             "Validating attestation for target {}, source {}",
+             "Validating attestation for target={}, source={}",
              data.target,
              data.source);
     auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
@@ -326,16 +326,16 @@ namespace lean {
     if (auto res = validateAttestation(signed_attestation); res.has_value()) {
       metrics_->fc_attestations_valid_total({{"source", source}})->inc();
       SL_DEBUG(logger_,
-               "⚙️ Processing valid attestation from validator {} for target "
-               "{}, source {}",
+               "⚙️ Processing valid attestation from validator {} for "
+               "target={}, source={}",
                node_id_opt.value(),
                signed_attestation.message.data.target,
                signed_attestation.message.data.source);
     } else {
       metrics_->fc_attestations_invalid_total({{"source", source}})->inc();
       SL_WARN(logger_,
-              "❌ Invalid attestation from validator {} for target {}, source "
-              "{}: {}",
+              "❌ Invalid attestation from validator {} for target={}, "
+              "source={}: {}",
               node_id_opt.value(),
               signed_attestation.message.data.target,
               signed_attestation.message.data.source,
@@ -661,9 +661,9 @@ namespace lean {
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getAttestationTarget();
 
-        SL_INFO(logger_, "🔷 Head: {}", head);
-        SL_INFO(logger_, "🎯 Target: {}", target);
-        SL_INFO(logger_, "📌 Source: {}", latest_justified_);
+        SL_INFO(logger_, "🔷 Head={}", head);
+        SL_INFO(logger_, "🎯 Target={}", target);
+        SL_INFO(logger_, "📌 Source={}", latest_justified_);
 
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
@@ -695,7 +695,7 @@ namespace lean {
             continue;
           }
           SL_DEBUG(logger_,
-                   "Produced vote for target {}",
+                   "Produced vote for target={}",
                    signed_attestation.message.data.target);
           result.emplace_back(std::move(signed_attestation));
         }
