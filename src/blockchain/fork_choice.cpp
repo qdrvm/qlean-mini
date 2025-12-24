@@ -551,7 +551,7 @@ namespace lean {
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > latest_finalized_.slot) {
       SL_INFO(logger_,
-              "🔒 Finalized block {:xx}, state root {:xx}",
+              "🔒 Finalized block={:xx}, state root={:xx}",
               block.slotHash().hash,
               post_state.latest_finalized.root);
       latest_finalized_ = post_state.latest_finalized;
@@ -642,7 +642,7 @@ namespace lean {
           auto &new_signed_block = res.value();
 
           SL_INFO(logger_,
-                  "👷 Produced block {} with parent {} state {}",
+                  "👷 Produced block={} with parent={} state={}",
                   new_signed_block.message.block.slotHash(),
                   new_signed_block.message.block.parent_root,
                   new_signed_block.message.block.state_root);
@@ -875,16 +875,16 @@ namespace lean {
                         .message = {.block = std::move(anchor_block)},
                     });
     SL_INFO(logger_,
-            "Anchor block {:xx} at slot {}",
+            "Anchor block={:xx} at slot {}",
             anchor_root,
             anchor_block.slot);
     states_.emplace(anchor_root, anchor_state);
     for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
-      SL_DEBUG(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
+      SL_DEBUG(logger_, "Validator pubkey={}", xmss_pubkey.toHex());
     }
     SL_INFO(
         logger_,
-        "🔑 Our pubkey: {}",
+        "🔑 Our pubkey={}",
         validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
   }
   // Test constructor implementation
