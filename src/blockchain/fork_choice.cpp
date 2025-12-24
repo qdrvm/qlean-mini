@@ -617,7 +617,7 @@ namespace lean {
       }
       if (time_ % INTERVALS_PER_SLOT == 0) {
         // Slot start
-        SL_INFO(logger_,
+        SL_DEBUG(logger_,
                 "Slot {} started with time {}",
                 current_slot,
                 time_ * SECONDS_PER_INTERVAL);
@@ -659,7 +659,7 @@ namespace lean {
         Checkpoint head{.root = head_root, .slot = head_slot.value()};
         auto target = getAttestationTarget();
         SL_INFO(logger_,
-                "For slot {}: head is {}, target is {}, source is {}",
+                "During slot {}: head is {}, target is {}, source is {}",
                 current_slot,
                 head,
                 target,
@@ -693,21 +693,21 @@ namespace lean {
                      res.error());
             continue;
           }
-          SL_INFO(logger_,
+          SL_DEBUG(logger_,
                   "Produced vote for target {}",
                   signed_attestation.message.data.target);
           result.emplace_back(std::move(signed_attestation));
         }
       } else if (time_ % INTERVALS_PER_SLOT == 2) {
         // Interval two actions
-        SL_INFO(logger_,
+        SL_DEBUG(logger_,
                 "Interval two of slot {} at time {}",
                 current_slot,
                 time_ * SECONDS_PER_INTERVAL);
         updateSafeTarget();
       } else if (time_ % INTERVALS_PER_SLOT == 3) {
         // Interval three actions
-        SL_INFO(logger_,
+        SL_DEBUG(logger_,
                 "Interval three of slot {} at time {}",
                 current_slot,
                 time_ * SECONDS_PER_INTERVAL);
