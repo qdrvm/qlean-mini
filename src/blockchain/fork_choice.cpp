@@ -550,9 +550,9 @@ namespace lean {
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > latest_finalized_.slot) {
       SL_INFO(logger_,
-              "🔒 Finalized block={:xx}, state root={:xx}",
-              block.slotHash().hash,
-              post_state.latest_finalized.root);
+              "🔒 Finalized block={:xx}, slot={}",
+              post_state.latest_finalized.root,
+              post_state.latest_finalized.slot);
       latest_finalized_ = post_state.latest_finalized;
     }
 
@@ -641,7 +641,7 @@ namespace lean {
           auto &new_signed_block = res.value();
 
           SL_INFO(logger_,
-                  "👷 Produced block={} with parent={} state={}",
+                  "👷 Produced block={} with parent={} state={:xx}",
                   new_signed_block.message.block.slotHash(),
                   new_signed_block.message.block.parent_root,
                   new_signed_block.message.block.state_root);
