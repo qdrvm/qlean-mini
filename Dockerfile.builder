@@ -47,6 +47,11 @@ COPY --from=dependencies /root/.rustup /root/.rustup
 # Copy project source code
 COPY . ${PROJECT}
 
+# Create minimal .git structure for build version generation
+# (actual .git is excluded by .dockerignore for smaller image)
+RUN mkdir -p ${PROJECT}/.git && \
+    echo "${GIT_COMMIT}" > ${PROJECT}/.git/HEAD
+
 # Build project
 RUN set -eux; \
     export PATH="${HOME}/.cargo/bin:${PATH}"; \
