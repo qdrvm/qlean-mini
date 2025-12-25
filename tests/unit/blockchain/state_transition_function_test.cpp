@@ -8,13 +8,15 @@
 
 #include <gtest/gtest.h>
 
+#include "testutil/prepare_loggers.hpp"
 #include "mock/metrics_mock.hpp"
 #include "types/config.hpp"
 #include "types/state.hpp"
 
 TEST(STF, Test) {
   auto metrics = std::make_shared<lean::metrics::MetricsMock>();
-  lean::STF stf(metrics);
+  auto logsys = testutil::prepareLoggers();
+  lean::STF stf(metrics, logsys->getLogger("STF", "test"));
 
   lean::Config config{
       .genesis_time = 0,
