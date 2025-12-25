@@ -320,7 +320,6 @@ namespace lean {
       SL_WARN(logger_,
               "Received attestation from unknown validator index {}",
               signed_attestation.message.validator_id);
-      return Error::INVALID_ATTESTATION;
     }
 
     if (auto res = validateAttestation(signed_attestation); res.has_value()) {
@@ -328,7 +327,7 @@ namespace lean {
       SL_DEBUG(logger_,
                "⚙️ Processing valid attestation from validator {} for "
                "target={}, source={}",
-               node_id_opt.value(),
+               node_id_opt ? node_id_opt.value() : "unknown",
                signed_attestation.message.data.target,
                signed_attestation.message.data.source);
     } else {
@@ -336,7 +335,7 @@ namespace lean {
       SL_WARN(logger_,
               "❌ Invalid attestation from validator {} for target={}, "
               "source={}: {}",
-              node_id_opt.value(),
+              node_id_opt ? node_id_opt.value() : "unknown",
               signed_attestation.message.data.target,
               signed_attestation.message.data.source,
               res.error());
@@ -848,7 +847,7 @@ namespace lean {
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
       qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
-      : stf_(metrics, logging_system->getLogger("STF", "blockchain")),
+      : stf_(metrics, logging_system->getLogger("STF", "stf")),
         validator_registry_(validator_registry),
         validator_keys_manifest_(validator_keys_manifest),
         logger_(
@@ -905,7 +904,7 @@ namespace lean {
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
       qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider)
-      : stf_(metrics, logging_system->getLogger("STF", "blockchain")),
+      : stf_(metrics, logging_system->getLogger("STF", "stf")),
         time_(now_sec / SECONDS_PER_INTERVAL),
         logger_(
             logging_system->getLogger("ForkChoiceStore", "fork_choice_store")),
