@@ -12,3 +12,10 @@ target_link_libraries(enr
     p2p::libp2p
     p2p::p2p_key_validator
 )
+
+add_library(snappy INTERFACE)
+target_link_libraries(snappy INTERFACE
+    Crc32c::crc32c
+    qtils::qtils
+    Snappy::snappy
+)

@@ -20,7 +20,7 @@ add_lean_module(networking
     bootnodes
     p2p::libp2p
     qtils::qtils
-    Snappy::snappy
+    snappy
     soralog::soralog
     sszpp
     validator_registry

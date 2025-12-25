@@ -8,6 +8,7 @@
     "boost-program-options",
     "boost-property-tree",
     "cppcodec",
+    "crc32c",
     "leanp2p",
     "prometheus-cpp",
     "qdrvm-crates",
