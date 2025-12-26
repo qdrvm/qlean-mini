@@ -7,6 +7,7 @@
 #pragma once
 
 #include "log/formatters/block_index_ref.hpp"
+#include "types/checkpoint.hpp"
 
 namespace lean {
 
@@ -14,6 +15,10 @@ namespace lean {
     Slot slot;
     BlockHash hash;
     auto operator<=>(const BlockIndex &other) const = default;
+
+    explicit operator Checkpoint() const {
+      return {.root = hash, .slot = slot};
+    }
   };
 
 }  // namespace lean

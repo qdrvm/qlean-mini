@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <memory>
 #include <sstream>
 
@@ -39,7 +40,8 @@ namespace lean::log {
 
     LoggingSystem(std::shared_ptr<soralog::LoggingSystem> logging_system);
 
-    void tuneLoggingSystem(const std::vector<std::string> &cfg);
+    soralog::Configurator::Result tuneLoggingSystem(
+        const std::vector<std::string> &args);
 
     void doLogRotate() const {
       logging_system_->callRotateForAllSinks();

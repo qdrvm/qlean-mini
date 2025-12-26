@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include "blockchain/impl/anchor_block_impl.hpp"
+#include "blockchain/impl/anchor_state_impl.hpp"
 #include "mock/metrics_mock.hpp"
 #include "types/config.hpp"
 #include "types/state.hpp"
@@ -23,8 +25,9 @@ TEST(STF, Test) {
   std::vector<lean::crypto::xmss::XmssPublicKey> validators_pubkeys;
   validators_pubkeys.resize(2);
 
+
   auto state0 = lean::STF::generateGenesisState(config, validators_pubkeys);
-  auto block0 = lean::STF::genesisBlock(state0);
+  auto block0 = lean::blockchain::AnchorBlockImpl{lean::blockchain::AnchorStateImpl{state0}};
   block0.setHash();
 
   lean::Block block1{

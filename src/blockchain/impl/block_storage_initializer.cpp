@@ -16,46 +16,53 @@
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/storage_util.hpp"
 #include "types/block.hpp"
+#include "types/state.hpp"
 
 namespace lean::blockchain {
 
   BlockStorageInitializer::BlockStorageInitializer(
       qtils::SharedRef<log::LoggingSystem> logsys,
       qtils::SharedRef<storage::SpacedStorage> storage,
-      qtils::SharedRef<GenesisBlockHeader> genesis_header,
+      qtils::SharedRef<AnchorBlock> anchor_block,
+      qtils::SharedRef<AnchorState> anchor_state,
       qtils::SharedRef<app::ChainSpec> chain_spec,
       qtils::SharedRef<crypto::Hasher> hasher) {
     // temporary instance of block storage
     BlockStorageImpl block_storage(std::move(logsys), storage, hasher, {});
 
-    auto genesis_block_hash = genesis_header->hash();
+    auto anchor_block_hash = anchor_block->hash();
 
     // Try to get genesis header from storage
-    auto genesis_block_existing_res =
-        block_storage.hasBlockHeader(genesis_block_hash);
-    if (genesis_block_existing_res.has_error()) {
+    auto anchor_block_existing_res =
+        block_storage.hasBlockHeader(anchor_block_hash);
+    if (anchor_block_existing_res.has_error()) {
       block_storage.logger_->critical(
           "Database error at check existing genesis block: {}",
-          genesis_block_existing_res.error());
-      qtils::raise(genesis_block_existing_res.error());
+          anchor_block_existing_res.error());
+      qtils::raise(anchor_block_existing_res.error());
     }
-    auto genesis_header_is_exist = genesis_block_existing_res.value();
+    auto anchor_header_is_exist = anchor_block_existing_res.value();
 
-    if (not genesis_header_is_exist) {
-      // genesis block initialization
-      BlockData genesis_block;
-      genesis_block.header.emplace(*genesis_header);
+    if (not anchor_header_is_exist) {
+      // anchor block initialization
+      BlockData anchor_block_data;
+      anchor_block_data.header.emplace(anchor_block->getHeader());
+      anchor_block_data.body.emplace(anchor_block->body);
+      anchor_block_data.hash = anchor_block->hash();
+      BOOST_ASSERT(anchor_block_hash == anchor_block_data.hash);
 
-      auto res = block_storage.putBlock(genesis_block);
+      // Store anchor block data
+      auto res = block_storage.putBlock(anchor_block_data);
       if (res.has_error()) {
         block_storage.logger_->critical(
             "Database error at store genesis block into: {}", res.error());
         qtils::raise(res.error());
       }
-      BOOST_ASSERT(genesis_block_hash == res.value());
+      BOOST_ASSERT(anchor_block_hash == res.value());
 
+      // Assign block's hash and slot
       auto assignment_res =
-          block_storage.assignHashToSlot(genesis_header->index());
+          block_storage.assignHashToSlot(anchor_block->index());
       if (assignment_res.has_error()) {
         block_storage.logger_->critical(
             "Database error at assigning genesis block hash: {}",
@@ -63,8 +70,9 @@ namespace lean::blockchain {
         qtils::raise(assignment_res.error());
       }
 
+      // Initial set of leaves
       auto sel_leaves_res =
-          block_storage.setBlockTreeLeaves({genesis_header->hash()});
+          block_storage.setBlockTreeLeaves({anchor_block->hash()});
       if (sel_leaves_res.has_error()) {
         block_storage.logger_->critical(
             "Database error at set genesis block as leaf: {}",
@@ -72,11 +80,18 @@ namespace lean::blockchain {
         qtils::raise(sel_leaves_res.error());
       }
 
-      // TODO Save genesis state here
+      // Store anchor state
+      auto state_res =
+          block_storage.putState(anchor_block->hash(), *anchor_state);
+      if (state_res.has_error()) {
+        block_storage.logger_->critical(
+            "Database error at store anchor state into: {}", res.error());
+        qtils::raise(state_res.error());
+      }
 
-      block_storage.logger_->info("Genesis block {}, state {}",
-                                  genesis_block_hash,
-                                  genesis_header->state_root);
+      block_storage.logger_->info("Anchor block {}, state {}",
+                                  anchor_block->index(),
+                                  anchor_block->state_root);
     }
   }
 
