@@ -161,9 +161,17 @@ namespace lean::app {
     namespace po = boost::program_options;
     namespace fs = std::filesystem;
 
+    // clang-format off
+
     po::options_description options;
-    options.add_options()("help,h", "show help")("version,v", "show version")(
-        "config,c", po::value<std::string>(), "config-file path");
+    options.add_options()
+        ("help,h", "show help")
+        ("version,v", "show version")
+        ("config,c", po::value<std::string>(), "config-file path")
+        ("log,l", po::value<std::vector<std::string>>(), "Sets a custom logging filter")
+        ;
+
+    // clang-format on
 
     po::variables_map vm;
 
@@ -211,6 +219,10 @@ namespace lean::app {
       }
     }
 
+    if (vm.contains("log")) {
+      logger_cli_args_ = vm["log"].as<std::vector<std::string>>();
+    }
+
     return false;
   }
 
@@ -254,6 +266,7 @@ namespace lean::app {
     }
     return load_default();
   }
+
   outcome::result<std::shared_ptr<Configuration>> Configurator::calculateConfig(
       qtils::SharedRef<soralog::Logger> logger) {
     logger_ = std::move(logger);
