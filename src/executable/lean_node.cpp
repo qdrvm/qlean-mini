@@ -177,7 +177,17 @@ int main(int argc, const char **argv, const char **env) {
     std::make_shared<lean::log::LoggingSystem>(std::move(logging_system));
   });
 
-  logging_system->tuneLoggingSystem(app_configurator->logger_tuning_config_);
+  {  // Tune logging by CLI arguments
+    auto tune_result = logging_system->tuneLoggingSystem(
+        app_configurator->getLoggingCliArgs());
+    if (not tune_result.message.empty()) {
+      (tune_result.has_error ? std::cerr : std::cout)
+          << tune_result.message << '\n';
+    }
+    if (tune_result.has_error) {
+      return EXIT_FAILURE;
+    }
+  }
 
   // Parse remaining args
   if (auto res = app_configurator->step2(); res.has_value()) {

@@ -50,6 +50,9 @@ namespace lean::app {
     outcome::result<bool> step2();
 
     outcome::result<YAML::Node> getLoggingConfig();
+    std::vector<std::string> getLoggingCliArgs() {
+      return logger_cli_args_;
+    }
 
     outcome::result<std::shared_ptr<Configuration>> calculateConfig(
         qtils::SharedRef<soralog::Logger> logger);
@@ -70,7 +73,7 @@ namespace lean::app {
     bool file_has_warn_ = false;
     bool file_has_error_ = false;
     std::ostringstream file_errors_;
-  public:std::vector<std::string> logger_tuning_config_;
+    std::vector<std::string> logger_cli_args_;
 
     boost::program_options::options_description cli_options_;
     boost::program_options::variables_map cli_values_map_;

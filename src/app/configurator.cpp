@@ -220,7 +220,7 @@ namespace lean::app {
     }
 
     if (vm.contains("log")) {
-      logger_tuning_config_ = vm["log"].as<std::vector<std::string>>();
+      logger_cli_args_ = vm["log"].as<std::vector<std::string>>();
     }
 
     return false;
@@ -266,6 +266,7 @@ namespace lean::app {
     }
     return load_default();
   }
+
   outcome::result<std::shared_ptr<Configuration>> Configurator::calculateConfig(
       qtils::SharedRef<soralog::Logger> logger) {
     logger_ = std::move(logger);
