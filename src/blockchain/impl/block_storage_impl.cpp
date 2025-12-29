@@ -141,27 +141,6 @@ namespace lean::blockchain {
     return SlotIterator::create(storage->cursor());
   }
 
-  //   outcome::result<std::optional<BlockHash>>
-  //   BlockStorageImpl::getBlockHash(const BlockId &block_id) const
-  //   {
-  //     return visit_in_place(
-  //         block_id,
-  //         [&](const Slot &slot)
-  //             -> outcome::result<std::optional<BlockHash>> {
-  //           auto key_space =
-  //               storage_->getSpace(storage::Space::SlotToHashes);
-  //           OUTCOME_TRY(data_opt,
-  //                       key_space->tryGet(slotToHashLookupKey(slot)));
-  //           if (data_opt.has_value()) {
-  //             OUTCOME_TRY(block_hash,
-  //                         BlockHash::fromSpan(data_opt.value()));
-  //             return block_hash;
-  //           }
-  //           return std::nullopt;
-  //         },
-  //         [](const Hash256 &block_hash) { return block_hash; });
-  //   }
-
   outcome::result<bool> BlockStorageImpl::hasBlockHeader(
       const BlockHash &block_hash) const {
     return hasInSpace(*storage_, storage::Space::Header, block_hash);
@@ -246,14 +225,6 @@ namespace lean::blockchain {
       const BlockData &block) {
     // insert provided block's parts into the database
     OUTCOME_TRY(block_hash, putBlockHeader(*block.header));
-
-    if (block.body.has_value()) {
-      OUTCOME_TRY(encoded_body, encode(*block.body));
-      OUTCOME_TRY(putToSpace(*storage_,
-                             storage::Space::Body,
-                             block_hash,
-                             std::move(encoded_body)));
-    }
 
     if (block.body.has_value()) {
       OUTCOME_TRY(encoded_body, encode(*block.body));

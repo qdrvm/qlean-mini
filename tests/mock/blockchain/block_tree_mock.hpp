@@ -17,7 +17,7 @@ namespace lean::blockchain {
   class BlockTreeMock : public BlockTree {
    public:
     MOCK_METHOD(outcome::result<Slot>,
-                getNumberByHash,
+                getSlotByHash,
                 (const BlockHash &block_hash),
                 (const, override));
     MOCK_METHOD(outcome::result<BlockHeader>,
@@ -65,7 +65,7 @@ namespace lean::blockchain {
 
     MOCK_METHOD(outcome::result<void>,
                 finalize,
-                (const BlockHash &block, const Justification &justification),
+                (const BlockHash &block),
                 (override));
 
     MOCK_METHOD(outcome::result<std::vector<BlockHash>>,

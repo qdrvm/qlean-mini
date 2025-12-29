@@ -494,7 +494,7 @@ namespace lean::modules {
   void NetworkingImpl::receiveBlock(
       std::optional<libp2p::PeerId> from_peer,
       SignedBlockWithAttestation &&signed_block_with_attestation) {
-    auto slot_hash = signed_block_with_attestation.message.block.slotHash();
+    auto slot_hash = signed_block_with_attestation.message.block.index();
     SL_INFO(logger_,
             "receiveBlock slot {} hash {} parent {}",
             slot_hash.slot,
@@ -539,7 +539,7 @@ namespace lean::modules {
         if (not res.has_value()) {
           SL_WARN(logger_,
                   "Error importing block {}: {}",
-                  block.message.block.slotHash(),
+                  block.message.block.index(),
                   res.error());
           break;
         }

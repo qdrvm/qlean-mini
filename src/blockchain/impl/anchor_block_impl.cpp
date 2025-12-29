@@ -16,6 +16,7 @@ namespace lean::blockchain {
     parent_root = kZeroHash;
     state_root = sszHash(state);
     body = BlockBody{};
+    setHash();
   }
 
 }  // namespace lean::blockchain

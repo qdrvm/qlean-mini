@@ -533,7 +533,7 @@ namespace lean {
     auto valid_signatures =
         validateBlockSignatures(signed_block_with_attestation);
     if (not valid_signatures) {
-      SL_WARN(logger_, "Invalid signatures for block {}", block.slotHash());
+      SL_WARN(logger_, "Invalid signatures for block {}", block.index());
       return Error::INVALID_ATTESTATION;
     }
 
@@ -658,9 +658,8 @@ namespace lean {
         }
 
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
-        SL_TRACE(logger_, "Interval 1 of slot{}", current_slot);
+        SL_TRACE(logger_, "Interval 2 of slot{}", current_slot);
 
-        // Interval one actions
         auto head_root = getHead();
         auto head_slot = getBlockSlot(head_root);
         if (not head_slot.has_value()) {
@@ -736,7 +735,6 @@ namespace lean {
       const BlockHash &start_root,
       const SignedAttestations &attestations,
       uint64_t min_score) const {
-    // BOOST_ASSERT(not blocks_.empty());
 
     // If the starting point is not defined, choose the earliest known block.
 
@@ -787,57 +785,6 @@ namespace lean {
         current = current_header.parent_root;
       }
     }
-
-    /*
-
-    // Build the adjacency tree (parent -> children).
-    //
-    // We use a map to avoid checking if keys exist.
-    std::unordered_map<BlockHash, std::vector<BlockHash>> children_map;
-    for (auto &[hash, block] : blocks_) {
-      // 1. Structural check: skip blocks without parents (e.g., purely
-      // genesis/orphans)
-      if (block.message.block.parent_root == BlockHash{}) {
-        continue;
-      }
-
-      // 2. Heuristic check: prune branches early if they lack sufficient weight
-      if (min_score > 0 and get_weight(hash) < min_score) {
-        continue;
-      }
-
-      children_map[block.message.block.parent_root].push_back(hash);
-    }
-
-    // Now perform the greedy walk.
-    //
-    // At each step, pick the child with the highest weight among the
-    // candidates.
-    auto head = anchor;
-
-    // Descend the tree, choosing the heaviest branch at every fork.
-    while (true) {
-      auto it = children_map.find(head);
-      if (it == children_map.end()) {
-        return head;
-      }
-      auto &children = it->second;
-
-      // Choose best child: most attestations, then lexicographically highest
-      // hash
-      head = *std::max_element(
-          children.begin(),
-          children.end(),
-          [&get_weight](const BlockHash &lhs, const BlockHash &rhs) {
-            auto lhs_weight = get_weight(lhs);
-            auto rhs_weight = get_weight(rhs);
-            if (lhs_weight == rhs_weight) {
-              return lhs < rhs;
-            }
-            return lhs_weight < rhs_weight;
-          });
-    }
-    */
 
     auto head = anchor;
     for (;;) {

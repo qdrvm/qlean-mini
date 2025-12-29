@@ -43,10 +43,6 @@ namespace lean {
       hash_cached = hash;
     }
 
-    BlockIndex slotHash() const {
-      return {slot, hash()};
-    }
-
     BlockIndex index() const {
       return {slot, hash()};
     }
@@ -57,7 +53,4 @@ namespace lean {
     virtual ~AnchorBlock() = 0;
   };
   inline AnchorBlock::~AnchorBlock() = default;
-
-  // using AnchorBlock = qtils::Tagged<Block, struct AnchorBlockTag>;
-
 }  // namespace lean

@@ -22,7 +22,6 @@ namespace lean::storage {
       "header",
       "extrinsic",
       "state",
-      "justification",
   };
   constexpr std::span<const std::string_view> kNames = kNamesArr;
 

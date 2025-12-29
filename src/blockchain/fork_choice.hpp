@@ -446,35 +446,7 @@ namespace lean {
      */
     Checkpoint latest_justified_;
 
-    /**
-     * Highest slot finalized checkpoint known to the store.
-     *
-     * Everything strictly before this checkpoint can be considered immutable.
-     *
-     * Fork choice will never revert finalized history.
-     */
-    // Checkpoint latest_finalized_;
-
-    /**
-     * Mapping from block root to Block objects.
-     *
-     * This is the set of blocks that the node currently knows about.
-     *
-     * Every block that might participate in fork choice must appear here.
-     */
-    // Blocks blocks_;
-
-    /**
-     * Mapping from state root to State objects.
-     *
-     * For each known block, we keep its post-state.
-     *
-     * These states carry justified and finalized checkpoints that we use to
-     * update the Store's latest justified and latest finalized checkpoints.
-     */
-    // std::unordered_map<BlockHash, State> states_;
     mutable LruCache<BlockHash, State> states_{8};
-
 
     /**
      * Active attestations that contribute to fork choice weights.

@@ -58,7 +58,4 @@ namespace lean {
     virtual ~AnchorState() = 0;
   };
   inline AnchorState::~AnchorState() = default;
-
-  // using AnchorState = qtils::Tagged<State, struct AnchorStateTag>;
-
 }  // namespace lean

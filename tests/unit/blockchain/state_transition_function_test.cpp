@@ -25,7 +25,6 @@ TEST(STF, Test) {
   std::vector<lean::crypto::xmss::XmssPublicKey> validators_pubkeys;
   validators_pubkeys.resize(2);
 
-
   auto state0 = lean::STF::generateGenesisState(config, validators_pubkeys);
   auto block0 = lean::blockchain::AnchorBlockImpl{lean::blockchain::AnchorStateImpl{state0}};
   block0.setHash();

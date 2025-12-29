@@ -33,7 +33,6 @@
 #include "blockchain/impl/anchor_state_impl.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/block_tree_impl.hpp"
-#include "blockchain/impl/genesis_block_header_impl.hpp"
 #include "blockchain/impl/validator_registry_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
@@ -102,7 +101,6 @@ namespace {
         di::bind<storage::SpacedStorage>.to<storage::RocksDb>(),
         di::bind<app::ChainSpec>.to<app::ChainSpecImpl>(),
         di::bind<crypto::Hasher>.to<crypto::HasherImpl>(),
-        di::bind<blockchain::GenesisBlockHeader>.to<blockchain::GenesisBlockHeaderImpl>(),
         di::bind<AnchorState>.to<blockchain::AnchorStateImpl>(),
         di::bind<AnchorBlock>.to<blockchain::AnchorBlockImpl>(),
         di::bind<blockchain::BlockStorage>.to<blockchain::BlockStorageImpl>(),

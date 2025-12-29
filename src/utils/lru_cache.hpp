@@ -107,11 +107,6 @@ namespace lean {
       LockGuard lg(*this);
       static_assert(std::is_convertible_v<ValueArg, Value>
                     || std::is_constructible_v<ValueArg, Value>);
-      if (cache_.size() >= kMaxSize) {
-        auto min = std::min_element(cache_.begin(), cache_.end());
-        cache_.erase(min);
-      }
-
       if (++ticks_ == 0) {
         handleTicksOverflow();
       }
@@ -122,6 +117,10 @@ namespace lean {
               return *item.value == value;
             });
         if (it != cache_.end()) {
+          if (cache_.size() >= kMaxSize) {
+            auto min = std::min_element(cache_.begin(), cache_.end());
+            cache_.erase(min);
+          }
           auto &entry = cache_.emplace_back(CacheEntry{key, it->value, ticks_});
           return entry.value;
         }
@@ -139,6 +138,10 @@ namespace lean {
               return *item.value == *value_sptr;
             });
         if (it != cache_.end()) {
+          if (cache_.size() >= kMaxSize) {
+            auto min = std::min_element(cache_.begin(), cache_.end());
+            cache_.erase(min);
+          }
           auto &entry = cache_.emplace_back(CacheEntry{key, it->value, ticks_});
           return entry.value;
         }

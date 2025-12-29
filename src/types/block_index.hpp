@@ -11,12 +11,16 @@
 
 namespace lean {
 
+  /**
+   * Type like Checkpoint with different members order
+   */
   struct BlockIndex {
     Slot slot;
     BlockHash hash;
     auto operator<=>(const BlockIndex &other) const = default;
 
-    explicit operator Checkpoint() const {
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    explicit(false) operator Checkpoint() const noexcept {
       return {.root = hash, .slot = slot};
     }
   };

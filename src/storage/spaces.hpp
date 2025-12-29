@@ -35,7 +35,6 @@ namespace lean::storage {
     Header,
     Body,
     State,
-    Justification,
     // ... append here
 
     Total  ///< Total number of defined spaces (must be last)

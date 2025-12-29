@@ -62,16 +62,6 @@ include(vcpkg-overlay/cppcodec.cmake)
 #   add_compile_options(-fmodules)
 # endif()
 
-add_compile_definitions(
-    BOOST_DI_CFG_DIAGNOSTICS_LEVEL=2
-    BOOST_DI_CFG_CTOR_LIMIT_SIZE=32
-)
-
-add_definitions(
-    -DBOOST_DI_CFG_DIAGNOSTICS_LEVEL=2
-    -DBOOST_DI_CFG_CTOR_LIMIT_SIZE=32
-)
-
 add_library(headers INTERFACE)
 target_include_directories(headers INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
