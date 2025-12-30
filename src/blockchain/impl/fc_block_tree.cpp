@@ -22,7 +22,12 @@ namespace lean::blockchain {
 
   outcome::result<BlockHeader> FCBlockTree::getBlockHeader(
       const BlockHash &block_hash) const {
-    throw std::runtime_error("FCBlockTree::getBlockHeader()");
+    const auto &blocks = fork_choice_store_->getBlocks();
+    auto it = blocks.find(block_hash);
+    if (blocks.end() == it) {
+      return BlockTreeError::HEADER_NOT_FOUND;
+    }
+    return it->second.message.block.getHeader();
   }
 
   outcome::result<std::optional<BlockHeader>> FCBlockTree::tryGetBlockHeader(
@@ -102,6 +107,10 @@ namespace lean::blockchain {
   BlockIndex FCBlockTree::lastFinalized() const {
     auto finalized = fork_choice_store_->getLatestFinalized();
     return BlockIndex{.slot = finalized.slot, .hash = finalized.root};
+  }
+
+  Checkpoint FCBlockTree::getLatestJustified() const {
+    return fork_choice_store_->getLatestJustified();
   }
 
   outcome::result<std::optional<SignedBlockWithAttestation>>

@@ -10,7 +10,7 @@
 
 namespace lean {
   /**
-   * YAML to read default logging config.
+   * YAML to read default config.
    */
-  const std::string &defaultLoggingYaml();
+  const std::string &defaultConfigYaml();
 }  // namespace lean

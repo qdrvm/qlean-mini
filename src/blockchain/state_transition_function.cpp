@@ -15,8 +15,8 @@
 
 namespace lean {
 
-  STF::STF(qtils::SharedRef<metrics::Metrics> metrics)
-      : metrics_(std::move(metrics)) {}
+  STF::STF(qtils::SharedRef<metrics::Metrics> metrics, log::Logger logger)
+      : metrics_(std::move(metrics)), log_(std::move(logger)) {}
 
   inline bool getBit(const std::vector<bool> &bits, size_t i) {
     return i < bits.size() and bits.at(i);

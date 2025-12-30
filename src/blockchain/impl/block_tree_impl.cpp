@@ -770,6 +770,15 @@ namespace lean::blockchain {
         [&](const BlockTreeData &p) { return getLastFinalizedNoLock(p); });
   }
 
+  Checkpoint BlockTreeImpl::getLatestJustified() const {
+    return block_tree_data_.sharedAccess([&](const BlockTreeData &p) {
+      auto finalized = getLastFinalizedNoLock(p);
+      // For now, return finalized as justified since we don't track separate
+      // justification in basic BlockTreeImpl yet
+      return Checkpoint{.root = finalized.hash, .slot = finalized.slot};
+    });
+  }
+
   outcome::result<std::optional<SignedBlockWithAttestation>>
   BlockTreeImpl::tryGetSignedBlock(const BlockHash block_hash) const {
     auto header_res = getBlockHeader(block_hash);
