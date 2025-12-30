@@ -10,9 +10,8 @@
 #include <iostream>
 #include <utility>
 
-#include "blockchain/block_tree.hpp"
-
 #include "app/state_manager.hpp"
+#include "blockchain/block_tree.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "clock/clock.hpp"
 #include "log/logger.hpp"
@@ -52,29 +51,30 @@ namespace lean::app {
                        std::shared_ptr<const messages::SlotStarted> msg) {
                   on_slot_started(std::move(msg));
                 });
-    on_peer_connected_ =
-        se::SubscriberCreator<qtils::Empty,
-                              std::shared_ptr<const messages::PeerConnectedMessage>>::
-            create<EventTypes::PeerConnected>(
-                *se_manager_,
-                SubscriptionEngineHandlers::kTest,
-                [this](auto &,
-                       std::shared_ptr<const messages::PeerConnectedMessage>
-                           msg) { connected_peers_++; });
+    on_peer_connected_ = se::SubscriberCreator<
+        qtils::Empty,
+        std::shared_ptr<const messages::PeerConnectedMessage>>::
+        create<EventTypes::PeerConnected>(
+            *se_manager_,
+            SubscriptionEngineHandlers::kTest,
+            [this](auto &,
+                   std::shared_ptr<const messages::PeerConnectedMessage> msg) {
+              connected_peers_++;
+            });
 
-    on_peer_disconnected_ =
-        se::SubscriberCreator<qtils::Empty,
-                              std::shared_ptr<const messages::PeerDisconnectedMessage>>::
-            create<EventTypes::PeerDisconnected>(
-                *se_manager_,
-                SubscriptionEngineHandlers::kTest,
-                [this](
-                    auto &,
-                    std::shared_ptr<const messages::PeerDisconnectedMessage> msg) {
-                  if (connected_peers_ > 0) {
-                    connected_peers_--;
-                  }
-                });
+    on_peer_disconnected_ = se::SubscriberCreator<
+        qtils::Empty,
+        std::shared_ptr<const messages::PeerDisconnectedMessage>>::
+        create<EventTypes::PeerDisconnected>(
+            *se_manager_,
+            SubscriptionEngineHandlers::kTest,
+            [this](
+                auto &,
+                std::shared_ptr<const messages::PeerDisconnectedMessage> msg) {
+              if (connected_peers_ > 0) {
+                connected_peers_--;
+              }
+            });
   }
 
   void TimelineImpl::start() {
@@ -124,19 +124,21 @@ namespace lean::app {
                        msg->slot,
                        head.slot)
         // TODO: fix connected peers count
-        // << "+---------------------------------------------------------------+\n"
+        // <<
+        // "+---------------------------------------------------------------+\n"
         // << fmt::format("  Connected Peers:    {}\n", connected_peers_.load())
-        // << "+---------------------------------------------------------------+\n"
+        // <<
+        // "+---------------------------------------------------------------+\n"
         << fmt::format("  Head Block Root:    0x{}\n", head.hash.toHex())
         << fmt::format("  Parent Block Root:  0x{}\n", parent_root.toHex())
         << fmt::format("  State Root:         0x{}\n", state_root.toHex())
         << "+---------------------------------------------------------------+\n"
-        << fmt::format("  Latest Justified:   Slot {:>6} | Root: {}\n",
+        << fmt::format("  Latest Justified:   Slot {:>6} | Root: 0x{}\n",
                        justified.slot,
-                       justified.root)
-        << fmt::format("  Latest Finalized:   Slot {:>6} | Root: {}\n",
+                       justified.root.toHex())
+        << fmt::format("  Latest Finalized:   Slot {:>6} | Root: 0x{}\n",
                        finalized.slot,
-                       finalized.hash)
+                       finalized.hash.toHex())
         << "+===============================================================+"
         << std::endl;
 
