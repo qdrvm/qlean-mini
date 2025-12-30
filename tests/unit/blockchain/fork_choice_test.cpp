@@ -111,17 +111,49 @@ auto createTestStore(
         .WillByDefault(testing::Return(block.message.block.slot));
     ON_CALL(*block_tree, getBlockHeader(hash))
         .WillByDefault(testing::Return(block.message.block.getHeader()));
+    ON_CALL(*block_tree, getBlockHeader(hash))
+        .WillByDefault(testing::Return(block.message.block.getHeader()));
   }
   ON_CALL(*block_tree, has(testing::_))
       .WillByDefault(
           [blocks](const auto &hash) { return blocks.contains(hash); });
+  ON_CALL(*block_tree, tryGetBlockHeader(testing::_))
+      .WillByDefault([blocks](const auto &hash)
+                         -> outcome::result<std::optional<lean::BlockHeader>> {
+        auto it = blocks.find(hash);
+        if (it != blocks.end()) {
+          return it->second.message.block.getHeader();
+        }
+        return std::nullopt;
+      });
+  ON_CALL(*block_tree, getChildren(testing::_))
+      .WillByDefault([blocks](const auto &hash)
+                         -> outcome::result<std::vector<lean::BlockHash>> {
+        std::vector<lean::BlockHash> children;
+        for (auto &[h, block] : blocks) {
+          if (block.message.block.parent_root == hash) {
+            children.push_back(h);
+          }
+        }
+        return children;
+      });
   ON_CALL(*block_tree, lastFinalized())
       .WillByDefault(testing::Return(
           lean::BlockIndex{latest_finalized.slot, latest_finalized.root}));
 
-  for (auto &[hash, state] : states) {
-    // ON_CALL(*block_storage, getState(hash));
-  }
+  // for (auto &[hash, state] : states) {
+  //   ON_CALL(block_storage*, (hash))
+  //       .WillByDefault(testing::Return(state));
+  // }
+  ON_CALL(*block_storage, getState(testing::_))
+      .WillByDefault([states](const auto &hash)
+                         -> outcome::result<std::optional<lean::State>> {
+        auto it = states.find(hash);
+        if (it != states.end()) {
+          return it->second;
+        }
+        return std::nullopt;
+      });
 
   return ForkChoiceStore(time,
                          testutil::prepareLoggers(),
@@ -383,6 +415,13 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
+  auto ls = testutil::prepareLoggers();
+  auto log = ls->getLogger("test", "test");
+  SL_INFO(log, "Blocks:");
+  for (auto& block : blocks) {
+    SL_INFO(log, "  {}", block.index());
+  }
+
   ForkChoiceStore::SignedAttestations attestations;
   attestations[0] = SignedAttestation{
       .message =
@@ -408,6 +447,11 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
                                makeBlockMap(blocks));
 
   auto head = store.computeLmdGhostHead(root.hash(), attestations, 2);
+
+  SL_INFO(log, "Head:");
+  SL_INFO(log, "  {}", head);
+  SL_INFO(log, "Root:");
+  SL_INFO(log, "  {}", root.index());
 
   EXPECT_EQ(head, root.hash());
 }
@@ -712,7 +756,8 @@ TEST(TestHeadSelection, test_produce_block_basic) {
   // Create a simple store
   auto sample_store = createTestStore(0, config);
 
-  // Try to produce a block - should throw due to missing state, which is
+  // Try to produce a block - should return error of missing state, which is
   // expected
-  EXPECT_OUTCOME_ERROR(sample_store.produceBlockWithSignatures(1, 1));
+  ASSERT_OUTCOME_ERROR(sample_store.produceBlockWithSignatures(1, 1),
+                       ForkChoiceStore::Error::STATE_NOT_FOUND);
 }

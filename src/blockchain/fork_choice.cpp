@@ -788,7 +788,7 @@ namespace lean {
           break;
         }
         auto &current_header = current_header_res.value().value();
-        if (current_header.slot < start_slot) {
+        if (current_header.slot <= start_slot) {
           break;
         }
         ++weights[current];
@@ -805,6 +805,13 @@ namespace lean {
       auto &children = children_res.value();
       if (children.empty()) {
         return head;
+      }
+
+      // Heuristic check: prune branches early if they lack sufficient weight
+      if (min_score > 0) {
+        std::erase_if(children, [&](const BlockHash &hash) {
+          return get_weight(hash) < min_score;
+        });
       }
 
       // Choose best child: most attestations, then lexicographically highest
