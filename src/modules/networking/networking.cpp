@@ -426,7 +426,7 @@ namespace lean::modules {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       auto slot_hash = message->notification.message.block.slotHash();
       SL_DEBUG(self->logger_,
-               "📣 Gossiped block in slot {} hash={:xx} 🔗",
+               "📣 Gossiped block in slot {} hash={:0xx} 🔗",
                slot_hash.slot,
                slot_hash.hash);
       self->gossip_blocks_topic_->publish(
@@ -511,7 +511,7 @@ namespace lean::modules {
       SignedBlockWithAttestation &&signed_block_with_attestation) {
     auto slot_hash = signed_block_with_attestation.message.block.slotHash();
     SL_DEBUG(logger_,
-             "Received block slot {} hash={:xx} parent={:xx} from peer={}",
+             "Received block slot {} hash={:0xx} parent={:0xx} from peer={}",
              slot_hash.slot,
              slot_hash.hash,
              signed_block_with_attestation.message.block.parent_root,
