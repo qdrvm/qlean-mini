@@ -61,8 +61,6 @@ namespace lean {
    */
   class ForkChoiceStore {
    public:
-    //    using Blocks = std::unordered_map<BlockHash,
-    //    SignedBlockWithAttestation>;
     using SignedAttestations =
         std::unordered_map<ValidatorIndex, SignedAttestation>;
 
@@ -113,12 +111,9 @@ namespace lean {
         qtils::SharedRef<log::LoggingSystem> logging_system,
         qtils::SharedRef<metrics::Metrics> metrics,
         Config config,
-        BlockHash head,
+        Checkpoint head,
         BlockHash safe_target,
         Checkpoint latest_justified,
-        Checkpoint latest_finalized,
-        // Blocks blocks,
-        // std::unordered_map<BlockHash, State> states,
         SignedAttestations latest_known_attestations,
         SignedAttestations latest_new_votes,
         ValidatorIndex validator_index,
@@ -144,13 +139,12 @@ namespace lean {
 
     Slot getCurrentSlot() const;
 
-    BlockHash getHead();
+    Checkpoint getHead();
     outcome::result<std::shared_ptr<const State>> getState(
         const BlockHash &block_hash) const;
 
     bool hasBlock(const BlockHash &hash) const;
     std::optional<Slot> getBlockSlot(const BlockHash &block_hash) const;
-    Slot getHeadSlot() const;
     const Config &getConfig() const;
     Checkpoint getLatestFinalized() const;
     Checkpoint getLatestJustified() const;
@@ -422,12 +416,12 @@ namespace lean {
     Config config_;
 
     /**
-     * Root of the current canonical chain head block.
+     * Checkpoint of the current canonical chain head block.
      *
      * This is the result of running the fork choice algorithm on the current
      * contents of the Store.
      */
-    BlockHash head_;
+    Checkpoint head_;
 
     /**
      * Root of the current safe target for attestation.
@@ -446,6 +440,12 @@ namespace lean {
      */
     Checkpoint latest_justified_;
 
+    /**
+     * For each known block, we keep its post-state.
+     *
+     * These states carry justified and finalized checkpoints that we use to
+     * update the Store's latest justified and latest finalized checkpoints.
+     */
     mutable LruCache<BlockHash, State> states_{8};
 
     /**

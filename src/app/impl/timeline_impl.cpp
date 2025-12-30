@@ -88,7 +88,10 @@ namespace lean::app {
     auto time_to_next_slot = genesis_config_->genesis_time * 1000
                            + SLOT_DURATION_MS * next_slot - now;
 
-    SL_INFO(logger_, "Next slot is {} in {}ms", next_slot, time_to_next_slot);
+    SL_TRACE(logger_,
+             "Next slot {} is scheduled in {}ms",
+             next_slot,
+             time_to_next_slot);
 
     const auto slot_start_abs =
         genesis_config_->genesis_time * 1000

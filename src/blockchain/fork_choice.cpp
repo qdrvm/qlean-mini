@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include <boost/beast/http/verb.hpp>
+
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/is_proposer.hpp"
 #include "impl/block_tree_impl.hpp"
@@ -22,28 +24,46 @@
 
 namespace lean {
   outcome::result<void> ForkChoiceStore::updateSafeTarget() {
+    SL_TRACE(logger_, "Update safe target");
     // Get validator count from head state
-    OUTCOME_TRY(head_state, getState(head_));
+    OUTCOME_TRY(head_state, getState(head_.root));
 
     // 2/3rd majority min voting weight for target selection
     auto min_target_score = ceilDiv(head_state->validatorCount() * 2, 3);
 
-    safe_target_ = computeLmdGhostHead(
+    auto lmd_ghost_head = computeLmdGhostHead(
         latest_justified_.root, latest_new_attestations_, min_target_score);
 
+    auto slot_opt = getBlockSlot(lmd_ghost_head);
+    BOOST_ASSERT(slot_opt.has_value());
+
+    Checkpoint safe_target = {.root = lmd_ghost_head, .slot = slot_opt.value()};
+
+    SL_TRACE(logger_, "Safe target was set to {}", safe_target);
+    safe_target_ = safe_target.root;
     return outcome::success();
   }
 
   void ForkChoiceStore::updateHead() {
+    SL_TRACE(logger_, "Update head");
     // Run LMD-GHOST fork choice algorithm
     //
     // Selects canonical head by walking the tree from the justified root,
     // choosing the heaviest child at each fork based on attestation weights.
-    head_ = computeLmdGhostHead(
+    auto lmd_ghost_head = computeLmdGhostHead(
         latest_justified_.root, latest_known_attestations_, 0);
+
+    auto slot_opt = getBlockSlot(lmd_ghost_head);
+    BOOST_ASSERT(slot_opt.has_value());
+
+    head_ = {.root = lmd_ghost_head, .slot = slot_opt.value()};
+    SL_TRACE(logger_, "Head was set to {}", head_);
   }
 
   void ForkChoiceStore::acceptNewAttestations() {
+    SL_TRACE(logger_,
+             "Accepting new {} attestations",
+             latest_new_attestations_.size());
     for (auto &[validator, attestation] : latest_new_attestations_) {
       latest_known_attestations_[validator] = attestation;
     }
@@ -56,7 +76,7 @@ namespace lean {
     return current_slot;
   }
 
-  BlockHash ForkChoiceStore::getHead() {
+  Checkpoint ForkChoiceStore::getHead() {
     return head_;
   }
 
@@ -85,10 +105,6 @@ namespace lean {
     return std::nullopt;
   }
 
-  Slot ForkChoiceStore::getHeadSlot() const {
-    return getBlockSlot(head_).value();
-  }
-
   const Config &ForkChoiceStore::getConfig() const {
     return config_;
   }
@@ -103,7 +119,7 @@ namespace lean {
 
   Checkpoint ForkChoiceStore::getAttestationTarget() const {
     // Start from head as target-candidate
-    auto target_block_root = head_;
+    auto target_block_root = head_.root;
 
     // If there is no very recent safe target, then vote for the k'th ancestor
     // of the head
@@ -139,16 +155,11 @@ namespace lean {
   }
 
   AttestationData ForkChoiceStore::produceAttestationData(Slot slot) const {
-    Checkpoint head_checkpoint{
-        .root = head_,
-        .slot = getHeadSlot(),
-    };
-
     auto target_checkpoint = getAttestationTarget();
 
     return AttestationData{
         .slot = slot,
-        .head = head_checkpoint,
+        .head = head_,
         .target = target_checkpoint,
         .source = latest_justified_,
     };
@@ -158,8 +169,8 @@ namespace lean {
   ForkChoiceStore::produceBlockWithSignatures(Slot slot,
                                               ValidatorIndex validator_index) {
     // Get parent block and state to build upon
-    auto head_root = head_;
-    OUTCOME_TRY(head_state, getState(head_));
+    auto head_root = head_.root;
+    OUTCOME_TRY(head_state, getState(head_root));
 
     // Validate proposer authorization for this slot
     if (not isProposer(validator_index, slot, head_state->validatorCount())) {
@@ -193,7 +204,7 @@ namespace lean {
       auto new_attestations = false;
       for (auto &signed_attestation :
            latest_known_attestations_ | std::views::values) {
-        // Skip if target-block is unknown in our store
+        // Skip if the target block is unknown in our store
         auto &data = signed_attestation.message.data;
         if (not block_tree_->has(data.head.root)) {
           continue;
@@ -557,6 +568,9 @@ namespace lean {
       OUTCOME_TRY(block_tree_->finalize(post_state.latest_finalized.root));
     }
 
+    // Cache state
+    states_.put(block_hash, post_state);
+
     // Process block body attestations
 
     // Iterate over attestations and their corresponding signatures.
@@ -589,7 +603,7 @@ namespace lean {
     // 1. NOT affect this block's fork choice position (processed as "new")
     // 2. Be available for inclusion in future blocks
     // 3. Influence fork choice only after interval 3 (end of slot)
-    BOOST_OUTCOME_TRY(onAttestation(
+    OUTCOME_TRY(onAttestation(
         SignedAttestation{
             .message = proposer_attestation,
             .signature = signatures.data().at(block.body.attestations.size()),
@@ -603,7 +617,7 @@ namespace lean {
   ForkChoiceStore::onTick(uint64_t now_sec) {
     auto time_since_genesis = now_sec - config_.genesis_time;
 
-    auto head_state_res = getState(head_);
+    auto head_state_res = getState(head_.root);
     BOOST_ASSERT(head_state_res.has_value());
     auto validator_count = head_state_res.value()->validatorCount();
 
@@ -633,6 +647,10 @@ namespace lean {
                    current_slot);
           acceptNewAttestations();
 
+          SL_TRACE(logger_,
+                   "Trying to produced block on slot {} by producer index {}",
+                   current_slot,
+                   producer_index);
           auto res = produceBlockWithSignatures(current_slot, producer_index);
           if (!res.has_value()) {
             SL_ERROR(logger_,
@@ -660,15 +678,8 @@ namespace lean {
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
         SL_TRACE(logger_, "Interval 2 of slot{}", current_slot);
 
-        auto head_root = getHead();
-        auto head_slot = getBlockSlot(head_root);
-        if (not head_slot.has_value()) {
-          SL_ERROR(logger_, "Head block {} not found in store", head_root);
-          time_ += 1;
-          continue;
-        }
-        metrics_->fc_head_slot()->set(head_slot.value());
-        Checkpoint head{.root = head_root, .slot = head_slot.value()};
+        metrics_->fc_head_slot()->set(head_.slot);
+        Checkpoint head = head_;
         auto target = getAttestationTarget();
         SL_INFO(logger_,
                 "For slot {}: head is {}, target is {}, source is {}",
@@ -735,7 +746,6 @@ namespace lean {
       const BlockHash &start_root,
       const SignedAttestations &attestations,
       uint64_t min_score) const {
-
     // If the starting point is not defined, choose the earliest known block.
 
     // This ensures that the walk always has an anchor.
@@ -834,28 +844,18 @@ namespace lean {
         validator_keys_manifest_(std::move(validator_keys_manifest)) {
     BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
     anchor_block->setHash();
-    auto anchor_root = anchor_block->hash();
     config_ = anchor_state->config;
     auto now_sec = clock->nowSec();
     time_ = now_sec > config_.genesis_time
               ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
               : 0;
-    head_ = anchor_root;
-    safe_target_ = anchor_root;
+
+    head_ = {.root = anchor_block->hash(), .slot = anchor_block->slot};
+    safe_target_ = head_.root;
 
     // TODO: ensure latest justified and finalized are set correctly
-    latest_justified_ = Checkpoint::from(*anchor_block);
-    // latest_finalized_ = Checkpoint::from(*anchor_block);
+    latest_justified_ = head_;
 
-    // blocks_.emplace(
-    //     anchor_root,
-    //     SignedBlockWithAttestation{
-    //         .message = {.block = static_cast<Block &>(*anchor_block)},
-    //     });
-    // SL_INFO(
-    //     logger_, "Anchor block {} at slot {}", anchor_root,
-    //     anchor_block->slot);
-    // states_.emplace(anchor_root, *anchor_state);
     for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
       SL_INFO(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
     }
@@ -871,12 +871,9 @@ namespace lean {
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
       Config config,
-      BlockHash head,
+      Checkpoint head,
       BlockHash safe_target,
       Checkpoint latest_justified,
-      Checkpoint latest_finalized,
-      // Blocks blocks,
-      // std::unordered_map<BlockHash, State> states,
       SignedAttestations latest_known_attestations,
       SignedAttestations latest_new_attestations,
       ValidatorIndex validator_index,
@@ -896,9 +893,6 @@ namespace lean {
         head_(head),
         safe_target_(safe_target),
         latest_justified_(latest_justified),
-        // latest_finalized_(latest_finalized),
-        // blocks_(std::move(blocks)),
-        // states_(std::move(states)),
         latest_known_attestations_(std::move(latest_known_attestations)),
         latest_new_attestations_(std::move(latest_new_attestations)),
         validator_registry_(std::move(validator_registry)),

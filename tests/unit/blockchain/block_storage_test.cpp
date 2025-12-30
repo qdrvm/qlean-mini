@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <blockchain/genesis_block_header.hpp>
 #include <qtils/bytes.hpp>
 #include <qtils/test/outcome.hpp>
 
@@ -33,13 +32,12 @@ using lean::BlockBody;
 using lean::BlockData;
 using lean::BlockHash;
 using lean::BlockHeader;
-using lean::encode;
 using lean::decode;
+using lean::encode;
 using lean::app::ChainSpecMock;
 using lean::blockchain::BlockStorageError;
 using lean::blockchain::BlockStorageImpl;
 using lean::blockchain::BlockStorageInitializer;
-using lean::blockchain::GenesisBlockHeader;
 using lean::crypto::HasherMock;
 using lean::storage::BufferStorageMock;
 using lean::storage::Space;
@@ -63,10 +61,10 @@ class BlockStorageTest : public testing::Test {
     spaced_storage = std::make_shared<SpacedStorageMock>();
 
     std::set<Space> required_spaces = {Space::Default,
+                                       Space::SlotToHashes,
                                        Space::Header,
-                                       Space::Justification,
                                        Space::Body,
-                                       Space::SlotToHashes};
+                                       Space::State};
 
     for (auto space : required_spaces) {
       auto storage = std::make_shared<BufferStorageMock>();
@@ -91,7 +89,7 @@ class BlockStorageTest : public testing::Test {
   qtils::SharedRef<AnchorBlock> anchor_block =
       std::make_shared<lean::blockchain::AnchorBlockImpl>(*anchor_state);
 
-  BlockHash genesis_block_hash; // {"genesis"_arr32};
+  BlockHash genesis_block_hash;  // {"genesis"_arr32};
 
   qtils::SharedRef<ChainSpecMock> chain_spec =
       std::make_shared<ChainSpecMock>();
@@ -291,8 +289,6 @@ TEST_F(BlockStorageTest, Remove) {
   EXPECT_CALL(*spaces[Space::Body], remove(ByteView{hash}))
       .WillOnce(Return(outcome::success()));
   EXPECT_CALL(*spaces[Space::Header], remove(ByteView{hash}))
-      .WillOnce(Return(outcome::success()));
-  EXPECT_CALL(*spaces[Space::Justification], remove(ByteView{hash}))
       .WillOnce(Return(outcome::success()));
 
   ASSERT_OUTCOME_SUCCESS(block_storage->removeBlock(hash));
