@@ -14,6 +14,7 @@ namespace lean {
   struct BlockBody;
   struct SignedBlockWithAttestation;
   struct StatusMessage;
+  struct Checkpoint;
 }  // namespace lean
 
 namespace lean::blockchain {
@@ -153,6 +154,12 @@ namespace lean::blockchain {
      * @return hash of the block
      */
     [[nodiscard]] virtual BlockIndex lastFinalized() const = 0;
+
+    /**
+     * Get the latest justified checkpoint
+     * @return checkpoint
+     */
+    [[nodiscard]] virtual Checkpoint getLatestJustified() const = 0;
 
     /**
      * Get `SignedBlockWithAttestation` for
