@@ -16,7 +16,6 @@
 #include "blockchain/block_storage_error.hpp"
 #include "blockchain/block_tree_error.hpp"
 #include "log/logger.hpp"
-#include "types/justification.hpp"
 
 namespace lean::blockchain {
 

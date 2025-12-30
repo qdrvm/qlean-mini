@@ -51,7 +51,7 @@ namespace lean::app {
 
     qtils::SharedRef<soralog::Logger> logger_;
     qtils::SharedRef<StateManager> state_manager_;
-    qtils::SharedRef<GenesisConfig> config_;
+    qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<clock::SystemClock> clock_;
     qtils::SharedRef<Subscription> se_manager_;
 

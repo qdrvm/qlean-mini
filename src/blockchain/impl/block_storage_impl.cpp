@@ -13,6 +13,7 @@
 #include "sszpp/ssz++.hpp"
 #include "storage/predefined_keys.hpp"
 #include "types/block_data.hpp"
+#include "types/state.hpp"
 
 namespace lean::blockchain {
 
@@ -140,27 +141,6 @@ namespace lean::blockchain {
     return SlotIterator::create(storage->cursor());
   }
 
-  //   outcome::result<std::optional<BlockHash>>
-  //   BlockStorageImpl::getBlockHash(const BlockId &block_id) const
-  //   {
-  //     return visit_in_place(
-  //         block_id,
-  //         [&](const Slot &slot)
-  //             -> outcome::result<std::optional<BlockHash>> {
-  //           auto key_space =
-  //               storage_->getSpace(storage::Space::SlotToHashes);
-  //           OUTCOME_TRY(data_opt,
-  //                       key_space->tryGet(slotToHashLookupKey(slot)));
-  //           if (data_opt.has_value()) {
-  //             OUTCOME_TRY(block_hash,
-  //                         BlockHash::fromSpan(data_opt.value()));
-  //             return block_hash;
-  //           }
-  //           return std::nullopt;
-  //         },
-  //         [](const Hash256 &block_hash) { return block_hash; });
-  //   }
-
   outcome::result<bool> BlockStorageImpl::hasBlockHeader(
       const BlockHash &block_hash) const {
     return hasInSpace(*storage_, storage::Space::Header, block_hash);
@@ -217,37 +197,27 @@ namespace lean::blockchain {
     return space->remove(block_hash);
   }
 
-  outcome::result<void> BlockStorageImpl::putJustification(
-      const Justification &justification, const BlockHash &hash) {
-    if (justification.empty()) {
-      return BlockStorageError::JUSTIFICATION_EMPTY;
-    }
-
-    OUTCOME_TRY(encoded_justification, encode(justification));
-    OUTCOME_TRY(putToSpace(*storage_,
-                           storage::Space::Justification,
-                           hash,
-                           std::move(encoded_justification)));
-
-    return outcome::success();
+  outcome::result<void> BlockStorageImpl::putState(const BlockHash &block_hash,
+                                                   const State &state) {
+    OUTCOME_TRY(encoded_state, encode(state));
+    return putToSpace(
+        *storage_, storage::Space::State, block_hash, std::move(encoded_state));
   }
 
-  outcome::result<std::optional<Justification>>
-  BlockStorageImpl::getJustification(const BlockHash &block_hash) const {
-    OUTCOME_TRY(
-        encoded_justification_opt,
-        getFromSpace(*storage_, storage::Space::Justification, block_hash));
-    if (encoded_justification_opt.has_value()) {
-      OUTCOME_TRY(justification,
-                  decode<Justification>(encoded_justification_opt.value()));
-      return justification;
+  outcome::result<std::optional<State>> BlockStorageImpl::getState(
+      const BlockHash &block_hash) const {
+    OUTCOME_TRY(encoded_state_opt,
+                getFromSpace(*storage_, storage::Space::State, block_hash));
+    if (encoded_state_opt.has_value()) {
+      OUTCOME_TRY(state, decode<State>(encoded_state_opt.value()));
+      return std::make_optional(std::move(state));
     }
     return std::nullopt;
   }
 
-  outcome::result<void> BlockStorageImpl::removeJustification(
+  outcome::result<void> BlockStorageImpl::removeState(
       const BlockHash &block_hash) {
-    auto space = storage_->getSpace(storage::Space::Justification);
+    auto space = storage_->getSpace(storage::Space::State);
     return space->remove(block_hash);
   }
 
@@ -329,16 +299,6 @@ namespace lean::blockchain {
                "could not remove body of block {} from the storage: {}",
                block_index,
                res.error());
-      return res;
-    }
-
-    // Remove justification for a block
-    if (auto res = removeJustification(block_index.hash); res.has_error()) {
-      SL_ERROR(
-          logger_,
-          "could not remove justification of block {} from the storage: {}",
-          block_index,
-          res.error());
       return res;
     }
 

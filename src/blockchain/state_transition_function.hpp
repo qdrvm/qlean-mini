@@ -63,10 +63,10 @@ namespace lean {
 
     explicit STF(qtils::SharedRef<metrics::Metrics> metrics);
 
-    static AnchorState generateGenesisState(
+    static State generateGenesisState(
         const Config &config,
         std::span<const crypto::xmss::XmssPublicKey> validators_pubkeys);
-    static AnchorBlock genesisBlock(const State &state);
+    static Block genesisBlock(const State &state);
 
     /**
      * Apply block to parent state.
