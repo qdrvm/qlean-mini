@@ -22,11 +22,21 @@ namespace lean::crypto::xmss {
     XmssKeypair generateKeypair(uint64_t, uint64_t) override;
     XmssSignature sign(XmssPrivateKey,
                        uint32_t epoch,
-                       qtils::BytesIn message) override;
-    bool verify(XmssPublicKey,
-                qtils::BytesIn,
+                       const XmssMessage &message) override;
+    bool verify(const XmssPublicKey &,
+                const XmssMessage &,
                 uint32_t,
-                XmssSignature) override;
+                const XmssSignature &) override;
+    XmssAggregatedSignature aggregateSignatures(
+        std::span<const XmssPublicKey> public_keys,
+        std::span<const XmssSignature> signatures,
+        uint32_t epoch,
+        const XmssMessage &message) const override;
+    bool verifyAggregatedSignatures(
+        std::span<const XmssPublicKey> public_keys,
+        uint32_t epoch,
+        const XmssMessage &message,
+        const XmssAggregatedSignature &aggregated_signature) const override;
 
     static XmssKeypair loadKeypair(std::string_view private_key_path);
   };
