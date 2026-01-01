@@ -344,6 +344,11 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::onGossipAttestation(
       const SignedAttestation &signed_attestation) {
+    Attestation attestation{
+        .validator_id = signed_attestation.validator_id,
+        .data = signed_attestation.message,
+    };
+    BOOST_OUTCOME_TRY(validateAttestation(attestation));
     auto state_it = states_.find(signed_attestation.message.target.root);
     if (state_it == states_.end()) {
       return Error::INVALID_ATTESTATION;
@@ -364,12 +369,7 @@ namespace lean {
         validatorAttestationKey(signed_attestation.validator_id,
                                 signed_attestation.message),
         signed_attestation.signature);
-    return onAttestation(
-        {
-            .validator_id = signed_attestation.validator_id,
-            .data = signed_attestation.message,
-        },
-        false);
+    return onAttestation(attestation, false);
   }
 
   outcome::result<void> ForkChoiceStore::onAttestation(
