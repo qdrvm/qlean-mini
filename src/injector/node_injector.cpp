@@ -35,6 +35,7 @@
 #include "blockchain/impl/validator_registry_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
+#include "crypto/xmss/xmss_provider_fake.hpp"
 #include "crypto/xmss/xmss_provider_impl.hpp"
 #include "injector/bind_by_lambda.hpp"
 #include "loaders/loader.hpp"
@@ -74,6 +75,12 @@ namespace {
   auto makeApplicationInjector(std::shared_ptr<log::LoggingSystem> logsys,
                                std::shared_ptr<app::Configuration> app_config,
                                Ts &&...args) {
+    std::shared_ptr<crypto::xmss::XmssProvider> xmss_provider;
+    if (not app_config->fakeXmss()) {
+      xmss_provider = std::make_shared<crypto::xmss::XmssProviderImpl>();
+    } else {
+      xmss_provider = std::make_shared<crypto::xmss::XmssProviderFake>();
+    }
     // clang-format off
     return di::make_injector(
         di::bind<app::Configuration>.to(app_config),
@@ -105,7 +112,7 @@ namespace {
         di::bind<blockchain::BlockTree>.to<blockchain::FCBlockTree>(),
         di::bind<ValidatorRegistry>.to<ValidatorRegistryImpl>(),
         di::bind<app::ValidatorKeysManifest>.to<app::ValidatorKeysManifestImpl>(),
-        di::bind<crypto::xmss::XmssProvider>.to<crypto::xmss::XmssProviderImpl>(),
+        di::bind<crypto::xmss::XmssProvider>.to(xmss_provider),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);

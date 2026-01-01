@@ -75,6 +75,10 @@ namespace lean::app {
     return validator_keys_manifest_path_;
   }
 
+  bool Configuration::fakeXmss() const {
+    return fake_xmss_;
+  }
+
   const Configuration::DatabaseConfig &Configuration::database() const {
     return database_;
   }

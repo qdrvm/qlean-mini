@@ -37,6 +37,7 @@
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
 #include "modules/networking/types.hpp"
+#include "utils/debug.hpp"
 
 namespace lean::modules {
   constexpr std::chrono::seconds kConnectToPeersTimer{5};
@@ -392,6 +393,9 @@ namespace lean::modules {
           if (not self) {
             return;
           }
+          SL_INFO(self->logger_,
+                  "receive-attestation-{}",
+                  Debug{signed_attestation.message});
           auto res =
               self->fork_choice_store_->onGossipAttestation(signed_attestation);
           if (not res.has_value()) {
@@ -418,6 +422,7 @@ namespace lean::modules {
 
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
+    SL_INFO(logger_, "publish-block-{}", Debug{message->notification.message});
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_blocks_topic_->publish(
           encodeSszSnappy(message->notification));
@@ -426,6 +431,9 @@ namespace lean::modules {
 
   void NetworkingImpl::onSendSignedVote(
       std::shared_ptr<const messages::SendSignedVote> message) {
+    SL_INFO(logger_,
+            "publish-attestation-{}",
+            Debug{message->notification.message});
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       self->gossip_votes_topic_->publish(
           encodeSszSnappy(message->notification));
@@ -496,6 +504,9 @@ namespace lean::modules {
   void NetworkingImpl::receiveBlock(
       std::optional<libp2p::PeerId> from_peer,
       SignedBlockWithAttestation &&signed_block_with_attestation) {
+    SL_INFO(logger_,
+            "receive-block-{}",
+            Debug{signed_block_with_attestation.message});
     auto slot_hash = signed_block_with_attestation.message.block.slotHash();
     SL_INFO(logger_,
             "receiveBlock slot {} hash {} parent {}",

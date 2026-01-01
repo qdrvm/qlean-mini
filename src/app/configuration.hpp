@@ -57,6 +57,8 @@ namespace lean::app {
     [[nodiscard]] virtual const std::filesystem::path &
     validatorKeysManifestPath() const;
 
+    [[nodiscard]] virtual bool fakeXmss() const;
+
     [[nodiscard]] virtual const DatabaseConfig &database() const;
 
     [[nodiscard]] virtual const MetricsConfig &metrics() const;
@@ -81,6 +83,8 @@ namespace lean::app {
     std::optional<crypto::xmss::XmssKeypair> xmss_keypair_;
 
     std::filesystem::path validator_keys_manifest_path_;
+
+    bool fake_xmss_ = false;
 
     DatabaseConfig database_;
     MetricsConfig metrics_;
