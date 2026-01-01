@@ -392,18 +392,18 @@ namespace lean::modules {
           if (not self) {
             return;
           }
-          auto res = self->fork_choice_store_->onAttestation(signed_attestation,
-                                                             false);
+          auto res =
+              self->fork_choice_store_->onGossipAttestation(signed_attestation);
           if (not res.has_value()) {
             SL_WARN(self->logger_,
                     "Error processing vote for target {}: {}",
-                    signed_attestation.message.data.target,
+                    signed_attestation.message.target,
                     res.error());
             return;
           }
           SL_DEBUG(self->logger_,
                    "Received vote for target {}",
-                   signed_attestation.message.data.target);
+                   signed_attestation.message.target);
         });
 
     io_thread_.emplace([io_context{io_context_}] {

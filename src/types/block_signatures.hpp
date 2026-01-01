@@ -6,11 +6,17 @@
 
 #pragma once
 
-#include <sszpp/lists.hpp>
+#include <sszpp/container.hpp>
 
-#include "types/constants.hpp"
+#include "types/attestations_signatures.hpp"
 #include "types/signature.hpp"
 
 namespace lean {
-  using BlockSignatures = ssz::list<Signature, VALIDATOR_REGISTRY_LIMIT>;
+  struct BlockSignatures : ssz::ssz_variable_size_container {
+    AttestationSignatures attestation_signatures;
+    Signature proposer_signature;
+
+    SSZ_CONT(attestation_signatures, proposer_signature);
+    bool operator==(const BlockSignatures &) const = default;
+  };
 }  // namespace lean

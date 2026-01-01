@@ -56,7 +56,7 @@ namespace lean::crypto::xmss {
 
   XmssSignature XmssProviderImpl::sign(XmssPrivateKey xmss_private_key,
                                        uint32_t epoch,
-                                       qtils::BytesIn message) {
+                                       const XmssMessage &message) {
     // Sign the message
     PQSignature *signature_raw = nullptr;
     ffi::asOutcome(
@@ -71,10 +71,10 @@ namespace lean::crypto::xmss {
     return signature_bytes;
   }
 
-  bool XmssProviderImpl::verify(XmssPublicKey xmss_public_key,
-                                qtils::BytesIn message,
+  bool XmssProviderImpl::verify(const XmssPublicKey &xmss_public_key,
+                                const XmssMessage &message,
                                 uint32_t epoch,
-                                XmssSignature xmss_signature) {
+                                const XmssSignature &xmss_signature) {
     // Deserialize public key
     PQPublicKey *public_key_raw = nullptr;
     ffi::asOutcome(
@@ -100,4 +100,51 @@ namespace lean::crypto::xmss {
     return verify_result == 1;
   }
 
+  auto manyToRaw(const auto &items) {
+    std::vector<const uint8_t *> items_raw;
+    items_raw.reserve(items.size());
+    for (auto &item : items) {
+      items_raw.emplace_back(item.data());
+    }
+    return items_raw;
+  }
+
+  XmssAggregatedSignature XmssProviderImpl::aggregateSignatures(
+      std::span<const XmssPublicKey> public_keys,
+      std::span<const XmssSignature> signatures,
+      uint32_t epoch,
+      const XmssMessage &message) const {
+    if (public_keys.size() != signatures.size()) {
+      throw std::logic_error{
+          "XmssProviderImpl::aggregateSignatures public key and signature "
+          "count mismatch"};
+    }
+    auto public_keys_raw = manyToRaw(public_keys);
+    auto signatures_raw = manyToRaw(signatures);
+    auto ffi_bytevec = pq_aggregate_signatures(public_keys.size(),
+                                               public_keys_raw.data(),
+                                               signatures_raw.data(),
+                                               epoch,
+                                               message.data());
+    XmssAggregatedSignature aggregated_signature{std::span{
+        ffi_bytevec.ptr,
+        ffi_bytevec.size,
+    }};
+    PQByteVec_drop(ffi_bytevec);
+    return aggregated_signature;
+  }
+
+  bool XmssProviderImpl::verifyAggregatedSignatures(
+      std::span<const XmssPublicKey> public_keys,
+      uint32_t epoch,
+      const XmssMessage &message,
+      const XmssAggregatedSignature &aggregated_signature) const {
+    auto public_keys_raw = manyToRaw(public_keys);
+    return pq_verify_aggregated_signatures(public_keys.size(),
+                                           public_keys_raw.data(),
+                                           epoch,
+                                           message.data(),
+                                           aggregated_signature.data(),
+                                           aggregated_signature.size());
+  }
 }  // namespace lean::crypto::xmss
