@@ -184,13 +184,6 @@ namespace lean {
       // Find new valid attestations matching post-state justification
       auto new_attestations = false;
       for (auto &[validator_id, data] : latest_known_attestations_) {
-        auto signature_it = gossip_attestation_signatures_.find(
-            validatorAttestationKey(validator_id, data));
-        if (signature_it == gossip_attestation_signatures_.end()) {
-          continue;
-        }
-        auto &signature = signature_it->second;
-
         // Skip if target block is unknown in our store
         if (not blocks_.contains(data.head.root)) {
           continue;
@@ -199,6 +192,12 @@ namespace lean {
         // Skip if attestation source does not match post-state's latest
         // justified
         if (data.source != post_state.latest_justified) {
+          continue;
+        }
+
+        auto key = validatorAttestationKey(validator_id, data);
+        if (not gossip_attestation_signatures_.contains(key)
+            and not aggregated_payloads_.contains(key)) {
           continue;
         }
 
@@ -231,6 +230,12 @@ namespace lean {
       }
     }
 
+    // Compute the aggregated signatures for the attestations.
+    // If the attestations cannot be aggregated, split it in a greedy way.
+    auto aggregated =
+        computeAggregatedSignatures(head_state, aggregated_attestations);
+    aggregated_attestations = aggregated.first;
+
     // Create final block with all collected attestations
     Block block{
         .slot = slot,
@@ -245,24 +250,6 @@ namespace lean {
                       stf_.stateTransition(block, head_state, false));
     block.state_root = sszHash(state);
     block.setHash();
-
-    AttestationSignatures aggregated_signatures;
-    for (auto &aggregated_attestation : aggregated_attestations) {
-      std::vector<crypto::xmss::XmssPublicKey> public_keys;
-      std::vector<Signature> signatures;
-      for (auto &&validator_id :
-           getAggregatedValidators(aggregated_attestation.aggregation_bits)) {
-        public_keys.emplace_back(
-            state.validators.data().at(validator_id).pubkey);
-        signatures.emplace_back(
-            gossip_attestation_signatures_.at(validatorAttestationKey(
-                validator_id, aggregated_attestation.data)));
-      }
-      auto payload = attestationPayload(aggregated_attestation.data);
-      auto aggregated_signature = xmss_provider_->aggregateSignatures(
-          public_keys, signatures, aggregated_attestation.data.slot, payload);
-      aggregated_signatures.push_back(aggregated_signature);
-    }
 
     auto proposer_attestation = produceAttestation(slot, proposer_index);
     proposer_attestation.data.head = Checkpoint::from(block);
@@ -285,7 +272,7 @@ namespace lean {
             },
         .signature =
             {
-                .attestation_signatures = aggregated_signatures,
+                .attestation_signatures = aggregated.second,
                 .proposer_signature = proposer_signature,
             },
     };
@@ -638,8 +625,8 @@ namespace lean {
     }
     for (auto &&[aggregated_attestation, aggregated_signature] :
          std::views::zip(aggregated_attestations, attestation_signatures)) {
-      auto shared_aggregated_signature =
-          qtils::toSharedPtr(aggregated_signature);
+      auto shared_aggregated_payload = qtils::toSharedPtr(
+          std::make_pair(aggregated_attestation, aggregated_signature));
       for (auto &&validator_id :
            getAggregatedValidators(aggregated_attestation.aggregation_bits)) {
         // Store the aggregated signature payload against (validator_id,
@@ -647,10 +634,9 @@ namespace lean {
         // appear in multiple aggregated attestations, especially when we have
         // aggregator roles. This list can be recursively aggregated by the
         // block proposer.
-        block_attestation_signatures_[validatorAttestationKey(
-                                          validator_id,
-                                          aggregated_attestation.data)]
-            .emplace_back(shared_aggregated_signature);
+        aggregated_payloads_[validatorAttestationKey(
+                                 validator_id, aggregated_attestation.data)]
+            .emplace_back(shared_aggregated_payload);
 
         // Import the attestation data into forkchoice for latest votes
         BOOST_OUTCOME_TRY(onAttestation(
@@ -1020,5 +1006,77 @@ namespace lean {
         validator_index,
         sszHash(attestation_data),
     };
+  }
+
+  std::pair<AggregatedAttestations, AttestationSignatures>
+  ForkChoiceStore::computeAggregatedSignatures(
+      const State &state,
+      const AggregatedAttestations &completely_aggregated_attestations) {
+    AggregatedAttestations aggregated_attestations;
+    AttestationSignatures aggregated_signatures;
+    for (auto &aggregated_attestation : completely_aggregated_attestations) {
+      AggregationBits aggregation_bits;
+      std::vector<crypto::xmss::XmssPublicKey> public_keys;
+      std::vector<Signature> signatures;
+      std::set<ValidatorIndex> remaining_validators;
+      for (auto &&validator_id :
+           getAggregatedValidators(aggregated_attestation.aggregation_bits)) {
+        auto key =
+            validatorAttestationKey(validator_id, aggregated_attestation.data);
+        auto signatures_it = gossip_attestation_signatures_.find(key);
+        if (signatures_it != gossip_attestation_signatures_.end()) {
+          addAggregatedValidator(aggregation_bits, validator_id);
+          public_keys.emplace_back(
+              state.validators.data().at(validator_id).pubkey);
+          signatures.emplace_back(signatures_it->second);
+        } else {
+          remaining_validators.emplace(validator_id);
+        }
+      }
+      if (not signatures.empty()) {
+        auto payload = attestationPayload(aggregated_attestation.data);
+        auto aggregated_signature = xmss_provider_->aggregateSignatures(
+            public_keys, signatures, aggregated_attestation.data.slot, payload);
+        aggregated_attestations.push_back(AggregatedAttestation{
+            .aggregation_bits = aggregation_bits,
+            .data = aggregated_attestation.data,
+        });
+        aggregated_signatures.push_back(aggregated_signature);
+      }
+      while (not remaining_validators.empty()) {
+        auto first_validator = *remaining_validators.begin();
+        auto key = validatorAttestationKey(first_validator,
+                                           aggregated_attestation.data);
+        auto aggregated_payload_it = aggregated_payloads_.find(key);
+        if (aggregated_payload_it == aggregated_payloads_.end()) {
+          remaining_validators.erase(first_validator);
+          continue;
+        }
+        size_t best_overlap = 0;
+        std::shared_ptr<AggregatedPayload> best_payload;
+        for (auto &payload : aggregated_payload_it->second) {
+          size_t overlap = 0;
+          for (auto &&validator_index :
+               getAggregatedValidators(payload->first.aggregation_bits)) {
+            if (remaining_validators.contains(validator_index)) {
+              ++overlap;
+            }
+          }
+          if (overlap <= best_overlap) {
+            continue;
+          }
+          best_overlap = overlap;
+          best_payload = payload;
+        }
+        BOOST_ASSERT(best_payload != nullptr);
+        for (auto &&validator_index :
+             getAggregatedValidators(best_payload->first.aggregation_bits)) {
+          remaining_validators.erase(validator_index);
+        }
+        aggregated_attestations.push_back(best_payload->first);
+        aggregated_signatures.push_back(best_payload->second);
+      }
+    }
+    return std::make_pair(aggregated_attestations, aggregated_signatures);
   }
 }  // namespace lean

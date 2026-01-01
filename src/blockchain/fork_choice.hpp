@@ -393,6 +393,8 @@ namespace lean {
     }
 
    private:
+    using AggregatedPayload =
+        std::pair<AggregatedAttestation, LeanAggregatedSignature>;
     using ValidatorAttestationKey = std::tuple<ValidatorIndex, BlockHash>;
 
     static ValidatorAttestationKey validatorAttestationKey(
@@ -416,6 +418,11 @@ namespace lean {
     //     True if all signatures are cryptographically valid.
     bool validateBlockSignatures(
         const SignedBlockWithAttestation &signed_block) const;
+
+    std::pair<AggregatedAttestations, AttestationSignatures>
+    computeAggregatedSignatures(
+        const State &state,
+        const AggregatedAttestations &completely_aggregated_attestations);
 
     STF stf_;
     Interval time_;
@@ -514,8 +521,8 @@ namespace lean {
      * - Populated by on_block.
      */
     std::unordered_map<ValidatorAttestationKey,
-                       std::vector<std::shared_ptr<LeanAggregatedSignature>>>
-        block_attestation_signatures_;
+                       std::vector<std::shared_ptr<AggregatedPayload>>>
+        aggregated_payloads_;
 
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
