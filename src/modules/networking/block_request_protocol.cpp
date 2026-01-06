@@ -12,6 +12,7 @@
 #include <libp2p/host/basic_host.hpp>
 
 #include "blockchain/block_tree.hpp"
+#include "modules/networking/response_status.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 
 namespace lean::modules {
@@ -24,7 +25,7 @@ namespace lean::modules {
         block_tree_{std::move(block_tree)} {}
 
   libp2p::StreamProtocols BlockRequestProtocol::getProtocolIds() const {
-    return {"/leanconsensus/req/blocks_by_root/1/ssz_snappy"};
+    return {"/leanconsensus/req/lean_blocks_by_root/1/ssz_snappy"};
   }
 
   void BlockRequestProtocol::handle(std::shared_ptr<libp2p::Stream> stream) {
@@ -43,12 +44,13 @@ namespace lean::modules {
       libp2p::PeerId peer_id, BlockRequest request) {
     BOOST_OUTCOME_CO_TRY(auto stream,
                          co_await host_->newStream(peer_id, getProtocolIds()));
-    BOOST_OUTCOME_CO_TRY(
-        co_await libp2p::writeVarintMessage(stream, encodeSszSnappy(request)));
+    BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
+        stream, encodeSszSnappyFramed(request)));
+    BOOST_OUTCOME_CO_TRY(co_await readResponseStatus(stream));
     qtils::ByteVec encoded;
     BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
     BOOST_OUTCOME_CO_TRY(auto response,
-                         decodeSszSnappy<BlockResponse>(encoded));
+                         decodeSszSnappyFramed<BlockResponse>(encoded));
     co_return response;
   }
 
@@ -56,7 +58,8 @@ namespace lean::modules {
       std::shared_ptr<libp2p::Stream> stream) {
     qtils::ByteVec encoded;
     BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-    BOOST_OUTCOME_CO_TRY(auto request, decodeSszSnappy<BlockRequest>(encoded));
+    BOOST_OUTCOME_CO_TRY(auto request,
+                         decodeSszSnappyFramed<BlockRequest>(encoded));
     BlockResponse response;
     for (auto &block_hash : request.blocks) {
       BOOST_OUTCOME_CO_TRY(auto block,
@@ -65,8 +68,9 @@ namespace lean::modules {
         response.blocks.push_back(std::move(block.value()));
       }
     }
-    BOOST_OUTCOME_CO_TRY(
-        co_await libp2p::writeVarintMessage(stream, encodeSszSnappy(response)));
+    BOOST_OUTCOME_CO_TRY(co_await writeResponseStatus(stream));
+    BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
+        stream, encodeSszSnappyFramed(response)));
     co_return outcome::success();
   }
 }  // namespace lean::modules
