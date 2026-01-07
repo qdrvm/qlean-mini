@@ -67,16 +67,15 @@ namespace lean::blockchain {
 
     outcome::result<void> removeBlockBody(const BlockHash &block_hash) override;
 
-    // -- justification --
+    // -- state --
 
-    outcome::result<void> putJustification(
-        const Justification &justification,
-        const BlockHash &block_hash) override;
+    outcome::result<void> putState(const BlockHash &block_hash,
+                                        const State &state) override;
 
-    outcome::result<std::optional<Justification>> getJustification(
+    outcome::result<std::optional<State>> getState(
         const BlockHash &block_hash) const override;
 
-    outcome::result<void> removeJustification(
+    outcome::result<void> removeState(
         const BlockHash &block_hash) override;
 
     // -- combined

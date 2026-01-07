@@ -32,7 +32,6 @@
 #include <qtils/to_shared_ptr.hpp>
 
 #include "blockchain/block_tree.hpp"
-#include "blockchain/impl/fc_block_tree.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
@@ -88,7 +87,6 @@ namespace lean::modules {
         config_{std::move(config)},
         random_{std::random_device{}()} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
-    block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }
 
   NetworkingImpl::~NetworkingImpl() {
@@ -496,7 +494,7 @@ namespace lean::modules {
   void NetworkingImpl::receiveBlock(
       std::optional<libp2p::PeerId> from_peer,
       SignedBlockWithAttestation &&signed_block_with_attestation) {
-    auto slot_hash = signed_block_with_attestation.message.block.slotHash();
+    auto slot_hash = signed_block_with_attestation.message.block.index();
     SL_INFO(logger_,
             "receiveBlock slot {} hash {} parent {}",
             slot_hash.slot,
@@ -541,7 +539,7 @@ namespace lean::modules {
         if (not res.has_value()) {
           SL_WARN(logger_,
                   "Error importing block {}: {}",
-                  block.message.block.slotHash(),
+                  block.message.block.index(),
                   res.error());
           break;
         }
@@ -573,7 +571,7 @@ namespace lean::modules {
   }
 
   bool NetworkingImpl::statusFinalizedIsGood(const BlockIndex &slot_hash) {
-    if (auto expected = block_tree_->getNumberByHash(slot_hash.hash)) {
+    if (auto expected = block_tree_->getSlotByHash(slot_hash.hash)) {
       return slot_hash.slot == expected.value();
     }
     return slot_hash.slot > block_tree_->lastFinalized().slot;

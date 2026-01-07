@@ -15,7 +15,8 @@
 
 namespace lean::messages {
   struct SlotIntervalStarted;
-}  // namespace lean::messages
+}
+
 namespace lean::loaders {
 
   class ProductionLoader final

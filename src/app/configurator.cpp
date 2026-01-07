@@ -26,7 +26,7 @@
 
 #include "app/build_version.hpp"
 #include "app/configuration.hpp"
-#include "app/default_logging_yaml.hpp"
+#include "app/default_config.hpp"
 #include "app/validator_keys_manifest.hpp"
 #include "crypto/xmss/xmss_util.hpp"
 #include "log/formatters/filepath.hpp"
@@ -161,9 +161,17 @@ namespace lean::app {
     namespace po = boost::program_options;
     namespace fs = std::filesystem;
 
+    // clang-format off
+
     po::options_description options;
-    options.add_options()("help,h", "show help")("version,v", "show version")(
-        "config,c", po::value<std::string>(), "config-file path");
+    options.add_options()
+        ("help,h", "show help")
+        ("version,v", "show version")
+        ("config,c", po::value<std::string>(), "config-file path")
+        ("log,l", po::value<std::vector<std::string>>(), "Sets a custom logging filter")
+        ;
+
+    // clang-format on
 
     po::variables_map vm;
 
@@ -211,6 +219,10 @@ namespace lean::app {
       }
     }
 
+    if (vm.contains("log")) {
+      logger_cli_args_ = vm["log"].as<std::vector<std::string>>();
+    }
+
     return false;
   }
 
@@ -237,10 +249,10 @@ namespace lean::app {
   outcome::result<YAML::Node> Configurator::getLoggingConfig() {
     auto load_default = [&]() -> outcome::result<YAML::Node> {
       try {
-        return YAML::Load(defaultLoggingYaml())["logging"];
+        return YAML::Load(defaultConfigYaml())["logging"];
       } catch (const std::exception &e) {
-        file_errors_ << "E: Failed to load default logging config: " << e.what()
-                     << "\n";
+        file_errors_ << "E: Failed to load embedded default config: "
+                     << e.what() << "\n";
         return Error::ConfigFileParseFailed;
       }
     };
@@ -254,6 +266,7 @@ namespace lean::app {
     }
     return load_default();
   }
+
   outcome::result<std::shared_ptr<Configuration>> Configurator::calculateConfig(
       qtils::SharedRef<soralog::Logger> logger) {
     logger_ = std::move(logger);
@@ -405,7 +418,8 @@ namespace lean::app {
               auto value = validator_keys_manifest.as<std::string>();
               config_->validator_keys_manifest_path_ = value;
             } else {
-              file_errors_ << "E: Value 'general.validator-keys-manifest' must be scalar\n";
+              file_errors_ << "E: Value 'general.validator-keys-manifest' must "
+                              "be scalar\n";
               file_has_error_ = true;
             }
           }
@@ -504,10 +518,11 @@ namespace lean::app {
         cli_values_map_, "xmss-sk", [&](const std::string &value) {
           config_->xmss_secret_key_path_ = value;
         });
-    find_argument<std::string>(
-        cli_values_map_, "validator-keys-manifest", [&](const std::string &value) {
-          config_->validator_keys_manifest_path_ = value;
-        });
+    find_argument<std::string>(cli_values_map_,
+                               "validator-keys-manifest",
+                               [&](const std::string &value) {
+                                 config_->validator_keys_manifest_path_ = value;
+                               });
     if (fail) {
       return Error::CliArgsParseFailed;
     }
@@ -531,13 +546,54 @@ namespace lean::app {
       config_->base_path_ = std::move(resolved);
     }
 
-    // Validate base_path_ exists and is a directory
-    if (not is_directory(config_->base_path_)) {
+    std::error_code ec;
+
+    // If the base path doesn't exist -> try to create it (including parents)
+    if (not exists(config_->base_path_, ec)) {
+      if (ec) {
+        SL_ERROR(logger_,
+                 "Failed to check existence of 'base_path': {} ({}: {})",
+                 config_->base_path_,
+                 ec.value(),
+                 ec.message());
+        return Error::InvalidValue;
+      }
+
+      if (not create_directories(config_->base_path_, ec)) {
+        if (ec) {
+          SL_ERROR(logger_,
+                   "Failed to create 'base_path' directory: {} ({}: {})",
+                   config_->base_path_,
+                   ec.value(),
+                   ec.message());
+          return Error::InvalidValue;
+        }
+      }
+    } else if (ec) {
       SL_ERROR(logger_,
-               "The 'base_path' does not exist or is not a directory: {}",
-               config_->base_path_);
+               "Failed to check existence of 'base_path': {} ({}: {})",
+               config_->base_path_,
+               ec.value(),
+               ec.message());
       return Error::InvalidValue;
     }
+
+    // Now it should exist; ensure it's a directory
+    if (not is_directory(config_->base_path_, ec)) {
+      if (ec) {
+        SL_ERROR(logger_,
+                 "Failed to check if 'base_path' is a directory: {} ({}: {})",
+                 config_->base_path_,
+                 ec.value(),
+                 ec.message());
+      } else {
+        SL_ERROR(logger_,
+                 "The 'base_path' exists but is not a directory: {}",
+                 config_->base_path_);
+      }
+      return Error::InvalidValue;
+    }
+
 
     // Helper to resolve general paths: if provided via CLI -> relative to CWD,
     // else if provided via config file -> relative to config file dir,
@@ -610,11 +666,13 @@ namespace lean::app {
 
     // Validate and load XMSS keys (mandatory)
     if (config_->xmss_public_key_path_.empty()) {
-      SL_ERROR(logger_, "The '--xmss-pk' (XMSS public key) path must be provided");
+      SL_ERROR(logger_,
+               "The '--xmss-pk' (XMSS public key) path must be provided");
       return Error::InvalidValue;
     }
     if (config_->xmss_secret_key_path_.empty()) {
-      SL_ERROR(logger_, "The '--xmss-sk' (XMSS secret key) path must be provided");
+      SL_ERROR(logger_,
+               "The '--xmss-sk' (XMSS secret key) path must be provided");
       return Error::InvalidValue;
     }
 
@@ -637,10 +695,10 @@ namespace lean::app {
     }
 
     // Load XMSS keypair from JSON files
-    OUTCOME_TRY(keypair, crypto::xmss::loadKeypairFromJson(
-        config_->xmss_secret_key_path_,
-        config_->xmss_public_key_path_
-    ));
+    OUTCOME_TRY(
+        keypair,
+        crypto::xmss::loadKeypairFromJson(config_->xmss_secret_key_path_,
+                                          config_->xmss_public_key_path_));
     config_->xmss_keypair_ = std::move(keypair);
     SL_INFO(logger_, "Loaded XMSS keypair from:");
     SL_INFO(logger_, "  Public key: {}", config_->xmss_public_key_path_);
@@ -648,15 +706,17 @@ namespace lean::app {
 
     // Load validator keys manifest (mandatory)
     if (config_->validator_keys_manifest_path_.empty()) {
-      SL_ERROR(logger_, "The '--validator-keys-manifest' path must be provided");
+      SL_ERROR(logger_,
+               "The '--validator-keys-manifest' path must be provided");
       return Error::InvalidValue;
     }
 
-    config_->validator_keys_manifest_path_ =
-        resolve_relative(config_->validator_keys_manifest_path_, "validator-keys-manifest");
+    config_->validator_keys_manifest_path_ = resolve_relative(
+        config_->validator_keys_manifest_path_, "validator-keys-manifest");
     if (not is_regular_file(config_->validator_keys_manifest_path_)) {
       SL_ERROR(logger_,
-               "The 'validator-keys-manifest' file does not exist or is not a file: {}",
+               "The 'validator-keys-manifest' file does not exist or is not a "
+               "file: {}",
                config_->validator_keys_manifest_path_);
       return Error::InvalidValue;
     }
