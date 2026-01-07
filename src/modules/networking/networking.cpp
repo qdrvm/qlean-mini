@@ -58,7 +58,7 @@ namespace lean::modules {
       hasher.write(size).value();
       hasher.write(message.topic).value();
     };
-    if (auto uncompressed_res = snappyUncompress(message.data)) {
+    if (auto uncompressed_res = snappy::uncompress(message.data)) {
       auto &uncompressed = uncompressed_res.value();
       hash_topic();
       hasher.write(MESSAGE_DOMAIN_VALID_SNAPPY).value();
