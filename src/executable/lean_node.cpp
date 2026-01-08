@@ -151,15 +151,6 @@ int main(int argc, const char **argv, const char **env) {
     return EXIT_FAILURE;
   }
 
-  // Parse remaining args
-  if (auto res = app_configurator->step2(); res.has_value()) {
-    if (res.value()) {
-      return EXIT_SUCCESS;
-    }
-  } else {
-    return EXIT_FAILURE;
-  }
-
   // Setup logging system
   auto logging_system = ({
     auto log_config = app_configurator->getLoggingConfig();
@@ -186,6 +177,14 @@ int main(int argc, const char **argv, const char **env) {
     std::make_shared<lean::log::LoggingSystem>(std::move(logging_system));
   });
 
+  // Parse remaining args
+  if (auto res = app_configurator->step2(); res.has_value()) {
+    if (res.value()) {
+      return EXIT_SUCCESS;
+    }
+  } else {
+    return EXIT_FAILURE;
+  }
 
   // Setup config
   auto app_configuration = ({
