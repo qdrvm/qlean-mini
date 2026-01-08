@@ -40,6 +40,10 @@ namespace lean::messages {
     // reason?
   };
 
+  struct PeersTotalCountMessage {
+    size_t count;
+  };
+
   using StatusMessageReceived = NotificationReceived<StatusMessage>;
 
   using SendSignedBlock = BroadcastNotification<SignedBlockWithAttestation>;

@@ -686,6 +686,9 @@ namespace lean::modules {
   }
 
   void NetworkingImpl::updateMetricConnectedPeerCount() {
-    metrics_->connected_peer_count()->set(host_->getConnectedPeerCount());
+    auto count = host_->getConnectedPeerCount();
+    metrics_->connected_peer_count()->set(count);
+    loader_.dispatch_peers_total_count_updated(
+        std::make_shared<messages::PeersTotalCountMessage>(count));
   }
 }  // namespace lean::modules

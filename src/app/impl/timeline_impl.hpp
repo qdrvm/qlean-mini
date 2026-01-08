@@ -14,15 +14,11 @@
 
 namespace lean::messages {
   struct SlotStarted;
+  struct PeersTotalCountMessage;
 }
 namespace lean {
   struct GenesisConfig;
 }
-namespace lean::messages {
-  struct PeerConnectedMessage;
-  struct PeerDisconnectedMessage;
-}  // namespace lean::messages
-
 namespace lean::log {
   class LoggingSystem;
 }
@@ -75,12 +71,8 @@ namespace lean::app {
         on_slot_started_;
     std::shared_ptr<
         BaseSubscriber<qtils::Empty,
-                       std::shared_ptr<const messages::PeerConnectedMessage>>>
-        on_peer_connected_;
-    std::shared_ptr<
-        BaseSubscriber<qtils::Empty,
-                       std::shared_ptr<const messages::PeerDisconnectedMessage>>>
-        on_peer_disconnected_;
+                       std::shared_ptr<const messages::PeersTotalCountMessage>>>
+        on_peers_total_count_updated_;
   };
 
 }  // namespace lean::app

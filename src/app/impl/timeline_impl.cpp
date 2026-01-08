@@ -51,29 +51,16 @@ namespace lean::app {
                        std::shared_ptr<const messages::SlotStarted> msg) {
                   on_slot_started(std::move(msg));
                 });
-    on_peer_connected_ = se::SubscriberCreator<
+    on_peers_total_count_updated_ = se::SubscriberCreator<
         qtils::Empty,
-        std::shared_ptr<const messages::PeerConnectedMessage>>::
-        create<EventTypes::PeerConnected>(
-            *se_manager_,
-            SubscriptionEngineHandlers::kTest,
-            [this](auto &,
-                   std::shared_ptr<const messages::PeerConnectedMessage> msg) {
-              connected_peers_++;
-            });
-
-    on_peer_disconnected_ = se::SubscriberCreator<
-        qtils::Empty,
-        std::shared_ptr<const messages::PeerDisconnectedMessage>>::
-        create<EventTypes::PeerDisconnected>(
+        std::shared_ptr<const messages::PeersTotalCountMessage>>::
+        create<EventTypes::PeersTotalCountUpdated>(
             *se_manager_,
             SubscriptionEngineHandlers::kTest,
             [this](
                 auto &,
-                std::shared_ptr<const messages::PeerDisconnectedMessage> msg) {
-              if (connected_peers_ > 0) {
-                connected_peers_--;
-              }
+                std::shared_ptr<const messages::PeersTotalCountMessage> msg) {
+              connected_peers_ = msg->count;
             });
   }
 
@@ -125,12 +112,12 @@ namespace lean::app {
                  "  CHAIN STATUS: Current Slot: {} | Head Slot: {}",
                  msg->slot,
                  head.slot);
-    // TODO: fix connected peers count
-    // fmt::println(std::cerr,
-    // "+---------------------------------------------------------------+");
-    // fmt::println(std::cerr, "  Connected Peers:    {}",
-    // connected_peers_.load()); fmt::println(std::cerr,
-    // "+---------------------------------------------------------------+");
+    fmt::println(std::cerr,
+                 "+---------------------------------------------------------------+");
+    fmt::println(std::cerr, "  Connected Peers:    {}",
+                 connected_peers_.load());
+    fmt::println(std::cerr,
+                 "+---------------------------------------------------------------+");
     fmt::println(std::cerr, "  Head Block Root:    0x{}", head.hash.toHex());
     fmt::println(std::cerr, "  Parent Block Root:  0x{}", parent_root.toHex());
     fmt::println(std::cerr, "  State Root:         0x{}", state_root.toHex());
