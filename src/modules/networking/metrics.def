@@ -1,0 +1,9 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+METRIC_GAUGE(connected_peer_count,
+             "lean_connected_peers",
+             "Number of connected peers")

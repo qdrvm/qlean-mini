@@ -33,6 +33,7 @@
 
 #include "blockchain/block_tree.hpp"
 #include "blockchain/impl/fc_block_tree.hpp"
+#include "metrics/metrics.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
@@ -76,12 +77,14 @@ namespace lean::modules {
   NetworkingImpl::NetworkingImpl(
       NetworkingLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
       qtils::SharedRef<app::ChainSpec> chain_spec,
       qtils::SharedRef<app::Configuration> config)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
+        metrics_{std::move(metrics)},
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)},
         chain_spec_{std::move(chain_spec)},
@@ -272,6 +275,7 @@ namespace lean::modules {
           state.state = PeerState::Connected{};
         }
       }
+      self->updateMetricConnectedPeerCount();
       self->loader_.dispatch_peer_connected(
           qtils::toSharedPtr(messages::PeerConnectedMessage{peer_id}));
       if (connection->isInitiator()) {
@@ -325,6 +329,7 @@ namespace lean::modules {
               };
             }
           }
+          self->updateMetricConnectedPeerCount();
           self->loader_.dispatch_peer_disconnected(
               qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
         };
@@ -641,5 +646,9 @@ namespace lean::modules {
             }
           });
     }
+  }
+
+  void NetworkingImpl::updateMetricConnectedPeerCount() {
+    metrics_->connected_peer_count()->set(host_->getConnectedPeerCount());
   }
 }  // namespace lean::modules

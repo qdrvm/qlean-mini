@@ -39,14 +39,18 @@ namespace lean {
   class ForkChoiceStore;
 }  // namespace lean
 
-namespace lean::blockchain {
-  class BlockTree;
-}  // namespace lean::blockchain
-
 namespace lean::app {
   class ChainSpec;
   class Configuration;
 }  // namespace lean::app
+
+namespace lean::blockchain {
+  class BlockTree;
+}  // namespace lean::blockchain
+
+namespace lean::metrics {
+  class Metrics;
+}  // namespace lean::metrics
 
 namespace lean::modules {
   class StatusProtocol;
@@ -116,6 +120,7 @@ namespace lean::modules {
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
     NetworkingImpl(NetworkingLoader &loader,
                    qtils::SharedRef<log::LoggingSystem> logging_system,
+                   qtils::SharedRef<metrics::Metrics> metrics,
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
                    qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -150,9 +155,11 @@ namespace lean::modules {
      * connections.
      */
     void connectToPeers();
+    void updateMetricConnectedPeerCount();
 
     NetworkingLoader &loader_;
     log::Logger logger_;
+    qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
