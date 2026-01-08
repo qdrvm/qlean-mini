@@ -217,8 +217,7 @@ namespace lean::modules {
 
         if (result.has_value()) {
           SL_DEBUG(logger_,
-                   "Added bootnode: peer={}, address={}",
-                   bootnode.peer_id,
+                   "Added bootnode, address={}",
                    bootnode.address.getStringAddress());
         } else {
           SL_WARN(logger_,
