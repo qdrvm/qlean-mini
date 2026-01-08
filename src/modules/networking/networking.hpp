@@ -169,6 +169,7 @@ namespace lean::modules {
     std::optional<std::thread> io_thread_;
     libp2p::event::Handle on_peer_connected_sub_;
     libp2p::event::Handle on_peer_disconnected_sub_;
+    libp2p::event::Handle on_connection_closed_sub_;
     std::shared_ptr<StatusProtocol> status_protocol_;
     std::shared_ptr<BlockRequestProtocol> block_request_protocol_;
     std::shared_ptr<libp2p::protocol::gossip::Gossip> gossip_;

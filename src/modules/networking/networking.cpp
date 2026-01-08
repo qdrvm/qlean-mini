@@ -256,6 +256,7 @@ namespace lean::modules {
       if (not self) {
         return;
       }
+      self->metrics_->connect_event_count()->inc();
       auto peer_id = connection->remotePeer();
       auto state_it = self->peer_states_.find(peer_id);
       if (state_it != self->peer_states_.end()) {
@@ -334,6 +335,16 @@ namespace lean::modules {
               qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
         };
 
+    auto on_connection_closed =
+        [weak_self{weak_from_this()}](
+            std::shared_ptr<libp2p::connection::CapableConnection> connection) {
+          auto self = weak_self.lock();
+          if (not self) {
+            return;
+          }
+          self->metrics_->disconnect_event_count()->inc();
+        };
+
     on_peer_connected_sub_ =
         host->getBus()
             .getChannel<libp2p::event::network::OnNewConnectionChannel>()
@@ -342,6 +353,10 @@ namespace lean::modules {
         host->getBus()
             .getChannel<libp2p::event::network::OnPeerDisconnectedChannel>()
             .subscribe(on_peer_disconnected);
+    on_connection_closed_sub_ =
+        host->getBus()
+            .getChannel<libp2p::event::network::OnConnectionClosedChannel>()
+            .subscribe(on_connection_closed);
 
     status_protocol_ = std::make_shared<StatusProtocol>(
         io_context_,

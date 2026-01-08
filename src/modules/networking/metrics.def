@@ -7,3 +7,11 @@
 METRIC_GAUGE(connected_peer_count,
              "lean_connected_peers",
              "Number of connected peers")
+
+METRIC_COUNTER(connect_event_count,
+               "lean_peer_connection_events_total",
+               "Total number of peer connection events")
+
+METRIC_COUNTER(disconnect_event_count,
+               "lean_peer_disconnection_events_total",
+               "Total number of peer disconnection events")
