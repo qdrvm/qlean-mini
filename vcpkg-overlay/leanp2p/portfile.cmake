@@ -2,8 +2,8 @@ vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 vcpkg_from_github(
   OUT_SOURCE_PATH SOURCE_PATH
   REPO qdrvm/leanp2p
-  REF 90ab756da131995932671400419ac8e562a4b5e6
-  SHA512 790ee0a4c0301810b9e3d6949cfaedc579bd5f0e52d4d2ec1f97bc16767886b26864979ee0a37377b73835bd252510f9f19f3954fb325dac55f8c5c42dafabaf
+  REF refs/tags/v0.0.5
+  SHA512 1c7dbdd0f24a35f1d79e886d6ab271eb8705dbbc9f7e60520e7e57184968976f70fc85f54dba6baa5359e9df83adcc955cb9739f8ebb97c7db830adc4a376f68
 )
 vcpkg_cmake_configure(SOURCE_PATH "${SOURCE_PATH}")
 vcpkg_cmake_install()
