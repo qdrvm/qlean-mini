@@ -118,29 +118,36 @@ namespace lean::app {
       state_root = head_block_header_res.value().state_root;
     }
 
-    std::cerr
-        << "+===============================================================+\n"
-        << fmt::format("  CHAIN STATUS: Current Slot: {} | Head Slot: {} \n",
-                       msg->slot,
-                       head.slot)
-        // TODO: fix connected peers count
-        // <<
-        // "+---------------------------------------------------------------+\n"
-        // << fmt::format("  Connected Peers:    {}\n", connected_peers_.load())
-        // <<
-        // "+---------------------------------------------------------------+\n"
-        << fmt::format("  Head Block Root:    0x{}\n", head.hash.toHex())
-        << fmt::format("  Parent Block Root:  0x{}\n", parent_root.toHex())
-        << fmt::format("  State Root:         0x{}\n", state_root.toHex())
-        << "+---------------------------------------------------------------+\n"
-        << fmt::format("  Latest Justified:   Slot {:>6} | Root: 0x{}\n",
-                       justified.slot,
-                       justified.root.toHex())
-        << fmt::format("  Latest Finalized:   Slot {:>6} | Root: 0x{}\n",
-                       finalized.slot,
-                       finalized.hash.toHex())
-        << "+===============================================================+"
-        << std::endl;
+    fmt::println(
+        std::cerr,
+        "+===============================================================+");
+    fmt::println(std::cerr,
+                 "  CHAIN STATUS: Current Slot: {} | Head Slot: {}",
+                 msg->slot,
+                 head.slot);
+    // TODO: fix connected peers count
+    // fmt::println(std::cerr,
+    // "+---------------------------------------------------------------+");
+    // fmt::println(std::cerr, "  Connected Peers:    {}",
+    // connected_peers_.load()); fmt::println(std::cerr,
+    // "+---------------------------------------------------------------+");
+    fmt::println(std::cerr, "  Head Block Root:    0x{}", head.hash.toHex());
+    fmt::println(std::cerr, "  Parent Block Root:  0x{}", parent_root.toHex());
+    fmt::println(std::cerr, "  State Root:         0x{}", state_root.toHex());
+    fmt::println(
+        std::cerr,
+        "+---------------------------------------------------------------+");
+    fmt::println(std::cerr,
+                 "  Latest Justified:   Slot {:>6} | Root: 0x{}",
+                 justified.slot,
+                 justified.root.toHex());
+    fmt::println(std::cerr,
+                 "  Latest Finalized:   Slot {:>6} | Root: 0x{}",
+                 finalized.slot,
+                 finalized.hash.toHex());
+    fmt::println(
+        std::cerr,
+        "+===============================================================+");
 
     SL_INFO(logger_, "⚡ Slot {} started", msg->slot);
     if (stopped_) [[unlikely]] {
