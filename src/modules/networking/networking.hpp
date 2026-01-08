@@ -39,14 +39,18 @@ namespace lean {
   class ForkChoiceStore;
 }  // namespace lean
 
-namespace lean::blockchain {
-  class BlockTree;
-}  // namespace lean::blockchain
-
 namespace lean::app {
   class ChainSpec;
   class Configuration;
 }  // namespace lean::app
+
+namespace lean::blockchain {
+  class BlockTree;
+}  // namespace lean::blockchain
+
+namespace lean::metrics {
+  class Metrics;
+}  // namespace lean::metrics
 
 namespace lean::modules {
   class StatusProtocol;
@@ -116,6 +120,7 @@ namespace lean::modules {
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
     NetworkingImpl(NetworkingLoader &loader,
                    qtils::SharedRef<log::LoggingSystem> logging_system,
+                   qtils::SharedRef<metrics::Metrics> metrics,
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
                    qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -150,9 +155,11 @@ namespace lean::modules {
      * connections.
      */
     void connectToPeers();
+    void updateMetricConnectedPeerCount();
 
     NetworkingLoader &loader_;
     log::Logger logger_;
+    qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
@@ -162,6 +169,7 @@ namespace lean::modules {
     std::optional<std::thread> io_thread_;
     libp2p::event::Handle on_peer_connected_sub_;
     libp2p::event::Handle on_peer_disconnected_sub_;
+    libp2p::event::Handle on_connection_closed_sub_;
     std::shared_ptr<StatusProtocol> status_protocol_;
     std::shared_ptr<BlockRequestProtocol> block_request_protocol_;
     std::shared_ptr<libp2p::protocol::gossip::Gossip> gossip_;
