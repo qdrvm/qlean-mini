@@ -7,12 +7,15 @@
 
 #include "timeline_impl.hpp"
 
+#include <iostream>
 #include <utility>
 
 #include "app/state_manager.hpp"
+#include "blockchain/block_tree.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "clock/clock.hpp"
 #include "log/logger.hpp"
+#include "modules/shared/networking_types.tmp.hpp"
 #include "modules/shared/prodution_types.tmp.hpp"
 #include "se/impl/subscription_manager.hpp"
 #include "se/subscription.hpp"
@@ -26,12 +29,14 @@ namespace lean::app {
                              qtils::SharedRef<StateManager> state_manager,
                              qtils::SharedRef<Subscription> se_manager,
                              qtils::SharedRef<clock::SystemClock> clock,
-                             qtils::SharedRef<GenesisConfig> config)
+                             qtils::SharedRef<GenesisConfig> config,
+                             qtils::SharedRef<blockchain::BlockTree> block_tree)
       : logger_(logsys->getLogger("Timeline", "application")),
         state_manager_(std::move(state_manager)),
         config_(std::move(config)),
         clock_(std::move(clock)),
-        se_manager_(std::move(se_manager)) {
+        se_manager_(std::move(se_manager)),
+        block_tree_(std::move(block_tree)) {
     state_manager_->takeControl(*this);
   }
 
@@ -46,6 +51,17 @@ namespace lean::app {
                        std::shared_ptr<const messages::SlotStarted> msg) {
                   on_slot_started(std::move(msg));
                 });
+    on_peers_total_count_updated_ = se::SubscriberCreator<
+        qtils::Empty,
+        std::shared_ptr<const messages::PeersTotalCountMessage>>::
+        create<EventTypes::PeersTotalCountUpdated>(
+            *se_manager_,
+            SubscriptionEngineHandlers::kTest,
+            [this](
+                auto &,
+                std::shared_ptr<const messages::PeersTotalCountMessage> msg) {
+              connected_peers_ = msg->count;
+            });
   }
 
   void TimelineImpl::start() {
@@ -76,6 +92,51 @@ namespace lean::app {
 
   void TimelineImpl::on_slot_started(
       std::shared_ptr<const messages::SlotStarted> msg) {
+    auto head = block_tree_->bestBlock();
+    auto finalized = block_tree_->lastFinalized();
+    auto justified = block_tree_->getLatestJustified();
+    auto head_block_header_res = block_tree_->getBlockHeader(head.hash);
+
+    BlockHash parent_root{};
+    StateRoot state_root{};
+
+    if (head_block_header_res) {
+      parent_root = head_block_header_res.value().parent_root;
+      state_root = head_block_header_res.value().state_root;
+    }
+
+    fmt::println(
+        std::cerr,
+        "+===============================================================+");
+    fmt::println(std::cerr,
+                 "  CHAIN STATUS: Current Slot: {} | Head Slot: {}",
+                 msg->slot,
+                 head.slot);
+    fmt::println(std::cerr,
+                 "+---------------------------------------------------------------+");
+    fmt::println(std::cerr, "  Connected Peers:    {}",
+                 connected_peers_.load());
+    fmt::println(std::cerr,
+                 "+---------------------------------------------------------------+");
+    fmt::println(std::cerr, "  Head Block Root:    0x{}", head.hash.toHex());
+    fmt::println(std::cerr, "  Parent Block Root:  0x{}", parent_root.toHex());
+    fmt::println(std::cerr, "  State Root:         0x{}", state_root.toHex());
+    fmt::println(
+        std::cerr,
+        "+---------------------------------------------------------------+");
+    fmt::println(std::cerr,
+                 "  Latest Justified:   Slot {:>6} | Root: 0x{}",
+                 justified.slot,
+                 justified.root.toHex());
+    fmt::println(std::cerr,
+                 "  Latest Finalized:   Slot {:>6} | Root: 0x{}",
+                 finalized.slot,
+                 finalized.hash.toHex());
+    fmt::println(
+        std::cerr,
+        "+===============================================================+");
+
+    SL_INFO(logger_, "⚡ Slot {} started", msg->slot);
     if (stopped_) [[unlikely]] {
       SL_INFO(logger_, "Timeline is stopped on slot {}", msg->slot);
       return;
@@ -86,8 +147,6 @@ namespace lean::app {
         (now - config_->config.genesis_time * 1000) / SLOT_DURATION_MS + 1;
     auto time_to_next_slot = config_->config.genesis_time * 1000
                            + SLOT_DURATION_MS * next_slot - now;
-
-    SL_INFO(logger_, "Next slot is {} in {}ms", next_slot, time_to_next_slot);
 
     const auto slot_start_abs =
         config_->config.genesis_time * 1000
