@@ -8,14 +8,16 @@
 
 #include <sszpp/container.hpp>
 
-#include "types/attestation.hpp"
+#include "types/attestation_data.hpp"
 #include "types/signature.hpp"
+#include "types/validator_index.hpp"
 
 namespace lean {
   struct SignedAttestation : ssz::ssz_container {
-    Attestation message;
+    ValidatorIndex validator_id;
+    AttestationData message;
     Signature signature;
 
-    SSZ_CONT(message, signature);
+    SSZ_CONT(validator_id, message, signature);
   };
 }  // namespace lean
