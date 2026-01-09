@@ -11,6 +11,7 @@
 #include <libp2p/coro/spawn.hpp>
 #include <libp2p/host/basic_host.hpp>
 
+#include "modules/networking/response_status.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 
 namespace lean::modules {
@@ -44,22 +45,38 @@ namespace lean::modules {
       std::shared_ptr<libp2p::connection::CapableConnection> connection) {
     BOOST_OUTCOME_CO_TRY(
         auto stream, co_await host_->newStream(connection, getProtocolIds()));
-    BOOST_OUTCOME_CO_TRY(co_await coroHandle(stream));
+    BOOST_OUTCOME_CO_TRY(co_await write(stream));
+    BOOST_OUTCOME_CO_TRY(co_await readResponseStatus(stream));
+    BOOST_OUTCOME_CO_TRY(co_await read(stream));
+    co_return outcome::success();
+  }
+
+  libp2p::CoroOutcome<void> StatusProtocol::read(
+      std::shared_ptr<libp2p::Stream> stream) {
+    auto peer_id = stream->remotePeerId();
+    qtils::ByteVec encoded;
+    BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
+    BOOST_OUTCOME_CO_TRY(auto status,
+                         decodeSszSnappyFramed<StatusMessage>(encoded));
+    on_status_(messages::StatusMessageReceived{
+        .from_peer = peer_id,
+        .notification = status,
+    });
+    co_return outcome::success();
+  }
+
+  libp2p::CoroOutcome<void> StatusProtocol::write(
+      std::shared_ptr<libp2p::Stream> stream) {
+    BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
+        stream, encodeSszSnappyFramed(get_status_())));
     co_return outcome::success();
   }
 
   libp2p::CoroOutcome<void> StatusProtocol::coroHandle(
       std::shared_ptr<libp2p::Stream> stream) {
-    auto peer_id = stream->remotePeerId();
-    BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
-        stream, encodeSszSnappy(get_status_())));
-    qtils::ByteVec encoded;
-    BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-    BOOST_OUTCOME_CO_TRY(auto status, decodeSszSnappy<StatusMessage>(encoded));
-    on_status_(messages::StatusMessageReceived{
-        .from_peer = peer_id,
-        .notification = status,
-    });
+    BOOST_OUTCOME_CO_TRY(co_await read(stream));
+    BOOST_OUTCOME_CO_TRY(co_await writeResponseStatus(stream));
+    BOOST_OUTCOME_CO_TRY(co_await write(stream));
     co_return outcome::success();
   }
 }  // namespace lean::modules

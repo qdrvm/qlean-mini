@@ -36,6 +36,7 @@ find_package(PkgConfig REQUIRED)
 
 find_package(Boost CONFIG REQUIRED COMPONENTS algorithm filesystem outcome program_options property_tree random)
 find_package(Boost.DI CONFIG REQUIRED)
+find_package(Crc32c CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(hashtree CONFIG REQUIRED)
 find_package(libp2p CONFIG REQUIRED)
