@@ -13,7 +13,7 @@
 #include "utils/tuple_hash.hpp"
 
 namespace lean::crypto::xmss {
-  constexpr size_t kAggregatedSignatureSize = 857289;
+  constexpr size_t kAggregatedSignatureSize = 263161;
 
   void randomBytesSeed(qtils::BytesOut out, uint32_t seed) {
     std::independent_bits_engine<std::default_random_engine, 8, uint8_t> random(
