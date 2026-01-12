@@ -79,6 +79,14 @@ namespace lean::app {
     return fake_xmss_;
   }
 
+  double Configuration::fakeXmssAggregateSignaturesRate() const {
+    return fake_xmss_aggregate_signatures_rate_;
+  }
+
+  double Configuration::fakeXmssVerifyAggregatedSignaturesRate() const {
+    return fake_xmss_verify_aggregated_signatures_rate_;
+  }
+
   const Configuration::DatabaseConfig &Configuration::database() const {
     return database_;
   }

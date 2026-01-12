@@ -7,9 +7,11 @@
 #include "crypto/xmss/xmss_provider_fake.hpp"
 
 #include <random>
+#include <thread>
 
 #include <qtils/bytestr.hpp>
 
+#include "app/configuration.hpp"
 #include "utils/tuple_hash.hpp"
 
 namespace lean::crypto::xmss {
@@ -20,6 +22,10 @@ namespace lean::crypto::xmss {
         seed);
     std::ranges::generate(out, random);
   }
+
+  XmssProviderFake::XmssProviderFake(
+      qtils::SharedRef<app::Configuration> app_config)
+      : app_config_{std::move(app_config)} {}
 
   XmssKeypair XmssProviderFake::generateKeypair(uint64_t, uint64_t) {
     abort();
@@ -59,14 +65,19 @@ namespace lean::crypto::xmss {
     XmssAggregatedSignature signature;
     signature.resize(kAggregatedSignatureSize);
     randomBytesSeed(signature, seed);
+    std::this_thread::sleep_for(std::chrono::duration<double>{
+        public_keys.size() / app_config_->fakeXmssAggregateSignaturesRate()});
     return signature;
   }
 
   bool XmssProviderFake::verifyAggregatedSignatures(
-      std::span<const XmssPublicKey>,
+      std::span<const XmssPublicKey> public_keys,
       uint32_t,
       const XmssMessage &,
       const XmssAggregatedSignature &) const {
+    std::this_thread::sleep_for(std::chrono::duration<double>{
+        public_keys.size()
+        / app_config_->fakeXmssVerifyAggregatedSignaturesRate()});
     return true;
   }
 

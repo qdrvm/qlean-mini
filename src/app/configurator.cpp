@@ -135,6 +135,8 @@ namespace lean::app {
           "Default: all targets log at `info`.\n"
           "Global log level can be set with: -l<level>.")
         ("shadow", "Run with shadow compatibility (fake xmss provider)")
+        ("shadow-xmss-aggregate-signatures-rate", "How many signatures can be aggregated per second (fake xmss provider)")
+        ("shadow-xmss-verify-aggregated-signatures-rate", "How many signatures inside aggregated signature can be verified per second (fake xmss provider)")
         ;
 
     po::options_description storage_options("Storage options");
@@ -614,6 +616,14 @@ namespace lean::app {
 
     if (find_argument(cli_values_map_, "shadow")) {
       config_->fake_xmss_ = true;
+    }
+    if (auto value = find_argument<double>(
+            cli_values_map_, "shadow-xmss-aggregate-signatures-rate")) {
+      config_->fake_xmss_aggregate_signatures_rate_ = value.value();
+    }
+    if (auto value = find_argument<double>(
+            cli_values_map_, "shadow-xmss-verify-aggregated-signatures-rate")) {
+      config_->fake_xmss_verify_aggregated_signatures_rate_ = value.value();
     }
     if (not config_->fakeXmss()) {
       // Validate and load XMSS keys (mandatory)

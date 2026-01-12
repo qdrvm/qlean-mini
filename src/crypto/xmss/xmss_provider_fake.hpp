@@ -6,7 +6,13 @@
 
 #pragma once
 
+#include <qtils/shared_ref.hpp>
+
 #include "crypto/xmss/xmss_provider.hpp"
+
+namespace lean::app {
+  class Configuration;
+}  // namespace lean::app
 
 namespace lean::crypto::xmss {
   /**
@@ -18,6 +24,8 @@ namespace lean::crypto::xmss {
    */
   class XmssProviderFake : public XmssProvider {
    public:
+    XmssProviderFake(qtils::SharedRef<app::Configuration> app_config);
+
     // XmssProvider
     XmssKeypair generateKeypair(uint64_t, uint64_t) override;
     XmssSignature sign(XmssPrivateKey,
@@ -39,5 +47,8 @@ namespace lean::crypto::xmss {
         const XmssAggregatedSignature &aggregated_signature) const override;
 
     static XmssKeypair loadKeypair(std::string_view private_key_path);
+
+   private:
+    qtils::SharedRef<app::Configuration> app_config_;
   };
 }  // namespace lean::crypto::xmss

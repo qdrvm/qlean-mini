@@ -79,7 +79,8 @@ namespace {
     if (not app_config->fakeXmss()) {
       xmss_provider = std::make_shared<crypto::xmss::XmssProviderImpl>();
     } else {
-      xmss_provider = std::make_shared<crypto::xmss::XmssProviderFake>();
+      xmss_provider =
+          std::make_shared<crypto::xmss::XmssProviderFake>(app_config);
     }
     // clang-format off
     return di::make_injector(
