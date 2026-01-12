@@ -60,46 +60,90 @@ namespace lean::log {
       std::shared_ptr<soralog::LoggingSystem> logging_system)
       : logging_system_(logging_system) {}
 
-  void LoggingSystem::tuneLoggingSystem(const std::vector<std::string> &cfg) {
+  soralog::Configurator::Result LoggingSystem::tuneLoggingSystem(
+      const std::vector<std::string> &cfg) {
+    auto default_group_set = false;
+
+    soralog::Configurator::Result result;
     if (cfg.empty()) {
-      return;
+      return result;
     }
 
     for (auto &chunk : cfg) {
-      if (auto res = str2lvl(chunk); res.has_value()) {
+      if (chunk.empty()) {
+        result.has_error = true;
+        result.message += "E: Empty arg\n";
+        continue;
+      }
+
+      std::istringstream iss1(chunk);
+      std::string piece;
+
+      while (std::getline(iss1, piece, ',')) {
+        if (piece.empty()) {
+          continue;
+        }
+
+        std::size_t pos = piece.find('=');
+        if (pos == std::string::npos) {
+          auto res = str2lvl(piece);
+          if (res.has_value()) {
+            auto level = res.value();
+            if (default_group_set) {
+              result.has_warning = true;
+              result.message +=
+                  "W: Level of default group was set several times; "
+                  "last time to '"
+                  + piece + "'\n";
+            } else {
+              result.message +=
+                  "I: Level of default group was set to '" + piece + "'\n";
+            }
+            logging_system_->setLevelOfGroup(lean::log::defaultGroupName,
+                                             level);
+            default_group_set = true;
+            continue;
+          }
+          result.has_error = true;
+          result.message +=
+              "E: Invalid level of default group: " + piece + "\n";
+          continue;
+        }
+
+        std::istringstream iss2(piece);
+
+        std::string group_name;
+        std::getline(iss2, group_name, '=');
+
+        std::string level_string;
+        std::getline(iss2, level_string);
+
+        if (not logging_system_->getGroup(group_name)) {
+          result.has_warning = true;
+          result.message += "W: Unknown group: " + group_name + "\n";
+          continue;
+        }
+
+        auto res = str2lvl(level_string);
+        if (not res.has_value()) {
+          result.has_error = true;
+          result.message += "E: Invalid level of group '" + group_name
+                          + "': " + level_string + "\n";
+          continue;
+        }
         auto level = res.value();
-        logging_system_->setLevelOfGroup(lean::log::defaultGroupName, level);
-        continue;
-      }
 
-      std::istringstream iss2(chunk);
-
-      std::string group_name;
-      if (not std::getline(iss2, group_name, '=')) {
-        std::cerr << "Can't read group";
+        logging_system_->setLevelOfGroup(group_name, level);
       }
-      if (not logging_system_->getGroup(group_name)) {
-        std::cerr << "Unknown group: " << group_name
-                  << std::endl;  // NOLINT(performance-avoid-endl)
-        continue;
-      }
-
-      std::string level_string;
-      if (not std::getline(iss2, level_string)) {
-        std::cerr << "Can't read level for group '" << group_name << "'"
-                  << std::endl;  // NOLINT(performance-avoid-endl)
-        continue;
-      }
-      auto res = str2lvl(level_string);
-      if (not res.has_value()) {
-        std::cerr << "Invalid level: " << level_string
-                  << std::endl;  // NOLINT(performance-avoid-endl)
-        continue;
-      }
-      auto level = res.value();
-
-      logging_system_->setLevelOfGroup(group_name, level);
     }
+
+    if (result.has_error or result.has_warning) {
+      result.message =
+          "I: Some problems are found during tuning of logging system by CLI "
+          "args:\n"
+          + result.message;
+    }
+    return result;
   }
 
 }  // namespace lean::log

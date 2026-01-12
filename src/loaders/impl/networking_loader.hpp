@@ -144,6 +144,12 @@ namespace lean::loaders {
       se_manager_->notify(lean::EventTypes::PeerDisconnected, msg);
     }
 
+    void dispatch_peers_total_count_updated(
+        std::shared_ptr<const messages::PeersTotalCountMessage> msg) override {
+      SL_TRACE(logger_, "Dispatch PeersTotalCountUpdated; count={}", msg->count);
+      se_manager_->notify(lean::EventTypes::PeersTotalCountUpdated, msg);
+    }
+
     void dispatchStatusMessageReceived(
         std::shared_ptr<const messages::StatusMessageReceived> message)
         override {

@@ -19,6 +19,9 @@ namespace lean::modules {
     virtual void dispatch_peer_disconnected(
         std::shared_ptr<const messages::PeerDisconnectedMessage> msg) = 0;
 
+    virtual void dispatch_peers_total_count_updated(
+        std::shared_ptr<const messages::PeersTotalCountMessage> msg) = 0;
+
     virtual void dispatchStatusMessageReceived(
         std::shared_ptr<const messages::StatusMessageReceived> message) = 0;
     virtual void dispatchSignedVoteReceived(
