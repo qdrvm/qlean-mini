@@ -415,13 +415,6 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  auto ls = testutil::prepareLoggers();
-  auto log = ls->getLogger("test", "test");
-  SL_INFO(log, "Blocks:");
-  for (auto& block : blocks) {
-    SL_INFO(log, "  {}", block.index());
-  }
-
   ForkChoiceStore::SignedAttestations attestations;
   attestations[0] = SignedAttestation{
       .message =
@@ -447,11 +440,6 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
                                makeBlockMap(blocks));
 
   auto head = store.computeLmdGhostHead(root.hash(), attestations, 2);
-
-  SL_INFO(log, "Head:");
-  SL_INFO(log, "  {}", head);
-  SL_INFO(log, "Root:");
-  SL_INFO(log, "  {}", root.index());
 
   EXPECT_EQ(head, root.hash());
 }

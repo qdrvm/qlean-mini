@@ -841,6 +841,9 @@ namespace lean {
         std::erase_if(children, [&](const BlockHash &hash) {
           return get_weight(hash) < min_score;
         });
+        if (children.empty()) {
+          return head;
+        }
       }
 
       // Choose best child: most attestations, then lexicographically highest
