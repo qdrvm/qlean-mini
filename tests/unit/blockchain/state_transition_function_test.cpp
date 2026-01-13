@@ -11,12 +11,14 @@
 #include "blockchain/impl/anchor_block_impl.hpp"
 #include "blockchain/impl/anchor_state_impl.hpp"
 #include "mock/metrics_mock.hpp"
+#include "testutil/prepare_loggers.hpp"
 #include "types/config.hpp"
 #include "types/state.hpp"
 
 TEST(STF, Test) {
   auto metrics = std::make_shared<lean::metrics::MetricsMock>();
-  lean::STF stf(metrics);
+  auto logsys = testutil::prepareLoggers();
+  lean::STF stf(metrics, logsys->getLogger("STF", "test"));
 
   lean::Config config{
       .genesis_time = 0,
@@ -26,7 +28,8 @@ TEST(STF, Test) {
   validators_pubkeys.resize(2);
 
   auto state0 = lean::STF::generateGenesisState(config, validators_pubkeys);
-  auto block0 = lean::blockchain::AnchorBlockImpl{lean::blockchain::AnchorStateImpl{state0}};
+  auto block0 = lean::blockchain::AnchorBlockImpl{
+      lean::blockchain::AnchorStateImpl{state0}};
   block0.setHash();
 
   lean::Block block1{

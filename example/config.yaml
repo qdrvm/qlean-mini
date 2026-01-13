@@ -47,3 +47,6 @@ logging:
                 - name: block_tree
                 - name: fork_choice
                   level: trace
+                  children:
+                    - name: stf
+                      level: info

@@ -7,8 +7,14 @@
 addtest(enr_test
     enr_test.cpp
 )
-
 target_link_libraries(enr_test
     enr
+)
+
+addtest(snappy_test
+    snappy_test.cpp
+)
+target_link_libraries(snappy_test
+    snappy
 )
 

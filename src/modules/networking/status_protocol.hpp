@@ -42,6 +42,8 @@ namespace lean::modules {
         std::shared_ptr<libp2p::connection::CapableConnection> connection);
 
    private:
+    libp2p::CoroOutcome<void> read(std::shared_ptr<libp2p::Stream> stream);
+    libp2p::CoroOutcome<void> write(std::shared_ptr<libp2p::Stream> stream);
     libp2p::CoroOutcome<void> coroHandle(
         std::shared_ptr<libp2p::Stream> stream);
 

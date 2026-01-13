@@ -285,7 +285,7 @@ namespace lean {
     auto &data = signed_attestation.message.data;
 
     SL_TRACE(logger_,
-             "Validating attestation for target {}, source {}",
+             "Validating attestation for target={}, source={}",
              data.target,
              data.source);
     auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
@@ -337,10 +337,33 @@ namespace lean {
       const SignedAttestation &signed_attestation, bool is_from_block) {
     // First, ensure the attestation is structurally and temporally valid.
     auto source = is_from_block ? "block" : "gossip";
+
+    // Extract node id
+    auto node_id_opt = validator_registry_->nodeIdByIndex(
+        signed_attestation.message.validator_id);
+    if (not node_id_opt.has_value()) {
+      SL_WARN(logger_,
+              "Received attestation from unknown validator index {}",
+              signed_attestation.message.validator_id);
+    }
+
     if (auto res = validateAttestation(signed_attestation); res.has_value()) {
       metrics_->fc_attestations_valid_total({{"source", source}})->inc();
+      SL_DEBUG(logger_,
+               "⚙️ Processing valid attestation from validator {} for "
+               "target={}, source={}",
+               node_id_opt ? node_id_opt.value() : "unknown",
+               signed_attestation.message.data.target,
+               signed_attestation.message.data.source);
     } else {
       metrics_->fc_attestations_invalid_total({{"source", source}})->inc();
+      SL_WARN(logger_,
+              "❌ Invalid attestation from validator {} for target={}, "
+              "source={}: {}",
+              node_id_opt ? node_id_opt.value() : "unknown",
+              signed_attestation.message.data.target,
+              signed_attestation.message.data.source,
+              res.error());
       return res;
     }
 
@@ -506,6 +529,9 @@ namespace lean {
         return false;
       }
     }
+    SL_TRACE(logger_,
+             "All block signatures are valid in block {}",
+             block.index());
     return true;
   }
 
@@ -565,6 +591,10 @@ namespace lean {
 
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > block_tree_->lastFinalized().slot) {
+      SL_INFO(logger_,
+               "🔒 Finalized block={:0xx}, slot={}",
+               post_state.latest_finalized.root,
+               post_state.latest_finalized.slot);
       OUTCOME_TRY(block_tree_->finalize(post_state.latest_finalized.root));
     }
 
@@ -632,10 +662,10 @@ namespace lean {
       }
       if (time_ % INTERVALS_PER_SLOT == 0) {
         // Slot start
-        SL_INFO(logger_,
-                "Slot {} started with time {}",
-                current_slot,
-                time_ * SECONDS_PER_INTERVAL);
+        SL_DEBUG(logger_,
+                 "Slot {} started with time {}",
+                 current_slot,
+                 time_ * SECONDS_PER_INTERVAL);
         auto producer_index = current_slot % validator_count;
         auto is_producer =
             validator_registry_->currentValidatorIndices().contains(
@@ -663,7 +693,7 @@ namespace lean {
           auto &produced_block = res.value();
 
           SL_TRACE(logger_,
-                   "Produced block {} with parent {} and state {}",
+                   "👷 Produced block {} with parent {} and state {}",
                    produced_block.message.block.index(),
                    produced_block.message.block.parent_root,
                    produced_block.message.block.state_root);
@@ -681,12 +711,11 @@ namespace lean {
         metrics_->fc_head_slot()->set(head_.slot);
         Checkpoint head = head_;
         auto target = getAttestationTarget();
-        SL_INFO(logger_,
-                "For slot {}: head is {}, target is {}, source is {}",
-                current_slot,
-                head,
-                target,
-                latest_justified_);
+
+        SL_INFO(logger_, "🔷 Head={}", head);
+        SL_INFO(logger_, "🎯 Target={}", target);
+        SL_INFO(logger_, "📌 Source={}", latest_justified_);
+
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
           if (isProposer(validator_index, current_slot, validator_count)) {
@@ -716,9 +745,9 @@ namespace lean {
                      res.error());
             continue;
           }
-          SL_INFO(logger_,
-                  "Produced vote for target {}",
-                  signed_attestation.message.data.target);
+          SL_DEBUG(logger_,
+                   "Produced vote for target={}",
+                   signed_attestation.message.data.target);
           result.emplace_back(signed_attestation);
         }
 
@@ -846,7 +875,7 @@ namespace lean {
         xmss_provider_(std::move(xmss_provider)),
         block_tree_(std::move(block_tree)),
         block_storage_(std::move(block_storage)),
-        stf_(metrics_),
+        stf_(metrics_, logging_system->getLogger("STF", "stf")),
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)) {
     BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
@@ -894,7 +923,7 @@ namespace lean {
         xmss_provider_(std::move(xmss_provider)),
         block_tree_(std::move(block_tree)),
         block_storage_(std::move(block_storage)),
-        stf_(std::move(metrics)),
+        stf_(std::move(metrics), logging_system->getLogger("STF", "stf")),
         time_(now_sec / SECONDS_PER_INTERVAL),
         config_(config),
         head_(head),

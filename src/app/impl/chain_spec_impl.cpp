@@ -83,11 +83,6 @@ namespace lean::app {
         auto multiaddr = entry.enr.connectAddress();
 
         bootnode_infos.emplace_back(std::move(multiaddr), std::move(peer_id));
-        SL_INFO(log_,
-                 "Added boot node: {} -> peer={}, address={}",
-                 entry.raw,
-                 bootnode_infos.back().peer_id,
-                 bootnode_infos.back().address.getStringAddress());
       } catch (const std::exception &e) {
         SL_WARN(log_,
                 "Failed to extract peer info from ENR '{}': {}",

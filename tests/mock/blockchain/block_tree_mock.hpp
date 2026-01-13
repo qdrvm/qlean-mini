@@ -98,6 +98,7 @@ namespace lean::blockchain {
                 (const, override));
 
     MOCK_METHOD(BlockIndex, lastFinalized, (), (const, override));
+    MOCK_METHOD(Checkpoint, getLatestJustified, (), (const, override));
 
     MOCK_METHOD(outcome::result<std::optional<SignedBlockWithAttestation>>,
                 tryGetSignedBlock,

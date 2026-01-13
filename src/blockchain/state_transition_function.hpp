@@ -10,6 +10,7 @@
 #include <qtils/outcome.hpp>
 #include <qtils/shared_ref.hpp>
 
+#include "log/logger.hpp"
 #include "app/impl/chain_spec_impl.hpp"
 #include "app/validator_keys_manifest.hpp"
 #include "blockchain/validator_registry.hpp"
@@ -61,7 +62,7 @@ namespace lean {
       abort();
     }
 
-    explicit STF(qtils::SharedRef<metrics::Metrics> metrics);
+    explicit STF(qtils::SharedRef<metrics::Metrics> metrics, log::Logger logger);
 
     static State generateGenesisState(
         const Config &config,
@@ -90,5 +91,6 @@ namespace lean {
 
    private:
     qtils::SharedRef<metrics::Metrics> metrics_;
+    log::Logger log_;
   };
 }  // namespace lean

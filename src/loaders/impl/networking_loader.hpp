@@ -37,6 +37,7 @@ namespace lean::loaders {
         public Loader,
         public modules::NetworkingLoader {
     log::Logger logger_;
+    qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
@@ -58,12 +59,14 @@ namespace lean::loaders {
    public:
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
                      std::shared_ptr<Subscription> se_manager,
+                     qtils::SharedRef<metrics::Metrics> metrics,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
                      qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                      qtils::SharedRef<app::ChainSpec> chain_spec,
                      qtils::SharedRef<app::Configuration> app_config)
         : Loader(std::move(logsys), std::move(se_manager)),
           logger_(logsys_->getLogger("Networking", "networking_module")),
+          metrics_{std::move(metrics)},
           block_tree_{std::move(block_tree)},
           fork_choice_store_{std::move(fork_choice_store)},
           chain_spec_{std::move(chain_spec)},
@@ -81,6 +84,7 @@ namespace lean::loaders {
               ->getFunctionFromLibrary<std::weak_ptr<modules::Networking>,
                                        modules::NetworkingLoader &,
                                        std::shared_ptr<log::LoggingSystem>,
+                                       qtils::SharedRef<metrics::Metrics>,
                                        qtils::SharedRef<blockchain::BlockTree>,
                                        qtils::SharedRef<ForkChoiceStore>,
                                        qtils::SharedRef<app::ChainSpec>,
@@ -93,6 +97,7 @@ namespace lean::loaders {
 
       auto module_internal = (*module_accessor)(*this,
                                                 logsys_,
+                                                metrics_,
                                                 block_tree_,
                                                 fork_choice_store_,
                                                 chain_spec_,
@@ -137,6 +142,12 @@ namespace lean::loaders {
         std::shared_ptr<const messages::PeerDisconnectedMessage> msg) override {
       SL_TRACE(logger_, "Dispatch PeerDisconnected; peer={}", msg->peer);
       se_manager_->notify(lean::EventTypes::PeerDisconnected, msg);
+    }
+
+    void dispatch_peers_total_count_updated(
+        std::shared_ptr<const messages::PeersTotalCountMessage> msg) override {
+      SL_TRACE(logger_, "Dispatch PeersTotalCountUpdated; count={}", msg->count);
+      se_manager_->notify(lean::EventTypes::PeersTotalCountUpdated, msg);
     }
 
     void dispatchStatusMessageReceived(

@@ -14,12 +14,16 @@
 
 namespace lean::messages {
   struct SlotStarted;
+  struct PeersTotalCountMessage;
 }
 namespace lean {
   struct GenesisConfig;
 }
 namespace lean::log {
   class LoggingSystem;
+}
+namespace lean::blockchain {
+  class BlockTree;
 }
 namespace lean::clock {
   class SystemClock;
@@ -40,7 +44,8 @@ namespace lean::app {
                  qtils::SharedRef<StateManager> state_manager,
                  qtils::SharedRef<Subscription> se_manager,
                  qtils::SharedRef<clock::SystemClock> clock,
-                 qtils::SharedRef<GenesisConfig> config);
+                 qtils::SharedRef<GenesisConfig> config,
+                 qtils::SharedRef<blockchain::BlockTree> block_tree);
 
     void prepare();
     void start();
@@ -54,6 +59,9 @@ namespace lean::app {
     qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<clock::SystemClock> clock_;
     qtils::SharedRef<Subscription> se_manager_;
+    qtils::SharedRef<blockchain::BlockTree> block_tree_;
+
+    std::atomic<size_t> connected_peers_{0};
 
     bool stopped_ = false;
 
@@ -61,6 +69,10 @@ namespace lean::app {
         BaseSubscriber<qtils::Empty,
                        std::shared_ptr<const messages::SlotStarted>>>
         on_slot_started_;
+    std::shared_ptr<
+        BaseSubscriber<qtils::Empty,
+                       std::shared_ptr<const messages::PeersTotalCountMessage>>>
+        on_peers_total_count_updated_;
   };
 
 }  // namespace lean::app
