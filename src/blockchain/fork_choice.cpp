@@ -82,11 +82,15 @@ namespace lean {
 
   outcome::result<std::shared_ptr<const State>> ForkChoiceStore::getState(
       const BlockHash &block_hash) const {
+    SL_TRACE(logger_, "Getting state for block {}", block_hash);
     auto state = states_.get_else(block_hash, [&]() -> outcome::result<State> {
+      SL_TRACE(logger_, "Loading state for block {}", block_hash);
       OUTCOME_TRY(state_opt, block_storage_->getState(block_hash));
       if (state_opt.has_value()) {
+        SL_TRACE(logger_, "State for block {} was loaded", block_hash);
         return state_opt.value();
       }
+      SL_TRACE(logger_, "State for block {} not found", block_hash);
       return Error::STATE_NOT_FOUND;
     });
     return state;
@@ -529,9 +533,8 @@ namespace lean {
         return false;
       }
     }
-    SL_TRACE(logger_,
-             "All block signatures are valid in block {}",
-             block.index());
+    SL_TRACE(
+        logger_, "All block signatures are valid in block {}", block.index());
     return true;
   }
 
@@ -579,10 +582,18 @@ namespace lean {
                       stf_.stateTransition(block, *parent_state, true));
 
     // Add block
+    SL_TRACE(logger_, "Adding block {} into block tree", block.index());
     OUTCOME_TRY(block_tree_->addBlock(signed_block_with_attestation));
 
     // Store state
-    OUTCOME_TRY(block_storage_->putState(block_hash, post_state));
+    SL_TRACE(logger_, "Adding post-state for block {}", block.index());
+    // OUTCOME_TRY(block_storage_->putState(block_hash, post_state));
+    auto res = block_storage_->putState(block_hash, post_state);
+    if (res.has_error()) {
+      SL_WARN(logger_, "Failed to store post-state for block {}", block.index());
+    } else {
+      SL_TRACE(logger_, "Stored post-state for block {}", block.index());
+    }
 
     // If post-state has a higher justified checkpoint, update it to the store.
     if (post_state.latest_justified.slot > latest_justified_.slot) {
@@ -592,9 +603,9 @@ namespace lean {
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > block_tree_->lastFinalized().slot) {
       SL_INFO(logger_,
-               "🔒 Finalized block={:0xx}, slot={}",
-               post_state.latest_finalized.root,
-               post_state.latest_finalized.slot);
+              "🔒 Finalized block={:0xx}, slot={}",
+              post_state.latest_finalized.root,
+              post_state.latest_finalized.slot);
       OUTCOME_TRY(block_tree_->finalize(post_state.latest_finalized.root));
     }
 
@@ -757,7 +768,9 @@ namespace lean {
                  current_slot);
 
         auto res = updateSafeTarget();
-        BOOST_ASSERT(res.has_value());
+        if (res.has_error()) {
+          SL_WARN(logger_, "Failed to update safe-target: {}", res.error());
+        }
 
       } else if (time_ % INTERVALS_PER_SLOT == 3) {
         SL_TRACE(logger_,
