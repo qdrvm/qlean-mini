@@ -8,6 +8,7 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/checkpoint.hpp"
 #include "types/slot.hpp"
 
@@ -20,5 +21,7 @@ namespace lean {
 
     SSZ_CONT(slot, head, target, source);
     bool operator==(const AttestationData &) const = default;
+
+    JSON_CAMEL(slot, head, target, source);
   };
 }  // namespace lean
