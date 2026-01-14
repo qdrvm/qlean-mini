@@ -22,7 +22,8 @@ namespace lean::log {
 
 namespace lean {
   struct GenesisConfig : Config {
-    GenesisConfig(const log::LoggingSystem &logsys,
-                  const AnchorState &state);
+    GenesisConfig(const log::LoggingSystem &logsys, const AnchorState &state);
+
+    size_t validator_count;
   };
 }  // namespace lean

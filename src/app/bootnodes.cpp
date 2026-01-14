@@ -12,9 +12,12 @@
 // Implementation file for bootnodes - currently header-only but
 // keeping this file for future implementation needs
 namespace lean::app {
-  BootnodeInfo::BootnodeInfo(libp2p::multi::Multiaddress addr,
-                             libp2p::PeerId id)
-      : address(std::move(addr)), peer_id(std::move(id)) {}
+  BootnodeInfo::BootnodeInfo(libp2p::multi::Multiaddress address,
+                             libp2p::PeerId id,
+                             bool is_aggregator)
+      : address{std::move(address)},
+        peer_id{std::move(id)},
+        is_aggregator{is_aggregator} {}
 
   Bootnodes::Bootnodes(std::vector<BootnodeInfo> nodes)
       : nodes_(std::move(nodes)) {}
