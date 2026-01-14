@@ -111,7 +111,6 @@ namespace lean::blockchain {
 
     outcome::result<std::optional<SignedBlockWithAttestation>>
     tryGetSignedBlock(const BlockHash block_hash) const override;
-    void import(std::vector<SignedBlockWithAttestation> blocks) override;
 
     // BlockHeaderRepository methods
 

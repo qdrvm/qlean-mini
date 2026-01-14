@@ -794,12 +794,6 @@ namespace lean::blockchain {
     };
   }
 
-  void BlockTreeImpl::import(std::vector<SignedBlockWithAttestation> blocks) {
-    for (auto &block : blocks) {
-      std::ignore = addBlock(block);
-    }
-  }
-
   outcome::result<void> BlockTreeImpl::reorgAndPrune(
       const BlockTreeData &p, const ReorgAndPrune &changes) {
     OUTCOME_TRY(p.storage_->setBlockTreeLeaves(p.tree_->leafHashes()));

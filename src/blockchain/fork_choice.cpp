@@ -475,7 +475,10 @@ namespace lean {
     // 2. The proposer attestation.
     if (signatures.size() != all_attestations.size()) {
       SL_WARN(logger_,
-              "Number of signatures does not match number of attestations");
+              "Number of signatures does not match number of attestations: "
+              "{} signatures != {} attestations",
+              signatures.size(),
+              all_attestations.size());
       return false;
     }
 
@@ -503,7 +506,7 @@ namespace lean {
       // Identify the validator who created this attestation
       ValidatorIndex validator_id = attestation.validator_id;
 
-      // Ensure validator exists in the active set
+      // Ensure a validator exists in the active set
       if (validator_id >= validators.size()) {
         SL_WARN(logger_, "Validator index out of range");
         return false;
@@ -590,7 +593,8 @@ namespace lean {
     // OUTCOME_TRY(block_storage_->putState(block_hash, post_state));
     auto res = block_storage_->putState(block_hash, post_state);
     if (res.has_error()) {
-      SL_WARN(logger_, "Failed to store post-state for block {}", block.index());
+      SL_WARN(
+          logger_, "Failed to store post-state for block {}", block.index());
     } else {
       SL_TRACE(logger_, "Stored post-state for block {}", block.index());
     }
@@ -788,7 +792,8 @@ namespace lean {
       const BlockHash &start_root,
       const SignedAttestations &attestations,
       uint64_t min_score) const {
-    // If the starting point is not defined, choose the earliest known block.
+    // If the starting point is not defined, choose last finalized as an anchor;
+    // don’t descend below finality
 
     // This ensures that the walk always has an anchor.
     auto anchor = start_root;
@@ -816,20 +821,18 @@ namespace lean {
 
     // Each visited block accumulates one unit of weight from that validator.
     for (auto &attestation : attestations | std::views::values) {
-      auto current = attestation.message.data.head.root;
-
       // Climb towards the anchor while staying inside the known tree.
-
       // This naturally handles partial views and ongoing sync.
-      while (true) {
+      for (auto current = attestation.message.data.head.root;;) {
         auto current_header_res = block_tree_->tryGetBlockHeader(current);
         if (current_header_res.has_failure()) {
           break;
         }
-        if (not current_header_res.value().has_value()) {
+        auto &current_header_opt = current_header_res.value();
+        if (!current_header_opt) {
           break;
         }
-        auto &current_header = current_header_res.value().value();
+        auto &current_header = current_header_opt.value();
         if (current_header.slot <= start_slot) {
           break;
         }

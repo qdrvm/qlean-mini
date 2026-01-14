@@ -164,13 +164,6 @@ namespace lean::blockchain {
      */
     virtual outcome::result<std::optional<SignedBlockWithAttestation>>
     tryGetSignedBlock(const BlockHash block_hash) const = 0;
-
-    // TODO(turuslan): state transition function
-    /**
-     * Import pre-sorted batch of `SignedBlockWithAttestation`.
-     * May change best and finalized block.
-     */
-    virtual void import(std::vector<SignedBlockWithAttestation> blocks) = 0;
   };
 
 }  // namespace lean::blockchain

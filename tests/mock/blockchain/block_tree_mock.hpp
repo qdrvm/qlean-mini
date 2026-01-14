@@ -104,11 +104,6 @@ namespace lean::blockchain {
                 tryGetSignedBlock,
                 (const BlockHash block_hash),
                 (const, override));
-
-    MOCK_METHOD(void,
-                import,
-                (std::vector<SignedBlockWithAttestation> blocks),
-                (override));
   };
 
 }  // namespace lean::blockchain

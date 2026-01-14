@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <format>
 #include <memory>
+#include <ranges>
 #include <stdexcept>
 
 #include <app/configuration.hpp>
@@ -528,88 +529,117 @@ namespace lean::modules {
                       });
   }
 
-  // TODO(turuslan): detect finalized change
   void NetworkingImpl::receiveBlock(
       std::optional<libp2p::PeerId> from_peer,
       SignedBlockWithAttestation &&signed_block_with_attestation) {
-    auto slot_hash = signed_block_with_attestation.message.block.index();
+    auto block_index = signed_block_with_attestation.message.block.index();
     SL_DEBUG(logger_,
-             "Received block slot {} hash={:0xx} parent={:0xx} from peer={}",
-             slot_hash.slot,
-             slot_hash.hash,
+             "Received block {} parent={:0xx} from peer={}",
+             block_index,
              signed_block_with_attestation.message.block.parent_root,
              from_peer.has_value() ? from_peer->toBase58() : "unknown");
 
-    // Remove function for cached children
-    auto remove = [&](auto f) {
-      std::vector<BlockHash> queue{slot_hash.hash};
+    // Ignore cached block
+    if (block_cache_.contains(block_index.hash)) {
+      SL_TRACE(logger_,
+               "receiveBlock {} => Block was ignored as cached",
+               block_index.slot);
+      return;
+    }
+
+    // Ignore block imported earlier
+    if (block_tree_->has(block_index.hash)) {
+      SL_TRACE(logger_,
+               "receiveBlock {} => Block was ignored as imported earlier",
+               block_index.slot);
+      return;
+    }
+
+    auto forget_block_with_its_descendants = [&](const BlockHash &block_hash) {
+      std::deque queue{block_hash};
       while (not queue.empty()) {
-        auto hash = queue.back();
-        queue.pop_back();
+        auto &hash = queue.front();
         auto [begin, end] = block_children_.equal_range(hash);
-        for (auto it = begin; it != end; it = block_children_.erase(it)) {
-          f(it->second);
+        for (auto it = begin; it != end; ++it) {
           queue.emplace_back(it->second);
         }
+        block_children_.erase(begin, end);
+        block_cache_.erase(hash);
+        queue.pop_front();
       }
     };
-    auto parent_hash = signed_block_with_attestation.message.block.parent_root;
-    if (block_cache_.contains(slot_hash.hash)) {
-      SL_TRACE(logger_, "receiveBlock {} => ignore cached", slot_hash.slot);
-      return;
-    }
-    if (block_tree_->has(slot_hash.hash)) {
-      SL_TRACE(logger_, "receiveBlock {} => ignore db", slot_hash.slot);
-      return;
-    }
-    if (slot_hash.slot <= block_tree_->lastFinalized().slot) {
-      SL_TRACE(
-          logger_, "receiveBlock {} => ignore finalized fork", slot_hash.slot);
-      remove(
-          [&](const BlockHash &block_hash) { block_cache_.erase(block_hash); });
-      return;
-    }
-    if (block_tree_->has(parent_hash)) {
-      std::vector<SignedBlockWithAttestation> blocks{
-          std::move(signed_block_with_attestation)};
 
-      // Import all cached children
-      remove([&](const BlockHash &block_hash) {
-        blocks.emplace_back(block_cache_.extract(block_hash).mapped());
-      });
-      for (auto &block : blocks) {
-        auto res = fork_choice_store_->onBlock(block);
-        if (not res.has_value()) {
+    // Ignore blocks of finalized forks
+    if (block_index.slot <= block_tree_->lastFinalized().slot) {
+      SL_TRACE(
+          logger_,
+          "receiveBlock {} => Block was ignored as block of finalised slot",
+          block_index.slot);
+
+      // Forget the block with its cached children
+      forget_block_with_its_descendants(block_index.hash);
+      return;
+    }
+
+    // Cleanup cache from blocks of finalized forks
+    std::erase_if(block_cache_,
+                  [slot = block_tree_->lastFinalized().slot](const auto &kv) {
+                    const auto &[hash, block] = kv;
+                    return block.message.block.slot <= slot;
+                  });
+
+    // If the parent isn't in the tree-cache block and request of parent
+    auto &parent_hash = signed_block_with_attestation.message.block.parent_root;
+    if (not block_tree_->has(parent_hash)) {
+      block_cache_.emplace(block_index.hash,
+                           std::move(signed_block_with_attestation));
+      block_children_.emplace(parent_hash, block_index.hash);
+      if (block_cache_.contains(parent_hash)) {
+        SL_TRACE(
+            logger_, "receiveBlock {} => parent is cached", block_index.slot);
+        return;
+      }
+      if (from_peer) {
+        requestBlock(from_peer.value(), parent_hash);
+        SL_TRACE(
+            logger_, "receiveBlock {} => request parent", block_index.slot);
+      }
+      return;
+    }
+
+    std::function<void(const SignedBlockWithAttestation &)> import_block =
+        [&](auto &block) {
+          const auto &block_hash = block.message.block.hash();
+
+          // Trying to add block
+          auto res = fork_choice_store_->onBlock(block);
+
+          if (res.has_value()) {  // Success -> import children
+
+            SL_INFO(
+                logger_, "✅ Imported block {}", block.message.block.index());
+
+            auto [b, e] = block_children_.equal_range(block_hash);
+            for (const auto &[parent, child] : std::ranges::subrange(b, e)) {
+              if (auto it = block_cache_.find(child);
+                  it != block_cache_.end()) {
+                import_block(it->second);
+              }
+            }
+
+            return;
+          }
+
+          // Fail -> forget children
           SL_WARN(logger_,
                   "❌ Error importing block={}: {}",
                   block.message.block.index(),
                   res.error());
-          break;
-        }
-      }
-      SL_INFO(logger_,
-              "✅ Imported blocks: {}",
-              fmt::join(blocks
-                            | std::views::transform(
-                                [](const SignedBlockWithAttestation &block) {
-                                  return block.message.block.slot;
-                                }),
-                        " "));
-      block_tree_->import(std::move(blocks));
-      return;
-    }
-    block_cache_.emplace(slot_hash.hash,
-                         std::move(signed_block_with_attestation));
-    block_children_.emplace(parent_hash, slot_hash.hash);
-    if (block_cache_.contains(parent_hash)) {
-      SL_TRACE(logger_, "receiveBlock {} => has parent", slot_hash.slot);
-      return;
-    }
-    if (not from_peer) {
-      return;
-    }
-    requestBlock(from_peer.value(), parent_hash);
-    SL_TRACE(logger_, "receiveBlock {} => request parent", slot_hash.slot);
+
+          forget_block_with_its_descendants(block_hash);
+        };
+
+    import_block(signed_block_with_attestation);
   }
 
   bool NetworkingImpl::statusFinalizedIsGood(const BlockIndex &slot_hash) {
