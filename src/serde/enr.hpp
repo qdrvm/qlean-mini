@@ -34,6 +34,7 @@ namespace lean::enr {
     Secp256k1PublicKey public_key;
     std::optional<Ip> ip;
     std::optional<Port> port;
+    bool is_aggregator = false;
 
     libp2p::PeerId peerId() const;
     libp2p::Multiaddress listenAddress() const;
@@ -47,5 +48,6 @@ namespace lean::enr {
 
   outcome::result<std::string> encode(const libp2p::crypto::KeyPair &keypair,
                                       Ip ip,
-                                      Port port);
+                                      Port port,
+                                      bool is_aggregator);
 }  // namespace lean::enr
