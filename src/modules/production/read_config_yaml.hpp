@@ -40,6 +40,10 @@ namespace lean {
     if (not yaml_genesis_time.IsScalar()) {
       return ConfigYamlError::INVALID;
     }
+    auto yaml_subnet_count = yaml["SUBNET_COUNT"];
+    if (not yaml_subnet_count.IsScalar()) {
+      return ConfigYamlError::INVALID;
+    }
     auto yaml_genesis_validators = yaml["GENESIS_VALIDATORS"];
     if (not yaml_genesis_validators.IsSequence()) {
       return ConfigYamlError::INVALID;
@@ -54,7 +58,10 @@ namespace lean {
                         crypto::xmss::XmssPublicKey::fromHex(validator_str));
       validators.emplace_back(validator);
     }
-    Config config{.genesis_time = yaml_genesis_time.as<uint64_t>()};
+    Config config{
+        .genesis_time = yaml_genesis_time.as<uint64_t>(),
+        .subnet_count = yaml_subnet_count.as<uint64_t>(),
+    };
     return STF::generateGenesisState(config, validators);
   }
 }  // namespace lean
