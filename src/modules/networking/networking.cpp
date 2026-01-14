@@ -32,7 +32,9 @@
 #include <qtils/to_shared_ptr.hpp>
 
 #include "blockchain/block_tree.hpp"
+#include "blockchain/genesis_config.hpp"
 #include "blockchain/impl/fc_block_tree.hpp"
+#include "blockchain/validator_subnet.hpp"
 #include "metrics/metrics.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
@@ -81,6 +83,8 @@ namespace lean::modules {
       qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
+      qtils::SharedRef<ValidatorRegistry> validator_registry,
+      qtils::SharedRef<GenesisConfig> genesis_config,
       qtils::SharedRef<app::ChainSpec> chain_spec,
       qtils::SharedRef<app::Configuration> config)
       : loader_(loader),
@@ -88,6 +92,8 @@ namespace lean::modules {
         metrics_{std::move(metrics)},
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)},
+        validator_registry_{std::move(validator_registry)},
+        genesis_config_{std::move(genesis_config)},
         chain_spec_{std::move(chain_spec)},
         config_{std::move(config)},
         random_{std::random_device{}()} {
@@ -112,6 +118,13 @@ namespace lean::modules {
         keypair,
         std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(nullptr)};
     auto peer_id = identity_manager.getId();
+
+    std::unordered_set<ValidatorIndex> subnets;
+    for (auto &validator_index :
+         validator_registry_->currentValidatorIndices()) {
+      subnets.emplace(
+          validatorSubnet(validator_index, genesis_config_->config));
+    }
 
     SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
 
@@ -184,13 +197,22 @@ namespace lean::modules {
       auto &address_repo = host->getPeerRepository().getAddressRepository();
 
       // Collect candidates (exclude ourselves)
-      auto all_bootnodes = bootnodes.getBootnodes();
-      connectable_peers_.reserve(all_bootnodes.size());
-      for (auto &bootnode : all_bootnodes) {
+      connectable_peers_.reserve(bootnodes.size());
+      for (auto &&[validator_index, bootnode] : std::views::zip(
+               std::views::iota(
+                   ValidatorIndex{0},
+                   ValidatorIndex{genesis_config_->state.validatorCount()}),
+               bootnodes.getBootnodes())) {
         if (bootnode.peer_id == peer_id) {
           continue;
         }
-        connectable_peers_.emplace_back(bootnode.peer_id);
+        if (bootnode.is_aggregator
+            and subnets.contains(
+                validatorSubnet(validator_index, genesis_config_->config))) {
+          subnet_aggregators_.emplace(bootnode.peer_id);
+        } else {
+          connectable_peers_.emplace_back(bootnode.peer_id);
+        }
         peer_states_.emplace(
             bootnode.peer_id,
             PeerState{
@@ -207,7 +229,7 @@ namespace lean::modules {
               "Adding {} bootnodes to address repository",
               connectable_peers_.size());
 
-      for (const auto &bootnode : all_bootnodes) {
+      for (const auto &bootnode : bootnodes.getBootnodes()) {
         if (bootnode.peer_id == peer_id) {
           continue;
         }
@@ -632,22 +654,14 @@ namespace lean::modules {
         if (backoff->backoff_until <= now) {
           // Backoff => Connectable
           state.state = PeerState::Connectable{.backoff = backoff->backoff};
-          connectable_peers_.emplace_back(state.info.id);
+          if (not subnet_aggregators_.contains(state.info.id)) {
+            connectable_peers_.emplace_back(state.info.id);
+          }
         }
       }
     }
-    if (want <= active) {
-      return;
-    }
-    want -= active;
-    while (want != 0 and not connectable_peers_.empty()) {
-      --want;
-      size_t i = std::uniform_int_distribution<size_t>{
-          0, connectable_peers_.size() - 1}(random_);
-      std::swap(connectable_peers_.at(i), connectable_peers_.back());
-      auto peer_id = std::move(connectable_peers_.back());
-      connectable_peers_.pop_back();
-      auto &state = peer_states_.at(peer_id);
+    auto connect = [&](PeerState &state) {
+      ++active;
       auto &connectable = std::get<PeerState::Connectable>(state.state);
       // Connectable => Connecting
       state.state = PeerState::Connecting{.backoff = connectable.backoff};
@@ -677,6 +691,22 @@ namespace lean::modules {
               }
             }
           });
+    };
+    for (auto &peer_id : subnet_aggregators_) {
+      auto &state = peer_states_.at(peer_id);
+      if (not std::holds_alternative<PeerState::Connectable>(state.state)) {
+        continue;
+      }
+      connect(state);
+    }
+    while (active < want and not connectable_peers_.empty()) {
+      size_t i = std::uniform_int_distribution<size_t>{
+          0, connectable_peers_.size() - 1}(random_);
+      std::swap(connectable_peers_.at(i), connectable_peers_.back());
+      auto peer_id = std::move(connectable_peers_.back());
+      connectable_peers_.pop_back();
+      auto &state = peer_states_.at(peer_id);
+      connect(state);
     }
   }
 

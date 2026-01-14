@@ -20,8 +20,11 @@ namespace lean::app {
   struct BootnodeInfo {
     libp2p::multi::Multiaddress address;
     libp2p::PeerId peer_id;
+    bool is_aggregator;
 
-    BootnodeInfo(libp2p::multi::Multiaddress addr, libp2p::PeerId id);
+    BootnodeInfo(libp2p::multi::Multiaddress address,
+                 libp2p::PeerId id,
+                 bool is_aggregator);
   };
 
   /**
