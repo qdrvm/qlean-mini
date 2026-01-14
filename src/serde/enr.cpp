@@ -331,6 +331,9 @@ namespace lean::enr {
   libp2p::PeerInfo Enr::connectInfo() const {
     return {peerId(), {connectAddress()}};
   }
+  bool Enr::isAggregator() const {
+    return is_aggregator_optional == true;
+  }
 
   inline void encodeContent(rlp::Encoder &rlp, const Enr &enr) {
     rlp.uint(enr.sequence);
@@ -338,8 +341,10 @@ namespace lean::enr {
     rlp.str("v4");
     rlp.str("ip");
     rlp.bytes(enr.ip.value());
-    rlp.str("is_aggregator");
-    rlp.writeBool(enr.is_aggregator);
+    if (enr.is_aggregator_optional.has_value()) {
+      rlp.str("is_aggregator");
+      rlp.writeBool(*enr.is_aggregator_optional);
+    }
     rlp.str("quic");
     rlp.uint(enr.port.value());
     rlp.str("secp256k1");
@@ -394,7 +399,8 @@ namespace lean::enr {
 
     auto kv_is_aggregator = kv.find("is_aggregator");
     if (kv_is_aggregator != kv.end()) {
-      BOOST_OUTCOME_TRY(enr.is_aggregator, kv_is_aggregator->second.readBool());
+      BOOST_OUTCOME_TRY(enr.is_aggregator_optional,
+                        kv_is_aggregator->second.readBool());
     }
 
     libp2p::crypto::secp256k1::Secp256k1ProviderImpl secp256k1{nullptr};
@@ -413,7 +419,7 @@ namespace lean::enr {
   outcome::result<std::string> encode(const libp2p::crypto::KeyPair &keypair,
                                       Ip ip,
                                       Port port,
-                                      bool is_aggregator) {
+                                      std::optional<bool> is_aggregator) {
     if (keypair.privateKey.type != libp2p::crypto::Key::Type::Secp256k1) {
       return Error::EXPECTED_SECP256K1_KEYPAIR;
     }
@@ -430,7 +436,7 @@ namespace lean::enr {
         .public_key = public_key,
         .ip = ip,
         .port = port,
-        .is_aggregator = is_aggregator,
+        .is_aggregator_optional = is_aggregator,
     };
 
     libp2p::crypto::secp256k1::Secp256k1ProviderImpl secp256k1{nullptr};

@@ -37,8 +37,8 @@ class BootnodeInjectionTest : public ::testing::Test {
     auto peer_id = libp2p::peer::PeerId::fromBytes(peer_id_bytes);
     ASSERT_TRUE(peer_id.has_value());
 
-    lean::app::BootnodeInfo bootnode_info(std::move(addr.value()),
-                                          std::move(peer_id.value()));
+    lean::app::BootnodeInfo bootnode_info(
+        std::move(addr.value()), std::move(peer_id.value()), false);
     std::vector<lean::app::BootnodeInfo> bootnode_list;
     bootnode_list.emplace_back(std::move(bootnode_info));
 
@@ -108,7 +108,7 @@ TEST(BootnodeTest, ENRParsing) {
   EXPECT_FALSE(connect_addr.getStringAddress().empty());
 
   // Create bootnode info from parsed ENR
-  lean::app::BootnodeInfo bootnode_info(connect_addr, peer_id);
+  lean::app::BootnodeInfo bootnode_info(connect_addr, peer_id, false);
   std::vector<lean::app::BootnodeInfo> bootnode_list;
   bootnode_list.emplace_back(std::move(bootnode_info));
 
