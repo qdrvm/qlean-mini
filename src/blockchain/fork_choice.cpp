@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <boost/beast/http/verb.hpp>
+#include <qtils/value_or_raise.hpp>
 
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/is_proposer.hpp"
@@ -23,6 +24,10 @@
 #include "utils/lru_cache.hpp"
 
 namespace lean {
+  inline bool isValidSignature(const Signature &signature) {
+    return signature == Signature{};
+  }
+
   outcome::result<void> ForkChoiceStore::updateSafeTarget() {
     SL_TRACE(logger_, "Update safe target");
     // Get validator count from head state
@@ -445,10 +450,6 @@ namespace lean {
     }
 
     return outcome::success();
-  }
-
-  inline bool isValidSignature(const Signature &signature) {
-    return signature == Signature{};
   }
 
   bool ForkChoiceStore::validateBlockSignatures(
@@ -910,17 +911,25 @@ namespace lean {
 
     BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
     anchor_block->setHash();
-    auto now_sec = clock->nowSec();
+    SL_TRACE(logger_, "Anchor block: {}", anchor_block->index());
+    SL_TRACE(logger_, "Anchor state: {}", anchor_block->state_root);
 
+    auto now_sec = clock->nowSec();
     time_ = now_sec > config_.genesis_time
               ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
               : 0;
 
     // Set last finalized as pre-initial-head
     head_ = block_tree_->lastFinalized();
+    SL_TRACE(logger_, "Last finalized: {}", head_);
 
     // Init latest justified
-    if (auto head_state = getState(head_.root); head_state.has_value()) {
+    auto head_parent =
+        qtils::valueOrRaise(block_tree_->getBlockHeader(head_.root))
+            .parent_root;
+    if (head_parent == kZeroHash) {
+      latest_justified_ = head_;
+    } else if (auto head_state = getState(head_.root); head_state.has_value()) {
       latest_justified_ = head_state.value()->latest_justified;
     } else {
       SL_WARN(logger_,
@@ -928,6 +937,7 @@ namespace lean {
               "Head will be used as latest justified");
       latest_justified_ = head_;
     }
+    SL_TRACE(logger_, "Last justified: {}", latest_justified_);
 
     // Init safe-target
     if (auto res = updateSafeTarget(); res.has_error()) {
@@ -939,10 +949,11 @@ namespace lean {
     // Update head based on anchor block and state
     updateHead();
 
-    SL_TRACE(logger_, "Fork-choice initialized:");
-    SL_INFO(logger_, "🔷 Head={}", head_);
-    SL_INFO(logger_, "🎯 Target={}", safe_target_);
-    SL_INFO(logger_, "📌 Source={}", latest_justified_);
+    SL_INFO(logger_, "🔷 Head:   {}", head_);
+    SL_INFO(logger_, "🎯 Target: {:0xx}", safe_target_);
+    SL_INFO(logger_, "📌 Source: {}", latest_justified_);
+
+    SL_TRACE(logger_, "Fork-choice initialized");
   }
 
   // Test constructor implementation
