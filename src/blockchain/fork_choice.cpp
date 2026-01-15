@@ -635,7 +635,7 @@ namespace lean {
           true));
     }
 
-    // Update forkchoice head based on new block and attestations
+    // Update fork-choice head based on new block and attestations
 
     // IMPORTANT: This must happen BEFORE processing proposer attestation
     // to prevent the proposer from gaining circular weight advantage.
@@ -643,7 +643,7 @@ namespace lean {
 
     // Process proposer attestation as if received via gossip
 
-    // The proposer casts their attestation in interval 1, after block
+    // The proposer casts their attestation in interval 1, after a block
     // proposal. This attestation should:
     // 1. NOT affect this block's fork choice position (processed as "new")
     // 2. Be available for inclusion in future blocks
@@ -688,7 +688,7 @@ namespace lean {
 
         if (is_producer) {
           SL_TRACE(logger_,
-                   "Interval 1 of slot {} - node is producer",
+                   "Interval 1 of slot {}: node is producer - try to produce",
                    current_slot);
           acceptNewAttestations();
 
@@ -716,7 +716,7 @@ namespace lean {
 
         } else {
           SL_TRACE(logger_,
-                   "Interval 1 of slot {} - node isn't producer - skip",
+                   "Interval 1 of slot {}: node isn't producer - skip",
                    current_slot);
         }
 
@@ -750,7 +750,7 @@ namespace lean {
           SignedAttestation signed_attestation{.message = attestation,
                                                .signature = signature};
 
-          // Dispatching send signed vote only broadcasts to other peers.
+          // Dispatching send signed vote-only broadcasts to other peers.
           // Current peer should process attestation directly
           auto res = onAttestation(signed_attestation, false);
           if (not res.has_value()) {
@@ -768,7 +768,7 @@ namespace lean {
 
       } else if (time_ % INTERVALS_PER_SLOT == 2) {
         SL_TRACE(logger_,
-                 "Interval 3 of slot {} - update safe-target ",
+                 "Interval 3 of slot {}: update safe-target ",
                  current_slot);
 
         auto res = updateSafeTarget();
@@ -778,7 +778,7 @@ namespace lean {
 
       } else if (time_ % INTERVALS_PER_SLOT == 3) {
         SL_TRACE(logger_,
-                 "Interval 4 of slot {} - accepting new attestations",
+                 "Interval 4 of slot {}: accepting new attestations",
                  current_slot);
 
         acceptNewAttestations();
@@ -895,21 +895,10 @@ namespace lean {
         block_tree_(std::move(block_tree)),
         block_storage_(std::move(block_storage)),
         stf_(metrics_, logging_system->getLogger("STF", "stf")),
+        config_(anchor_state->config),
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)) {
-    BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
-    anchor_block->setHash();
-    config_ = anchor_state->config;
-    auto now_sec = clock->nowSec();
-    time_ = now_sec > config_.genesis_time
-              ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
-              : 0;
-
-    head_ = {.root = anchor_block->hash(), .slot = anchor_block->slot};
-    safe_target_ = head_.root;
-
-    // TODO: ensure latest justified and finalized are set correctly
-    latest_justified_ = head_;
+    SL_TRACE(logger_, "Initialise fork-choice");
 
     for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
       SL_INFO(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
@@ -918,6 +907,42 @@ namespace lean {
         logger_,
         "Our pubkey: {}",
         validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
+
+    BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
+    anchor_block->setHash();
+    auto now_sec = clock->nowSec();
+
+    time_ = now_sec > config_.genesis_time
+              ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
+              : 0;
+
+    // Set last finalized as pre-initial-head
+    head_ = block_tree_->lastFinalized();
+
+    // Init latest justified
+    if (auto head_state = getState(head_.root); head_state.has_value()) {
+      latest_justified_ = head_state.value()->latest_justified;
+    } else {
+      SL_WARN(logger_,
+              "Failed to get head state to obtain latest justified; "
+              "Head will be used as latest justified");
+      latest_justified_ = head_;
+    }
+
+    // Init safe-target
+    if (auto res = updateSafeTarget(); res.has_error()) {
+      SL_WARN(logger_,
+              "Failed initial safe-target update: {}; No changed ",
+              res.error());
+    }
+
+    // Update head based on anchor block and state
+    updateHead();
+
+    SL_TRACE(logger_, "Fork-choice initialized:");
+    SL_INFO(logger_, "🔷 Head={}", head_);
+    SL_INFO(logger_, "🎯 Target={}", safe_target_);
+    SL_INFO(logger_, "📌 Source={}", latest_justified_);
   }
 
   // Test constructor implementation
