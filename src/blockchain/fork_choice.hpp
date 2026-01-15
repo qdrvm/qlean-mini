@@ -401,8 +401,6 @@ namespace lean {
     bool validateBlockSignatures(
         const SignedBlockWithAttestation &signed_block) const;
 
-    void updateLastFinalized(const Checkpoint &checkpoint);
-
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider_;

@@ -427,11 +427,11 @@ namespace lean {
       //   contributing to fork choice weights.
 
       // Convert Store time to slots to check for "future" attestations.
-      auto time_slots = getCurrentSlot();
+      auto time_slot = getCurrentSlot();
 
       // Reject the attestation if:
       // - its slot is strictly greater than our current slot.
-      if (attestation_slot > time_slots) {
+      if (attestation_slot > time_slot) {
         return Error::INVALID_ATTESTATION;
       }
 
@@ -542,11 +542,6 @@ namespace lean {
     return true;
   }
 
-  void ForkChoiceStore::updateLastFinalized(const Checkpoint &checkpoint) {
-    auto res = block_tree_->finalize(checkpoint.root);
-    BOOST_ASSERT(not res.has_error());
-  }
-
   outcome::result<void> ForkChoiceStore::onBlock(
       SignedBlockWithAttestation signed_block_with_attestation) {
     auto &block = signed_block_with_attestation.message.block;
@@ -607,11 +602,11 @@ namespace lean {
 
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > block_tree_->lastFinalized().slot) {
+      OUTCOME_TRY(block_tree_->finalize(post_state.latest_finalized.root));
       SL_INFO(logger_,
               "🔒 Finalized block={:0xx}, slot={}",
               post_state.latest_finalized.root,
               post_state.latest_finalized.slot);
-      OUTCOME_TRY(block_tree_->finalize(post_state.latest_finalized.root));
     }
 
     // Cache state
