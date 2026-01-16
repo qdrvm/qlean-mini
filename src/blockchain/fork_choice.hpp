@@ -65,6 +65,9 @@ namespace lean {
         std::unordered_map<ValidatorIndex, SignedAttestation>;
 
     enum class Error {
+      CANT_VALIDATE_ATTESTATION_SOURCE_NOT_FOUND,
+      CANT_VALIDATE_ATTESTATION_TARGET_NOT_FOUND,
+      CANT_VALIDATE_ATTESTATION_HEAD_NOT_FOUND,
       INVALID_ATTESTATION,
       INVALID_PROPOSER,
       STATE_NOT_FOUND,
@@ -72,6 +75,12 @@ namespace lean {
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
       switch (e) {
+        case E::CANT_VALIDATE_ATTESTATION_SOURCE_NOT_FOUND:
+          return "Can't validate attestation cause source block not found";
+        case E::CANT_VALIDATE_ATTESTATION_TARGET_NOT_FOUND:
+          return "Can't validate attestation cause target block not found";
+        case E::CANT_VALIDATE_ATTESTATION_HEAD_NOT_FOUND:
+          return "Can't validate attestation cause head block not found";
         case E::INVALID_ATTESTATION:
           return "Invalid attestation";
         case E::INVALID_PROPOSER:

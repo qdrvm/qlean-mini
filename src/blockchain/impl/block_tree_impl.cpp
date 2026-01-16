@@ -103,6 +103,7 @@ namespace lean::blockchain {
   outcome::result<void> BlockTreeImpl::addBlock(
       SignedBlockWithAttestation signed_block_with_attestation) {
     auto &block = signed_block_with_attestation.message.block;
+
     return block_tree_data_.exclusiveAccess(
         [&](BlockTreeData &p) -> outcome::result<void> {
           // Check if we know parent of this block; if not, we cannot insert it
@@ -120,8 +121,18 @@ namespace lean::blockchain {
           BlockData block_data;
           block_data.hash = header.hash();
           block_data.header.emplace(header);
+
+          // Attestations
+          block_data.attestation.emplace();
+          auto &attestation = block_data.attestation.value();
+          attestation.push_back(
+              signed_block_with_attestation.message.proposer_attestation);
+
+          // Signatures
+          block_data.signature.emplace(signed_block_with_attestation.signature);
+
+          // Body
           block_data.body.emplace(block.body);
-          block_data.signature = {};
 
           // Save block
           OUTCOME_TRY(block_hash, p.storage_->putBlock(block_data));
@@ -170,67 +181,6 @@ namespace lean::blockchain {
           return outcome::success();
         });
   }
-
-  // outcome::result<void> BlockTreeImpl::markAsParachainDataBlock(
-  //     const BlockHash &block_hash) {
-  //   return block_tree_data_.exclusiveAccess(
-  //       [&](BlockTreeData &p) -> outcome::result<void> {
-  //         SL_TRACE(log_, "Trying to adjust weight for block {}", block_hash);
-  //
-  //         auto node = p.tree_->find(block_hash);
-  //         if (node == nullptr) {
-  //           SL_WARN(log_, "Block {} doesn't exists in block tree",
-  //           block_hash); return BlockTreeError::BLOCK_NOT_EXISTS;
-  //         }
-  //
-  //         node->contains_approved_para_block = true;
-  //         return outcome::success();
-  //       });
-  // }
-
-  // outcome::result<void> BlockTreeImpl::markAsRevertedBlocks(
-  //     const std::vector<BlockHash> &block_hashes) {
-  //   return block_tree_data_.exclusiveAccess(
-  //       [&](BlockTreeData &p) -> outcome::result<void> {
-  //         bool need_to_refresh_best = false;
-  //         auto best = bestBlockNoLock(p);
-  //         for (const auto &block_hash : block_hashes) {
-  //           auto node_opt = p.tree_->find(block_hash);
-  //           if (not node_opt.has_value()) {
-  //             SL_WARN(
-  //                 log_, "Block {} doesn't exists in block tree", block_hash);
-  //             continue;
-  //           }
-  //           auto &node = node_opt.value();
-  //
-  //           if (not node->reverted) {
-  //             std::queue<std::shared_ptr<TreeNode>> to_revert;
-  //             to_revert.push(std::move(node));
-  //             while (not to_revert.empty()) {
-  //               auto &reverting_tree_node = to_revert.front();
-  //
-  //               reverting_tree_node->reverted = true;
-  //
-  //               if (reverting_tree_node->info == best) {
-  //                 need_to_refresh_best = true;
-  //               }
-  //
-  //               for (auto &child : reverting_tree_node->children) {
-  //                 if (not child->reverted) {
-  //                   to_revert.push(child);
-  //                 }
-  //               }
-  //
-  //               to_revert.pop();
-  //             }
-  //           }
-  //         }
-  //         if (need_to_refresh_best) {
-  //           p.tree_->forceRefreshBest();
-  //         }
-  //         return outcome::success();
-  //       });
-  // }
 
   outcome::result<void> BlockTreeImpl::addExistingBlockNoLock(
       BlockTreeData &p,
@@ -434,21 +384,6 @@ namespace lean::blockchain {
           return BlockTreeError::BODY_NOT_FOUND;
         });
   }
-
-  // outcome::result<primitives::Justification>
-  // BlockTreeImpl::getBlockJustification(
-  //     const BlockHash &block_hash) const {
-  //   return block_tree_data_.sharedAccess(
-  //       [&](const BlockTreeData &p)
-  //           -> outcome::result<primitives::Justification> {
-  //         OUTCOME_TRY(justification,
-  //         p.storage_->getJustification(block_hash)); if
-  //         (justification.has_value()) {
-  //           return justification.value();
-  //         }
-  //         return BlockTreeError::JUSTIFICATION_NOT_FOUND;
-  //       });
-  // }
 
   outcome::result<std::vector<BlockHash>> BlockTreeImpl::getBestChainFromBlock(
       const BlockHash &block, uint64_t maximum) const {
@@ -766,32 +701,18 @@ namespace lean::blockchain {
 
   outcome::result<std::optional<SignedBlockWithAttestation>>
   BlockTreeImpl::tryGetSignedBlock(const BlockHash block_hash) const {
-    auto header_res = getBlockHeader(block_hash);
-    if (not header_res.has_value()) {
-      return std::nullopt;
-    }
-    auto &header = header_res.value();
-    auto body_res = getBlockBody(block_hash);
-    if (not body_res.has_value()) {
-      return std::nullopt;
-    }
-    auto &body = body_res.value();
-    return SignedBlockWithAttestation{
-        .message =
-            {
-                .block =
-                    {
-                        .slot = header.slot,
-                        .proposer_index = header.proposer_index,
-                        .parent_root = header.parent_root,
-                        .state_root = header.state_root,
-                        .body = std::move(body),
-                    },
-                .proposer_attestation = {},
-            },
-        // TODO(turuslan): signature
-        .signature = {},
-    };
+    return block_tree_data_.sharedAccess(
+        [&](const BlockTreeData &p)
+            -> outcome::result<std::optional<SignedBlockWithAttestation>> {
+          auto res = p.storage_->getSignedBlockWithAttestation(block_hash);
+          if (res.has_error()) {
+            if (res.error() == BlockTreeError::HEADER_NOT_FOUND) {
+              return std::nullopt;
+            }
+            return res.error();
+          }
+          return res.value();
+        });
   }
 
   outcome::result<void> BlockTreeImpl::reorgAndPrune(

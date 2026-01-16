@@ -20,6 +20,8 @@ namespace lean::storage {
   static constexpr std::string_view kNamesArr[] = {
       "lookup_key",
       "header",
+      "attestation",
+      "signature",
       "extrinsic",
       "state",
   };

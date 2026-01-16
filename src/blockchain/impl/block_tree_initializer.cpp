@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-
 #include "blockchain/impl/block_tree_initializer.hpp"
 
 #include <set>
@@ -180,17 +179,32 @@ namespace lean::blockchain {
       // Iterate leaves
       for (auto &leaf : block_tree_leaves) {
         std::unordered_set<BlockIndex> subchain;
+
         // Iterate subchain from leaf to finalized or early observer
-        for (auto block = leaf;;) {
+        for (auto block_hash = leaf.hash;;) {
           // Met last finalized
-          if (block.hash == last_finalized_block_index.hash) {
+          if (block_hash == last_finalized_block_index.hash) {
             break;
           }
 
           // Met early observed block
-          if (observed.contains(block.hash)) {
+          if (observed.contains(block_hash)) {
             break;
           }
+
+          auto header_res = storage->getBlockHeader(block_hash);
+          if (header_res.has_error()) {
+            SL_CRITICAL(
+                logger,
+                "Can't get header of existing non-finalized block {}: {}",
+                block_hash,
+                header_res.error());
+            qtils::raise(BlockTreeError::BLOCK_TREE_CORRUPTED);
+          }
+          auto &header = header_res.value();
+
+          BlockIndex block = header.index();
+          BOOST_ASSERT(block.hash == block_hash);
 
           // Met known dead block
           if (dead.contains(block)) {
@@ -236,19 +250,8 @@ namespace lean::blockchain {
 
           subchain.emplace(block);
 
-          auto header_res = storage->getBlockHeader(block.hash);
-          if (header_res.has_error()) {
-            SL_CRITICAL(
-                logger,
-                "Can't get header of existing non-finalized block {}: {}",
-                block,
-                header_res.error());
-            qtils::raise(BlockTreeError::BLOCK_TREE_CORRUPTED);
-          }
-
           observed.emplace(block.hash);
 
-          auto &header = header_res.value();
           if (header.slot < last_finalized_block_index.slot) {
             SL_WARN(logger,
                     "Detected a leaf {} lower than the last finalized block {}",
@@ -257,9 +260,9 @@ namespace lean::blockchain {
             break;
           }
 
-          auto [it, ok] = collected.emplace(block, std::move(header));
+          collected.emplace(block, header);
 
-          block = {it->second.slot, it->second.hash()};
+          block_hash = header.parent_root;
         }
       }
 

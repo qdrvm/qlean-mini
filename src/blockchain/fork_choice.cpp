@@ -303,19 +303,23 @@ namespace lean {
 
     // We cannot count a vote if we haven't seen the blocks involved.
     if (not block_tree_->has(data.source.root)) {
-      return Error::INVALID_ATTESTATION;
+      return Error::CANT_VALIDATE_ATTESTATION_SOURCE_NOT_FOUND;
     }
     if (not block_tree_->has(data.target.root)) {
-      return Error::INVALID_ATTESTATION;
+      return Error::CANT_VALIDATE_ATTESTATION_TARGET_NOT_FOUND;
     }
     if (not block_tree_->has(data.head.root)) {
-      return Error::INVALID_ATTESTATION;
+      return Error::CANT_VALIDATE_ATTESTATION_HEAD_NOT_FOUND;
     }
 
     // Topology Check
 
     // History is linear and monotonic. Source must be older than Target.
     if (data.source.slot > data.target.slot) {
+      SL_TRACE(logger_,
+               "Invalid attestation: source slot {} > target slot {}",
+               data.source,
+               data.target);
       return Error::INVALID_ATTESTATION;
     }
 
@@ -325,9 +329,17 @@ namespace lean {
     auto source_block_slot = getBlockSlot(data.source.root);
     auto target_block_slot = getBlockSlot(data.target.root);
     if (source_block_slot != data.source.slot) {
+      SL_TRACE(logger_,
+               "Invalid attestation: inconsistent source slot",
+               data.target,
+               data.source);
       return Error::INVALID_ATTESTATION;
     }
     if (target_block_slot != data.target.slot) {
+      SL_TRACE(logger_,
+               "Invalid attestation: inconsistent target slot",
+               data.target,
+               data.source);
       return Error::INVALID_ATTESTATION;
     }
 
@@ -336,6 +348,10 @@ namespace lean {
     // Validate attestation is not too far in the future
     // We allow a small margin for clock disparity (1 slot), but no further.
     if (data.slot > getCurrentSlot() + 1) {
+      SL_TRACE(logger_,
+               "Invalid attestation: too big clock disparity",
+               data.target,
+               data.source);
       return Error::INVALID_ATTESTATION;
     }
 
@@ -717,7 +733,7 @@ namespace lean {
         }
 
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
-        SL_TRACE(logger_, "Interval 2 of slot{}", current_slot);
+        SL_TRACE(logger_, "Interval 2 of slot {}", current_slot);
 
         metrics_->fc_head_slot()->set(head_.slot);
         Checkpoint head = head_;

@@ -33,6 +33,8 @@ namespace lean::storage {
 
     // application-defined spaces
     Header,
+    Attestation,
+    Signature,
     Body,
     State,
     // ... append here

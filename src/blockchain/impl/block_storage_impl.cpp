@@ -223,42 +223,134 @@ namespace lean::blockchain {
 
   outcome::result<BlockHash> BlockStorageImpl::putBlock(
       const BlockData &block) {
-    // insert provided block's parts into the database
-    OUTCOME_TRY(block_hash, putBlockHeader(*block.header));
+    auto adding_res = [&]() -> outcome::result<BlockHash> {
+      // insert provided block's parts into the database
+      OUTCOME_TRY(block_hash, putBlockHeader(*block.header));
 
-    if (block.body.has_value()) {
-      OUTCOME_TRY(encoded_body, encode(*block.body));
-      OUTCOME_TRY(putToSpace(*storage_,
-                             storage::Space::Body,
-                             block_hash,
-                             std::move(encoded_body)));
+      if (block.attestation.has_value()) {
+        OUTCOME_TRY(encoded_attestation, encode(*block.attestation));
+        OUTCOME_TRY(putToSpace(*storage_,
+                               storage::Space::Attestation,
+                               block_hash,
+                               std::move(encoded_attestation)));
+      }
+
+      if (block.signature.has_value()) {
+        OUTCOME_TRY(encoded_attestation, encode(*block.signature));
+        OUTCOME_TRY(putToSpace(*storage_,
+                               storage::Space::Signature,
+                               block_hash,
+                               std::move(encoded_attestation)));
+      }
+
+      if (block.body.has_value()) {
+        OUTCOME_TRY(encoded_body, encode(*block.body));
+        OUTCOME_TRY(putToSpace(*storage_,
+                               storage::Space::Body,
+                               block_hash,
+                               std::move(encoded_body)));
+      }
+
+      return block_hash;
+    }();
+
+    if (adding_res.has_value()) {
+      auto block_hash = adding_res.value();
+
+      logger_->info("Added block {} as child of {}",
+                    BlockIndex{block.header->slot, block_hash},
+                    block.header->parent_root);
+      return block_hash;
     }
 
-    logger_->info("Added block {} as child of {}",
-                  BlockIndex{block.header->slot, block_hash},
-                  block.header->parent_root);
-    return block_hash;
+    std::ignore = removeBlock(block.header->hash());
+    return adding_res.error();
   }
 
-  outcome::result<std::optional<SignedBlockWithAttestation>>
-  BlockStorageImpl::getBlock(const BlockHash &block_hash) const {
-    SignedBlockWithAttestation block_data{
-        //      .hash = block_hash
-    };
+  outcome::result<BlockData> BlockStorageImpl::getBlock(
+      const BlockHash &block_hash, BlockParts parts) const {
+    BlockData data{.hash = block_hash};
 
-    // // Block header
-    // OUTCOME_TRY(header, getBlockHeader(block_hash));
-    // block_data.header = std::move(header);
-    //
-    // // Block body
-    // OUTCOME_TRY(body_opt, getBlockBody(block_hash));
-    // block_data.extrinsic = std::move(body_opt);
-    //
-    // // // Justification
-    // OUTCOME_TRY(justification_opt, getJustification(block_hash));
-    // block_data.justification = std::move(justification_opt);
+    // Block header
+    if (parts & BlockParts::HEADER) {
+      OUTCOME_TRY(header, getBlockHeader(block_hash));
+      data.header.emplace(header);
+    }
 
-    return block_data;
+    // Block signature
+    if (parts & BlockParts::SIGNATURES) {
+      OUTCOME_TRY(
+          encoded_signature_opt,
+          getFromSpace(*storage_, storage::Space::Signature, block_hash));
+      if (encoded_signature_opt.has_value()) {
+        OUTCOME_TRY(signature,
+                    decode<BlockSignatures>(encoded_signature_opt.value()));
+        data.signature.emplace(std::move(signature));
+      } else {
+        return BlockStorageError::SIGNATURE_NOT_FOUND;
+      }
+    }
+
+    // Block attestation
+    if (parts & BlockParts::ATTESTATION) {
+      OUTCOME_TRY(
+          encoded_attestation_opt,
+          getFromSpace(*storage_, storage::Space::Attestation, block_hash));
+      if (encoded_attestation_opt.has_value()) {
+        OUTCOME_TRY(attestation,
+                    decode<Attestations>(encoded_attestation_opt.value()));
+        data.attestation.emplace(std::move(attestation));
+      } else {
+        return BlockStorageError::ATTESTATION_NOT_FOUND;
+      }
+    }
+
+    // Block body
+    if (parts & BlockParts::BODY) {
+      OUTCOME_TRY(encoded_body_opt,
+                  getFromSpace(*storage_, storage::Space::Body, block_hash));
+      if (encoded_body_opt.has_value()) {
+        OUTCOME_TRY(body, decode<BlockBody>(encoded_body_opt.value()));
+        data.body.emplace(std::move(body));
+      } else {
+        return BlockStorageError::BODY_NOT_FOUND;
+      }
+    }
+
+    return data;
+  }
+
+  outcome::result<SignedBlockWithAttestation>
+  BlockStorageImpl::getSignedBlockWithAttestation(
+      const BlockHash &block_hash) const {
+    OUTCOME_TRY(data, getBlock(block_hash, BlockParts::ALL));
+
+    SignedBlockWithAttestation block;
+
+    // Block header
+    block.message.block.parent_root = data.header->parent_root;
+    block.message.block.slot = data.header->slot;
+    block.message.block.proposer_index = data.header->proposer_index;
+    block.message.block.state_root = data.header->state_root;
+
+    // Block signature
+    block.signature = std::move(*data.signature);
+
+    // Block attestation
+    auto &attestations = *data.attestation;
+    auto it = std::ranges::find_if(attestations, [&](const auto &attestation) {
+      return attestation.validator_id == block.message.block.proposer_index;
+    });
+    BOOST_ASSERT(it != attestations.end());
+    if (it == attestations.end()) [[unlikely]] {
+      return BlockStorageError::INCONSISTENT_DATA;
+    }
+    block.message.proposer_attestation = *it;
+
+    // Block body
+    block.message.block.body = std::move(*data.body);
+
+    return block;
   }
 
   outcome::result<void> BlockStorageImpl::removeBlock(

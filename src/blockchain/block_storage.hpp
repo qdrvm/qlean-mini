@@ -177,13 +177,12 @@ namespace lean::blockchain {
      * @returns result of saving
      */
     virtual outcome::result<void> putState(const BlockHash &block_hash,
-                                                const State &state) = 0;
+                                           const State &state) = 0;
 
     [[nodiscard]] virtual outcome::result<std::optional<State>> getState(
         const BlockHash &block_hash) const = 0;
 
-    virtual outcome::result<void> removeState(
-        const BlockHash &block_hash) = 0;
+    virtual outcome::result<void> removeState(const BlockHash &block_hash) = 0;
 
     // -- combined
 
@@ -193,19 +192,46 @@ namespace lean::blockchain {
      */
     virtual outcome::result<BlockHash> putBlock(const BlockData &block) = 0;
 
+    class BlockParts {
+      uint8_t parts_ = 0;
+
+     public:
+      enum : uint8_t {
+        HEADER = 1 << 0,
+        ATTESTATION = 1 << 1,
+        SIGNATURES = 1 << 2,
+        BODY = 1 << 3,
+        STATE = 1 << 0,
+        ALL = HEADER | ATTESTATION | SIGNATURES | BODY | STATE
+      };
+
+      BlockParts() = default;
+      BlockParts(int parts) : parts_(parts) {
+        BOOST_ASSERT(parts_ <= ALL);
+      }
+      operator uint8_t() const {
+        return parts_;
+      }
+    };
+
     /**
      * Tries to get block data
      * @returns block data or error
      */
-    [[nodiscard]] virtual outcome::result<
-        std::optional<SignedBlockWithAttestation>>
-    getBlock(const BlockHash &block_hash) const = 0;
+    [[nodiscard]] virtual outcome::result<BlockData> getBlock(
+        const BlockHash &block_hash, BlockParts parts) const = 0;
 
     /**
      * Removes all data of block by hash from block storage
      * @returns nothing or error
      */
     virtual outcome::result<void> removeBlock(const BlockHash &block_hash) = 0;
+
+    // -- special
+
+    virtual outcome::result<SignedBlockWithAttestation>
+    getSignedBlockWithAttestation(
+        const BlockHash &block_hash) const = 0;
   };
 
 }  // namespace lean::blockchain
