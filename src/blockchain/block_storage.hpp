@@ -229,7 +229,7 @@ namespace lean::blockchain {
 
     // -- special
 
-    virtual outcome::result<SignedBlockWithAttestation>
+    [[nodiscard]] virtual outcome::result<SignedBlockWithAttestation>
     getSignedBlockWithAttestation(
         const BlockHash &block_hash) const = 0;
   };
