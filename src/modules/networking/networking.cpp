@@ -265,6 +265,9 @@ namespace lean::modules {
         if (not std::holds_alternative<PeerState::Connected>(state.state)) {
           if (std::holds_alternative<PeerState::Connectable>(state.state)) {
             // Connectable => Connected
+            SL_DEBUG(self->logger_,
+                     "Peer {} state transition: Connectable -> Connected",
+                     peer_id.toBase58());
             auto connectable_it =
                 std::ranges::find(self->connectable_peers_, peer_id);
             if (connectable_it == self->connectable_peers_.end()) {
@@ -275,12 +278,16 @@ namespace lean::modules {
           }
           // Connectable | Connecting | Backoff => Connected
           state.state = PeerState::Connected{};
+          SL_INFO(self->logger_, "Peer {} marked Connected",
+                  peer_id.toBase58());
         }
       }
       self->updateMetricConnectedPeerCount();
       self->loader_.dispatch_peer_connected(
           qtils::toSharedPtr(messages::PeerConnectedMessage{peer_id}));
       if (connection->isInitiator()) {
+        SL_DEBUG(self->logger_, "Peer {} is initiator — starting status handshake",
+                 peer_id.toBase58());
         libp2p::coroSpawn(*self->io_context_,
                           [status_protocol{self->status_protocol_},
                            connection]() -> libp2p::Coro<void> {
@@ -298,6 +305,8 @@ namespace lean::modules {
 
         std::vector<libp2p::multi::Multiaddress> addrs;
         addrs.emplace_back(addr_res.value());
+        SL_DEBUG(self->logger_, "Non-initiator peer {} remote address={}",
+                 peer_id.toBase58(), addr_res.value().getStringAddress());
 
         if (auto result =
                 host->getPeerRepository().getAddressRepository().addAddresses(
@@ -309,6 +318,10 @@ namespace lean::modules {
                   "Failed to add addresses for peer={}: {}",
                   peer_id,
                   result.error());
+        } else {
+          SL_DEBUG(self->logger_,
+                   "Successfully added remote address for peer {}",
+                   peer_id.toBase58());
         }
       }
     };
@@ -319,21 +332,33 @@ namespace lean::modules {
           if (not self) {
             return;
           }
+          SL_TRACE(self->logger_, "🔌 Peer disconnected: {}", peer_id.toBase58());
           auto state_it = self->peer_states_.find(peer_id);
           if (state_it != self->peer_states_.end()) {
             auto &state = state_it->second;
             if (std::holds_alternative<PeerState::Connected>(state.state)) {
               auto backoff = kInitBackoff;
+              SL_DEBUG(self->logger_,
+                       "Peer {} state transition: Connected -> Backoff (backoff={}ms)",
+                       peer_id.toBase58(),
+                       std::chrono::duration_cast<std::chrono::milliseconds>(
+                           backoff)
+                           .count());
               // Connected => Backoff
               state.state = PeerState::Backoff{
                   .backoff = backoff,
                   .backoff_until = Clock::now() + backoff,
               };
+              SL_DEBUG(self->logger_,
+                       "Peer {} backoff_until set", peer_id.toBase58());
             }
+          } else {
+            SL_DEBUG(self->logger_, "on_peer_disconnected: unknown peer {}", peer_id.toBase58());
           }
           self->updateMetricConnectedPeerCount();
           self->loader_.dispatch_peer_disconnected(
               qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
+          SL_TRACE(self->logger_, "Dispatched PeerDisconnectedMessage for {}", peer_id.toBase58());
         };
 
     auto on_connection_closed =
@@ -655,6 +680,7 @@ namespace lean::modules {
     if (auto &limit = config_->maxBootnodes()) {
       want = std::min(want, *limit);
     }
+    SL_TRACE(logger_, "connectToPeers: computed want={}", want);
     size_t active = 0;
     for (auto &state : peer_states_ | std::views::values) {
       if (std::holds_alternative<PeerState::Connecting>(state.state)
@@ -664,12 +690,22 @@ namespace lean::modules {
                      std::get_if<PeerState::Backoff>(&state.state)) {
         if (backoff->backoff_until <= now) {
           // Backoff => Connectable
+          SL_DEBUG(logger_,
+                   "Peer {} backoff expired (backoff={}ms) => Connectable",
+                   state.info.id.toBase58(),
+                   std::chrono::duration_cast<std::chrono::milliseconds>(
+                       backoff->backoff)
+                       .count());
           state.state = PeerState::Connectable{.backoff = backoff->backoff};
           connectable_peers_.emplace_back(state.info.id);
         }
       }
     }
+    SL_TRACE(logger_, "connectToPeers: active={}, connectable_candidates={}",
+             active, connectable_peers_.size());
     if (want <= active) {
+      SL_TRACE(logger_, "connectToPeers: want ({}) <= active ({}), returning",
+               want, active);
       return;
     }
     want -= active;
@@ -682,6 +718,8 @@ namespace lean::modules {
       connectable_peers_.pop_back();
       auto &state = peer_states_.at(peer_id);
       auto &connectable = std::get<PeerState::Connectable>(state.state);
+      SL_DEBUG(logger_, "connectToPeers: initiating connect to peer {} (selected index={})",
+               peer_id.toBase58(), i);
       // Connectable => Connecting
       state.state = PeerState::Connecting{.backoff = connectable.backoff};
       libp2p::coroSpawn(
@@ -694,6 +732,8 @@ namespace lean::modules {
             if (not self) {
               co_return;
             }
+            SL_TRACE(self->logger_, "connectToPeers: connection attempt finished for peer {}",
+                     peer_info.id.toBase58());
             auto &state = self->peer_states_.at(peer_info.id);
             if (not r.has_value()) {
               SL_WARN(self->logger_,
@@ -707,7 +747,16 @@ namespace lean::modules {
                     .backoff = std::min(2 * connecting->backoff, kMaxBackoff),
                     .backoff_until = Clock::now() + connecting->backoff,
                 };
+                SL_DEBUG(self->logger_,
+                         "Peer {} moved to Backoff (new backoff={}ms)",
+                         peer_info.id.toBase58(),
+                         std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::min(2 * connecting->backoff, kMaxBackoff))
+                             .count());
               }
+            } else {
+              SL_INFO(self->logger_, "Successfully connected to peer {}",
+                      peer_info.id.toBase58());
             }
           });
     }
