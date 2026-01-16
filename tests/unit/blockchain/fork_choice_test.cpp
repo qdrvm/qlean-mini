@@ -111,8 +111,6 @@ auto createTestStore(
         .WillByDefault(testing::Return(block.message.block.slot));
     ON_CALL(*block_tree, getBlockHeader(hash))
         .WillByDefault(testing::Return(block.message.block.getHeader()));
-    ON_CALL(*block_tree, getBlockHeader(hash))
-        .WillByDefault(testing::Return(block.message.block.getHeader()));
   }
   ON_CALL(*block_tree, has(testing::_))
       .WillByDefault(
@@ -140,11 +138,6 @@ auto createTestStore(
   ON_CALL(*block_tree, lastFinalized())
       .WillByDefault(testing::Return(
           lean::BlockIndex{latest_finalized.slot, latest_finalized.root}));
-
-  // for (auto &[hash, state] : states) {
-  //   ON_CALL(block_storage*, (hash))
-  //       .WillByDefault(testing::Return(state));
-  // }
   ON_CALL(*block_storage, getState(testing::_))
       .WillByDefault([states](const auto &hash)
                          -> outcome::result<std::optional<lean::State>> {

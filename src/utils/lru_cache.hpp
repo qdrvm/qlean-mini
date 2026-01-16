@@ -106,7 +106,7 @@ namespace lean {
     std::shared_ptr<const Value> put(const Key &key, ValueArg &&value) {
       LockGuard lg(*this);
       static_assert(std::is_convertible_v<ValueArg, Value>
-                    || std::is_constructible_v<ValueArg, Value>);
+                    or std::is_constructible_v<Value, ValueArg>);
       if (++ticks_ == 0) {
         handleTicksOverflow();
       }

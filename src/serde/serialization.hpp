@@ -49,7 +49,9 @@ namespace lean {
   }
 
   auto sszHash(const auto &v) {
-    using Src = decltype(ssz::hash_tree_root(v));
+    const auto hash_tree_root = ssz::hash_tree_root(v);
+
+    using Src = decltype(hash_tree_root);
     using Dst = qtils::ByteArr<32>;
 
     static_assert(sizeof(Src) == sizeof(Dst));
@@ -57,7 +59,7 @@ namespace lean {
     static_assert(std::is_trivially_copyable_v<Src>);
     static_assert(std::is_trivially_copyable_v<Dst>);
 
-    return std::bit_cast<Dst>(ssz::hash_tree_root(v));
+    return std::bit_cast<Dst>(hash_tree_root);
   }
 
   template <size_t N>
