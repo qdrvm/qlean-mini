@@ -142,6 +142,8 @@ namespace lean::log {
           "I: Some problems are found during tuning of logging system by CLI "
           "args:\n"
           + result.message;
+    } else {
+      result.message.clear();
     }
     return result;
   }

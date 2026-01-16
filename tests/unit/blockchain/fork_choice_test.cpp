@@ -15,9 +15,12 @@
 #include <iostream>
 #include <sstream>
 
+#include "blockchain/block_tree.hpp"
 #include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
 #include "mock/app/validator_keys_manifest_mock.hpp"
+#include "mock/blockchain/block_storage_mock.hpp"
+#include "mock/blockchain/block_tree_mock.hpp"
 #include "mock/blockchain/validator_registry_mock.hpp"
 #include "mock/crypto/xmss_provider_mock.hpp"
 #include "mock/metrics_mock.hpp"
@@ -73,11 +76,12 @@ lean::Config config{
 auto createTestStore(
     uint64_t time = 100,
     lean::Config config_param = config,
-    lean::BlockHash head = {},
+    lean::Checkpoint head = {},
     lean::BlockHash safe_target = {},
     lean::Checkpoint latest_justified = {},
     lean::Checkpoint latest_finalized = {},
-    ForkChoiceStore::Blocks blocks = {},
+    std::unordered_map<lean::BlockHash, lean::SignedBlockWithAttestation>
+        blocks = {},
     std::unordered_map<lean::BlockHash, lean::State> states = {},
     ForkChoiceStore::SignedAttestations latest_known_attestations = {},
     ForkChoiceStore::SignedAttestations latest_new_attestations = {},
@@ -99,6 +103,51 @@ auto createTestStore(
   auto validator_keys_manifest =
       std::make_shared<lean::app::ValidatorKeysManifestMock>();
   auto xmss_provider = std::make_shared<lean::crypto::xmss::XmssProviderMock>();
+  auto block_tree = std::make_shared<lean::blockchain::BlockTreeMock>();
+  auto block_storage = std::make_shared<lean::blockchain::BlockStorageMock>();
+
+  for (auto &[hash, block] : blocks) {
+    ON_CALL(*block_tree, getSlotByHash(hash))
+        .WillByDefault(testing::Return(block.message.block.slot));
+    ON_CALL(*block_tree, getBlockHeader(hash))
+        .WillByDefault(testing::Return(block.message.block.getHeader()));
+  }
+  ON_CALL(*block_tree, has(testing::_))
+      .WillByDefault(
+          [blocks](const auto &hash) { return blocks.contains(hash); });
+  ON_CALL(*block_tree, tryGetBlockHeader(testing::_))
+      .WillByDefault([blocks](const auto &hash)
+                         -> outcome::result<std::optional<lean::BlockHeader>> {
+        auto it = blocks.find(hash);
+        if (it != blocks.end()) {
+          return it->second.message.block.getHeader();
+        }
+        return std::nullopt;
+      });
+  ON_CALL(*block_tree, getChildren(testing::_))
+      .WillByDefault([blocks](const auto &hash)
+                         -> outcome::result<std::vector<lean::BlockHash>> {
+        std::vector<lean::BlockHash> children;
+        for (auto &[h, block] : blocks) {
+          if (block.message.block.parent_root == hash) {
+            children.push_back(h);
+          }
+        }
+        return children;
+      });
+  ON_CALL(*block_tree, lastFinalized())
+      .WillByDefault(testing::Return(
+          lean::BlockIndex{latest_finalized.slot, latest_finalized.root}));
+  ON_CALL(*block_storage, getState(testing::_))
+      .WillByDefault([states](const auto &hash)
+                         -> outcome::result<std::optional<lean::State>> {
+        auto it = states.find(hash);
+        if (it != states.end()) {
+          return it->second;
+        }
+        return std::nullopt;
+      });
+
   return ForkChoiceStore(time,
                          testutil::prepareLoggers(),
                          std::make_shared<lean::metrics::MetricsMock>(),
@@ -106,19 +155,19 @@ auto createTestStore(
                          head,
                          safe_target,
                          latest_justified,
-                         latest_finalized,
-                         blocks,
-                         states,
-                         latest_known_attestations,
-                         latest_new_attestations,
+                         // latest_finalized,
+                         std::move(latest_known_attestations),
+                         std::move(latest_new_attestations),
                          validator_index,
                          validator_registry,
                          validator_keys_manifest,
-                         xmss_provider);
+                         xmss_provider,
+                         block_tree,
+                         block_storage);
 }
 
 auto makeBlockMap(std::vector<lean::Block> blocks) {
-  ForkChoiceStore::Blocks map;
+  std::unordered_map<lean::BlockHash, lean::SignedBlockWithAttestation> map;
   for (auto block : blocks) {
     block.setHash();
     map.emplace(block.hash(),
@@ -144,7 +193,8 @@ std::vector<lean::Block> makeBlocks(lean::Slot count) {
 }
 
 auto makeStateWithSingleValidator(const lean::Config &config) {
-  lean::State state{.config = config};
+  lean::State state;
+  state.config = config;
   state.validators.push_back(lean::Validator{});
   state.latest_justified = state.latest_finalized = Checkpoint{};
   return state;
@@ -157,7 +207,7 @@ ForkChoiceStore advanceTimeStore() {
   return createTestStore(
       100,
       config,
-      genesis.hash(),
+      genesis.index(),
       genesis.hash(),
       finalized,
       finalized,
@@ -179,7 +229,7 @@ TEST(TestVoteTargetCalculation, test_get_vote_target_basic) {
 
   auto store = createTestStore(100,
                                config,
-                               block_1.hash(),
+                               block_1.index(),
                                block_1.hash(),
                                finalized,
                                finalized,
@@ -204,7 +254,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_with_old_finalized) {
 
   auto store = createTestStore(100,
                                config,
-                               head.hash(),
+                               head.index(),
                                head.hash(),
                                finalized,
                                finalized,
@@ -228,7 +278,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_walks_back_from_head) {
 
   auto store = createTestStore(100,
                                config,
-                               block_2.hash(),
+                               block_2.index(),
                                block_1.hash(),
                                finalized,
                                finalized,
@@ -253,7 +303,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_justifiable_slot_constraint) {
 
   auto store = createTestStore(100,
                                config,
-                               head.hash(),
+                               head.index(),
                                head.hash(),
                                finalized,
                                finalized,
@@ -279,7 +329,7 @@ TEST(TestVoteTargetCalculation,
 
   auto store = createTestStore(500,
                                config,
-                               head.hash(),
+                               head.index(),
                                head.hash(),
                                finalized,
                                finalized,
@@ -316,7 +366,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
 
   auto store = createTestStore(100,
                                config,
-                               root.hash(),
+                               root.index(),
                                root.hash(),
                                Checkpoint::from(root),
                                Checkpoint::from(root),
@@ -341,7 +391,7 @@ TEST(TestForkChoiceHeadFunction, test_fork_choice_no_attestations) {
   ForkChoiceStore::SignedAttestations empty_attestations;
   auto store = createTestStore(100,
                                config,
-                               root.hash(),
+                               root.index(),
                                root.hash(),
                                Checkpoint::from(root),
                                Checkpoint::from(root),
@@ -376,7 +426,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
 
   auto store = createTestStore(100,
                                config,
-                               root.hash(),
+                               root.index(),
                                root.hash(),
                                Checkpoint::from(root),
                                Checkpoint::from(root),
@@ -413,7 +463,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
 
   auto store = createTestStore(100,
                                config,
-                               root.hash(),
+                               root.index(),
                                root.hash(),
                                Checkpoint::from(root),
                                Checkpoint::from(root),
@@ -433,7 +483,7 @@ TEST(TestEdgeCases, test_vote_target_single_block) {
 
   auto store = createTestStore(100,
                                config,
-                               genesis.hash(),
+                               genesis.index(),
                                genesis.hash(),
                                finalized,
                                finalized,
@@ -669,7 +719,7 @@ TEST(TestHeadSelection, test_get_head_basic) {
   auto &genesis = blocks.at(0);
   auto sample_store = createTestStore(100,
                                       config,
-                                      genesis.hash(),
+                                      genesis.index(),
                                       genesis.hash(),
                                       {},
                                       {},
@@ -679,7 +729,7 @@ TEST(TestHeadSelection, test_get_head_basic) {
   auto head = sample_store.getHead();
 
   // Should return expected head
-  EXPECT_EQ(head, genesis.hash());
+  EXPECT_EQ(head, genesis.index());
 }
 
 // Test basic block production capability.
@@ -687,7 +737,8 @@ TEST(TestHeadSelection, test_produce_block_basic) {
   // Create a simple store
   auto sample_store = createTestStore(0, config);
 
-  // Try to produce a block - should throw due to missing state, which is
+  // Try to produce a block - should return error of missing state, which is
   // expected
-  EXPECT_THROW(sample_store.produceBlockWithSignatures(1, 1), std::exception);
+  ASSERT_OUTCOME_ERROR(sample_store.produceBlockWithSignatures(1, 1),
+                       ForkChoiceStore::Error::STATE_NOT_FOUND);
 }

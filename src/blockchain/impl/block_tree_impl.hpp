@@ -61,9 +61,6 @@ namespace lean::blockchain {
     outcome::result<BlockBody> getBlockBody(
         const BlockHash &block_hash) const override;
 
-    // outcome::result<Justification> getBlockJustification(
-    //       const BlockHash &block_hash) const override;
-
     outcome::result<void> addBlockHeader(const BlockHeader &header) override;
 
     outcome::result<void> addBlock(
@@ -77,8 +74,7 @@ namespace lean::blockchain {
     outcome::result<void> addBlockBody(const BlockHash &block_hash,
                                        const BlockBody &body) override;
 
-    outcome::result<void> finalize(const BlockHash &block_hash,
-                                   const Justification &justification) override;
+    outcome::result<void> finalize(const BlockHash &block_hash) override;
 
     outcome::result<std::vector<BlockHash>> getBestChainFromBlock(
         const BlockHash &block, uint64_t maximum) const override;
@@ -112,26 +108,18 @@ namespace lean::blockchain {
 
     outcome::result<std::optional<SignedBlockWithAttestation>>
     tryGetSignedBlock(const BlockHash block_hash) const override;
-    void import(std::vector<SignedBlockWithAttestation> blocks) override;
 
     // BlockHeaderRepository methods
 
-    outcome::result<Slot> getNumberByHash(
+    outcome::result<Slot> getSlotByHash(
         const BlockHash &block_hash) const override;
-
-    // outcome::result<BlockHash> getHashByNumber(
-    //     Slot slot) const override;
 
    private:
     struct BlockTreeData {
       qtils::SharedRef<BlockStorage> storage_;
-      // std::shared_ptr<storage::trie_pruner::TriePruner> state_pruner_;
       std::unique_ptr<CachedTree> tree_;
       qtils::SharedRef<crypto::Hasher> hasher_;
-      // std::shared_ptr<const class JustificationStoragePolicy>
-      //     justification_storage_policy_;
       std::optional<BlockHash> genesis_block_hash_;
-      // BlocksPruning blocks_pruning_;
     };
 
     outcome::result<void> reorgAndPrune(const BlockTreeData &p,
@@ -139,9 +127,6 @@ namespace lean::blockchain {
 
     outcome::result<BlockHeader> getBlockHeaderNoLock(
         const BlockTreeData &p, const BlockHash &block_hash) const;
-
-    //   outcome::result<void> pruneTrie(const BlockTreeData &block_tree_data,
-    //                                   Slot new_finalized);
 
     BlockIndex getLastFinalizedNoLock(const BlockTreeData &p) const;
     BlockIndex bestBlockNoLock(const BlockTreeData &p) const;

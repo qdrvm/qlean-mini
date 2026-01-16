@@ -81,7 +81,7 @@ namespace lean::loaders {
       set_module(module);
       auto module_accessor =
           get_module()
-              ->getFunctionFromLibrary<std::weak_ptr<lean::modules::Networking>,
+              ->getFunctionFromLibrary<std::weak_ptr<modules::Networking>,
                                        modules::NetworkingLoader &,
                                        std::shared_ptr<log::LoggingSystem>,
                                        qtils::SharedRef<metrics::Metrics>,

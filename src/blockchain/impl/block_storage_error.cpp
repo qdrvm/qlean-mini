@@ -15,6 +15,14 @@ OUTCOME_CPP_DEFINE_CATEGORY(lean::blockchain, BlockStorageError, e) {
       return "No blocks found";
     case E::HEADER_NOT_FOUND:
       return "Block header was not found";
+    case BlockStorageError::ATTESTATION_NOT_FOUND:
+      return "Block attestation was not found";
+    case BlockStorageError::SIGNATURE_NOT_FOUND:
+      return "Block signature was not found";
+    case BlockStorageError::BODY_NOT_FOUND:
+      return "Block body was not found";
+    case BlockStorageError::INCONSISTENT_DATA:
+      return "Inconsistent data";
     case E::GENESIS_BLOCK_ALREADY_EXISTS:
       return "Genesis block already exists";
     case E::FINALIZED_BLOCK_NOT_FOUND:

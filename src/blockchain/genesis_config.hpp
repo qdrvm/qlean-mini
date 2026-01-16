@@ -21,11 +21,8 @@ namespace lean::log {
 }  // namespace lean::log
 
 namespace lean {
-  struct GenesisConfig {
+  struct GenesisConfig : Config {
     GenesisConfig(const log::LoggingSystem &logsys,
-                  const app::Configuration &app_config);
-
-    State state;
-    const Config &config;
+                  const AnchorState &state);
   };
 }  // namespace lean

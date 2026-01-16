@@ -29,9 +29,10 @@
 #include "app/impl/validator_keys_manifest_impl.hpp"
 #include "app/impl/watchdog.hpp"
 #include "blockchain/genesis_config.hpp"
+#include "blockchain/impl/anchor_block_impl.hpp"
+#include "blockchain/impl/anchor_state_impl.hpp"
 #include "blockchain/impl/block_storage_impl.hpp"
 #include "blockchain/impl/block_tree_impl.hpp"
-#include "blockchain/impl/fc_block_tree.hpp"
 #include "blockchain/impl/validator_registry_impl.hpp"
 #include "clock/impl/clock_impl.hpp"
 #include "crypto/hasher/hasher_impl.hpp"
@@ -100,9 +101,11 @@ namespace {
         di::bind<storage::SpacedStorage>.to<storage::RocksDb>(),
         di::bind<app::ChainSpec>.to<app::ChainSpecImpl>(),
         di::bind<crypto::Hasher>.to<crypto::HasherImpl>(),
+        di::bind<AnchorState>.to<blockchain::AnchorStateImpl>(),
+        di::bind<AnchorBlock>.to<blockchain::AnchorBlockImpl>(),
         di::bind<blockchain::BlockStorage>.to<blockchain::BlockStorageImpl>(),
-        di::bind<blockchain::BlockTree>.to<blockchain::FCBlockTree>(),
         di::bind<app::Timeline>.to<app::TimelineImpl>(),
+        di::bind<blockchain::BlockTree>.to<blockchain::BlockTreeImpl>(),
         di::bind<ValidatorRegistry>.to<ValidatorRegistryImpl>(),
         di::bind<app::ValidatorKeysManifest>.to<app::ValidatorKeysManifestImpl>(),
         di::bind<crypto::xmss::XmssProvider>.to<crypto::xmss::XmssProviderImpl>(),
@@ -147,27 +150,26 @@ namespace lean::injector {
         .template create<std::shared_ptr<app::Application>>();
   }
 
-  std::unique_ptr<lean::loaders::Loader> NodeInjector::register_loader(
+  std::unique_ptr<loaders::Loader> NodeInjector::register_loader(
       std::shared_ptr<modules::Module> module) {
     auto logsys = pimpl_->injector_
                       .template create<std::shared_ptr<log::LoggingSystem>>();
     auto logger = logsys->getLogger("Modules", "lean");
 
-    std::unique_ptr<lean::loaders::Loader> loader{};
+    std::unique_ptr<loaders::Loader> loader{};
 
     if ("ExampleLoader" == module->get_loader_id()) {
-      loader = pimpl_->injector_
-                   .create<std::unique_ptr<lean::loaders::ExampleLoader>>();
+      loader =
+          pimpl_->injector_.create<std::unique_ptr<loaders::ExampleLoader>>();
     } else if ("NetworkingLoader" == module->get_loader_id()) {
       loader = pimpl_->injector_
-                   .create<std::unique_ptr<lean::loaders::NetworkingLoader>>();
+                   .create<std::unique_ptr<loaders::NetworkingLoader>>();
     } else if ("ProductionLoader" == module->get_loader_id()) {
       loader = pimpl_->injector_
-                   .create<std::unique_ptr<lean::loaders::ProductionLoader>>();
+                   .create<std::unique_ptr<loaders::ProductionLoader>>();
     } else if ("SynchronizerLoader" == module->get_loader_id()) {
-      loader =
-          pimpl_->injector_
-              .create<std::unique_ptr<lean::loaders::SynchronizerLoader>>();
+      loader = pimpl_->injector_
+                   .create<std::unique_ptr<loaders::SynchronizerLoader>>();
     } else {
       SL_CRITICAL(logger,
                   "> No loader found for: {} [{}]",
@@ -186,6 +188,6 @@ namespace lean::injector {
                module->get_loader_id(),
                module->get_path());
     }
-    return std::unique_ptr<lean::loaders::Loader>(loader.release());
+    return std::unique_ptr<loaders::Loader>(loader.release());
   }
 }  // namespace lean::injector

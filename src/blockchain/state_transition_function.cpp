@@ -52,7 +52,7 @@ namespace lean {
     }
   }
 
-  AnchorState STF::generateGenesisState(
+  State STF::generateGenesisState(
       const Config &config,
       std::span<const crypto::xmss::XmssPublicKey> validators_pubkeys) {
     BlockHeader header;
@@ -62,7 +62,7 @@ namespace lean {
     header.state_root = kZeroHash;
     header.body_root = sszHash(BlockBody{});
 
-    AnchorState result;
+    State result;
     result.config = config;
     result.slot = 0;
     result.latest_block_header = header;
@@ -85,8 +85,8 @@ namespace lean {
     return result;
   }
 
-  AnchorBlock STF::genesisBlock(const State &state) {
-    AnchorBlock result;
+  Block STF::genesisBlock(const State &state) {
+    Block result;
     result.slot = state.slot;
     result.proposer_index = 0;
     result.parent_root = kZeroHash;

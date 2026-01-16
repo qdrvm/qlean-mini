@@ -45,8 +45,9 @@ namespace lean {
     SSZ_CONT(slot, proposer_index, parent_root, state_root, body_root);
 
     const HeaderHash &hash() const {
-      BOOST_ASSERT_MSG(hash_opt.has_value(),
-                       "Hash must be calculated and saved before that");
+      if (not hash_opt.has_value()) {
+        updateHash();
+      }
       return hash_opt.value();
     }
 

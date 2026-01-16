@@ -13,9 +13,10 @@ Prerequisites:
 
 ## Prepare genesis time
 
-Before starting nodes, set `GENESIS_TIME` in `example/1-network/genesis/config.yaml` to a future Unix timestamp so the chain can start. For example, current time + 20 seconds:
+Before starting nodes, set `GENESIS_TIME` in `example/1-network/genesis/config.yaml` to a future Unix timestamp so the chain can start. For example, current time + 20 seconds. Also, clear any existing data repositories to avoid conflicts from previous runs.
 
 ```bash
+rm -rf data/
 future_time=$(( $(date +%s) + 20 ))
 sed -i '' "s/GENESIS_TIME: .*/GENESIS_TIME: $future_time/" example/1-network/genesis/config.yaml
 ```
@@ -29,6 +30,7 @@ Node 0:
 ```bash
 ./build/src/executable/qlean \
   --modules-dir ./build/src/modules \
+  --base-path data/node_0 \
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
@@ -46,6 +48,7 @@ Node 1:
 ```bash
 ./build/src/executable/qlean \
   --modules-dir ./build/src/modules \
+  --base-path data/node_1 \
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
@@ -63,6 +66,7 @@ Node 2:
 ```bash
 ./build/src/executable/qlean \
   --modules-dir ./build/src/modules \
+  --base-path data/node_2 \
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \
@@ -80,6 +84,7 @@ Node 3:
 ```bash
 ./build/src/executable/qlean \
   --modules-dir ./build/src/modules \
+  --base-path data/node_3 \
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
   --validator-registry-path example/1-network/genesis/validators.yaml \

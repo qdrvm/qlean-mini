@@ -7,13 +7,22 @@
 #pragma once
 
 #include "log/formatters/block_index_ref.hpp"
+#include "types/checkpoint.hpp"
 
 namespace lean {
 
+  /**
+   * Type like Checkpoint with different members order
+   */
   struct BlockIndex {
     Slot slot;
     BlockHash hash;
     auto operator<=>(const BlockIndex &other) const = default;
+
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    explicit(false) operator Checkpoint() const noexcept {
+      return {.root = hash, .slot = slot};
+    }
   };
 
 }  // namespace lean
