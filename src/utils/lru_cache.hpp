@@ -111,19 +111,25 @@ namespace lean {
         handleTicksOverflow();
       }
 
+      auto evict_if_full = [&]() {
+        if (cache_.size() >= kMaxSize) {
+          auto min = std::min_element(cache_.begin(), cache_.end());
+          cache_.erase(min);
+        }
+      };
+
       if constexpr (std::is_same_v<ValueArg, Value>) {
         auto it = std::ranges::find_if(
             cache_.begin(), cache_.end(), [&](const auto &item) {
               return *item.value == value;
             });
         if (it != cache_.end()) {
-          if (cache_.size() >= kMaxSize) {
-            auto min = std::min_element(cache_.begin(), cache_.end());
-            cache_.erase(min);
-          }
+          evict_if_full();
           auto &entry = cache_.emplace_back(CacheEntry{key, it->value, ticks_});
           return entry.value;
         }
+
+        evict_if_full();
         auto &entry = cache_.emplace_back(
             CacheEntry{key,
                        std::make_shared<Value>(std::forward<ValueArg>(value)),
@@ -138,13 +144,12 @@ namespace lean {
               return *item.value == *value_sptr;
             });
         if (it != cache_.end()) {
-          if (cache_.size() >= kMaxSize) {
-            auto min = std::min_element(cache_.begin(), cache_.end());
-            cache_.erase(min);
-          }
+          evict_if_full();
           auto &entry = cache_.emplace_back(CacheEntry{key, it->value, ticks_});
           return entry.value;
         }
+
+        evict_if_full();
         auto &entry =
             cache_.emplace_back(CacheEntry{key, std::move(value_sptr), ticks_});
         return entry.value;
