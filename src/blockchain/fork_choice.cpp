@@ -127,6 +127,9 @@ namespace lean {
   }
 
   Checkpoint ForkChoiceStore::getAttestationTarget() const {
+    // TODO(xDimon): check result getBlockSlot/getBlockHeader for error;
+    //               change return type to outcome::result
+
     // Start from head as target-candidate
     auto target_block_root = head_.root;
 
