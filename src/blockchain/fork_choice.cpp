@@ -707,7 +707,7 @@ namespace lean {
 
         if (is_producer) {
           SL_TRACE(logger_,
-                   "Interval 1 of slot {}: node is producer - try to produce",
+                   "Interval 0 of slot {}: node is producer - try to produce",
                    current_slot);
           acceptNewAttestations();
 
@@ -735,12 +735,12 @@ namespace lean {
 
         } else {
           SL_TRACE(logger_,
-                   "Interval 1 of slot {}: node isn't producer - skip",
+                   "Interval 0 of slot {}: node isn't producer - skip",
                    current_slot);
         }
 
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
-        SL_TRACE(logger_, "Interval 2 of slot {}", current_slot);
+        SL_TRACE(logger_, "Interval 1 of slot {}", current_slot);
 
         metrics_->fc_head_slot()->set(head_.slot);
         Checkpoint head = head_;
@@ -787,7 +787,7 @@ namespace lean {
 
       } else if (time_ % INTERVALS_PER_SLOT == 2) {
         SL_TRACE(logger_,
-                 "Interval 3 of slot {}: update safe-target ",
+                 "Interval 2 of slot {}: update safe-target ",
                  current_slot);
 
         auto res = updateSafeTarget();
@@ -797,7 +797,7 @@ namespace lean {
 
       } else if (time_ % INTERVALS_PER_SLOT == 3) {
         SL_TRACE(logger_,
-                 "Interval 4 of slot {}: accepting new attestations",
+                 "Interval 3 of slot {}: accepting new attestations",
                  current_slot);
 
         acceptNewAttestations();
