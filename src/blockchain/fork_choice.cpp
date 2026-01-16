@@ -29,6 +29,8 @@ namespace lean {
   }
 
   outcome::result<void> ForkChoiceStore::updateSafeTarget() {
+    // TODO(xDimon): check result getBlockSlot for error
+
     SL_TRACE(logger_, "Update safe target");
     // Get validator count from head state
     OUTCOME_TRY(head_state, getState(head_.root));
@@ -678,6 +680,8 @@ namespace lean {
     auto time_since_genesis = now_sec - config_.genesis_time;
 
     auto head_state_res = getState(head_.root);
+    // TODO(xDimon): check result getState for error
+
     BOOST_ASSERT(head_state_res.has_value());
     auto validator_count = head_state_res.value()->validatorCount();
 

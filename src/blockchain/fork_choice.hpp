@@ -453,7 +453,8 @@ namespace lean {
      * These states carry justified and finalized checkpoints that we use to
      * update the Store's latest justified and latest finalized checkpoints.
      */
-    mutable LruCache<BlockHash, State> states_{8};
+    static constexpr int kStateCacheSize = 16;
+    mutable LruCache<BlockHash, State> states_{kStateCacheSize};
 
     /**
      * Active attestations that contribute to fork choice weights.
