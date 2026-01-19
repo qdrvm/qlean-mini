@@ -1,0 +1,290 @@
+{
+    "tests/consensus/devnet/state_transition/test_block_processing.py::test_block_extends_deep_chain[fork_Devnet][fork_devnet-state_transition_test]": {
+        "network": "Devnet",
+        "pre": {
+            "config": {
+                "genesisTime": 0
+            },
+            "slot": 0,
+            "latestBlockHeader": {
+                "slot": 0,
+                "proposerIndex": 0,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "bodyRoot": "0xdba9671bac9513c9482f1416a53aabd2c6ce90d5a5f865ce5a55c775325c9136"
+            },
+            "latestJustified": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "latestFinalized": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "historicalBlockHashes": {
+                "data": []
+            },
+            "justifiedSlots": {
+                "data": []
+            },
+            "validators": {
+                "data": [
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 0
+                    },
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 1
+                    },
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 2
+                    },
+                    {
+                        "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "index": 3
+                    }
+                ]
+            },
+            "justificationsRoots": {
+                "data": []
+            },
+            "justificationsValidators": {
+                "data": []
+            }
+        },
+        "blocks": [
+            {
+                "slot": 1,
+                "proposerIndex": 1,
+                "parentRoot": "0xe3c1f53019f7fac3d402915e5171449ab0f9aa9aa89857e87dcdcc16983781b4",
+                "stateRoot": "0xfd96931fa716488eefacfc4e4dbb0d0543700084f1724a2244eccab0773639a0",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 2,
+                "proposerIndex": 2,
+                "parentRoot": "0x969f9416fab6113291a285e265854c54f0dbfbf89d2402c3cf34342377029f1c",
+                "stateRoot": "0xa30f6c0a36b46929450b745c2916208ec2e8ed22982fcc86aea114bb84d883b1",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 3,
+                "proposerIndex": 3,
+                "parentRoot": "0xd573536cd15625d5937e6280bb8f0c11586b54f70eabaa0eae73a727415fdca6",
+                "stateRoot": "0xf06bbd06313dbc38a469e92affa6f86295977fa168599e95a658de410724e018",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 4,
+                "proposerIndex": 0,
+                "parentRoot": "0x124026a2e6205c8c225a7bbac822f8233e658a995254caee597d58f37dff3b06",
+                "stateRoot": "0x77bea35f01fb6de6602fd894b007b7a7f7a127033a053d2bff1cfa11bfe6bf99",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 5,
+                "proposerIndex": 1,
+                "parentRoot": "0x08ea682f61849068c040fa42c55931a053e59a37e7e422ebededbcd1617dbc0c",
+                "stateRoot": "0x7b2fd7cdd7311dcff7c07fe4d0bc7d657c446b87a5f7102beefcdc11828db5aa",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 6,
+                "proposerIndex": 2,
+                "parentRoot": "0xe6ddae6bd83aae8173e0015bb6276a957c20f3eccbddc4c0d786bce6b116d3ee",
+                "stateRoot": "0xf61cb7509e3b42d6607a5902b12a24d87f850f9f2598c84f9f8be635e36f6761",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 7,
+                "proposerIndex": 3,
+                "parentRoot": "0xc433a6f15cdc8a5661360512842193f894b4ffd2add5e4077e10a6a4d75701a8",
+                "stateRoot": "0x402484306564c45507edd99aa84008a89fa945444af30e3140e9883a50d7c07b",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 8,
+                "proposerIndex": 0,
+                "parentRoot": "0xfe885a6e4805e18da0b0f556e48d1168a50202fcf7feb26b2e36b63fe471aedb",
+                "stateRoot": "0x115d432fcb3c22c3decca8179c271b3ed03b2edfa1d17a4cf1c0410fca331b06",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 9,
+                "proposerIndex": 1,
+                "parentRoot": "0x7b5d955659b1cfa0f36bb7812934766b3371c1d860247300d78d65476213a61b",
+                "stateRoot": "0x75ebcc4af807c4fa1de8e9906c0775094ca4b85cdc50715aeaee9225dcb1777d",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 10,
+                "proposerIndex": 2,
+                "parentRoot": "0xea9bb89244562ced80f3c282c3e1712769134694775d2a0b0bec0621b7796418",
+                "stateRoot": "0x7f632729311615c809496e5cdf804bafb0f7f1fae6694d2f2b9f1f2003b4b49f",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 11,
+                "proposerIndex": 3,
+                "parentRoot": "0x0ff4a6408efb3ff54a97813c732a62c5730595c4b98255d80ad69c66d67e810f",
+                "stateRoot": "0xda5cb4c67bd3d7d68ad03b73b053191373f177a4705adae0029320cb326941d0",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 12,
+                "proposerIndex": 0,
+                "parentRoot": "0xbbdb69261d01c57e711345ad842284ea77e17dda9ff7171ad8761d8f48a9813c",
+                "stateRoot": "0xc0e3488f15ff51025dfbab17fd0219a9d773d479d9e4d00c4533a94d6a8df70d",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 13,
+                "proposerIndex": 1,
+                "parentRoot": "0x8eb24a430333568736d93aff04a4d510df8a70aecea532a0c022b622719a2124",
+                "stateRoot": "0x0e3c7e21bc5225ec160f8add3b9659615d3d764c5c5435e3c0ad3d774151ee7e",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 14,
+                "proposerIndex": 2,
+                "parentRoot": "0xf7be6c4ead3b044f7265cb6582c22c2048b288d76dd5f2b3c58dac790d2945ee",
+                "stateRoot": "0x71809a04f50a2031411f4df372401b14e871db81807ad2bcb443e8cdec202ae9",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 15,
+                "proposerIndex": 3,
+                "parentRoot": "0xc932964ee6af954a426400bb39b0f30b23a97823c8a1efecab55e78398065c64",
+                "stateRoot": "0x5bbb0dd30a2e4ce5bc79a0271f9078a4d2d55fdbc3a918d3c20f3f8c77e81874",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 16,
+                "proposerIndex": 0,
+                "parentRoot": "0x560d2a3702ceb6df0bf52e097ec0b5b5e3771945cbdddd6d68529290b25dbb7e",
+                "stateRoot": "0x87076d3899317921b68291e07ee3c2a51658235ab4c0a10beae5634f3ba5b512",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 17,
+                "proposerIndex": 1,
+                "parentRoot": "0x7136ff2c60ccd8cb2328adb006bd4191050e4176aaa9a15094a418cec056a6ff",
+                "stateRoot": "0x0255974dc75eb8caca8ab81917dbc65fbe7b1a64762ee5a1a6a59edfd6708e44",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 18,
+                "proposerIndex": 2,
+                "parentRoot": "0x8eefd9e1dad9490393446821a103c7cbcd8e0e79ac634aa22cf1a5255a5eb22f",
+                "stateRoot": "0xb77e8608be391abba09309e20535ae9185aa6ba0de53acf52cc4a8270be8218f",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 19,
+                "proposerIndex": 3,
+                "parentRoot": "0xf57aaa8ea14ca1ed41f76f9dde78549b1b79c76d178feb1f39e312ed43a880a2",
+                "stateRoot": "0xdb18ac37e594b7e210f6ad8d23542dd6138e09267f6dde19f2f4c428c84de386",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 20,
+                "proposerIndex": 0,
+                "parentRoot": "0x6e27d0c642cf77ab84c64269d22e7c46d6a65edaedeba829285ed491d1aa182c",
+                "stateRoot": "0x014ca3724ed53bebde61d8c72d6e7078433b51eab5130b372a368731b04d08c8",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            }
+        ],
+        "post": {
+            "slot": 20
+        },
+        "_info": {
+            "hash": "0xe3c0dd9ff1e2ff3f2d4985cab62c081f4ef0a9c085058801e3421beb99fda348",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/state_transition/test_block_processing.py::test_block_extends_deep_chain[fork_Devnet]",
+            "description": "Test that blocks can extend already-deep chains.\n\nScenario\n--------\nBuild a 20-block chain to simulate a mature blockchain state,\nthen verify new blocks can still extend it correctly.\n\nExpected Behavior\n-----------------\n1. All 20 blocks process successfully\n2. Parent linkage maintained throughout\n3. State advances to slot 20\n4. Historical roots accumulate correctly\n5. No degradation in processing",
+            "fixtureFormat": "state_transition_test"
+        }
+    }
+}

@@ -8,6 +8,7 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/attestations.hpp"
 
 namespace lean {
@@ -17,6 +18,8 @@ namespace lean {
 
     SSZ_CONT(attestations);
     bool operator==(const BlockBody &) const = default;
+
+    JSON_CAMEL(attestations);
   };
 
 }  // namespace lean
