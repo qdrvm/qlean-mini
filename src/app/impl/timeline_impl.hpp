@@ -55,6 +55,7 @@ namespace lean::app {
     void on_slot_started(std::shared_ptr<const messages::SlotStarted> msg);
 
     qtils::SharedRef<soralog::Logger> logger_;
+    qtils::SharedRef<soralog::Logger> digest_;
     qtils::SharedRef<StateManager> state_manager_;
     qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<clock::SystemClock> clock_;

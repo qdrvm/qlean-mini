@@ -32,6 +32,7 @@ namespace lean::app {
                              qtils::SharedRef<GenesisConfig> config,
                              qtils::SharedRef<blockchain::BlockTree> block_tree)
       : logger_(logsys->getLogger("Timeline", "application")),
+        digest_(logsys->getLogger("Digest", "digest")),
         state_manager_(std::move(state_manager)),
         genesis_config_(std::move(config)),
         clock_(std::move(clock)),
@@ -106,36 +107,48 @@ namespace lean::app {
       state_root = head_block_header_res.value().state_root;
     }
 
-    fmt::println(
-        std::cerr,
-        "+===============================================================+");
-    fmt::println(std::cerr,
-                 "  CHAIN STATUS: Current Slot: {} | Head Slot: {}",
-                 msg->slot,
-                 head.slot);
-    fmt::println(std::cerr,
-                 "+---------------------------------------------------------------+");
-    fmt::println(std::cerr, "  Connected Peers:    {}",
-                 connected_peers_.load());
-    fmt::println(std::cerr,
-                 "+---------------------------------------------------------------+");
-    fmt::println(std::cerr, "  Head Block Root:    0x{}", head.hash.toHex());
-    fmt::println(std::cerr, "  Parent Block Root:  0x{}", parent_root.toHex());
-    fmt::println(std::cerr, "  State Root:         0x{}", state_root.toHex());
-    fmt::println(
-        std::cerr,
-        "+---------------------------------------------------------------+");
-    fmt::println(std::cerr,
-                 "  Latest Justified:   Slot {:>6} | Root: 0x{}",
-                 justified.slot,
-                 justified.root.toHex());
-    fmt::println(std::cerr,
-                 "  Latest Finalized:   Slot {:>6} | Root: 0x{}",
-                 finalized.slot,
-                 finalized.hash.toHex());
-    fmt::println(
-        std::cerr,
-        "+===============================================================+");
+    constexpr int kFillWidth = 98;
+    SL_VERBOSE(digest_, "\x1b[2J\x1b[H");  // Clear screen and move cursor to home
+    SL_VERBOSE(digest_, "+{:-<{}}+", "", kFillWidth);
+    SL_VERBOSE(digest_, "|{: ^{}}|", "CHAIN STATUS", kFillWidth);
+    SL_VERBOSE(digest_, "|{:-<{}}+{:-<{}}|", "", kFillWidth/2-1, "", kFillWidth/2);
+    SL_VERBOSE(digest_, "|{: ^{}}|{: ^{}}|",
+      fmt::format("Current Slot: {}", msg->slot), kFillWidth/2-1,
+      fmt::format("Head Slot: {}", head.slot), kFillWidth/2);
+    SL_VERBOSE(digest_, "|{:-<{}}+{:-<{}}|", "", kFillWidth/2-1, "", kFillWidth/2);
+    SL_VERBOSE(digest_, "| Connected Peers:    {: <{}} |", connected_peers_.load(), kFillWidth - 22);
+    SL_VERBOSE(digest_, "+{:-<{}}+", "", kFillWidth);
+    SL_VERBOSE(digest_, "| Head Block Root:    {: <{};0xx} |", head.hash, kFillWidth - 22);
+    SL_VERBOSE(digest_, "| Parent Block Root:  {: <{};0xx} |", parent_root, kFillWidth - 22);
+    SL_VERBOSE(digest_, "| State Root:         {: <{};0xx} |", state_root, kFillWidth - 22);
+    SL_VERBOSE(digest_, "+{:-<{}}+", "", kFillWidth);
+    SL_VERBOSE(digest_, "| Latest Justified:   {: <{};l} |", justified, kFillWidth - 22);
+    SL_VERBOSE(digest_, "| Latest Finalized:   {: <{};l} |", finalized, kFillWidth - 22);
+    SL_VERBOSE(digest_, "+{:-<{}}+", "", kFillWidth);
+
+
+
+    // esc_save_cursor_and_home();
+    //
+    // putstr("┏", "━", "┓");
+    // putstr("┃",
+    //        " ",
+    //        "┃",
+    //        "CHAIN STATUS: Current Slot: {} | Head Slot: {}",
+    //        msg->slot,
+    //        head.slot);
+    // putstr("┣", "━", "┫");
+    // putstr("┃", " ", "┃", "Connected Peers:    {}", connected_peers_.load());
+    // putstr("┠", "─", "┨");
+    // putstr("┃", " ", "┃", "Head Block Root:    0x{}", head.hash.toHex());
+    // putstr("┃", " ", "┃", "Parent Block Root:  0x{}", parent_root.toHex());
+    // putstr("┃", " ", "┃", "State Root:         0x{}", state_root.toHex());
+    // putstr("┠", "─", "┨");
+    // putstr("┃", " ", "┃", "Latest Justified:   {}", justified);
+    // putstr("┃", " ", "┃", "Latest Finalized:   {}", finalized);
+    // putstr("┗", "━", "┛");
+    //
+    // esc_restore_cursor();
 
     SL_INFO(logger_, "⚡ Slot {} started", msg->slot);
     if (stopped_) [[unlikely]] {
