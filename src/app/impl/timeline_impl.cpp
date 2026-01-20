@@ -108,47 +108,26 @@ namespace lean::app {
     }
 
     constexpr int kFillWidth = 98;
-    SL_VERBOSE(digest_, "\x1b[2J\x1b[H");  // Clear screen and move cursor to home
-    SL_VERBOSE(digest_, "+{:-<{}}+", "", kFillWidth);
-    SL_VERBOSE(digest_, "|{: ^{}}|", "CHAIN STATUS", kFillWidth);
-    SL_VERBOSE(digest_, "|{:-<{}}+{:-<{}}|", "", kFillWidth/2-1, "", kFillWidth/2);
-    SL_VERBOSE(digest_, "|{: ^{}}|{: ^{}}|",
+    auto hnc = "\x1b[1G"; // Move home and clear line
+    // clang-format off
+    SL_VERBOSE(digest_, "\x1b[2J\x1b[H"  // Clear screen and move cursor to home
+                        "{}+{:-<{}}+", hnc, "", kFillWidth);
+    SL_VERBOSE(digest_, "{}|{: ^{}}|", hnc, "CHAIN STATUS", kFillWidth);
+    SL_VERBOSE(digest_, "{}+{:-<{}}+{:-<{}}+", hnc, "", kFillWidth/2-1, "", kFillWidth/2);
+    SL_VERBOSE(digest_, "{}|{: ^{}}|{: ^{}}|", hnc,
       fmt::format("Current Slot: {}", msg->slot), kFillWidth/2-1,
       fmt::format("Head Slot: {}", head.slot), kFillWidth/2);
-    SL_VERBOSE(digest_, "|{:-<{}}+{:-<{}}|", "", kFillWidth/2-1, "", kFillWidth/2);
-    SL_VERBOSE(digest_, "| Connected Peers:    {: <{}} |", connected_peers_.load(), kFillWidth - 22);
-    SL_VERBOSE(digest_, "+{:-<{}}+", "", kFillWidth);
-    SL_VERBOSE(digest_, "| Head Block Root:    {: <{};0xx} |", head.hash, kFillWidth - 22);
-    SL_VERBOSE(digest_, "| Parent Block Root:  {: <{};0xx} |", parent_root, kFillWidth - 22);
-    SL_VERBOSE(digest_, "| State Root:         {: <{};0xx} |", state_root, kFillWidth - 22);
-    SL_VERBOSE(digest_, "+{:-<{}}+", "", kFillWidth);
-    SL_VERBOSE(digest_, "| Latest Justified:   {: <{};l} |", justified, kFillWidth - 22);
-    SL_VERBOSE(digest_, "| Latest Finalized:   {: <{};l} |", finalized, kFillWidth - 22);
-    SL_VERBOSE(digest_, "+{:-<{}}+", "", kFillWidth);
-
-
-
-    // esc_save_cursor_and_home();
-    //
-    // putstr("┏", "━", "┓");
-    // putstr("┃",
-    //        " ",
-    //        "┃",
-    //        "CHAIN STATUS: Current Slot: {} | Head Slot: {}",
-    //        msg->slot,
-    //        head.slot);
-    // putstr("┣", "━", "┫");
-    // putstr("┃", " ", "┃", "Connected Peers:    {}", connected_peers_.load());
-    // putstr("┠", "─", "┨");
-    // putstr("┃", " ", "┃", "Head Block Root:    0x{}", head.hash.toHex());
-    // putstr("┃", " ", "┃", "Parent Block Root:  0x{}", parent_root.toHex());
-    // putstr("┃", " ", "┃", "State Root:         0x{}", state_root.toHex());
-    // putstr("┠", "─", "┨");
-    // putstr("┃", " ", "┃", "Latest Justified:   {}", justified);
-    // putstr("┃", " ", "┃", "Latest Finalized:   {}", finalized);
-    // putstr("┗", "━", "┛");
-    //
-    // esc_restore_cursor();
+    SL_VERBOSE(digest_, "{}+{:-<{}}+{:-<{}}+", hnc, "", kFillWidth/2-1, "", kFillWidth/2);
+    SL_VERBOSE(digest_, "{}| Connected Peers:    {: <{}} |", hnc, connected_peers_.load(), kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}+{:-<{}}+", hnc, "", kFillWidth);
+    SL_VERBOSE(digest_, "{}| Head Block Root:    {: <{};0xx} |", hnc, head.hash, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}| Parent Block Root:  {: <{};0xx} |", hnc, parent_root, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}| State Root:         {: <{};0xx} |", hnc, state_root, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}+{:-<{}}+", hnc, "", kFillWidth);
+    SL_VERBOSE(digest_, "{}| Latest Justified:   {: <{};l} |", hnc, justified, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}| Latest Finalized:   {: <{};l} |", hnc, finalized, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}+{:-<{}}+", hnc, "", kFillWidth);
+    // clang-format on
 
     SL_INFO(logger_, "⚡ Slot {} started", msg->slot);
     if (stopped_) [[unlikely]] {
