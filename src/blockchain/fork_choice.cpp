@@ -140,10 +140,16 @@ namespace lean {
     // If there is no very recent safe target, then vote for the k'th ancestor
     // of the head
     auto safe_target_slot = getBlockSlot(safe_target_).value();
+
+    // Ensure the attestation target is not older than the latest justified block,
+    // as it would violate protocol rules and fail validation.
+    auto latest_justified_slot = block_tree_->getLatestJustified().slot;
+    auto lookback_limit = std::max(safe_target_slot, latest_justified_slot);
+
     for (auto i = 0; i < JUSTIFICATION_LOOKBACK_SLOTS; ++i) {
       auto target_header =
           block_tree_->getBlockHeader(target_block_root).value();
-      if (target_header.slot > safe_target_slot) {
+      if (target_header.slot > lookback_limit) {
         target_block_root = target_header.parent_root;
       } else {
         break;
@@ -743,14 +749,24 @@ namespace lean {
 
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
         SL_TRACE(logger_, "Interval 1 of slot {}", current_slot);
+        acceptNewAttestations(); // Ensure head is updated before voting
 
         metrics_->fc_head_slot()->set(head_.slot);
         Checkpoint head = head_;
         auto target = getAttestationTarget();
-
+        auto source = block_tree_->getLatestJustified();
         SL_INFO(logger_, "🔷 Head={}", head);
         SL_INFO(logger_, "🎯 Target={}", target);
-        SL_INFO(logger_, "📌 Source={}", block_tree_->getLatestJustified());
+        SL_INFO(logger_, "📌 Source={}", source);
+
+        if (source.slot > target.slot) {
+          SL_WARN(logger_,
+                  "Attestation source slot {} is not less than target slot {}",
+                  source.slot,
+                  target.slot);
+          time_ += 1;
+          continue;
+        }
 
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
