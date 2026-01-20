@@ -76,6 +76,8 @@ namespace lean::blockchain {
 
     outcome::result<void> finalize(const BlockHash &block_hash) override;
 
+    outcome::result<void> setJustified(const BlockHash &block_hash) override;
+
     outcome::result<std::vector<BlockHash>> getBestChainFromBlock(
         const BlockHash &block, uint64_t maximum) const override;
 
@@ -129,6 +131,7 @@ namespace lean::blockchain {
         const BlockTreeData &p, const BlockHash &block_hash) const;
 
     BlockIndex getLastFinalizedNoLock(const BlockTreeData &p) const;
+    BlockIndex getLastJustifiedNoLock(const BlockTreeData &p) const;
     BlockIndex bestBlockNoLock(const BlockTreeData &p) const;
 
     // bool hasDirectChainNoLock(const BlockTreeData &p,

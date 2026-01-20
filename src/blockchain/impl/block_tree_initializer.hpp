@@ -24,12 +24,13 @@ namespace lean::blockchain {
     BlockTreeInitializer(qtils::SharedRef<log::LoggingSystem> logsys,
                          qtils::SharedRef<BlockStorage> storage);
 
-    std::tuple<BlockIndex, std::map<BlockIndex, BlockHeader>>
+    std::tuple<BlockIndex, BlockIndex, std::map<BlockIndex, BlockHeader>>
     nonFinalizedSubTree();
 
    private:
     std::atomic_flag used_;
     BlockIndex last_finalized_;
+    BlockIndex last_justified_;
     std::map<BlockIndex, BlockHeader> non_finalized_;
   };
 

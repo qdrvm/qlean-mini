@@ -43,13 +43,6 @@ namespace lean::blockchain {
     virtual outcome::result<void> setBlockTreeLeaves(
         std::vector<BlockHash> leaves) = 0;
 
-    /**
-     * Get the last finalized block
-     * @return BlockIndex of the block
-     */
-    [[nodiscard]] virtual outcome::result<BlockIndex> getLastFinalized()
-        const = 0;
-
     // -- hash --
 
     /**

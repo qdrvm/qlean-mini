@@ -66,34 +66,6 @@ namespace lean::blockchain {
     return outcome::success();
   }
 
-  outcome::result<BlockIndex> BlockStorageImpl::getLastFinalized() const {
-    OUTCOME_TRY(leaves, getBlockTreeLeaves());
-    auto current_hash = leaves[0];
-    for (;;) {
-      // OUTCOME_TRY(j_opt, getJustification(current_hash));
-      // if (j_opt.has_value()) {
-      //   break;
-      // } // FIXME
-      OUTCOME_TRY(header, getBlockHeader(current_hash));
-      if (header.slot == 0) {
-        SL_TRACE(logger_,
-                 "Not found block with justification. "
-                 "Genesis block will be used as last finalized ({})",
-                 current_hash);
-        return {0, current_hash};  // genesis
-      }
-      current_hash = header.parent_root;
-    }
-
-    OUTCOME_TRY(header, getBlockHeader(current_hash));
-    auto found_block = BlockIndex{header.slot, current_hash};
-    SL_TRACE(logger_,
-             "Justification is found in block {}. "
-             "This block will be used as last finalized",
-             found_block);
-    return found_block;
-  }
-
   outcome::result<void> BlockStorageImpl::assignHashToSlot(
       const BlockIndex &block_index) {
     SL_DEBUG(logger_, "Add slot-to-hash for {}", block_index);

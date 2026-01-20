@@ -73,6 +73,7 @@ namespace lean::blockchain {
     explicit CachedTree(const BlockIndex &root);
 
     [[nodiscard]] BlockIndex finalized() const;
+    [[nodiscard]] BlockIndex justified() const;
     [[nodiscard]] BlockIndex best() const;
     [[nodiscard]] size_t leafCount() const;
     [[nodiscard]] std::vector<BlockHash> leafHashes() const;
@@ -84,6 +85,7 @@ namespace lean::blockchain {
         const BlockHash &hash) const;
     std::optional<Reorg> add(const qtils::SharedRef<TreeNode> &new_node);
     ReorgAndPrune finalize(const qtils::SharedRef<TreeNode> &new_finalized);
+    void setJustified(const qtils::SharedRef<TreeNode> &new_justified);
 
     /**
      * Can't remove finalized root.
@@ -106,6 +108,7 @@ namespace lean::blockchain {
     bool chooseBest(const qtils::SharedRef<TreeNode> &node);
 
     qtils::SharedRef<TreeNode> root_;
+    qtils::SharedRef<TreeNode> justified_;
     qtils::SharedRef<TreeNode> best_;
     std::unordered_map<BlockHash, qtils::SharedRef<TreeNode>> nodes_;
     std::unordered_map<BlockHash, Slot> leaves_;

@@ -24,6 +24,8 @@ OUTCOME_CPP_DEFINE_CATEGORY(lean::blockchain, BlockTreeError, e) {
     case E::EXISTING_BLOCK_NOT_FOUND:
       return "block exists in chain but not found when following all leaves "
              "backwards";
+    case E::NON_JUSTIFIED_BLOCK_NOT_FOUND:
+      return "a non-justified block is not found";
     case E::NON_FINALIZED_BLOCK_NOT_FOUND:
       return "a non-finalized block is not found";
     case E::HEADER_NOT_FOUND:

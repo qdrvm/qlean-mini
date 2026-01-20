@@ -29,8 +29,6 @@ namespace lean::blockchain {
 
     outcome::result<std::vector<BlockHash>> getBlockTreeLeaves() const override;
 
-    outcome::result<BlockIndex> getLastFinalized() const override;
-
     // -- hash --
 
     outcome::result<void> assignHashToSlot(const BlockIndex &block) override;

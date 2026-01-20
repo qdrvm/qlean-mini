@@ -25,6 +25,8 @@ namespace lean::blockchain {
     BLOCK_ON_DEAD_END,
     // block exists in chain but not found when following all leaves backwards
     EXISTING_BLOCK_NOT_FOUND,
+    // non-justified block is not found
+    NON_JUSTIFIED_BLOCK_NOT_FOUND,
     // non-finalized block is not found
     NON_FINALIZED_BLOCK_NOT_FOUND,
     // block body is not found in block storage

@@ -39,18 +39,33 @@ namespace lean::blockchain {
                 std::get<0>(initializer->nonFinalizedSubTree())),
             .hasher_ = std::move(hasher),
         }} {
+    auto [last_finalized, last_justified, non_finalized] =
+        initializer->nonFinalizedSubTree();
+    SL_TRACE(log_, "Block {} set as last finalized", last_finalized);
+
     // Add non-finalized block to the block tree
-    for (const auto &[block, header] :
-         std::get<1>(initializer->nonFinalizedSubTree())) {
+    for (const auto &[block, header] : non_finalized) {
       auto res = BlockTreeImpl::addExistingBlock(block.hash, header);
       if (res.has_error()) {
-        SL_WARN(
+        SL_CRITICAL(
             log_, "Failed to add existing block {}: {}", block, res.error());
+        qtils::raise(res.error());
       }
       SL_TRACE(log_,
                "Existing non-finalized block {} is added to block tree",
                block);
     }
+
+    // Set last justified
+    auto res = setJustified(last_justified.hash);
+    if (res.has_error()) {
+      SL_CRITICAL(log_,
+                  "Failed to set block {} as last justified: {}",
+                  last_justified,
+                  res.error());
+      qtils::raise(res.error());
+    }
+    SL_TRACE(log_, "Existing block {} set as last justified", last_justified);
   }
 
   const BlockHash &BlockTreeImpl::getGenesisBlockHash() const {
@@ -325,6 +340,55 @@ namespace lean::blockchain {
             const auto slot = header.slot;
             if (slot >= last_finalized_block_info.slot) {
               return BlockTreeError::NON_FINALIZED_BLOCK_NOT_FOUND;
+            }
+
+            OUTCOME_TRY(hashes, p.storage_->getBlockHash(slot));
+
+            if (not qtils::cxx23::ranges::contains(hashes, block_hash)) {
+              return BlockTreeError::BLOCK_ON_DEAD_END;
+            }
+          }
+          return outcome::success();
+        });
+  }
+
+  outcome::result<void> BlockTreeImpl::setJustified(
+      const BlockHash &block_hash) {
+    return block_tree_data_.exclusiveAccess(
+        [&](BlockTreeData &p) -> outcome::result<void> {
+          auto last_justified_block_info = getLastJustifiedNoLock(p);
+          if (block_hash == last_justified_block_info.hash) {
+            return outcome::success();
+          }
+          const auto node_opt = p.tree_->find(block_hash);
+          if (node_opt.has_value()) {
+            auto &node = node_opt.value();
+
+            SL_DEBUG(log_, "Justifying block {}", node->index);
+
+            OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
+
+            // Block which is justified as ancestors of last justified, and
+            // especially last finalized
+            for (auto parent = node->parent(); parent;
+                 parent = parent->parent()) {
+              if (parent->index == getLastJustifiedNoLock(p)) {
+                p.tree_->setJustified(node);
+                return outcome::success();
+              };
+            }
+
+            // auto msg = std::make_shared<messages::Finalized>(
+            //     header.index(), std::move(retired_blocks));
+            // se_manager_->notify(EventTypes::BlockFinalized, msg);
+            //
+            // log_->info("Finalized block {}", node->index);
+
+          } else {
+            OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
+            const auto slot = header.slot;
+            if (slot >= last_justified_block_info.slot) {
+              return BlockTreeError::NON_JUSTIFIED_BLOCK_NOT_FOUND;
             }
 
             OUTCOME_TRY(hashes, p.storage_->getBlockHash(slot));
@@ -690,12 +754,15 @@ namespace lean::blockchain {
         [&](const BlockTreeData &p) { return getLastFinalizedNoLock(p); });
   }
 
+  BlockIndex BlockTreeImpl::getLastJustifiedNoLock(
+      const BlockTreeData &p) const {
+    return p.tree_->justified();
+  }
+
   Checkpoint BlockTreeImpl::getLatestJustified() const {
     return block_tree_data_.sharedAccess([&](const BlockTreeData &p) {
-      auto finalized = getLastFinalizedNoLock(p);
-      // For now, return finalized as justified since we don't track separate
-      // justification in basic BlockTreeImpl yet
-      return Checkpoint{.root = finalized.hash, .slot = finalized.slot};
+      auto justified = getLastJustifiedNoLock(p);
+      return Checkpoint{.root = justified.hash, .slot = justified.slot};
     });
   }
 

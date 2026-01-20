@@ -94,6 +94,13 @@ namespace lean::blockchain {
     virtual outcome::result<void> finalize(const BlockHash &block) = 0;
 
     /**
+     * Mark the block as justified
+     * @param block to be justified
+     * @return nothing or error
+     */
+    virtual outcome::result<void> setJustified(const BlockHash &block) = 0;
+
+    /**
      * Get a chain of blocks from provided block to direction of the best block
      * @param block from which the chain is started
      * @param maximum number of blocks to be retrieved
