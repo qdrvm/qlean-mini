@@ -158,6 +158,7 @@ namespace lean::blockchain {
                  block_index,
                  header.state_root);
         last_finalized_block_index = block_index;
+        last_justified_block_index = block_index;
         break;
       }
 
