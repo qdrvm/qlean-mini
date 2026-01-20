@@ -38,8 +38,10 @@ namespace lean {
     // 2/3rd majority min voting weight for target selection
     auto min_target_score = ceilDiv(head_state->validatorCount() * 2, 3);
 
-    auto lmd_ghost_head = computeLmdGhostHead(
-        latest_justified_.root, latest_new_attestations_, min_target_score);
+    auto lmd_ghost_head =
+        computeLmdGhostHead(block_tree_->getLatestJustified().root,
+                            latest_new_attestations_,
+                            min_target_score);
 
     auto slot_opt = getBlockSlot(lmd_ghost_head);
     BOOST_ASSERT(slot_opt.has_value());
@@ -58,7 +60,7 @@ namespace lean {
     // Selects canonical head by walking the tree from the justified root,
     // choosing the heaviest child at each fork based on attestation weights.
     auto lmd_ghost_head = computeLmdGhostHead(
-        latest_justified_.root, latest_known_attestations_, 0);
+        block_tree_->getLatestJustified().root, latest_known_attestations_, 0);
 
     auto slot_opt = getBlockSlot(lmd_ghost_head);
     BOOST_ASSERT(slot_opt.has_value());
@@ -125,7 +127,7 @@ namespace lean {
   }
 
   Checkpoint ForkChoiceStore::getLatestJustified() const {
-    return latest_justified_;
+    return static_cast<Checkpoint>(block_tree_->getLatestJustified());
   }
 
   Checkpoint ForkChoiceStore::getAttestationTarget() const {
@@ -170,12 +172,13 @@ namespace lean {
 
   AttestationData ForkChoiceStore::produceAttestationData(Slot slot) const {
     auto target_checkpoint = getAttestationTarget();
+    auto source_checkpoint = getLatestJustified();
 
     return AttestationData{
         .slot = slot,
         .head = head_,
         .target = target_checkpoint,
-        .source = latest_justified_,
+        .source = source_checkpoint,
     };
   }
 
@@ -617,17 +620,16 @@ namespace lean {
     }
 
     // If post-state has a higher justified checkpoint, update it to the store.
-    if (post_state.latest_justified.slot > latest_justified_.slot) {
-      latest_justified_ = post_state.latest_justified;
+    if (post_state.latest_justified.slot
+        > block_tree_->getLatestJustified().slot) {
+      OUTCOME_TRY(block_tree_->setJustified(post_state.latest_justified.root));
+      SL_INFO(logger_, "🔒 Justified block: {}", post_state.latest_finalized);
     }
 
     // If post-state has a higher finalized checkpoint, update it to the store.
     if (post_state.latest_finalized.slot > block_tree_->lastFinalized().slot) {
       OUTCOME_TRY(block_tree_->finalize(post_state.latest_finalized.root));
-      SL_INFO(logger_,
-              "🔒 Finalized block={:0xx}, slot={}",
-              post_state.latest_finalized.root,
-              post_state.latest_finalized.slot);
+      SL_INFO(logger_, "🔒 Finalized block: {}", post_state.latest_finalized);
     }
 
     // Cache state
@@ -748,7 +750,7 @@ namespace lean {
 
         SL_INFO(logger_, "🔷 Head={}", head);
         SL_INFO(logger_, "🎯 Target={}", target);
-        SL_INFO(logger_, "📌 Source={}", latest_justified_);
+        SL_INFO(logger_, "📌 Source={}", block_tree_->getLatestJustified());
 
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
@@ -938,24 +940,13 @@ namespace lean {
               : 0;
 
     // Set last finalized as pre-initial-head
-    head_ = block_tree_->lastFinalized();
+    auto latest_finalized = block_tree_->lastFinalized();
     SL_TRACE(logger_, "Last finalized: {}", head_);
 
-    // Init latest justified
-    auto head_parent =
-        qtils::valueOrRaise(block_tree_->getBlockHeader(head_.root))
-            .parent_root;
-    if (head_parent == kZeroHash) {
-      latest_justified_ = head_;
-    } else if (auto head_state = getState(head_.root); head_state.has_value()) {
-      latest_justified_ = head_state.value()->latest_justified;
-    } else {
-      SL_WARN(logger_,
-              "Failed to get head state to obtain latest justified; "
-              "Head will be used as latest justified");
-      latest_justified_ = head_;
-    }
-    SL_TRACE(logger_, "Last justified: {}", latest_justified_);
+    auto latest_justified = block_tree_->getLatestJustified();
+    SL_TRACE(logger_, "Last justified: {}", latest_justified);
+
+    head_ = latest_justified;
 
     // Init safe-target
     if (auto res = updateSafeTarget(); res.has_error()) {
@@ -969,7 +960,7 @@ namespace lean {
 
     SL_INFO(logger_, "🔷 Head:   {}", head_);
     SL_INFO(logger_, "🎯 Target: {:0xx}", safe_target_);
-    SL_INFO(logger_, "📌 Source: {}", latest_justified_);
+    SL_INFO(logger_, "📌 Source: {}", latest_justified);
 
     SL_TRACE(logger_, "Fork-choice initialized");
   }
@@ -982,7 +973,6 @@ namespace lean {
       Config config,
       Checkpoint head,
       BlockHash safe_target,
-      Checkpoint latest_justified,
       SignedAttestations latest_known_attestations,
       SignedAttestations latest_new_attestations,
       ValidatorIndex validator_index,
@@ -1001,7 +991,6 @@ namespace lean {
         config_(config),
         head_(head),
         safe_target_(safe_target),
-        latest_justified_(latest_justified),
         latest_known_attestations_(std::move(latest_known_attestations)),
         latest_new_attestations_(std::move(latest_new_attestations)),
         validator_registry_(std::move(validator_registry)),

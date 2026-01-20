@@ -122,7 +122,6 @@ namespace lean {
         Config config,
         Checkpoint head,
         BlockHash safe_target,
-        Checkpoint latest_justified,
         SignedAttestations latest_known_attestations,
         SignedAttestations latest_new_votes,
         ValidatorIndex validator_index,
@@ -437,15 +436,6 @@ namespace lean {
      * considered safe to attest to, based on additional safety conditions.
      */
     BlockHash safe_target_;
-
-    /**
-     * Highest slot justified checkpoint known to the store.
-     *
-     * LMD GHOST starts from this checkpoint when computing the head.
-     *
-     * Only descendants of this checkpoint are considered viable.
-     */
-    Checkpoint latest_justified_;
 
     /**
      * For each known block, we keep its post-state.
