@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <format>
 #include <memory>
+#include <queue>
 #include <ranges>
 #include <stdexcept>
 
@@ -666,39 +667,39 @@ namespace lean::modules {
       return;
     }
 
-    std::function<void(const SignedBlockWithAttestation &)> import_block =
-        [&](auto &block) {
-          const auto &block_hash = block.message.block.hash();
+    std::queue<SignedBlockWithAttestation> queue;
+    queue.emplace(std::move(signed_block_with_attestation));
+    while (not queue.empty()) {
+      auto block = std::move(queue.front());
+      queue.pop();
 
-          // Trying to add block
-          auto res = fork_choice_store_->onBlock(block);
+      const auto &block_hash = block.message.block.hash();
 
-          if (res.has_value()) {  // Success -> import children
+      // Trying to add block
+      auto res = fork_choice_store_->onBlock(block);
 
-            SL_INFO(
-                logger_, "✅ Imported block {}", block.message.block.index());
+      if (res.has_value()) {  // Success -> import children
 
-            auto [b, e] = block_children_.equal_range(block_hash);
-            for (const auto &[parent, child] : std::ranges::subrange(b, e)) {
-              if (auto it = block_cache_.find(child);
-                  it != block_cache_.end()) {
-                import_block(it->second);
-              }
-            }
+        SL_INFO(logger_, "✅ Imported block {}", block.message.block.index());
 
-            return;
+        auto [b, e] = block_children_.equal_range(block_hash);
+        for (const auto &[parent, child] : std::ranges::subrange(b, e)) {
+          if (auto it = block_cache_.find(child); it != block_cache_.end()) {
+            queue.emplace(std::move(it->second));
           }
+        }
 
-          // Fail -> forget children
-          SL_WARN(logger_,
-                  "❌ Error importing block={}: {}",
-                  block.message.block.index(),
-                  res.error());
+        return;
+      }
 
-          forget_block_with_its_descendants(block_hash);
-        };
+      // Fail -> forget children
+      SL_WARN(logger_,
+              "❌ Error importing block={}: {}",
+              block.message.block.index(),
+              res.error());
 
-    import_block(signed_block_with_attestation);
+      forget_block_with_its_descendants(block_hash);
+    }
   }
 
   bool NetworkingImpl::statusFinalizedIsGood(const BlockIndex &slot_hash) {
