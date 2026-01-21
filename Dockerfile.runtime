@@ -4,6 +4,9 @@
 ARG BUILDER_IMAGE=qlean-mini-builder:latest
 FROM ${BUILDER_IMAGE} AS builder
 
+ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=unknown
+
 FROM ubuntu:24.04 AS runtime
 
 RUN apt-get update && \
@@ -32,6 +35,8 @@ RUN echo "=== Runtime image contents ===" && \
     echo "" && echo "Total image libraries:" && find /opt/qlean -name "*.so*" | wc -l && echo " .so files"
 
 LABEL org.opencontainers.image.description="Qlean-mini runtime image (optimized)"
+LABEL org.opencontainers.image.revision=$GIT_COMMIT
+LABEL org.opencontainers.image.ref.name=$GIT_BRANCH
 LABEL stage=runtime
 
 ENTRYPOINT ["qlean", "--modules-dir", "/opt/qlean/modules"]

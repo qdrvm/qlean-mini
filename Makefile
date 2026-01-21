@@ -25,6 +25,7 @@ DOCKER_REGISTRY ?= qdrvm
 DOCKER_PUSH_TAG ?= false
 DOCKER_PUSH_LATEST ?= false
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
 # Supported platforms: linux/arm64, linux/amd64
 # Usage: make docker_build_all DOCKER_PLATFORM=linux/amd64
@@ -150,6 +151,7 @@ docker_build_builder:
 		--platform $(DOCKER_PLATFORM) \
 		--build-arg DEPS_IMAGE=$(DOCKER_IMAGE_DEPS) \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+		--build-arg GIT_BRANCH=$(GIT_BRANCH) \
 		-f Dockerfile.builder \
 		--progress=plain \
 		-t $(DOCKER_IMAGE_BUILDER) \
@@ -181,6 +183,8 @@ docker_build_runtime:
 	DOCKER_BUILDKIT=1 docker build \
 		--platform $(DOCKER_PLATFORM) \
 		--build-arg BUILDER_IMAGE=$(DOCKER_IMAGE_BUILDER_TAG) \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+		--build-arg GIT_BRANCH=$(GIT_BRANCH) \
 		-f Dockerfile.runtime \
 		--progress=plain \
 		-t $(DOCKER_IMAGE_RUNTIME) \
