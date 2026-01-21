@@ -26,6 +26,8 @@ logging:
       level: info
       is_fallback: true
       children:
+        - name: libp2p
+          level: info
         - name: lean
           children:
             - name: modules
