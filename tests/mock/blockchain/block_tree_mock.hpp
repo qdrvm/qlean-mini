@@ -68,6 +68,11 @@ namespace lean::blockchain {
                 (const BlockHash &block),
                 (override));
 
+    MOCK_METHOD(outcome::result<void>,
+                setJustified,
+                (const BlockHash &block),
+                (override));
+
     MOCK_METHOD(outcome::result<std::vector<BlockHash>>,
                 getBestChainFromBlock,
                 (const BlockHash &block, uint64_t maximum),

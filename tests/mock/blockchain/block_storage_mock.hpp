@@ -24,11 +24,6 @@ namespace lean::blockchain {
                 (),
                 (const, override));
 
-    MOCK_METHOD(outcome::result<BlockIndex>,
-                getLastFinalized,
-                (),
-                (const, override));
-
     MOCK_METHOD(outcome::result<void>,
                 assignHashToSlot,
                 (const BlockIndex &),
@@ -43,10 +38,6 @@ namespace lean::blockchain {
                 getBlockHash,
                 (Slot),
                 (const, override));
-    // MOCK_METHOD(outcome::result<std::optional<BlockHash>>,
-    //             getBlockHash,
-    //             (const BlockId &),
-    //             (const, override));
 
     MOCK_METHOD(outcome::result<SlotIterator>, seekLastSlot, (), (const));
 

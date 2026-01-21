@@ -154,8 +154,6 @@ auto createTestStore(
                          config_param,
                          head,
                          safe_target,
-                         latest_justified,
-                         // latest_finalized,
                          std::move(latest_known_attestations),
                          std::move(latest_new_attestations),
                          validator_index,
