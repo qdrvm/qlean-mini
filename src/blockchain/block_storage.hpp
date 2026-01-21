@@ -163,7 +163,12 @@ namespace lean::blockchain {
         const BlockHash &block_hash) = 0;
 
     // -- state --
-    // TODO: refactoring is needed - make special separated storage for states
+
+    //  Note: state is currently accessed via BlockStorage; if a dedicated state
+    //  storage is introduced in the future, this interface should be updated
+    //  to reflect that separation.
+    // TODO: refactoring is needed
+    //  Issue: https://github.com/qdrvm/qlean-mini/issues/54
 
     /**
      * Saves provided state to block storage

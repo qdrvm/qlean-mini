@@ -121,7 +121,7 @@ namespace lean {
         qtils::SharedRef<metrics::Metrics> metrics,
         Config config,
         Checkpoint head,
-        BlockHash safe_target,
+        Checkpoint safe_target,
         SignedAttestations latest_known_attestations,
         SignedAttestations latest_new_votes,
         ValidatorIndex validator_index,
@@ -133,37 +133,35 @@ namespace lean {
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
-    outcome::result<void> updateSafeTarget();
+    [[nodiscard]] outcome::result<void> updateSafeTarget();
 
     // Updates the store's latest justified checkpoint, head, and latest
     // finalized state.
-    void updateHead();
+    [[nodiscard]] outcome::result<void> updateHead();
 
     // Process new attestations that the staker has received. Attestations
     // processing is done at a particular time, because of safe target and view
     // merge rules. Accepts the latest new votes, merges them into the known
     // votes, and then updates the fork-choice head.
-    void acceptNewAttestations();
+    [[nodiscard]] outcome::result<void> acceptNewAttestations();
 
     Slot getCurrentSlot() const;
 
     Checkpoint getHead();
-    outcome::result<std::shared_ptr<const State>> getState(
+    [[nodiscard]] outcome::result<std::shared_ptr<const State>> getState(
         const BlockHash &block_hash) const;
 
     bool hasBlock(const BlockHash &hash) const;
-    std::optional<Slot> getBlockSlot(const BlockHash &block_hash) const;
+    [[nodiscard]] outcome::result<Slot> getBlockSlot(
+        const BlockHash &block_hash) const;
     const Config &getConfig() const;
     Checkpoint getLatestFinalized() const;
     Checkpoint getLatestJustified() const;
 
     // Test helper methods
-    BlockHash getSafeTarget() const {
+    Checkpoint getSafeTarget() const {
       return safe_target_;
     }
-    // const Blocks &getBlocks() const {
-    //   return blocks_;
-    // }
     const SignedAttestations &getLatestNewAttestations() const {
       return latest_new_attestations_;
     }
@@ -206,9 +204,10 @@ namespace lean {
      * Returns:
      *     Hash of the chosen head block.
      */
-    BlockHash computeLmdGhostHead(const BlockHash &start_root,
-                                  const SignedAttestations &attestations,
-                                  uint64_t min_score = 0) const;
+    [[nodiscard]] outcome::result<BlockHash> computeLmdGhostHead(
+        const BlockHash &start_root,
+        const SignedAttestations &attestations,
+        uint64_t min_score = 0) const;
 
     /**
      * Calculate target checkpoint for validator attestations.
@@ -435,7 +434,7 @@ namespace lean {
      * This can be used by higher-level logic to restrict which blocks are
      * considered safe to attest to, based on additional safety conditions.
      */
-    BlockHash safe_target_;
+    Checkpoint safe_target_;
 
     /**
      * For each known block, we keep its post-state.

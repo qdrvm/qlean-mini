@@ -60,11 +60,15 @@ class BlockStorageTest : public testing::Test {
     hasher = std::make_shared<HasherMock>();
     spaced_storage = std::make_shared<SpacedStorageMock>();
 
-    std::set<Space> required_spaces = {Space::Default,
-                                       Space::SlotToHashes,
-                                       Space::Header,
-                                       Space::Body,
-                                       Space::State};
+    std::set<Space> required_spaces = {
+        Space::Default,
+        Space::SlotToHashes,
+        Space::Header,
+        Space::Body,
+        Space::State,
+        Space::Attestation,
+        Space::Signature,
+    };
 
     for (auto space : required_spaces) {
       auto storage = std::make_shared<BufferStorageMock>();
@@ -289,6 +293,12 @@ TEST_F(BlockStorageTest, Remove) {
   EXPECT_CALL(*spaces[Space::Body], remove(ByteView{hash}))
       .WillOnce(Return(outcome::success()));
   EXPECT_CALL(*spaces[Space::Header], remove(ByteView{hash}))
+      .WillOnce(Return(outcome::success()));
+  EXPECT_CALL(*spaces[Space::Attestation], remove(ByteView{hash}))
+      .WillOnce(Return(outcome::success()));
+  EXPECT_CALL(*spaces[Space::State], remove(ByteView{hash}))
+      .WillOnce(Return(outcome::success()));
+  EXPECT_CALL(*spaces[Space::Signature], remove(ByteView{hash}))
       .WillOnce(Return(outcome::success()));
 
   ASSERT_OUTCOME_SUCCESS(block_storage->removeBlock(hash));

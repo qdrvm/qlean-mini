@@ -334,15 +334,20 @@ namespace lean::blockchain {
     non_finalized_ = std::move(collected);
   }
 
-  std::tuple<BlockIndex, BlockIndex, std::map<BlockIndex, BlockHeader>>
-  BlockTreeInitializer::nonFinalizedSubTree() {
-    // if (used_.test_and_set()) {
-    //   qtils::raise(BlockTreeError::WRONG_WORKFLOW);
-    // }
-    // return std::make_tuple(last_finalized_,
-    //                        last_justified_,
-    //                        std::move(non_finalized_));
-    return std::make_tuple(last_finalized_, last_justified_, non_finalized_);
+  BlockIndex BlockTreeInitializer::latestFinalizedAtStart() {
+    return last_finalized_;
+  }
+
+  BlockIndex BlockTreeInitializer::latestJustifiedAtStart() {
+    return last_justified_;
+  }
+
+  std::map<BlockIndex, BlockHeader>
+  BlockTreeInitializer::nonFinalizedAtStart() {
+    if (used_.test_and_set()) {
+      qtils::raise(BlockTreeError::WRONG_WORKFLOW);
+    }
+    return std::move(non_finalized_);
   }
 
 }  // namespace lean::blockchain

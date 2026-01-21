@@ -355,8 +355,6 @@ namespace lean::blockchain {
       }
     }
 
-    // TODO(xDimon): needed to clean up trie storage if block deleted
-
     // Remove the block body
     if (auto res = removeBlockBody(block_index.hash); res.has_error()) {
       SL_ERROR(logger_,
@@ -366,11 +364,45 @@ namespace lean::blockchain {
       return res;
     }
 
-    {  // Remove the block header
-      auto header_space = storage_->getSpace(storage::Space::Header);
-      if (auto res = header_space->remove(block_index.hash); res.has_error()) {
+    {
+      // Remove the state block
+      auto storage_space = storage_->getSpace(storage::Space::State);
+      if (auto res = storage_space->remove(block_index.hash); res.has_error()) {
         SL_ERROR(logger_,
-                 "could not remove header of block {} from the storage: {}",
+                 "Couldn't remove state of block {} from the storage: {}",
+                 block_index,
+                 res.error());
+        return res;
+      }
+    }
+
+    {  // Remove the signatures block
+      auto storage_space = storage_->getSpace(storage::Space::Signature);
+      if (auto res = storage_space->remove(block_index.hash); res.has_error()) {
+        SL_ERROR(logger_,
+                 "Couldn't remove signature of block {} from the storage: {}",
+                 block_index,
+                 res.error());
+        return res;
+      }
+    }
+
+    {  // Remove the attestations block
+      auto storage_space = storage_->getSpace(storage::Space::Attestation);
+      if (auto res = storage_space->remove(block_index.hash); res.has_error()) {
+        SL_ERROR(logger_,
+                 "Couldn't remove attestation of block {} from the storage: {}",
+                 block_index,
+                 res.error());
+        return res;
+      }
+    }
+
+    {  // Remove the block header
+      auto storage_space = storage_->getSpace(storage::Space::Header);
+      if (auto res = storage_space->remove(block_index.hash); res.has_error()) {
+        SL_ERROR(logger_,
+                 "Couldn't remove header of block {} from the storage: {}",
                  block_index,
                  res.error());
         return res;

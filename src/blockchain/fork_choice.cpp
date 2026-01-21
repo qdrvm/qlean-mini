@@ -7,13 +7,11 @@
 #include "blockchain/fork_choice.hpp"
 
 #include <algorithm>
-#include <filesystem>
 #include <ranges>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
-#include <boost/beast/http/verb.hpp>
 #include <qtils/value_or_raise.hpp>
 
 #include "blockchain/genesis_config.hpp"
@@ -29,8 +27,6 @@ namespace lean {
   }
 
   outcome::result<void> ForkChoiceStore::updateSafeTarget() {
-    // TODO(xDimon): check result getBlockSlot for error
-
     SL_TRACE(logger_, "Update safe target");
     // Get validator count from head state
     OUTCOME_TRY(head_state, getState(head_.root));
@@ -38,38 +34,38 @@ namespace lean {
     // 2/3rd majority min voting weight for target selection
     auto min_target_score = ceilDiv(head_state->validatorCount() * 2, 3);
 
-    auto lmd_ghost_head =
-        computeLmdGhostHead(block_tree_->getLatestJustified().root,
-                            latest_new_attestations_,
-                            min_target_score);
+    OUTCOME_TRY(lmd_ghost_head,
+                computeLmdGhostHead(block_tree_->getLatestJustified().root,
+                                    latest_new_attestations_,
+                                    min_target_score));
 
-    auto slot_opt = getBlockSlot(lmd_ghost_head);
-    BOOST_ASSERT(slot_opt.has_value());
+    OUTCOME_TRY(slot, getBlockSlot(lmd_ghost_head));
 
-    Checkpoint safe_target = {.root = lmd_ghost_head, .slot = slot_opt.value()};
+    safe_target_ = {.root = lmd_ghost_head, .slot = slot};
+    SL_TRACE(logger_, "Safe target was set to {}", safe_target_);
 
-    SL_TRACE(logger_, "Safe target was set to {}", safe_target);
-    safe_target_ = safe_target.root;
     return outcome::success();
   }
 
-  void ForkChoiceStore::updateHead() {
+  outcome::result<void> ForkChoiceStore::updateHead() {
     SL_TRACE(logger_, "Update head");
     // Run LMD-GHOST fork choice algorithm
     //
     // Selects canonical head by walking the tree from the justified root,
     // choosing the heaviest child at each fork based on attestation weights.
-    auto lmd_ghost_head = computeLmdGhostHead(
-        block_tree_->getLatestJustified().root, latest_known_attestations_, 0);
+    OUTCOME_TRY(lmd_ghost_head,
+                computeLmdGhostHead(block_tree_->getLatestJustified().root,
+                                    latest_new_attestations_,
+                                    0));
 
-    auto slot_opt = getBlockSlot(lmd_ghost_head);
-    BOOST_ASSERT(slot_opt.has_value());
+    OUTCOME_TRY(slot, getBlockSlot(lmd_ghost_head));
 
-    head_ = {.root = lmd_ghost_head, .slot = slot_opt.value()};
+    head_ = {.root = lmd_ghost_head, .slot = slot};
     SL_TRACE(logger_, "Head was set to {}", head_);
+    return outcome::success();
   }
 
-  void ForkChoiceStore::acceptNewAttestations() {
+  outcome::result<void> ForkChoiceStore::acceptNewAttestations() {
     SL_TRACE(logger_,
              "Accepting new {} attestations",
              latest_new_attestations_.size());
@@ -77,7 +73,7 @@ namespace lean {
       latest_known_attestations_[validator] = attestation;
     }
     latest_new_attestations_.clear();
-    updateHead();
+    return updateHead();
   }
 
   Slot ForkChoiceStore::getCurrentSlot() const {
@@ -109,13 +105,9 @@ namespace lean {
     return block_tree_->has(hash);
   }
 
-  std::optional<Slot> ForkChoiceStore::getBlockSlot(
+  outcome::result<Slot> ForkChoiceStore::getBlockSlot(
       const BlockHash &block_hash) const {
-    auto slot_res = block_tree_->getSlotByHash(block_hash);
-    if (slot_res.has_value()) {
-      return slot_res.value();
-    }
-    return std::nullopt;
+    return block_tree_->getSlotByHash(block_hash);
   }
 
   const Config &ForkChoiceStore::getConfig() const {
@@ -131,24 +123,28 @@ namespace lean {
   }
 
   Checkpoint ForkChoiceStore::getAttestationTarget() const {
-    // TODO(xDimon): check result getBlockSlot/getBlockHeader for error;
-    //               change return type to outcome::result
-
     // Start from head as target-candidate
     auto target_block_root = head_.root;
 
     // If there is no very recent safe target, then vote for the k'th ancestor
     // of the head
-    auto safe_target_slot = getBlockSlot(safe_target_).value();
+    const auto safe_target_slot = safe_target_.slot;
 
-    // Ensure the attestation target is not older than the latest justified block,
-    // as it would violate protocol rules and fail validation.
+    // Ensure the attestation target is not older than the latest justified
+    // block, as it would violate protocol rules and fail validation.
     auto latest_justified_slot = block_tree_->getLatestJustified().slot;
     auto lookback_limit = std::max(safe_target_slot, latest_justified_slot);
 
     for (auto i = 0; i < JUSTIFICATION_LOOKBACK_SLOTS; ++i) {
-      auto target_header =
-          block_tree_->getBlockHeader(target_block_root).value();
+      auto target_header_res = block_tree_->getBlockHeader(target_block_root);
+      if (target_header_res.has_error()) {
+        SL_CRITICAL(
+            logger_,
+            "Failed getting header of head or some it's ancestor: {}",
+            target_header_res.error());
+        std::abort();  // Terminate to avoid breaking run
+      }
+      auto &target_header = target_header_res.value();
       if (target_header.slot > lookback_limit) {
         target_block_root = target_header.parent_root;
       } else {
@@ -160,16 +156,30 @@ namespace lean {
     // valid to justify, make sure the target is one of those
     auto latest_finalized_slot = block_tree_->lastFinalized().slot;
     while (true) {
-      auto target_header =
-          block_tree_->getBlockHeader(target_block_root).value();
-
+      auto target_header_res = block_tree_->getBlockHeader(target_block_root);
+      if (target_header_res.has_error()) {
+        SL_CRITICAL(
+            logger_,
+            "Failed getting header of some finalized block: {}",
+            target_header_res.error());
+        std::abort();  // Terminate to avoid breaking run
+      }
+      auto &target_header = target_header_res.value();
       if (isJustifiableSlot(latest_finalized_slot, target_header.slot)) {
         break;
       }
       target_block_root = target_header.parent_root;
     }
 
-    auto target_header = block_tree_->getBlockHeader(target_block_root).value();
+    auto target_header_res = block_tree_->getBlockHeader(target_block_root);
+    if (target_header_res.has_error()) {
+      SL_CRITICAL(
+          logger_,
+          "Failed getting header of target block: {}",
+          target_header_res.error());
+      std::abort();  // Terminate to avoid breaking run
+    }
+    auto &target_header = target_header_res.value();
     return Checkpoint{
         .root = target_block_root,
         .slot = target_header.slot,
@@ -340,16 +350,16 @@ namespace lean {
     // Consistency Check
 
     // Validate checkpoint slots match block slots
-    auto source_block_slot = getBlockSlot(data.source.root);
-    auto target_block_slot = getBlockSlot(data.target.root);
-    if (source_block_slot != data.source.slot) {
+    if (auto res = getBlockSlot(data.source.root);
+        not res.has_value() or res.value() != data.source.slot) {
       SL_TRACE(logger_,
                "Invalid attestation: inconsistent source slot",
                data.target,
                data.source);
       return Error::INVALID_ATTESTATION;
     }
-    if (target_block_slot != data.target.slot) {
+    if (auto res = getBlockSlot(data.target.root);
+        not res.has_value() or res.value() != data.target.slot) {
       SL_TRACE(logger_,
                "Invalid attestation: inconsistent target slot",
                data.target,
@@ -664,7 +674,7 @@ namespace lean {
 
     // IMPORTANT: This must happen BEFORE processing proposer attestation
     // to prevent the proposer from gaining circular weight advantage.
-    updateHead();
+    OUTCOME_TRY(updateHead());
 
     // Process proposer attestation as if received via gossip
 
@@ -688,10 +698,16 @@ namespace lean {
     auto time_since_genesis = now_sec - config_.genesis_time;
 
     auto head_state_res = getState(head_.root);
-    // TODO(xDimon): check result getState for error
+    if (head_state_res.has_error()) {
+      SL_CRITICAL(
+          logger_,
+          "Fatal error: Failed getting state of head ({}): {}",
+          head_state_res.error());
+      std::abort();  // Terminate to avoid breaking run
+    }
+    auto &head_state = head_state_res.value();
 
-    BOOST_ASSERT(head_state_res.has_value());
-    auto validator_count = head_state_res.value()->validatorCount();
+    auto validator_count = head_state->validatorCount();
 
     std::vector<std::variant<SignedAttestation, SignedBlockWithAttestation>>
         result{};
@@ -717,7 +733,12 @@ namespace lean {
           SL_TRACE(logger_,
                    "Interval 0 of slot {}: node is producer - try to produce",
                    current_slot);
-          acceptNewAttestations();
+          auto ana_res = acceptNewAttestations();
+          if (ana_res.has_error()) {
+            SL_WARN(logger_,
+                    "Failed to accept new attestations: {}",
+                    ana_res.error());
+          }
 
           SL_TRACE(logger_,
                    "Trying to produced block on slot {} by producer index {}",
@@ -749,7 +770,14 @@ namespace lean {
 
       } else if (time_ % INTERVALS_PER_SLOT == 1) {
         SL_TRACE(logger_, "Interval 1 of slot {}", current_slot);
-        acceptNewAttestations(); // Ensure head is updated before voting
+
+        // Ensure the head is updated before voting
+        auto ana_res = acceptNewAttestations();
+        if (ana_res.has_error()) {
+          SL_WARN(logger_,
+                  "Failed to accept new attestations: {}",
+                  ana_res.error());
+        }
 
         metrics_->fc_head_slot()->set(head_.slot);
         Checkpoint head = head_;
@@ -818,14 +846,19 @@ namespace lean {
                  "Interval 3 of slot {}: accepting new attestations",
                  current_slot);
 
-        acceptNewAttestations();
+        auto ana_res = acceptNewAttestations();
+        if (ana_res.has_error()) {
+          SL_WARN(logger_,
+                  "Failed to accept new attestations: {}",
+                  ana_res.error());
+        }
       }
       time_ += 1;
     }
     return result;
   }
 
-  BlockHash ForkChoiceStore::computeLmdGhostHead(
+  outcome::result<BlockHash> ForkChoiceStore::computeLmdGhostHead(
       const BlockHash &start_root,
       const SignedAttestations &attestations,
       uint64_t min_score) const {
@@ -842,7 +875,7 @@ namespace lean {
 
     // This avoids repeated lookups inside the inner loop.
     // const auto start_slot = blocks_.at(anchor).message.block.slot;
-    const auto start_slot = getBlockSlot(anchor);
+    OUTCOME_TRY(start_slot, getBlockSlot(anchor));
 
     // Prepare a table that will collect voting weight for each block.
 
@@ -972,7 +1005,10 @@ namespace lean {
     }
 
     // Update head based on anchor block and state
-    updateHead();
+    if (auto res = updateHead(); res.has_error()) {
+      SL_WARN(
+          logger_, "Failed initial head update: {}; No changed ", res.error());
+    }
 
     SL_INFO(logger_, "🔷 Head:   {}", head_);
     SL_INFO(logger_, "🎯 Target: {:0xx}", safe_target_);
@@ -988,7 +1024,7 @@ namespace lean {
       qtils::SharedRef<metrics::Metrics> metrics,
       Config config,
       Checkpoint head,
-      BlockHash safe_target,
+      Checkpoint safe_target,
       SignedAttestations latest_known_attestations,
       SignedAttestations latest_new_attestations,
       ValidatorIndex validator_index,

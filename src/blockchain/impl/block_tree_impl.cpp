@@ -36,15 +36,15 @@ namespace lean::blockchain {
         block_tree_data_{{
             .storage_ = std::move(storage),
             .tree_ = std::make_unique<CachedTree>(
-                std::get<0>(initializer->nonFinalizedSubTree())),
+                initializer->latestFinalizedAtStart()),
             .hasher_ = std::move(hasher),
         }} {
-    auto [last_finalized, last_justified, non_finalized] =
-        initializer->nonFinalizedSubTree();
-    SL_TRACE(log_, "Block {} set as last finalized", last_finalized);
+    SL_TRACE(log_,
+             "Block {} set as last finalized",
+             initializer->latestFinalizedAtStart());
 
     // Add non-finalized block to the block tree
-    for (const auto &[block, header] : non_finalized) {
+    for (const auto &[block, header] : initializer->nonFinalizedAtStart()) {
       auto res = BlockTreeImpl::addExistingBlock(block.hash, header);
       if (res.has_error()) {
         SL_CRITICAL(
@@ -57,15 +57,17 @@ namespace lean::blockchain {
     }
 
     // Set last justified
-    auto res = setJustified(last_justified.hash);
+    auto res = setJustified(initializer->latestJustifiedAtStart().hash);
     if (res.has_error()) {
       SL_CRITICAL(log_,
                   "Failed to set block {} as last justified: {}",
-                  last_justified,
+                  initializer->latestJustifiedAtStart(),
                   res.error());
       qtils::raise(res.error());
     }
-    SL_TRACE(log_, "Existing block {} set as last justified", last_justified);
+    SL_TRACE(log_,
+             "Existing block {} set as last justified",
+             initializer->latestJustifiedAtStart());
   }
 
   const BlockHash &BlockTreeImpl::getGenesisBlockHash() const {
