@@ -546,13 +546,54 @@ namespace lean::app {
       config_->base_path_ = std::move(resolved);
     }
 
-    // Validate base_path_ exists and is a directory
-    if (not is_directory(config_->base_path_)) {
+    std::error_code ec;
+
+    // If the base path doesn't exist -> try to create it (including parents)
+    if (not exists(config_->base_path_, ec)) {
+      if (ec) {
+        SL_ERROR(logger_,
+                 "Failed to check existence of 'base_path': {} ({}: {})",
+                 config_->base_path_,
+                 ec.value(),
+                 ec.message());
+        return Error::InvalidValue;
+      }
+
+      if (not create_directories(config_->base_path_, ec)) {
+        if (ec) {
+          SL_ERROR(logger_,
+                   "Failed to create 'base_path' directory: {} ({}: {})",
+                   config_->base_path_,
+                   ec.value(),
+                   ec.message());
+          return Error::InvalidValue;
+        }
+      }
+    } else if (ec) {
       SL_ERROR(logger_,
-               "The 'base_path' does not exist or is not a directory: {}",
-               config_->base_path_);
+               "Failed to check existence of 'base_path': {} ({}: {})",
+               config_->base_path_,
+               ec.value(),
+               ec.message());
       return Error::InvalidValue;
     }
+
+    // Now it should exist; ensure it's a directory
+    if (not is_directory(config_->base_path_, ec)) {
+      if (ec) {
+        SL_ERROR(logger_,
+                 "Failed to check if 'base_path' is a directory: {} ({}: {})",
+                 config_->base_path_,
+                 ec.value(),
+                 ec.message());
+      } else {
+        SL_ERROR(logger_,
+                 "The 'base_path' exists but is not a directory: {}",
+                 config_->base_path_);
+      }
+      return Error::InvalidValue;
+    }
+
 
     // Helper to resolve general paths: if provided via CLI -> relative to CWD,
     // else if provided via config file -> relative to config file dir,

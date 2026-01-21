@@ -32,8 +32,9 @@ namespace lean::app {
                              qtils::SharedRef<GenesisConfig> config,
                              qtils::SharedRef<blockchain::BlockTree> block_tree)
       : logger_(logsys->getLogger("Timeline", "application")),
+        digest_(logsys->getLogger("Digest", "digest")),
         state_manager_(std::move(state_manager)),
-        config_(std::move(config)),
+        genesis_config_(std::move(config)),
         clock_(std::move(clock)),
         se_manager_(std::move(se_manager)),
         block_tree_(std::move(block_tree)) {
@@ -67,10 +68,11 @@ namespace lean::app {
   void TimelineImpl::start() {
     auto now = clock_->nowMsec();
     auto next_slot =
-        now > config_->config.genesis_time * 1000
-            ? (now - config_->config.genesis_time * 1000) / SLOT_DURATION_MS + 1
+        now > genesis_config_->genesis_time * 1000
+            ? (now - genesis_config_->genesis_time * 1000) / SLOT_DURATION_MS
+                  + 1
             : 1;
-    auto time_to_next_slot = config_->config.genesis_time * 1000
+    auto time_to_next_slot = genesis_config_->genesis_time * 1000
                            + SLOT_DURATION_MS * next_slot - now;
     if (time_to_next_slot < SLOT_DURATION_MS / 2) {
       ++next_slot;
@@ -105,36 +107,27 @@ namespace lean::app {
       state_root = head_block_header_res.value().state_root;
     }
 
-    fmt::println(
-        std::cerr,
-        "+===============================================================+");
-    fmt::println(std::cerr,
-                 "  CHAIN STATUS: Current Slot: {} | Head Slot: {}",
-                 msg->slot,
-                 head.slot);
-    fmt::println(std::cerr,
-                 "+---------------------------------------------------------------+");
-    fmt::println(std::cerr, "  Connected Peers:    {}",
-                 connected_peers_.load());
-    fmt::println(std::cerr,
-                 "+---------------------------------------------------------------+");
-    fmt::println(std::cerr, "  Head Block Root:    0x{}", head.hash.toHex());
-    fmt::println(std::cerr, "  Parent Block Root:  0x{}", parent_root.toHex());
-    fmt::println(std::cerr, "  State Root:         0x{}", state_root.toHex());
-    fmt::println(
-        std::cerr,
-        "+---------------------------------------------------------------+");
-    fmt::println(std::cerr,
-                 "  Latest Justified:   Slot {:>6} | Root: 0x{}",
-                 justified.slot,
-                 justified.root.toHex());
-    fmt::println(std::cerr,
-                 "  Latest Finalized:   Slot {:>6} | Root: 0x{}",
-                 finalized.slot,
-                 finalized.hash.toHex());
-    fmt::println(
-        std::cerr,
-        "+===============================================================+");
+    constexpr int kFillWidth = 98;
+    auto hnc = "\x1b[1G"; // Move home and clear line
+    // clang-format off
+    SL_VERBOSE(digest_, "\x1b[2J\x1b[H"  // Clear screen and move cursor to home
+                        "{}+{:-<{}}+", hnc, "", kFillWidth);
+    SL_VERBOSE(digest_, "{}|{: ^{}}|", hnc, "CHAIN STATUS", kFillWidth);
+    SL_VERBOSE(digest_, "{}+{:-<{}}+{:-<{}}+", hnc, "", kFillWidth/2-1, "", kFillWidth/2);
+    SL_VERBOSE(digest_, "{}|{: ^{}}|{: ^{}}|", hnc,
+      fmt::format("Current Slot: {}", msg->slot), kFillWidth/2-1,
+      fmt::format("Head Slot: {}", head.slot), kFillWidth/2);
+    SL_VERBOSE(digest_, "{}+{:-<{}}+{:-<{}}+", hnc, "", kFillWidth/2-1, "", kFillWidth/2);
+    SL_VERBOSE(digest_, "{}| Connected Peers:    {: <{}} |", hnc, connected_peers_.load(), kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}+{:-<{}}+", hnc, "", kFillWidth);
+    SL_VERBOSE(digest_, "{}| Head Block Root:    {: <{};0xx} |", hnc, head.hash, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}| Parent Block Root:  {: <{};0xx} |", hnc, parent_root, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}| State Root:         {: <{};0xx} |", hnc, state_root, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}+{:-<{}}+", hnc, "", kFillWidth);
+    SL_VERBOSE(digest_, "{}| Latest Justified:   {: <{};l} |", hnc, justified, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}| Latest Finalized:   {: <{};l} |", hnc, finalized, kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}+{:-<{}}+", hnc, "", kFillWidth);
+    // clang-format on
 
     SL_INFO(logger_, "⚡ Slot {} started", msg->slot);
     if (stopped_) [[unlikely]] {
@@ -144,12 +137,17 @@ namespace lean::app {
 
     auto now = clock_->nowMsec();
     auto next_slot =
-        (now - config_->config.genesis_time * 1000) / SLOT_DURATION_MS + 1;
-    auto time_to_next_slot = config_->config.genesis_time * 1000
+        (now - genesis_config_->genesis_time * 1000) / SLOT_DURATION_MS + 1;
+    auto time_to_next_slot = genesis_config_->genesis_time * 1000
                            + SLOT_DURATION_MS * next_slot - now;
 
+    SL_TRACE(logger_,
+             "Next slot {} is scheduled in {}ms",
+             next_slot,
+             time_to_next_slot);
+
     const auto slot_start_abs =
-        config_->config.genesis_time * 1000
+        genesis_config_->genesis_time * 1000
         + SLOT_DURATION_MS * msg->slot;  // in milliseconds
 
     auto abs_interval1 = slot_start_abs + SECONDS_PER_INTERVAL * 1000;
@@ -187,7 +185,7 @@ namespace lean::app {
         std::make_shared<const messages::SlotIntervalStarted>(
             3, msg->slot, msg->epoch));
 
-    const auto next_slot_abs = config_->config.genesis_time * 1000
+    const auto next_slot_abs = genesis_config_->genesis_time * 1000
                              + SLOT_DURATION_MS * (msg->slot + 1);
     auto time_to_next_slot_abs = ms_to_abs(next_slot_abs);
     se_manager_->notifyDelayed(

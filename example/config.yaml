@@ -20,6 +20,12 @@ logging:
       thread: name
       color: true
       latency: 0
+    - name: digest
+      type: console
+      stream: stderr
+      thread: name
+      color: true
+      latency: 0
   groups:
     - name: main
       sink: console
@@ -28,6 +34,8 @@ logging:
       children:
         - name: libp2p
           level: info
+        - name: digest
+          level: verbose
         - name: lean
           children:
             - name: modules
@@ -48,7 +56,5 @@ logging:
               children:
                 - name: block_tree
                 - name: fork_choice
-                  level: trace
                   children:
                     - name: stf
-                      level: info

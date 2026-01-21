@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-
 #include "blockchain/impl/block_tree_initializer.hpp"
 
 #include <set>
@@ -16,7 +15,7 @@
 #include "blockchain/block_storage_error.hpp"
 #include "blockchain/block_tree_error.hpp"
 #include "log/logger.hpp"
-#include "types/justification.hpp"
+#include "types/state.hpp"
 
 namespace lean::blockchain {
 
@@ -137,14 +136,56 @@ namespace lean::blockchain {
     }
 
     // Get the last finalized block
-    auto last_finalized_block_index_res = storage->getLastFinalized();
-    if (last_finalized_block_index_res.has_error()) {
-      SL_CRITICAL(logger,
-                  "Failed to get last finalized block info: {}",
-                  last_finalized_block_index_res.error());
-      qtils::raise(last_finalized_block_index_res.error());
+    BlockIndex last_finalized_block_index;
+    BlockIndex last_justified_block_index;
+    for (auto hash = block_tree_leaves.rbegin()->hash;;) {
+      auto header_res = storage->getBlockHeader(hash);
+      if (header_res.has_error()) {
+        SL_CRITICAL(logger,
+                    "Can't get header of existing non-finalized block {}: {}",
+                    hash,
+                    header_res.error());
+        qtils::raise(BlockTreeError::BLOCK_TREE_CORRUPTED);
+      }
+      auto &header = header_res.value();
+
+      BlockIndex block_index{header.slot, hash};
+      hash = header.parent_root;
+
+      if (header.slot == 0) [[unlikely]] {
+        SL_TRACE(logger,
+                 "Latest finalized is genesis block: {}",
+                 block_index,
+                 header.state_root);
+        last_finalized_block_index = block_index;
+        last_justified_block_index = block_index;
+        break;
+      }
+
+      auto state_res = storage->getState(block_index.hash);
+      if (state_res.has_error()) {
+        SL_CRITICAL(logger,
+                    "Can't get header of existing non-finalized block {}: {}",
+                    block_index,
+                    state_res.error());
+      }
+      if (state_res.value().has_value()) {
+        auto &state = state_res.value().value();
+        SL_TRACE(logger,
+                 "Gotten from state: finalized {}, justified {}",
+                 state.latest_finalized,
+                 state.latest_justified);
+        last_finalized_block_index = {state.latest_finalized.slot,
+                                      state.latest_finalized.root};
+        last_justified_block_index = {state.latest_justified.slot,
+                                      state.latest_justified.root};
+        break;
+      }
+      SL_WARN(logger,
+              "State not found for block {}: {}",
+              block_index,
+              state_res.error());
     }
-    auto &last_finalized_block_index = last_finalized_block_index_res.value();
 
     // Get its header
     auto finalized_block_header_res =
@@ -155,15 +196,20 @@ namespace lean::blockchain {
                   finalized_block_header_res.error());
       qtils::raise(finalized_block_header_res.error());
     }
+    auto justified_block_header_res =
+        storage->getBlockHeader(last_justified_block_index.hash);
+    if (justified_block_header_res.has_error()) {
+      SL_CRITICAL(logger,
+                  "Failed to get last justified block header: {}",
+                  justified_block_header_res.error());
+      qtils::raise(justified_block_header_res.error());
+    }
     // auto &finalized_block_header = finalized_block_header_res.value();
     //
     // // call chain_events_engine->notify to init babe_config_repo preventive
     // chain_events_engine->notify(
     //     events::ChainEventType::kFinalizedHeads,
     //     finalized_block_header);
-
-    // // Ensure if last_finalized_block_info has the necessary justifications
-    // OUTCOME_TRY(storage->getJustification(last_finalized_block_info.hash));
 
     // Last known block
     auto last_known_block = *block_tree_leaves.rbegin();
@@ -181,17 +227,32 @@ namespace lean::blockchain {
       // Iterate leaves
       for (auto &leaf : block_tree_leaves) {
         std::unordered_set<BlockIndex> subchain;
+
         // Iterate subchain from leaf to finalized or early observer
-        for (auto block = leaf;;) {
+        for (auto block_hash = leaf.hash;;) {
           // Met last finalized
-          if (block.hash == last_finalized_block_index.hash) {
+          if (block_hash == last_finalized_block_index.hash) {
             break;
           }
 
           // Met early observed block
-          if (observed.contains(block.hash)) {
+          if (observed.contains(block_hash)) {
             break;
           }
+
+          auto header_res = storage->getBlockHeader(block_hash);
+          if (header_res.has_error()) {
+            SL_CRITICAL(
+                logger,
+                "Can't get header of existing non-finalized block {}: {}",
+                block_hash,
+                header_res.error());
+            qtils::raise(BlockTreeError::BLOCK_TREE_CORRUPTED);
+          }
+          auto &header = header_res.value();
+
+          BlockIndex block = header.index();
+          BOOST_ASSERT(block.hash == block_hash);
 
           // Met known dead block
           if (dead.contains(block)) {
@@ -237,19 +298,8 @@ namespace lean::blockchain {
 
           subchain.emplace(block);
 
-          auto header_res = storage->getBlockHeader(block.hash);
-          if (header_res.has_error()) {
-            SL_CRITICAL(
-                logger,
-                "Can't get header of existing non-finalized block {}: {}",
-                block,
-                header_res.error());
-            qtils::raise(BlockTreeError::BLOCK_TREE_CORRUPTED);
-          }
-
           observed.emplace(block.hash);
 
-          auto &header = header_res.value();
           if (header.slot < last_finalized_block_index.slot) {
             SL_WARN(logger,
                     "Detected a leaf {} lower than the last finalized block {}",
@@ -258,9 +308,9 @@ namespace lean::blockchain {
             break;
           }
 
-          auto [it, ok] = collected.emplace(block, std::move(header));
+          collected.emplace(block, header);
 
-          block = {it->second.slot, it->second.hash()};
+          block_hash = header.parent_root;
         }
       }
 
@@ -276,20 +326,28 @@ namespace lean::blockchain {
       }
     }
 
-    // Prepare and create a block tree basing last finalized block
+    // Prepare and create a block tree basing the last finalized block
     SL_DEBUG(logger, "Last finalized block {}", last_finalized_block_index);
 
     last_finalized_ = last_finalized_block_index;
+    last_justified_ = last_justified_block_index;
     non_finalized_ = std::move(collected);
   }
 
-  std::tuple<BlockIndex, std::map<BlockIndex, BlockHeader>>
-  BlockTreeInitializer::nonFinalizedSubTree() {
-    // if (used_.test_and_set()) {
-    //   qtils::raise(BlockTreeError::WRONG_WORKFLOW);
-    // }
-    // return std::make_tuple(last_finalized_, std::move(non_finalized_));
-    return std::make_tuple(last_finalized_, non_finalized_);
+  BlockIndex BlockTreeInitializer::latestFinalizedAtStart() {
+    return last_finalized_;
+  }
+
+  BlockIndex BlockTreeInitializer::latestJustifiedAtStart() {
+    return last_justified_;
+  }
+
+  std::map<BlockIndex, BlockHeader>
+  BlockTreeInitializer::nonFinalizedAtStart() {
+    if (used_.test_and_set()) {
+      qtils::raise(BlockTreeError::WRONG_WORKFLOW);
+    }
+    return std::move(non_finalized_);
   }
 
 }  // namespace lean::blockchain

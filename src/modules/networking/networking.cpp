@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <format>
 #include <memory>
+#include <queue>
+#include <ranges>
 #include <stdexcept>
 
 #include <app/configuration.hpp>
@@ -23,6 +25,7 @@
 #include <libp2p/crypto/sha/sha256.hpp>
 #include <libp2p/host/basic_host.hpp>
 #include <libp2p/injector/host_injector.hpp>
+#include <libp2p/muxer/muxed_connection_config.hpp>
 #include <libp2p/peer/identity_manager.hpp>
 #include <libp2p/protocol/gossip/gossip.hpp>
 #include <libp2p/protocol/identify.hpp>
@@ -32,7 +35,6 @@
 #include <qtils/to_shared_ptr.hpp>
 
 #include "blockchain/block_tree.hpp"
-#include "blockchain/impl/fc_block_tree.hpp"
 #include "metrics/metrics.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
@@ -91,7 +93,6 @@ namespace lean::modules {
         config_{std::move(config)},
         random_{std::random_device{}()} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
-    block_tree_ = std::make_shared<blockchain::FCBlockTree>(fork_choice_store_);
   }
 
   NetworkingImpl::~NetworkingImpl() {
@@ -119,13 +120,34 @@ namespace lean::modules {
         libp2p::protocol::gossip::ValidationMode::Anonymous;
     gossip_config.message_authenticity =
         libp2p::protocol::gossip::MessageAuthenticity::Anonymous;
-    gossip_config.message_id_fn = gossipMessageId;
+    gossip_config
+        .message_id_fn = [logger = logger_](
+                             const libp2p::protocol::gossip::Message &message) {
+      std::string_view topic(
+          reinterpret_cast<const char *>(message.topic.data()),
+          message.topic.size());
+      SL_TRACE(
+          logger,
+          "GossipMessageID: 📨 Received message topic={} size(compressed)={}",
+          topic,
+          message.data.size());
+      return gossipMessageId(message);
+    };
     gossip_config.protocol_versions.erase(
         libp2p::protocol::gossip::kProtocolGossipsubv1_2);
+
+    // Use a shorter no-streams interval to close idle connections faster.
+    // This helps nodes rejoin the gossip mesh more quickly after a restart,
+    // especially if they reconnect before the old connection on the peer's side
+    // has timed out.
+    libp2p::muxer::MuxedConnectionConfig mux_config;
+    mux_config.no_streams_interval = std::chrono::seconds{10};
 
     auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
         libp2p::injector::useKeyPair(keypair),
         libp2p::injector::useGossipConfig(std::move(gossip_config)),
+        boost::di::bind<libp2p::muxer::MuxedConnectionConfig>().to(
+            mux_config)[boost::di::override],
         libp2p::injector::useTransportAdaptors<
             libp2p::transport::QuicTransport>()));
     injector_ = injector;
@@ -279,15 +301,16 @@ namespace lean::modules {
           }
           // Connectable | Connecting | Backoff => Connected
           state.state = PeerState::Connected{};
-          SL_INFO(self->logger_, "Peer {} marked Connected",
-                  peer_id.toBase58());
+          SL_INFO(
+              self->logger_, "Peer {} marked Connected", peer_id.toBase58());
         }
       }
       self->updateMetricConnectedPeerCount();
       self->loader_.dispatch_peer_connected(
           qtils::toSharedPtr(messages::PeerConnectedMessage{peer_id}));
       if (connection->isInitiator()) {
-        SL_DEBUG(self->logger_, "Peer {} is initiator — starting status handshake",
+        SL_DEBUG(self->logger_,
+                 "Peer {} is initiator — starting status handshake",
                  peer_id.toBase58());
         libp2p::coroSpawn(*self->io_context_,
                           [status_protocol{self->status_protocol_},
@@ -306,8 +329,10 @@ namespace lean::modules {
 
         std::vector<libp2p::multi::Multiaddress> addrs;
         addrs.emplace_back(addr_res.value());
-        SL_DEBUG(self->logger_, "Non-initiator peer {} remote address={}",
-                 peer_id.toBase58(), addr_res.value().getStringAddress());
+        SL_DEBUG(self->logger_,
+                 "Non-initiator peer {} remote address={}",
+                 peer_id.toBase58(),
+                 addr_res.value().getStringAddress());
 
         if (auto result =
                 host->getPeerRepository().getAddressRepository().addAddresses(
@@ -327,40 +352,44 @@ namespace lean::modules {
       }
     };
 
-    auto on_peer_disconnected =
-        [weak_self{weak_from_this()}](libp2p::PeerId peer_id) {
-          auto self = weak_self.lock();
-          if (not self) {
-            return;
-          }
-          SL_TRACE(self->logger_, "🔌 Peer disconnected: {}", peer_id.toBase58());
-          auto state_it = self->peer_states_.find(peer_id);
-          if (state_it != self->peer_states_.end()) {
-            auto &state = state_it->second;
-            if (std::holds_alternative<PeerState::Connected>(state.state)) {
-              auto backoff = kInitBackoff;
-              SL_DEBUG(self->logger_,
-                       "Peer {} state transition: Connected -> Backoff (backoff={}ms)",
-                       peer_id.toBase58(),
-                       std::chrono::duration_cast<std::chrono::milliseconds>(
-                           backoff)
-                           .count());
-              // Connected => Backoff
-              state.state = PeerState::Backoff{
-                  .backoff = backoff,
-                  .backoff_until = Clock::now() + backoff,
-              };
-              SL_DEBUG(self->logger_,
-                       "Peer {} backoff_until set", peer_id.toBase58());
-            }
-          } else {
-            SL_DEBUG(self->logger_, "on_peer_disconnected: unknown peer {}", peer_id.toBase58());
-          }
-          self->updateMetricConnectedPeerCount();
-          self->loader_.dispatch_peer_disconnected(
-              qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
-          SL_TRACE(self->logger_, "Dispatched PeerDisconnectedMessage for {}", peer_id.toBase58());
-        };
+    auto on_peer_disconnected = [weak_self{weak_from_this()}](
+                                    libp2p::PeerId peer_id) {
+      auto self = weak_self.lock();
+      if (not self) {
+        return;
+      }
+      SL_TRACE(self->logger_, "🔌 Peer disconnected: {}", peer_id.toBase58());
+      auto state_it = self->peer_states_.find(peer_id);
+      if (state_it != self->peer_states_.end()) {
+        auto &state = state_it->second;
+        if (std::holds_alternative<PeerState::Connected>(state.state)) {
+          auto backoff = kInitBackoff;
+          SL_DEBUG(
+              self->logger_,
+              "Peer {} state transition: Connected -> Backoff (backoff={}ms)",
+              peer_id.toBase58(),
+              std::chrono::duration_cast<std::chrono::milliseconds>(backoff)
+                  .count());
+          // Connected => Backoff
+          state.state = PeerState::Backoff{
+              .backoff = backoff,
+              .backoff_until = Clock::now() + backoff,
+          };
+          SL_DEBUG(
+              self->logger_, "Peer {} backoff_until set", peer_id.toBase58());
+        }
+      } else {
+        SL_DEBUG(self->logger_,
+                 "on_peer_disconnected: unknown peer {}",
+                 peer_id.toBase58());
+      }
+      self->updateMetricConnectedPeerCount();
+      self->loader_.dispatch_peer_disconnected(
+          qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
+      SL_TRACE(self->logger_,
+               "Dispatched PeerDisconnectedMessage for {}",
+               peer_id.toBase58());
+    };
 
     auto on_connection_closed =
         [weak_self{weak_from_this()}](
@@ -474,7 +503,7 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
-      auto slot_hash = message->notification.message.block.slotHash();
+      auto slot_hash = message->notification.message.block.index();
       SL_DEBUG(self->logger_,
                "📣 Gossiped block in slot {} hash={:0xx} 🔗",
                slot_hash.slot,
@@ -506,6 +535,11 @@ namespace lean::modules {
             auto &raw = raw_result.value();
             if (auto r = decodeSszSnappy<T>(raw.data)) {
               f(std::move(r.value()), raw.received_from);
+            } else {
+              SL_WARN(this->logger_,
+                      "❌ Error decoding Gossip message for type {}: {}",
+                      type,
+                      r.error().message());
             }
           }
         });
@@ -555,92 +589,121 @@ namespace lean::modules {
                       });
   }
 
-  // TODO(turuslan): detect finalized change
   void NetworkingImpl::receiveBlock(
       std::optional<libp2p::PeerId> from_peer,
       SignedBlockWithAttestation &&signed_block_with_attestation) {
-    auto slot_hash = signed_block_with_attestation.message.block.slotHash();
+    auto block_index = signed_block_with_attestation.message.block.index();
     SL_DEBUG(logger_,
-             "Received block slot {} hash={:0xx} parent={:0xx} from peer={}",
-             slot_hash.slot,
-             slot_hash.hash,
+             "Received block {} parent={:0xx} from peer={}",
+             block_index,
              signed_block_with_attestation.message.block.parent_root,
              from_peer.has_value() ? from_peer->toBase58() : "unknown");
 
-    // Remove function for cached children
-    auto remove = [&](auto f) {
-      std::vector<BlockHash> queue{slot_hash.hash};
+    // Ignore cached block
+    if (block_cache_.contains(block_index.hash)) {
+      SL_TRACE(logger_,
+               "receiveBlock {} => Block was ignored as cached",
+               block_index.slot);
+      return;
+    }
+
+    // Ignore block imported earlier
+    if (block_tree_->has(block_index.hash)) {
+      SL_TRACE(logger_,
+               "receiveBlock {} => Block was ignored as imported earlier",
+               block_index.slot);
+      return;
+    }
+
+    auto forget_block_with_its_descendants = [&](const BlockHash &block_hash) {
+      std::deque queue{block_hash};
       while (not queue.empty()) {
-        auto hash = queue.back();
-        queue.pop_back();
+        auto &hash = queue.front();
         auto [begin, end] = block_children_.equal_range(hash);
-        for (auto it = begin; it != end; it = block_children_.erase(it)) {
-          f(it->second);
+        for (auto it = begin; it != end; ++it) {
           queue.emplace_back(it->second);
         }
+        block_children_.erase(begin, end);
+        block_cache_.erase(hash);
+        queue.pop_front();
       }
     };
-    auto parent_hash = signed_block_with_attestation.message.block.parent_root;
-    if (block_cache_.contains(slot_hash.hash)) {
-      SL_TRACE(logger_, "receiveBlock {} => ignore cached", slot_hash.slot);
-      return;
-    }
-    if (block_tree_->has(slot_hash.hash)) {
-      SL_TRACE(logger_, "receiveBlock {} => ignore db", slot_hash.slot);
-      return;
-    }
-    if (slot_hash.slot <= block_tree_->lastFinalized().slot) {
-      SL_TRACE(
-          logger_, "receiveBlock {} => ignore finalized fork", slot_hash.slot);
-      remove(
-          [&](const BlockHash &block_hash) { block_cache_.erase(block_hash); });
-      return;
-    }
-    if (block_tree_->has(parent_hash)) {
-      std::vector<SignedBlockWithAttestation> blocks{
-          std::move(signed_block_with_attestation)};
 
-      // Import all cached children
-      remove([&](const BlockHash &block_hash) {
-        blocks.emplace_back(block_cache_.extract(block_hash).mapped());
-      });
-      for (auto &block : blocks) {
-        auto res = fork_choice_store_->onBlock(block);
-        if (not res.has_value()) {
-          SL_WARN(logger_,
-                  "❌ Error importing block={}: {}",
-                  block.message.block.slotHash(),
-                  res.error());
-          break;
-        }
+    // Ignore blocks of finalized forks
+    if (block_index.slot <= block_tree_->lastFinalized().slot) {
+      SL_TRACE(
+          logger_,
+          "receiveBlock {} => Block was ignored as block of finalised slot",
+          block_index.slot);
+
+      // Forget the block with its cached children
+      forget_block_with_its_descendants(block_index.hash);
+      return;
+    }
+
+    // Cleanup cache from blocks of finalized forks
+    std::erase_if(block_cache_,
+                  [slot = block_tree_->lastFinalized().slot](const auto &kv) {
+                    const auto &[hash, block] = kv;
+                    return block.message.block.slot <= slot;
+                  });
+
+    // If the parent isn't in the tree-cache block and request of parent
+    auto &parent_hash = signed_block_with_attestation.message.block.parent_root;
+    if (not block_tree_->has(parent_hash)) {
+      block_cache_.emplace(block_index.hash,
+                           std::move(signed_block_with_attestation));
+      block_children_.emplace(parent_hash, block_index.hash);
+      if (block_cache_.contains(parent_hash)) {
+        SL_TRACE(
+            logger_, "receiveBlock {} => parent is cached", block_index.slot);
+        return;
       }
-      SL_INFO(logger_,
-              "✅ Imported blocks: {}",
-              fmt::join(blocks
-                            | std::views::transform(
-                                [](const SignedBlockWithAttestation &block) {
-                                  return block.message.block.slot;
-                                }),
-                        " "));
-      block_tree_->import(std::move(blocks));
+      if (from_peer) {
+        requestBlock(from_peer.value(), parent_hash);
+        SL_TRACE(
+            logger_, "receiveBlock {} => request parent", block_index.slot);
+      }
       return;
     }
-    block_cache_.emplace(slot_hash.hash,
-                         std::move(signed_block_with_attestation));
-    block_children_.emplace(parent_hash, slot_hash.hash);
-    if (block_cache_.contains(parent_hash)) {
-      SL_TRACE(logger_, "receiveBlock {} => has parent", slot_hash.slot);
-      return;
+
+    std::queue<SignedBlockWithAttestation> queue;
+    queue.emplace(std::move(signed_block_with_attestation));
+    while (not queue.empty()) {
+      auto block = std::move(queue.front());
+      queue.pop();
+
+      const auto &block_hash = block.message.block.hash();
+
+      // Trying to add block
+      auto res = fork_choice_store_->onBlock(block);
+
+      if (res.has_value()) {  // Success -> import children
+
+        SL_INFO(logger_, "✅ Imported block {}", block.message.block.index());
+
+        auto [b, e] = block_children_.equal_range(block_hash);
+        for (const auto &[parent, child] : std::ranges::subrange(b, e)) {
+          if (auto it = block_cache_.find(child); it != block_cache_.end()) {
+            queue.emplace(std::move(it->second));
+          }
+        }
+
+        return;
+      }
+
+      // Fail -> forget children
+      SL_WARN(logger_,
+              "❌ Error importing block={}: {}",
+              block.message.block.index(),
+              res.error());
+
+      forget_block_with_its_descendants(block_hash);
     }
-    if (not from_peer) {
-      return;
-    }
-    requestBlock(from_peer.value(), parent_hash);
-    SL_TRACE(logger_, "receiveBlock {} => request parent", slot_hash.slot);
   }
 
   bool NetworkingImpl::statusFinalizedIsGood(const BlockIndex &slot_hash) {
-    if (auto expected = block_tree_->getNumberByHash(slot_hash.hash)) {
+    if (auto expected = block_tree_->getSlotByHash(slot_hash.hash)) {
       return slot_hash.slot == expected.value();
     }
     return slot_hash.slot > block_tree_->lastFinalized().slot;
@@ -673,11 +736,15 @@ namespace lean::modules {
         }
       }
     }
-    SL_TRACE(logger_, "connectToPeers: active={}, connectable_candidates={}",
-             active, connectable_peers_.size());
+    SL_TRACE(logger_,
+             "connectToPeers: active={}, connectable_candidates={}",
+             active,
+             connectable_peers_.size());
     if (want <= active) {
-      SL_TRACE(logger_, "connectToPeers: want ({}) <= active ({}), returning",
-               want, active);
+      SL_TRACE(logger_,
+               "connectToPeers: want ({}) <= active ({}), returning",
+               want,
+               active);
       return;
     }
     want -= active;
@@ -690,8 +757,11 @@ namespace lean::modules {
       connectable_peers_.pop_back();
       auto &state = peer_states_.at(peer_id);
       auto &connectable = std::get<PeerState::Connectable>(state.state);
-      SL_DEBUG(logger_, "connectToPeers: initiating connect to peer {} (selected index={})",
-               peer_id.toBase58(), i);
+      SL_DEBUG(
+          logger_,
+          "connectToPeers: initiating connect to peer {} (selected index={})",
+          peer_id.toBase58(),
+          i);
       // Connectable => Connecting
       state.state = PeerState::Connecting{.backoff = connectable.backoff};
       libp2p::coroSpawn(
@@ -704,7 +774,8 @@ namespace lean::modules {
             if (not self) {
               co_return;
             }
-            SL_TRACE(self->logger_, "connectToPeers: connection attempt finished for peer {}",
+            SL_TRACE(self->logger_,
+                     "connectToPeers: connection attempt finished for peer {}",
                      peer_info.id.toBase58());
             auto &state = self->peer_states_.at(peer_info.id);
             if (not r.has_value()) {
@@ -727,7 +798,8 @@ namespace lean::modules {
                              .count());
               }
             } else {
-              SL_INFO(self->logger_, "Successfully connected to peer {}",
+              SL_INFO(self->logger_,
+                      "Successfully connected to peer {}",
                       peer_info.id.toBase58());
             }
           });

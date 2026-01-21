@@ -40,9 +40,12 @@ namespace lean {
     if (not yaml_genesis_time.IsScalar()) {
       return ConfigYamlError::INVALID;
     }
-    auto yaml_genesis_validators = yaml["GENESIS_VALIDATORS"];
+    auto yaml_genesis_validators = yaml["VALIDATORS"];
     if (not yaml_genesis_validators.IsSequence()) {
-      return ConfigYamlError::INVALID;
+      yaml_genesis_validators = yaml["GENESIS_VALIDATORS"];
+      if (not yaml_genesis_validators.IsSequence()) {
+        return ConfigYamlError::INVALID;
+      }
     }
     std::vector<crypto::xmss::XmssPublicKey> validators;
     for (auto &&yaml_validator : yaml_genesis_validators) {

@@ -24,29 +24,22 @@ namespace lean::blockchain {
                 (),
                 (const, override));
 
-    MOCK_METHOD(outcome::result<BlockInfo>,
-                getLastFinalized,
-                (),
-                (const, override));
-
     MOCK_METHOD(outcome::result<void>,
                 assignHashToSlot,
-                (const BlockInfo &),
+                (const BlockIndex &),
                 (override));
 
     MOCK_METHOD(outcome::result<void>,
                 deassignHashToSlot,
-                (const BlockInfo &),
+                (const BlockIndex &),
                 (override));
 
     MOCK_METHOD(outcome::result<std::vector<BlockHash>>,
                 getBlockHash,
                 (Slot),
                 (const, override));
-    // MOCK_METHOD(outcome::result<std::optional<BlockHash>>,
-    //             getBlockHash,
-    //             (const BlockId &),
-    //             (const, override));
+
+    MOCK_METHOD(outcome::result<SlotIterator>, seekLastSlot, (), (const));
 
     MOCK_METHOD(outcome::result<bool>,
                 hasBlockHeader,
@@ -83,35 +76,40 @@ namespace lean::blockchain {
                 (const BlockHash &),
                 (override));
 
-    MOCK_METHOD(outcome::result<void>,
-                putJustification,
-                (const Justification &, const BlockHash &),
+    MOCK_METHOD(outcome::result<BlockHash>,
+                putBlock,
+                (const BlockData &),
                 (override));
 
-    MOCK_METHOD(outcome::result<std::optional<Justification>>,
-                getJustification,
-                (const BlockHash &),
+    MOCK_METHOD(outcome::result<void>,
+                putState,
+                (const BlockHash &block_hash, const State &state),
+                (override));
+
+    MOCK_METHOD(outcome::result<std::optional<State>>,
+                getState,
+                (const BlockHash &block_hash),
                 (const, override));
 
     MOCK_METHOD(outcome::result<void>,
-                removeJustification,
-                (const BlockHash &),
+                removeState,
+                (const BlockHash &block_hash),
                 (override));
 
-    MOCK_METHOD(outcome::result<BlockHash>,
-                putBlock,
-                (const Block &),
-                (override));
-
-    MOCK_METHOD(outcome::result<std::optional<BlockData>>,
-                getBlockData,
-                (const BlockHash &),
+    MOCK_METHOD(outcome::result<BlockData>,
+                getBlock,
+                (const BlockHash &, BlockParts),
                 (const, override));
 
     MOCK_METHOD(outcome::result<void>,
                 removeBlock,
                 (const BlockHash &),
                 (override));
+
+    MOCK_METHOD(outcome::result<SignedBlockWithAttestation>,
+                getSignedBlockWithAttestation,
+                (const BlockHash &),
+                (const, override));
   };
 
 }  // namespace lean::blockchain

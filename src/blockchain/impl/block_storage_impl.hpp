@@ -29,8 +29,6 @@ namespace lean::blockchain {
 
     outcome::result<std::vector<BlockHash>> getBlockTreeLeaves() const override;
 
-    outcome::result<BlockIndex> getLastFinalized() const override;
-
     // -- hash --
 
     outcome::result<void> assignHashToSlot(const BlockIndex &block) override;
@@ -67,26 +65,29 @@ namespace lean::blockchain {
 
     outcome::result<void> removeBlockBody(const BlockHash &block_hash) override;
 
-    // -- justification --
+    // -- state --
 
-    outcome::result<void> putJustification(
-        const Justification &justification,
-        const BlockHash &block_hash) override;
+    outcome::result<void> putState(const BlockHash &block_hash,
+                                   const State &state) override;
 
-    outcome::result<std::optional<Justification>> getJustification(
+    outcome::result<std::optional<State>> getState(
         const BlockHash &block_hash) const override;
 
-    outcome::result<void> removeJustification(
-        const BlockHash &block_hash) override;
+    outcome::result<void> removeState(const BlockHash &block_hash) override;
 
     // -- combined
 
     outcome::result<BlockHash> putBlock(const BlockData &block) override;
 
-    outcome::result<std::optional<SignedBlockWithAttestation>> getBlock(
-        const BlockHash &block_hash) const override;
+    outcome::result<BlockData> getBlock(const BlockHash &block_hash,
+                                        BlockParts parts) const override;
 
     outcome::result<void> removeBlock(const BlockHash &block_hash) override;
+
+    // -- special
+
+    outcome::result<SignedBlockWithAttestation>
+    getSignedBlockWithAttestation(const BlockHash &block_hash) const override;
 
    private:
     outcome::result<std::optional<BlockHeader>> fetchBlockHeader(

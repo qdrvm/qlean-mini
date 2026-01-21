@@ -26,14 +26,20 @@
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
 #include "utils/ceil_div.hpp"
+#include "utils/lru_cache.hpp"
 
 namespace lean {
   struct GenesisConfig;
 }  // namespace lean
 
+namespace lean::blockchain {
+  class BlockStorage;
+  class BlockTree;
+}
+
 namespace lean::metrics {
   class Metrics;
-}  // namespace lean::metrics
+}
 
 namespace lean {
   /**
@@ -55,101 +61,106 @@ namespace lean {
    */
   class ForkChoiceStore {
    public:
-    using Blocks = std::unordered_map<BlockHash, SignedBlockWithAttestation>;
     using SignedAttestations =
         std::unordered_map<ValidatorIndex, SignedAttestation>;
 
     enum class Error {
+      CANT_VALIDATE_ATTESTATION_SOURCE_NOT_FOUND,
+      CANT_VALIDATE_ATTESTATION_TARGET_NOT_FOUND,
+      CANT_VALIDATE_ATTESTATION_HEAD_NOT_FOUND,
       INVALID_ATTESTATION,
       INVALID_PROPOSER,
+      STATE_NOT_FOUND,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
       switch (e) {
+        case E::CANT_VALIDATE_ATTESTATION_SOURCE_NOT_FOUND:
+          return "Can't validate attestation cause source block not found";
+        case E::CANT_VALIDATE_ATTESTATION_TARGET_NOT_FOUND:
+          return "Can't validate attestation cause target block not found";
+        case E::CANT_VALIDATE_ATTESTATION_HEAD_NOT_FOUND:
+          return "Can't validate attestation cause head block not found";
         case E::INVALID_ATTESTATION:
           return "Invalid attestation";
         case E::INVALID_PROPOSER:
           return "Invalid proposer";
+        case E::STATE_NOT_FOUND:
+          return "Parent state not found";
       }
       abort();
     }
 
     ForkChoiceStore(
-        const GenesisConfig &genesis_config,
+        qtils::SharedRef<AnchorState> anchor_state,
+        qtils::SharedRef<AnchorBlock> anchor_block,
         qtils::SharedRef<clock::SystemClock> clock,
         qtils::SharedRef<log::LoggingSystem> logging_system,
         qtils::SharedRef<metrics::Metrics> metrics,
         qtils::SharedRef<ValidatorRegistry> validator_registry,
         qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
-        qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider);
-    ForkChoiceStore(
-        const State &anchor_state,
-        const Block &anchor_block,
-        qtils::SharedRef<clock::SystemClock> clock,
-        qtils::SharedRef<log::LoggingSystem> logging_system,
-        qtils::SharedRef<metrics::Metrics> metrics,
-        qtils::SharedRef<ValidatorRegistry> validator_registry,
-        qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
-        qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider);
+        qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
+        qtils::SharedRef<blockchain::BlockTree> block_tree,
+        qtils::SharedRef<blockchain::BlockStorage> block_storage);
 
-    BOOST_DI_INJECT_TRAITS(const GenesisConfig &,
+    BOOST_DI_INJECT_TRAITS(qtils::SharedRef<AnchorState>,
+                           qtils::SharedRef<AnchorBlock>,
                            qtils::SharedRef<clock::SystemClock>,
                            qtils::SharedRef<log::LoggingSystem>,
                            qtils::SharedRef<metrics::Metrics>,
                            qtils::SharedRef<ValidatorRegistry>,
                            qtils::SharedRef<app::ValidatorKeysManifest>,
-                           qtils::SharedRef<crypto::xmss::XmssProvider>);
+                           qtils::SharedRef<crypto::xmss::XmssProvider>,
+                           qtils::SharedRef<blockchain::BlockTree>,
+                           qtils::SharedRef<blockchain::BlockStorage>);
+
     // Test constructor - only for use in tests
     ForkChoiceStore(
         uint64_t now_sec,
         qtils::SharedRef<log::LoggingSystem> logging_system,
         qtils::SharedRef<metrics::Metrics> metrics,
         Config config,
-        BlockHash head,
-        BlockHash safe_target,
-        Checkpoint latest_justified,
-        Checkpoint latest_finalized,
-        Blocks blocks,
-        std::unordered_map<BlockHash, State> states,
+        Checkpoint head,
+        Checkpoint safe_target,
         SignedAttestations latest_known_attestations,
         SignedAttestations latest_new_votes,
         ValidatorIndex validator_index,
         qtils::SharedRef<ValidatorRegistry> validator_registry,
         qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
-        qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider);
+        qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
+        qtils::SharedRef<blockchain::BlockTree> block_tree,
+        qtils::SharedRef<blockchain::BlockStorage> block_storage);
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
-    void updateSafeTarget();
+    [[nodiscard]] outcome::result<void> updateSafeTarget();
 
     // Updates the store's latest justified checkpoint, head, and latest
     // finalized state.
-    void updateHead();
+    [[nodiscard]] outcome::result<void> updateHead();
 
     // Process new attestations that the staker has received. Attestations
     // processing is done at a particular time, because of safe target and view
     // merge rules. Accepts the latest new votes, merges them into the known
     // votes, and then updates the fork-choice head.
-    void acceptNewAttestations();
+    [[nodiscard]] outcome::result<void> acceptNewAttestations();
 
-    Slot getCurrentSlot();
+    Slot getCurrentSlot() const;
 
-    BlockHash getHead();
-    const State &getState(const BlockHash &block_hash) const;
+    Checkpoint getHead();
+    [[nodiscard]] outcome::result<std::shared_ptr<const State>> getState(
+        const BlockHash &block_hash) const;
 
     bool hasBlock(const BlockHash &hash) const;
-    std::optional<Slot> getBlockSlot(const BlockHash &block_hash) const;
-    Slot getHeadSlot() const;
+    [[nodiscard]] outcome::result<Slot> getBlockSlot(
+        const BlockHash &block_hash) const;
     const Config &getConfig() const;
     Checkpoint getLatestFinalized() const;
     Checkpoint getLatestJustified() const;
 
     // Test helper methods
-    BlockHash getSafeTarget() const {
+    Checkpoint getSafeTarget() const {
       return safe_target_;
-    }
-    const Blocks &getBlocks() const {
-      return blocks_;
     }
     const SignedAttestations &getLatestNewAttestations() const {
       return latest_new_attestations_;
@@ -193,9 +204,10 @@ namespace lean {
      * Returns:
      *     Hash of the chosen head block.
      */
-    BlockHash computeLmdGhostHead(const BlockHash &start_root,
-                                  const SignedAttestations &attestations,
-                                  uint64_t min_score = 0) const;
+    [[nodiscard]] outcome::result<BlockHash> computeLmdGhostHead(
+        const BlockHash &start_root,
+        const SignedAttestations &attestations,
+        uint64_t min_score = 0) const;
 
     /**
      * Calculate target checkpoint for validator attestations.
@@ -291,7 +303,8 @@ namespace lean {
      *     A fully constructed Attestation object ready for signing and
      * broadcast.
      */
-    Attestation produceAttestation(Slot slot, ValidatorIndex validator_index);
+    Attestation produceAttestation(Slot slot,
+                                   ValidatorIndex validator_index) const;
 
     /**
      * Validate incoming attestation before processing.
@@ -395,6 +408,12 @@ namespace lean {
     bool validateBlockSignatures(
         const SignedBlockWithAttestation &signed_block) const;
 
+    log::Logger logger_;
+    qtils::SharedRef<metrics::Metrics> metrics_;
+    qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider_;
+    qtils::SharedRef<blockchain::BlockTree> block_tree_;
+    qtils::SharedRef<blockchain::BlockStorage> block_storage_;
+
     STF stf_;
     Interval time_;
 
@@ -402,12 +421,12 @@ namespace lean {
     Config config_;
 
     /**
-     * Root of the current canonical chain head block.
+     * Checkpoint of the current canonical chain head block.
      *
      * This is the result of running the fork choice algorithm on the current
      * contents of the Store.
      */
-    BlockHash head_;
+    Checkpoint head_;
 
     /**
      * Root of the current safe target for attestation.
@@ -415,44 +434,17 @@ namespace lean {
      * This can be used by higher-level logic to restrict which blocks are
      * considered safe to attest to, based on additional safety conditions.
      */
-    BlockHash safe_target_;
+    Checkpoint safe_target_;
 
     /**
-     * Highest slot justified checkpoint known to the store.
-     *
-     * LMD GHOST starts from this checkpoint when computing the head.
-     *
-     * Only descendants of this checkpoint are considered viable.
-     */
-    Checkpoint latest_justified_;
-
-    /**
-     * Highest slot finalized checkpoint known to the store.
-     *
-     * Everything strictly before this checkpoint can be considered immutable.
-     *
-     * Fork choice will never revert finalized history.
-     */
-    Checkpoint latest_finalized_;
-
-    /**
-     * Mapping from block root to Block objects.
-     *
-     * This is the set of blocks that the node currently knows about.
-     *
-     * Every block that might participate in fork choice must appear here.
-     */
-    Blocks blocks_;
-
-    /**
-     * Mapping from state root to State objects.
-     *
      * For each known block, we keep its post-state.
      *
      * These states carry justified and finalized checkpoints that we use to
      * update the Store's latest justified and latest finalized checkpoints.
      */
-    std::unordered_map<BlockHash, State> states_;
+    static constexpr int kStateCacheSize = 16;
+    mutable LruCache<BlockHash, State> states_{kStateCacheSize};
+
     /**
      * Active attestations that contribute to fork choice weights.
      *
@@ -480,9 +472,6 @@ namespace lean {
     SignedAttestations latest_new_attestations_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
-    log::Logger logger_;
-    qtils::SharedRef<metrics::Metrics> metrics_;
-    qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider_;
   };
 
 }  // namespace lean

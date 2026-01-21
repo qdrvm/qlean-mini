@@ -13,10 +13,12 @@
 #include "types/block_body.hpp"
 #include "types/block_data.hpp"
 #include "types/block_header.hpp"
-#include "types/justification.hpp"
 #include "types/signed_block_with_attestation.hpp"
 #include "types/types.hpp"
 
+namespace lean {
+  struct State;
+}
 namespace lean::blockchain {
 
   /**
@@ -40,13 +42,6 @@ namespace lean::blockchain {
      */
     virtual outcome::result<void> setBlockTreeLeaves(
         std::vector<BlockHash> leaves) = 0;
-
-    /**
-     * Get the last finalized block
-     * @return BlockIndex of the block
-     */
-    [[nodiscard]] virtual outcome::result<BlockIndex> getLastFinalized()
-        const = 0;
 
     // -- hash --
 
@@ -147,7 +142,7 @@ namespace lean::blockchain {
     // -- body --
 
     /**
-     * Saves provided body of block to  block storage
+     * Saves provided body of block to block storage
      * @returns result of saving
      */
     virtual outcome::result<void> putBlockBody(const BlockHash &block_hash,
@@ -167,30 +162,25 @@ namespace lean::blockchain {
     virtual outcome::result<void> removeBlockBody(
         const BlockHash &block_hash) = 0;
 
-    // -- justification --
+    // -- state --
+
+    //  Note: state is currently accessed via BlockStorage; if a dedicated state
+    //  storage is introduced in the future, this interface should be updated
+    //  to reflect that separation.
+    // TODO: refactoring is needed
+    //  Issue: https://github.com/qdrvm/qlean-mini/issues/54
 
     /**
-     * Saves {@param justification} of block with hash {@param block_hash} to
-     * block storage
+     * Saves provided state to block storage
      * @returns result of saving
      */
-    virtual outcome::result<void> putJustification(
-        const Justification &justification, const BlockHash &block_hash) = 0;
+    virtual outcome::result<void> putState(const BlockHash &block_hash,
+                                           const State &state) = 0;
 
-    /**
-     * Tries to get justification of block finality by {@param block_hash}
-     * @returns justification or error
-     */
-    virtual outcome::result<std::optional<Justification>> getJustification(
+    [[nodiscard]] virtual outcome::result<std::optional<State>> getState(
         const BlockHash &block_hash) const = 0;
 
-    /**
-     * Removes justification of block with hash {@param block_hash} from block
-     * storage
-     * @returns result of saving
-     */
-    virtual outcome::result<void> removeJustification(
-        const BlockHash &block_hash) = 0;
+    virtual outcome::result<void> removeState(const BlockHash &block_hash) = 0;
 
     // -- combined
 
@@ -200,19 +190,46 @@ namespace lean::blockchain {
      */
     virtual outcome::result<BlockHash> putBlock(const BlockData &block) = 0;
 
+    class BlockParts {
+      uint8_t parts_ = 0;
+
+     public:
+      enum : uint8_t {
+        HEADER = 1 << 0,
+        ATTESTATION = 1 << 1,
+        SIGNATURES = 1 << 2,
+        BODY = 1 << 3,
+        STATE = 1 << 0,
+        ALL = HEADER | ATTESTATION | SIGNATURES | BODY | STATE
+      };
+
+      BlockParts() = default;
+      BlockParts(int parts) : parts_(parts) {
+        BOOST_ASSERT(parts_ <= ALL);
+      }
+      operator uint8_t() const {
+        return parts_;
+      }
+    };
+
     /**
      * Tries to get block data
      * @returns block data or error
      */
-    [[nodiscard]] virtual outcome::result<
-        std::optional<SignedBlockWithAttestation>>
-    getBlock(const BlockHash &block_hash) const = 0;
+    [[nodiscard]] virtual outcome::result<BlockData> getBlock(
+        const BlockHash &block_hash, BlockParts parts) const = 0;
 
     /**
      * Removes all data of block by hash from block storage
      * @returns nothing or error
      */
     virtual outcome::result<void> removeBlock(const BlockHash &block_hash) = 0;
+
+    // -- special
+
+    [[nodiscard]] virtual outcome::result<SignedBlockWithAttestation>
+    getSignedBlockWithAttestation(
+        const BlockHash &block_hash) const = 0;
   };
 
 }  // namespace lean::blockchain
