@@ -140,9 +140,7 @@ namespace lean::blockchain {
           block_data.header.emplace(header);
 
           // Attestations
-          block_data.attestation.emplace();
-          auto &attestation = block_data.attestation.value();
-          attestation.push_back(
+          block_data.attestation.emplace(
               signed_block_with_attestation.message.proposer_attestation);
 
           // Signatures
