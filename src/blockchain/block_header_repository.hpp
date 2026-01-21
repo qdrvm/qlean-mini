@@ -30,10 +30,10 @@ namespace lean::blockchain {
     virtual ~BlockHeaderRepository() = default;
 
     /**
-     * @return the number of the block with the provided {@param block_hash}
+     * @return the slot of the block with the provided {@param block_hash}
      * in case one is in the storage or an error
      */
-    [[nodiscard]] virtual outcome::result<Slot> getNumberByHash(
+    [[nodiscard]] virtual outcome::result<Slot> getSlotByHash(
         const BlockHash &block_hash) const = 0;
 
     /**

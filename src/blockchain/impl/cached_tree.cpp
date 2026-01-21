@@ -126,6 +126,7 @@ namespace lean::blockchain {
 
   CachedTree::CachedTree(const BlockIndex &root)
       : root_{std::make_shared<TreeNode>(root)},
+        justified_(root_),
         best_{root_},
         nodes_{{root.hash, root_}} {
     leaves_.emplace(root.hash, root.slot);
@@ -133,6 +134,9 @@ namespace lean::blockchain {
 
   BlockIndex CachedTree::finalized() const {
     return root_->index;
+  }
+  BlockIndex CachedTree::justified() const {
+    return justified_->index;;
   }
 
   BlockIndex CachedTree::best() const {
@@ -283,6 +287,11 @@ namespace lean::blockchain {
           changes.reorg->apply.end());
     }
     return changes;
+  }
+
+  void CachedTree::setJustified(
+      const qtils::SharedRef<TreeNode> &new_justified) {
+    justified_ = new_justified;
   }
 
   ReorgAndPrune CachedTree::removeLeaf(const BlockHash &hash) {

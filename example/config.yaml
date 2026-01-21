@@ -20,12 +20,20 @@ logging:
       thread: name
       color: true
       latency: 0
+    - name: digest
+      type: console
+      stream: stderr
+      thread: name
+      color: true
+      latency: 0
   groups:
     - name: main
       sink: console
       level: info
       is_fallback: true
       children:
+        - name: digest
+          level: verbose
         - name: lean
           children:
             - name: modules
@@ -46,7 +54,5 @@ logging:
               children:
                 - name: block_tree
                 - name: fork_choice
-                  level: trace
                   children:
                     - name: stf
-                      level: info

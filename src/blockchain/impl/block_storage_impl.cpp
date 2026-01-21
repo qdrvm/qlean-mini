@@ -13,6 +13,7 @@
 #include "sszpp/ssz++.hpp"
 #include "storage/predefined_keys.hpp"
 #include "types/block_data.hpp"
+#include "types/state.hpp"
 
 namespace lean::blockchain {
 
@@ -65,34 +66,6 @@ namespace lean::blockchain {
     return outcome::success();
   }
 
-  outcome::result<BlockIndex> BlockStorageImpl::getLastFinalized() const {
-    OUTCOME_TRY(leaves, getBlockTreeLeaves());
-    auto current_hash = leaves[0];
-    for (;;) {
-      // OUTCOME_TRY(j_opt, getJustification(current_hash));
-      // if (j_opt.has_value()) {
-      //   break;
-      // } // FIXME
-      OUTCOME_TRY(header, getBlockHeader(current_hash));
-      if (header.slot == 0) {
-        SL_TRACE(logger_,
-                 "Not found block with justification. "
-                 "Genesis block will be used as last finalized ({})",
-                 current_hash);
-        return {0, current_hash};  // genesis
-      }
-      current_hash = header.parent_root;
-    }
-
-    OUTCOME_TRY(header, getBlockHeader(current_hash));
-    auto found_block = BlockIndex{header.slot, current_hash};
-    SL_TRACE(logger_,
-             "Justification is found in block {}. "
-             "This block will be used as last finalized",
-             found_block);
-    return found_block;
-  }
-
   outcome::result<void> BlockStorageImpl::assignHashToSlot(
       const BlockIndex &block_index) {
     SL_DEBUG(logger_, "Add slot-to-hash for {}", block_index);
@@ -139,27 +112,6 @@ namespace lean::blockchain {
     auto storage = storage_->getSpace(storage::Space::SlotToHashes);
     return SlotIterator::create(storage->cursor());
   }
-
-  //   outcome::result<std::optional<BlockHash>>
-  //   BlockStorageImpl::getBlockHash(const BlockId &block_id) const
-  //   {
-  //     return visit_in_place(
-  //         block_id,
-  //         [&](const Slot &slot)
-  //             -> outcome::result<std::optional<BlockHash>> {
-  //           auto key_space =
-  //               storage_->getSpace(storage::Space::SlotToHashes);
-  //           OUTCOME_TRY(data_opt,
-  //                       key_space->tryGet(slotToHashLookupKey(slot)));
-  //           if (data_opt.has_value()) {
-  //             OUTCOME_TRY(block_hash,
-  //                         BlockHash::fromSpan(data_opt.value()));
-  //             return block_hash;
-  //           }
-  //           return std::nullopt;
-  //         },
-  //         [](const Hash256 &block_hash) { return block_hash; });
-  //   }
 
   outcome::result<bool> BlockStorageImpl::hasBlockHeader(
       const BlockHash &block_hash) const {
@@ -217,78 +169,160 @@ namespace lean::blockchain {
     return space->remove(block_hash);
   }
 
-  outcome::result<void> BlockStorageImpl::putJustification(
-      const Justification &justification, const BlockHash &hash) {
-    if (justification.empty()) {
-      return BlockStorageError::JUSTIFICATION_EMPTY;
-    }
-
-    OUTCOME_TRY(encoded_justification, encode(justification));
-    OUTCOME_TRY(putToSpace(*storage_,
-                           storage::Space::Justification,
-                           hash,
-                           std::move(encoded_justification)));
-
-    return outcome::success();
+  outcome::result<void> BlockStorageImpl::putState(const BlockHash &block_hash,
+                                                   const State &state) {
+    OUTCOME_TRY(encoded_state, encode(state));
+    return putToSpace(
+        *storage_, storage::Space::State, block_hash, std::move(encoded_state));
   }
 
-  outcome::result<std::optional<Justification>>
-  BlockStorageImpl::getJustification(const BlockHash &block_hash) const {
-    OUTCOME_TRY(
-        encoded_justification_opt,
-        getFromSpace(*storage_, storage::Space::Justification, block_hash));
-    if (encoded_justification_opt.has_value()) {
-      OUTCOME_TRY(justification,
-                  decode<Justification>(encoded_justification_opt.value()));
-      return justification;
+  outcome::result<std::optional<State>> BlockStorageImpl::getState(
+      const BlockHash &block_hash) const {
+    OUTCOME_TRY(encoded_state_opt,
+                getFromSpace(*storage_, storage::Space::State, block_hash));
+    if (encoded_state_opt.has_value()) {
+      OUTCOME_TRY(state, decode<State>(encoded_state_opt.value()));
+      return std::make_optional(std::move(state));
     }
     return std::nullopt;
   }
 
-  outcome::result<void> BlockStorageImpl::removeJustification(
+  outcome::result<void> BlockStorageImpl::removeState(
       const BlockHash &block_hash) {
-    auto space = storage_->getSpace(storage::Space::Justification);
+    auto space = storage_->getSpace(storage::Space::State);
     return space->remove(block_hash);
   }
 
   outcome::result<BlockHash> BlockStorageImpl::putBlock(
       const BlockData &block) {
-    // insert provided block's parts into the database
-    OUTCOME_TRY(block_hash, putBlockHeader(*block.header));
+    auto adding_res = [&]() -> outcome::result<BlockHash> {
+      // insert provided block's parts into the database
+      OUTCOME_TRY(block_hash, putBlockHeader(*block.header));
 
-    if (block.body.has_value()) {
-      OUTCOME_TRY(encoded_body, encode(*block.body));
-      OUTCOME_TRY(putToSpace(*storage_,
-                             storage::Space::Body,
-                             block_hash,
-                             std::move(encoded_body)));
+      if (block.attestation.has_value()) {
+        OUTCOME_TRY(encoded_attestation, encode(*block.attestation));
+        OUTCOME_TRY(putToSpace(*storage_,
+                               storage::Space::Attestation,
+                               block_hash,
+                               std::move(encoded_attestation)));
+      }
+
+      if (block.signature.has_value()) {
+        OUTCOME_TRY(encoded_attestation, encode(*block.signature));
+        OUTCOME_TRY(putToSpace(*storage_,
+                               storage::Space::Signature,
+                               block_hash,
+                               std::move(encoded_attestation)));
+      }
+
+      if (block.body.has_value()) {
+        OUTCOME_TRY(encoded_body, encode(*block.body));
+        OUTCOME_TRY(putToSpace(*storage_,
+                               storage::Space::Body,
+                               block_hash,
+                               std::move(encoded_body)));
+      }
+
+      return block_hash;
+    }();
+
+    if (adding_res.has_value()) {
+      auto block_hash = adding_res.value();
+
+      logger_->info("Added block {} as child of {}",
+                    BlockIndex{block.header->slot, block_hash},
+                    block.header->parent_root);
+      return block_hash;
     }
 
-    logger_->info("Added block {} as child of {}",
-                  BlockIndex{block.header->slot, block_hash},
-                  block.header->parent_root);
-    return block_hash;
+    std::ignore = removeBlock(block.header->hash());
+    return adding_res.error();
   }
 
-  outcome::result<std::optional<SignedBlockWithAttestation>>
-  BlockStorageImpl::getBlock(const BlockHash &block_hash) const {
-    SignedBlockWithAttestation block_data{
-        //      .hash = block_hash
-    };
+  outcome::result<BlockData> BlockStorageImpl::getBlock(
+      const BlockHash &block_hash, BlockParts parts) const {
+    BlockData data{.hash = block_hash};
 
-    // // Block header
-    // OUTCOME_TRY(header, getBlockHeader(block_hash));
-    // block_data.header = std::move(header);
-    //
-    // // Block body
-    // OUTCOME_TRY(body_opt, getBlockBody(block_hash));
-    // block_data.extrinsic = std::move(body_opt);
-    //
-    // // // Justification
-    // OUTCOME_TRY(justification_opt, getJustification(block_hash));
-    // block_data.justification = std::move(justification_opt);
+    // Block header
+    if (parts & BlockParts::HEADER) {
+      OUTCOME_TRY(header, getBlockHeader(block_hash));
+      data.header.emplace(header);
+    }
 
-    return block_data;
+    // Block signature
+    if (parts & BlockParts::SIGNATURES) {
+      OUTCOME_TRY(
+          encoded_signature_opt,
+          getFromSpace(*storage_, storage::Space::Signature, block_hash));
+      if (encoded_signature_opt.has_value()) {
+        OUTCOME_TRY(signature,
+                    decode<BlockSignatures>(encoded_signature_opt.value()));
+        data.signature.emplace(std::move(signature));
+      } else {
+        return BlockStorageError::SIGNATURE_NOT_FOUND;
+      }
+    }
+
+    // Block attestation
+    if (parts & BlockParts::ATTESTATION) {
+      OUTCOME_TRY(
+          encoded_attestation_opt,
+          getFromSpace(*storage_, storage::Space::Attestation, block_hash));
+      if (encoded_attestation_opt.has_value()) {
+        OUTCOME_TRY(attestation,
+                    decode<Attestations>(encoded_attestation_opt.value()));
+        data.attestation.emplace(std::move(attestation));
+      } else {
+        return BlockStorageError::ATTESTATION_NOT_FOUND;
+      }
+    }
+
+    // Block body
+    if (parts & BlockParts::BODY) {
+      OUTCOME_TRY(encoded_body_opt,
+                  getFromSpace(*storage_, storage::Space::Body, block_hash));
+      if (encoded_body_opt.has_value()) {
+        OUTCOME_TRY(body, decode<BlockBody>(encoded_body_opt.value()));
+        data.body.emplace(std::move(body));
+      } else {
+        return BlockStorageError::BODY_NOT_FOUND;
+      }
+    }
+
+    return data;
+  }
+
+  outcome::result<SignedBlockWithAttestation>
+  BlockStorageImpl::getSignedBlockWithAttestation(
+      const BlockHash &block_hash) const {
+    OUTCOME_TRY(data, getBlock(block_hash, BlockParts::ALL));
+
+    SignedBlockWithAttestation block;
+
+    // Block header
+    block.message.block.parent_root = data.header->parent_root;
+    block.message.block.slot = data.header->slot;
+    block.message.block.proposer_index = data.header->proposer_index;
+    block.message.block.state_root = data.header->state_root;
+
+    // Block signature
+    block.signature = std::move(*data.signature);
+
+    // Block attestation
+    auto &attestations = *data.attestation;
+    auto it = std::ranges::find_if(attestations, [&](const auto &attestation) {
+      return attestation.validator_id == block.message.block.proposer_index;
+    });
+    BOOST_ASSERT(it != attestations.end());
+    if (it == attestations.end()) [[unlikely]] {
+      return BlockStorageError::INCONSISTENT_DATA;
+    }
+    block.message.proposer_attestation = *it;
+
+    // Block body
+    block.message.block.body = std::move(*data.body);
+
+    return block;
   }
 
   outcome::result<void> BlockStorageImpl::removeBlock(
@@ -321,8 +355,6 @@ namespace lean::blockchain {
       }
     }
 
-    // TODO(xDimon): needed to clean up trie storage if block deleted
-
     // Remove the block body
     if (auto res = removeBlockBody(block_index.hash); res.has_error()) {
       SL_ERROR(logger_,
@@ -332,21 +364,45 @@ namespace lean::blockchain {
       return res;
     }
 
-    // Remove justification for a block
-    if (auto res = removeJustification(block_index.hash); res.has_error()) {
-      SL_ERROR(
-          logger_,
-          "could not remove justification of block {} from the storage: {}",
-          block_index,
-          res.error());
-      return res;
+    {
+      // Remove the state block
+      auto storage_space = storage_->getSpace(storage::Space::State);
+      if (auto res = storage_space->remove(block_index.hash); res.has_error()) {
+        SL_ERROR(logger_,
+                 "Couldn't remove state of block {} from the storage: {}",
+                 block_index,
+                 res.error());
+        return res;
+      }
+    }
+
+    {  // Remove the signatures block
+      auto storage_space = storage_->getSpace(storage::Space::Signature);
+      if (auto res = storage_space->remove(block_index.hash); res.has_error()) {
+        SL_ERROR(logger_,
+                 "Couldn't remove signature of block {} from the storage: {}",
+                 block_index,
+                 res.error());
+        return res;
+      }
+    }
+
+    {  // Remove the attestations block
+      auto storage_space = storage_->getSpace(storage::Space::Attestation);
+      if (auto res = storage_space->remove(block_index.hash); res.has_error()) {
+        SL_ERROR(logger_,
+                 "Couldn't remove attestation of block {} from the storage: {}",
+                 block_index,
+                 res.error());
+        return res;
+      }
     }
 
     {  // Remove the block header
-      auto header_space = storage_->getSpace(storage::Space::Header);
-      if (auto res = header_space->remove(block_index.hash); res.has_error()) {
+      auto storage_space = storage_->getSpace(storage::Space::Header);
+      if (auto res = storage_space->remove(block_index.hash); res.has_error()) {
         SL_ERROR(logger_,
-                 "could not remove header of block {} from the storage: {}",
+                 "Couldn't remove header of block {} from the storage: {}",
                  block_index,
                  res.error());
         return res;

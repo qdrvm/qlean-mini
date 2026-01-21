@@ -7,7 +7,6 @@
 #pragma once
 
 #include "blockchain/block_header_repository.hpp"
-#include "types/justification.hpp"
 
 namespace lean {
   struct Block;
@@ -88,13 +87,18 @@ namespace lean::blockchain {
     virtual outcome::result<void> removeLeaf(const BlockHash &block_hash) = 0;
 
     /**
-     * Mark the block as finalized and store a finalization justification
+     * Mark the block as finalized (and clean up sidechain internally)
      * @param block to be finalized
-     * @param justification of the finalization
      * @return nothing or error
      */
-    virtual outcome::result<void> finalize(
-        const BlockHash &block, const Justification &justification) = 0;
+    virtual outcome::result<void> finalize(const BlockHash &block) = 0;
+
+    /**
+     * Mark the block as justified
+     * @param block to be justified
+     * @return nothing or error
+     */
+    virtual outcome::result<void> setJustified(const BlockHash &block) = 0;
 
     /**
      * Get a chain of blocks from provided block to direction of the best block
@@ -167,13 +171,6 @@ namespace lean::blockchain {
      */
     virtual outcome::result<std::optional<SignedBlockWithAttestation>>
     tryGetSignedBlock(const BlockHash block_hash) const = 0;
-
-    // TODO(turuslan): state transition function
-    /**
-     * Import pre-sorted batch of `SignedBlockWithAttestation`.
-     * May change best and finalized block.
-     */
-    virtual void import(std::vector<SignedBlockWithAttestation> blocks) = 0;
   };
 
 }  // namespace lean::blockchain

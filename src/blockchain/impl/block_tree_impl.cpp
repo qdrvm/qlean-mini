@@ -36,21 +36,38 @@ namespace lean::blockchain {
         block_tree_data_{{
             .storage_ = std::move(storage),
             .tree_ = std::make_unique<CachedTree>(
-                std::get<0>(initializer->nonFinalizedSubTree())),
+                initializer->latestFinalizedAtStart()),
             .hasher_ = std::move(hasher),
         }} {
+    SL_TRACE(log_,
+             "Block {} set as last finalized",
+             initializer->latestFinalizedAtStart());
+
     // Add non-finalized block to the block tree
-    for (const auto &[block, header] :
-         std::get<1>(initializer->nonFinalizedSubTree())) {
+    for (const auto &[block, header] : initializer->nonFinalizedAtStart()) {
       auto res = BlockTreeImpl::addExistingBlock(block.hash, header);
       if (res.has_error()) {
-        SL_WARN(
+        SL_CRITICAL(
             log_, "Failed to add existing block {}: {}", block, res.error());
+        qtils::raise(res.error());
       }
       SL_TRACE(log_,
                "Existing non-finalized block {} is added to block tree",
                block);
     }
+
+    // Set last justified
+    auto res = setJustified(initializer->latestJustifiedAtStart().hash);
+    if (res.has_error()) {
+      SL_CRITICAL(log_,
+                  "Failed to set block {} as last justified: {}",
+                  initializer->latestJustifiedAtStart(),
+                  res.error());
+      qtils::raise(res.error());
+    }
+    SL_TRACE(log_,
+             "Existing block {} set as last justified",
+             initializer->latestJustifiedAtStart());
   }
 
   const BlockHash &BlockTreeImpl::getGenesisBlockHash() const {
@@ -103,6 +120,7 @@ namespace lean::blockchain {
   outcome::result<void> BlockTreeImpl::addBlock(
       SignedBlockWithAttestation signed_block_with_attestation) {
     auto &block = signed_block_with_attestation.message.block;
+
     return block_tree_data_.exclusiveAccess(
         [&](BlockTreeData &p) -> outcome::result<void> {
           // Check if we know parent of this block; if not, we cannot insert it
@@ -120,8 +138,18 @@ namespace lean::blockchain {
           BlockData block_data;
           block_data.hash = header.hash();
           block_data.header.emplace(header);
+
+          // Attestations
+          block_data.attestation.emplace();
+          auto &attestation = block_data.attestation.value();
+          attestation.push_back(
+              signed_block_with_attestation.message.proposer_attestation);
+
+          // Signatures
+          block_data.signature.emplace(signed_block_with_attestation.signature);
+
+          // Body
           block_data.body.emplace(block.body);
-          block_data.signature = {};
 
           // Save block
           OUTCOME_TRY(block_hash, p.storage_->putBlock(block_data));
@@ -151,7 +179,7 @@ namespace lean::blockchain {
             OUTCOME_TRY(header, getBlockHeader(block_hash));
             // OUTCOME_TRY(p.storage_->removeJustification(finalized.hash));
 
-            OUTCOME_TRY(slot, getNumberByHash(header.parent_root));
+            OUTCOME_TRY(slot, getSlotByHash(header.parent_root));
             auto parent = BlockIndex(slot, header.parent_root);
 
             ReorgAndPrune changes{
@@ -170,67 +198,6 @@ namespace lean::blockchain {
           return outcome::success();
         });
   }
-
-  // outcome::result<void> BlockTreeImpl::markAsParachainDataBlock(
-  //     const BlockHash &block_hash) {
-  //   return block_tree_data_.exclusiveAccess(
-  //       [&](BlockTreeData &p) -> outcome::result<void> {
-  //         SL_TRACE(log_, "Trying to adjust weight for block {}", block_hash);
-  //
-  //         auto node = p.tree_->find(block_hash);
-  //         if (node == nullptr) {
-  //           SL_WARN(log_, "Block {} doesn't exists in block tree",
-  //           block_hash); return BlockTreeError::BLOCK_NOT_EXISTS;
-  //         }
-  //
-  //         node->contains_approved_para_block = true;
-  //         return outcome::success();
-  //       });
-  // }
-
-  // outcome::result<void> BlockTreeImpl::markAsRevertedBlocks(
-  //     const std::vector<BlockHash> &block_hashes) {
-  //   return block_tree_data_.exclusiveAccess(
-  //       [&](BlockTreeData &p) -> outcome::result<void> {
-  //         bool need_to_refresh_best = false;
-  //         auto best = bestBlockNoLock(p);
-  //         for (const auto &block_hash : block_hashes) {
-  //           auto node_opt = p.tree_->find(block_hash);
-  //           if (not node_opt.has_value()) {
-  //             SL_WARN(
-  //                 log_, "Block {} doesn't exists in block tree", block_hash);
-  //             continue;
-  //           }
-  //           auto &node = node_opt.value();
-  //
-  //           if (not node->reverted) {
-  //             std::queue<std::shared_ptr<TreeNode>> to_revert;
-  //             to_revert.push(std::move(node));
-  //             while (not to_revert.empty()) {
-  //               auto &reverting_tree_node = to_revert.front();
-  //
-  //               reverting_tree_node->reverted = true;
-  //
-  //               if (reverting_tree_node->info == best) {
-  //                 need_to_refresh_best = true;
-  //               }
-  //
-  //               for (auto &child : reverting_tree_node->children) {
-  //                 if (not child->reverted) {
-  //                   to_revert.push(child);
-  //                 }
-  //               }
-  //
-  //               to_revert.pop();
-  //             }
-  //           }
-  //         }
-  //         if (need_to_refresh_best) {
-  //           p.tree_->forceRefreshBest();
-  //         }
-  //         return outcome::success();
-  //       });
-  // }
 
   outcome::result<void> BlockTreeImpl::addExistingBlockNoLock(
       BlockTreeData &p,
@@ -339,67 +306,101 @@ namespace lean::blockchain {
         });
   }
 
-  outcome::result<void> BlockTreeImpl::finalize(
-      const BlockHash &block_hash, const Justification &justification) {
-    return block_tree_data_.exclusiveAccess([&](BlockTreeData &p)
-                                                -> outcome::result<void> {
-      auto last_finalized_block_info = getLastFinalizedNoLock(p);
-      if (block_hash == last_finalized_block_info.hash) {
-        return outcome::success();
-      }
-      const auto node_opt = p.tree_->find(block_hash);
-      if (node_opt.has_value()) {
-        auto &node = node_opt.value();
+  outcome::result<void> BlockTreeImpl::finalize(const BlockHash &block_hash) {
+    return block_tree_data_.exclusiveAccess(
+        [&](BlockTreeData &p) -> outcome::result<void> {
+          auto last_finalized_block_info = getLastFinalizedNoLock(p);
+          if (block_hash == last_finalized_block_info.hash) {
+            return outcome::success();
+          }
+          const auto node_opt = p.tree_->find(block_hash);
+          if (node_opt.has_value()) {
+            auto &node = node_opt.value();
 
-        SL_DEBUG(log_, "Finalizing block {}", node->index);
+            SL_DEBUG(log_, "Finalizing block {}", node->index);
 
-        OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
+            OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
 
-        OUTCOME_TRY(p.storage_->putJustification(justification, block_hash));
+            // Block which is finalized as ancestors of last finalized
+            std::vector<BlockIndex> retired_blocks;
+            for (auto parent = node->parent(); parent;
+                 parent = parent->parent()) {
+              retired_blocks.emplace_back(parent->index);
+            }
 
-        std::vector<BlockIndex> retired_hashes;
-        for (auto parent = node->parent(); parent; parent = parent->parent()) {
-          retired_hashes.emplace_back(parent->index);
-        }
+            auto changes = p.tree_->finalize(node);
+            OUTCOME_TRY(reorgAndPrune(p, changes));
 
-        auto changes = p.tree_->finalize(node);
-        OUTCOME_TRY(reorgAndPrune(p, changes));
+            auto msg = std::make_shared<messages::Finalized>(
+                header.index(), std::move(retired_blocks));
+            se_manager_->notify(EventTypes::BlockFinalized, msg);
 
-        auto msg = std::make_shared<messages::Finalized>(
-            header.index(), std::move(retired_hashes));
-        se_manager_->notify(EventTypes::BlockFinalized, msg);
+            log_->info("Finalized block {}", node->index);
 
+          } else {
+            OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
+            const auto slot = header.slot;
+            if (slot >= last_finalized_block_info.slot) {
+              return BlockTreeError::NON_FINALIZED_BLOCK_NOT_FOUND;
+            }
 
-        log_->info("Finalized block {}", node->index);
+            OUTCOME_TRY(hashes, p.storage_->getBlockHash(slot));
 
-      } else {
-        OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
-        const auto header_number = header.slot;
-        if (header_number >= last_finalized_block_info.slot) {
-          return BlockTreeError::NON_FINALIZED_BLOCK_NOT_FOUND;
-        }
-
-        OUTCOME_TRY(hashes, p.storage_->getBlockHash(header_number));
-
-        if (not qtils::cxx23::ranges::contains(hashes, block_hash)) {
-          return BlockTreeError::BLOCK_ON_DEAD_END;
-        }
-
-        // if (not p.justification_storage_policy_
-        //             ->shouldStoreFor(header, last_finalized_block_info.slot)
-        //             .value()) {
-        //   return outcome::success();
-        // }
-        OUTCOME_TRY(justification_opt,
-                    p.storage_->getJustification(block_hash));
-        if (justification_opt.has_value()) {
-          // block already has justification (in DB), fine
+            if (not qtils::cxx23::ranges::contains(hashes, block_hash)) {
+              return BlockTreeError::BLOCK_ON_DEAD_END;
+            }
+          }
           return outcome::success();
-        }
-        OUTCOME_TRY(p.storage_->putJustification(justification, block_hash));
-      }
-      return outcome::success();
-    });
+        });
+  }
+
+  outcome::result<void> BlockTreeImpl::setJustified(
+      const BlockHash &block_hash) {
+    return block_tree_data_.exclusiveAccess(
+        [&](BlockTreeData &p) -> outcome::result<void> {
+          auto last_justified_block_info = getLastJustifiedNoLock(p);
+          if (block_hash == last_justified_block_info.hash) {
+            return outcome::success();
+          }
+          const auto node_opt = p.tree_->find(block_hash);
+          if (node_opt.has_value()) {
+            auto &node = node_opt.value();
+
+            SL_DEBUG(log_, "Justifying block {}", node->index);
+
+            OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
+
+            // Block which is justified as ancestors of last justified, and
+            // especially last finalized
+            for (auto parent = node->parent(); parent;
+                 parent = parent->parent()) {
+              if (parent->index == getLastJustifiedNoLock(p)) {
+                p.tree_->setJustified(node);
+                return outcome::success();
+              };
+            }
+
+            // auto msg = std::make_shared<messages::Finalized>(
+            //     header.index(), std::move(retired_blocks));
+            // se_manager_->notify(EventTypes::BlockFinalized, msg);
+            //
+            // log_->info("Finalized block {}", node->index);
+
+          } else {
+            OUTCOME_TRY(header, p.storage_->getBlockHeader(block_hash));
+            const auto slot = header.slot;
+            if (slot >= last_justified_block_info.slot) {
+              return BlockTreeError::NON_JUSTIFIED_BLOCK_NOT_FOUND;
+            }
+
+            OUTCOME_TRY(hashes, p.storage_->getBlockHash(slot));
+
+            if (not qtils::cxx23::ranges::contains(hashes, block_hash)) {
+              return BlockTreeError::BLOCK_ON_DEAD_END;
+            }
+          }
+          return outcome::success();
+        });
   }
 
   bool BlockTreeImpl::has(const BlockHash &hash) const {
@@ -449,21 +450,6 @@ namespace lean::blockchain {
           return BlockTreeError::BODY_NOT_FOUND;
         });
   }
-
-  // outcome::result<primitives::Justification>
-  // BlockTreeImpl::getBlockJustification(
-  //     const BlockHash &block_hash) const {
-  //   return block_tree_data_.sharedAccess(
-  //       [&](const BlockTreeData &p)
-  //           -> outcome::result<primitives::Justification> {
-  //         OUTCOME_TRY(justification,
-  //         p.storage_->getJustification(block_hash)); if
-  //         (justification.has_value()) {
-  //           return justification.value();
-  //         }
-  //         return BlockTreeError::JUSTIFICATION_NOT_FOUND;
-  //       });
-  // }
 
   outcome::result<std::vector<BlockHash>> BlockTreeImpl::getBestChainFromBlock(
       const BlockHash &block, uint64_t maximum) const {
@@ -770,49 +756,32 @@ namespace lean::blockchain {
         [&](const BlockTreeData &p) { return getLastFinalizedNoLock(p); });
   }
 
+  BlockIndex BlockTreeImpl::getLastJustifiedNoLock(
+      const BlockTreeData &p) const {
+    return p.tree_->justified();
+  }
+
   Checkpoint BlockTreeImpl::getLatestJustified() const {
     return block_tree_data_.sharedAccess([&](const BlockTreeData &p) {
-      auto finalized = getLastFinalizedNoLock(p);
-      // For now, return finalized as justified since we don't track separate
-      // justification in basic BlockTreeImpl yet
-      return Checkpoint{.root = finalized.hash, .slot = finalized.slot};
+      auto justified = getLastJustifiedNoLock(p);
+      return Checkpoint{.root = justified.hash, .slot = justified.slot};
     });
   }
 
   outcome::result<std::optional<SignedBlockWithAttestation>>
   BlockTreeImpl::tryGetSignedBlock(const BlockHash block_hash) const {
-    auto header_res = getBlockHeader(block_hash);
-    if (not header_res.has_value()) {
-      return std::nullopt;
-    }
-    auto &header = header_res.value();
-    auto body_res = getBlockBody(block_hash);
-    if (not body_res.has_value()) {
-      return std::nullopt;
-    }
-    auto &body = body_res.value();
-    return SignedBlockWithAttestation{
-        .message =
-            {
-                .block =
-                    {
-                        .slot = header.slot,
-                        .proposer_index = header.proposer_index,
-                        .parent_root = header.parent_root,
-                        .state_root = header.state_root,
-                        .body = std::move(body),
-                    },
-                .proposer_attestation = {},
-            },
-        // TODO(turuslan): signature
-        .signature = {},
-    };
-  }
-
-  void BlockTreeImpl::import(std::vector<SignedBlockWithAttestation> blocks) {
-    for (auto &block : blocks) {
-      std::ignore = addBlock(block);
-    }
+    return block_tree_data_.sharedAccess(
+        [&](const BlockTreeData &p)
+            -> outcome::result<std::optional<SignedBlockWithAttestation>> {
+          auto res = p.storage_->getSignedBlockWithAttestation(block_hash);
+          if (res.has_error()) {
+            if (res.error() == BlockTreeError::HEADER_NOT_FOUND) {
+              return std::nullopt;
+            }
+            return res.error();
+          }
+          return res.value();
+        });
   }
 
   outcome::result<void> BlockTreeImpl::reorgAndPrune(
@@ -837,7 +806,7 @@ namespace lean::blockchain {
 
   // BlockHeaderRepository methods
 
-  outcome::result<Slot> BlockTreeImpl::getNumberByHash(
+  outcome::result<Slot> BlockTreeImpl::getSlotByHash(
       const BlockHash &block_hash) const {
     auto slot_opt = block_tree_data_.sharedAccess(
         [&](const BlockTreeData &p) -> std::optional<Slot> {
