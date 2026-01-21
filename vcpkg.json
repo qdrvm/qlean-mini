@@ -11,7 +11,6 @@
     "crc32c",
     "leanp2p",
     "prometheus-cpp",
-    "qdrvm-crates",
     "qtils",
     "qdrvm-crates",
     "rocksdb",
