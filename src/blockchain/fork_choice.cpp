@@ -1101,7 +1101,7 @@ namespace lean {
     }
 
     SL_INFO(logger_, "🔷 Head:   {}", head_);
-    SL_INFO(logger_, "🎯 Target: {:0xx}", safe_target_);
+    SL_INFO(logger_, "🎯 Target: {}", safe_target_);
     SL_INFO(logger_, "📌 Source: {}", latest_justified);
 
     SL_TRACE(logger_, "Fork-choice initialized");
