@@ -4,10 +4,10 @@
 ARG BUILDER_IMAGE=qlean-mini-builder:latest
 FROM ${BUILDER_IMAGE} AS builder
 
+FROM ubuntu:24.04 AS runtime
+
 ARG GIT_COMMIT=unknown
 ARG GIT_BRANCH=unknown
-
-FROM ubuntu:24.04 AS runtime
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

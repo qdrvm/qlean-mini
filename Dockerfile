@@ -70,6 +70,9 @@ RUN --mount=type=cache,target=/qlean-mini/.vcpkg,id=vcpkg-full \
 # ==================== Stage 2: Runtime ====================
 FROM ubuntu:24.04 AS runtime
 
+ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=unknown
+
 # Install minimal runtime dependencies
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
