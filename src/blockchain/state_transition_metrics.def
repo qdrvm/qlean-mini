@@ -45,6 +45,10 @@ METRIC_GAUGE(stf_latest_justified_slot,
 METRIC_GAUGE(stf_latest_finalized_slot,
              "lean_latest_finalized_slot",
              "Latest finalized slot")
+METRIC_COUNTER_LABELS(stf_finalizations_total,
+                      "lean_finalizations_total",
+                      "Total number of finalization attempts",
+                      {"result"})
 
 // State transition timing
 METRIC_HISTOGRAM(stf_state_transition_time_seconds,

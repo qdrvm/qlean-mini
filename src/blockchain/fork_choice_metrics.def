@@ -39,6 +39,15 @@
  */
 
 METRIC_GAUGE(fc_head_slot, "lean_head_slot", "Latest slot of the beacon chain")
+METRIC_GAUGE(fc_current_slot, "lean_current_slot", "Current slot of the lean chain")
+METRIC_GAUGE(fc_safe_target_slot, "lean_safe_target_slot", "Safe target slot")
+METRIC_COUNTER(fc_reorgs_total,
+               "lean_fork_choice_reorgs_total",
+               "Total number of fork choice reorgs")
+METRIC_HISTOGRAM(fc_reorg_depth,
+                 "lean_fork_choice_reorg_depth",
+                 "Depth of fork choice reorgs (in blocks)",
+                 (1, 2, 3, 5, 7, 10, 20, 30, 50, 100))
 
 // Attestation validation
 METRIC_COUNTER_LABELS(fc_attestations_valid_total,

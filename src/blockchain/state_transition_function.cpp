@@ -380,8 +380,11 @@ namespace lean {
           }
         }
         if (not any) {
+          metrics_->stf_finalizations_total({{"result", "success"}})->inc();
           latest_finalized = source;
           metrics_->stf_latest_finalized_slot()->set(latest_finalized.slot);
+        } else {
+          metrics_->stf_finalizations_total({{"result", "error"}})->inc();
         }
       }
       metrics_->stf_attestations_processed_total()->inc();
