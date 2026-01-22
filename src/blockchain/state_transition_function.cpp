@@ -214,8 +214,13 @@ namespace lean {
 
     // Build new justified slots list
     //
-    // Genesis block is always justified
-    state.justified_slots.push_back(is_genesis_parent);
+    // Genesis parent justification is implicit in the finalized checkpoint.
+    // We only push to justified_slots if the parent is NOT genesis, because
+    // justified_slots tracks justifications relative to (exclusive of)
+    // the finalized slot.
+    if (!is_genesis_parent) {
+      state.justified_slots.push_back(false);
+    }
 
     // Mark empty slots as not justified
     for (auto i = num_empty_slots; i > 0; --i) {
@@ -243,25 +248,7 @@ namespace lean {
       State &state, const AggregatedAttestations &attestations) const {
     auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
 
-    // NOTE:
-    // The state already contains three pieces of data:
-    //   1. A list of block roots that have received justification votes.
-    //   2. A long sequence of boolean entries representing all validator votes,
-    //      flattened into a single list.
-    //   3. The total number of validators.
-    //
-    // The flattened vote list is organized so that votes from all validators
-    // for each block root appear together, and those groups are simply placed
-    // back-to-back.
-    //
-    // To work with attestations, we must rebuild the intuitive structure:
-    //   "for each block root, here is the list of validator votes for it".
-    //
-    // Reconstructing this is done by cutting the long vote list into
-    // consecutive segments, where:
-    //   - each segment corresponds to one block root,
-    //   - each segment has length equal to the number of validators,
-    //   - and the ordering of block roots is preserved.
+    // NOTE: Rebuilding Justifications map ...
     Justifications justifications;
     if (state.justifications_roots.size() > 0) {
       auto &roots = state.justifications_roots.data();
@@ -285,15 +272,23 @@ namespace lean {
     auto latest_finalized = state.latest_finalized;
     auto justified_slots = state.justified_slots.data();
 
+    // Helper: Check if a slot is justified.
+    // Justification is relative to the latest finalized slot.
+    // Any slot <= finalized is considered justified.
+    auto is_justified = [&](Slot slot) {
+      if (slot <= latest_finalized.slot) {
+        return true;
+      }
+      auto rel_idx = slot - (latest_finalized.slot + 1);
+      return getBit(justified_slots, rel_idx);
+    };
+
     // Process each attestation in the block.
     for (auto &attestation : attestations) {
       auto &attestation_data = attestation.data;
       auto &source = attestation_data.source;
       auto &target = attestation_data.target;
 
-      // Ignore attestations whose source is not already justified,
-      // or whose target is not in the history, or whose target is not a
-      // valid justifiable slot
       auto source_slot = source.slot;
       auto target_slot = target.slot;
 
@@ -305,16 +300,12 @@ namespace lean {
       }
 
       // Source slot must be justified
-      if (not getBit(justified_slots, source_slot)) {
+      if (not is_justified(source_slot)) {
         continue;
       }
 
       // Target slot must not be already justified
-      // This condition is missing in 3sf mini but has been added here because
-      // we don't want to re-introduce the target again for remaining votes if
-      // the slot is already justified and its tracking already cleared out
-      // from justifications map
-      if (getBit(justified_slots, target_slot)) {
+      if (is_justified(target_slot)) {
         continue;
       }
 
@@ -358,20 +349,18 @@ namespace lean {
 
       size_t count = std::ranges::count(justifications_it->second, true);
 
-      // If 2/3 attested to the same new valid hash to justify
-      // in 3sf mini this is strict equality, but we have updated it to >=
-      // also have modified it from count >= (2 * state.config.num_validators)
-      // // 3 to prevent integer division which could lead to less than 2/3 of
-      // validators justifying specially if the num_validators is low in
-      // testing scenarios
       if (3 * count >= 2 * state.validatorCount()) {
         latest_justified = target;
         metrics_->stf_latest_justified_slot()->set(latest_justified.slot);
-        setBit(justified_slots, target_slot);
+
+        // Mark target slot as justified in the bitlist
+        // NOTE: Index is relative to latest_finalized + 1
+        auto rel_idx = target_slot - (latest_finalized.slot + 1);
+        setBit(justified_slots, rel_idx);
+
         justifications.erase(target.root);
 
-        // Finalization: if the target is the next valid justifiable
-        // hash after the source
+        // Finalization check
         auto any = false;
         for (auto slot = source_slot + 1; slot < target_slot; ++slot) {
           if (isJustifiableSlot(latest_finalized.slot, slot)) {
@@ -380,8 +369,20 @@ namespace lean {
           }
         }
         if (not any) {
+          auto old_finalized_slot = latest_finalized.slot;
           latest_finalized = source;
           metrics_->stf_latest_finalized_slot()->set(latest_finalized.slot);
+
+          // Shift justified_slots to keep it relative to new finalized slot
+          auto delta = latest_finalized.slot - old_finalized_slot;
+          if (delta > 0) {
+            if (delta < justified_slots.size()) {
+              justified_slots.erase(justified_slots.begin(),
+                                    justified_slots.begin() + delta);
+            } else {
+              justified_slots.clear();
+            }
+          }
         }
       }
       metrics_->stf_attestations_processed_total()->inc();

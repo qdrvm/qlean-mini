@@ -13,10 +13,10 @@
 
 namespace lean {
   struct BlockSignatures : ssz::ssz_variable_size_container {
-    AttestationSignatures attestation_signatures;
     Signature proposer_signature;
+    AttestationSignatures attestation_signatures;
 
-    SSZ_CONT(attestation_signatures, proposer_signature);
+    SSZ_CONT(proposer_signature, attestation_signatures);
     bool operator==(const BlockSignatures &) const = default;
   };
 }  // namespace lean
