@@ -21,4 +21,5 @@ namespace lean::crypto::xmss {
   using XmssMessage = qtils::ByteArr<PQ_MESSAGE_SIZE>;
   using XmssSignature = qtils::ByteArr<PQ_SIGNATURE_SIZE>;
   using XmssAggregatedSignature = qtils::ByteVec;
+  using XmssAggregatedSignatureIn = qtils::ByteView;
 }  // namespace lean::crypto::xmss

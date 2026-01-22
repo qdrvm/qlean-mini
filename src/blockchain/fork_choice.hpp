@@ -406,7 +406,7 @@ namespace lean {
 
    private:
     using AggregatedPayload =
-        std::pair<AggregatedAttestation, LeanAggregatedSignature>;
+        std::pair<AggregatedAttestation, AggregatedSignatureProof>;
     using ValidatorAttestationKey = std::tuple<ValidatorIndex, BlockHash>;
 
     /**

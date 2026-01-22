@@ -138,7 +138,7 @@ namespace lean::crypto::xmss {
       std::span<const XmssPublicKey> public_keys,
       uint32_t epoch,
       const XmssMessage &message,
-      const XmssAggregatedSignature &aggregated_signature) const {
+      XmssAggregatedSignatureIn aggregated_signature) const {
     auto public_keys_raw = manyToRaw(public_keys);
     return pq_verify_aggregated_signatures(public_keys.size(),
                                            public_keys_raw.data(),
