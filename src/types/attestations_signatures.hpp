@@ -8,10 +8,10 @@
 
 #include <sszpp/lists.hpp>
 
+#include "types/aggregated_signature_proof.hpp"
 #include "types/constants.hpp"
-#include "types/lean_aggregated_signature.hpp"
 
 namespace lean {
   using AttestationSignatures =
-      ssz::list<LeanAggregatedSignature, VALIDATOR_REGISTRY_LIMIT>;
+      ssz::list<AggregatedSignatureProof, VALIDATOR_REGISTRY_LIMIT>;
 }  // namespace lean

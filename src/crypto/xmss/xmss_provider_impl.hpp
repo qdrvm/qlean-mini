@@ -33,7 +33,7 @@ namespace lean::crypto::xmss {
         std::span<const XmssPublicKey> public_keys,
         uint32_t epoch,
         const XmssMessage &message,
-        const XmssAggregatedSignature &aggregated_signature) const override;
+        XmssAggregatedSignatureIn aggregated_signature) const override;
   };
 
 }  // namespace lean::crypto::xmss

@@ -617,10 +617,7 @@ namespace lean {
               ->crypto_pq_signature_aggregated_attestation_verification_time_seconds()
               ->timer();
       bool verify_result = xmss_provider_->verifyAggregatedSignatures(
-          public_keys,
-          epoch,
-          message,
-          qtils::ByteVec{aggregated_signature.data()});
+          public_keys, epoch, message, aggregated_signature.proof_data.data());
       timer.stop();
 
       if (not verify_result) {
@@ -1201,7 +1198,10 @@ namespace lean {
             .aggregation_bits = aggregation_bits,
             .data = aggregated_attestation.data,
         });
-        aggregated_signatures.push_back(aggregated_signature);
+        aggregated_signatures.push_back({
+            .participants = aggregated_attestation.aggregation_bits,
+            .proof_data = aggregated_signature,
+        });
       }
       // Phase 2: Fallback to existing proofs
       // Some validators may not have broadcast their signatures over gossip,
