@@ -12,22 +12,76 @@
 #include "blockchain/is_justifiable_slot.hpp"
 #include "metrics/metrics.hpp"
 #include "types/state.hpp"
+#include "utils/retain_if.hpp"
 
 namespace lean {
+  // Return the relative bitfield index for justification tracking.
+  // Slots at or before the finalized boundary are treated as justified.
+  // Those slots do not have an index in the tracked bitfield.
+  inline std::optional<Slot> justifiedIndexAfter(Slot finalized_slot,
+                                                 Slot slot) {
+    if (slot <= finalized_slot) {
+      return std::nullopt;
+    }
+    return slot - finalized_slot - 1;
+  }
+
+  // Extend the tracking capacity to cover a new target slot.
+  // This prepares the state to process a new block by ensuring the
+  // bitfield is long enough to store its justification status.
+  // Gaps are filled with False (unjustified).
+  inline void extendToSlot(std::vector<bool> &bits,
+                           Slot finalized_slot,
+                           Slot target_slot) {
+    auto index = justifiedIndexAfter(finalized_slot, target_slot);
+    if (not index.has_value()) {
+      return;
+    }
+    auto size = *index + 1;
+    if (size <= bits.size()) {
+      return;
+    }
+    bits.resize(size, false);
+  }
+
+  // Determine if a specific slot is considered justified.
+  // The check follows these rules:
+  // - Slots at or before the finalized boundary are implicitly justified.
+  // - Future slots are checked against the tracked bitfield.
+  inline std::optional<bool> isSlotJustified(const std::vector<bool> &bits,
+                                             Slot finalized_slot,
+                                             Slot target_slot) {
+    auto index = justifiedIndexAfter(finalized_slot, target_slot);
+    if (not index.has_value()) {
+      return true;
+    }
+    if (*index >= bits.size()) {
+      return std::nullopt;
+    }
+    return bits[*index];
+  }
+
+  // Return a new bitfield with the justification status updated.
+  // This method follows the immutable pattern:
+  // - Returns 'self' if the slot is finalized (immutable).
+  // - Returns a clone with the specific bit updated for active slots.
+  inline void withJustified(std::vector<bool> &bits,
+                            Slot finalized_slot,
+                            Slot target_slot) {
+    auto index = justifiedIndexAfter(finalized_slot, target_slot);
+    if (not index.has_value()) {
+      return;
+    }
+    bits.at(*index) = true;
+  }
+
+  inline void shiftWindow(std::vector<bool> &bits, Slot delta) {
+    bits.erase(bits.begin(),
+               bits.begin() + std::min<size_t>(bits.size(), delta));
+  }
 
   STF::STF(qtils::SharedRef<metrics::Metrics> metrics, log::Logger logger)
       : metrics_(std::move(metrics)), log_(std::move(logger)) {}
-
-  inline bool getBit(const std::vector<bool> &bits, size_t i) {
-    return i < bits.size() and bits.at(i);
-  }
-
-  inline void setBit(std::vector<bool> &bits, size_t i) {
-    if (bits.size() <= i) {
-      bits.resize(i + 1);
-    }
-    bits.at(i) = true;
-  }
 
   using Justifications = std::map<BlockHash, std::vector<bool>>;
 
@@ -212,15 +266,18 @@ namespace lean {
       state.historical_block_hashes.push_back(kZeroHash);
     }
 
-    // Build new justified slots list
-    //
-    // Genesis block is always justified
-    state.justified_slots.push_back(is_genesis_parent);
-
-    // Mark empty slots as not justified
-    for (auto i = num_empty_slots; i > 0; --i) {
-      state.justified_slots.push_back(false);
-    }
+    // Update the list of justified slot flags.
+    // IMPORTANT: This list is stored relative to the finalized boundary.
+    // The first entry corresponds to the slot immediately following the
+    // latest finalized checkpoint.
+    // Here, we extend the storage capacity to ensure the range from the
+    // finalized boundary up to the last materialized slot is fully tracked
+    // and addressable. The current block's slot is not materialized until
+    // its header is fully processed, so we stop at slot (block.slot - 1).
+    auto last_materialized_slot = block.slot - 1;
+    extendToSlot(state.justified_slots.data(),
+                 state.latest_finalized.slot,
+                 last_materialized_slot);
 
     // Construct the new latest block header.
     //
@@ -283,7 +340,23 @@ namespace lean {
     // Track state changes to be applied at the end
     auto latest_justified = state.latest_justified;
     auto latest_finalized = state.latest_finalized;
-    auto justified_slots = state.justified_slots.data();
+    auto &justified_slots = state.justified_slots.data();
+
+    // Map roots to their latest slot for pruning.
+    // Votes for zero hash are ignored, so we only need the most recent slot
+    // where a root appears to decide whether it is still unfinalized.
+    std::unordered_map<BlockHash, Slot> root_to_slot;
+    for (auto slot = latest_finalized.slot + 1;
+         slot < state.historical_block_hashes.size();
+         ++slot) {
+      auto &root = state.historical_block_hashes[slot];
+      auto it = root_to_slot.find(root);
+      if (it == root_to_slot.end()) {
+        root_to_slot.emplace(root, slot);
+      } else if (slot > it->second) {
+        it->second = slot;
+      }
+    }
 
     // Process each attestation in the block.
     for (auto &attestation : attestations) {
@@ -305,7 +378,9 @@ namespace lean {
       }
 
       // Source slot must be justified
-      if (not getBit(justified_slots, source_slot)) {
+      if (not isSlotJustified(
+                  justified_slots, latest_finalized.slot, source_slot)
+                  .value()) {
         continue;
       }
 
@@ -314,7 +389,8 @@ namespace lean {
       // we don't want to re-introduce the target again for remaining votes if
       // the slot is already justified and its tracking already cleared out
       // from justifications map
-      if (getBit(justified_slots, target_slot)) {
+      if (isSlotJustified(justified_slots, latest_finalized.slot, target_slot)
+              .value()) {
         continue;
       }
 
@@ -334,7 +410,7 @@ namespace lean {
       }
 
       // Target slot must be justifiable after the latest finalized slot
-      if (not isJustifiableSlot(latest_finalized.slot, target.slot)) {
+      if (not isJustifiableSlot(state.latest_finalized.slot, target.slot)) {
         continue;
       }
 
@@ -367,21 +443,36 @@ namespace lean {
       if (3 * count >= 2 * state.validatorCount()) {
         latest_justified = target;
         metrics_->stf_latest_justified_slot()->set(latest_justified.slot);
-        setBit(justified_slots, target_slot);
+        withJustified(justified_slots, latest_finalized.slot, target_slot);
         justifications.erase(target.root);
 
         // Finalization: if the target is the next valid justifiable
         // hash after the source
         auto any = false;
         for (auto slot = source_slot + 1; slot < target_slot; ++slot) {
-          if (isJustifiableSlot(latest_finalized.slot, slot)) {
+          if (isJustifiableSlot(state.latest_finalized.slot, slot)) {
             any = true;
             break;
           }
         }
         if (not any) {
+          auto old_finalized_slot = latest_finalized.slot;
           latest_finalized = source;
           metrics_->stf_latest_finalized_slot()->set(latest_finalized.slot);
+
+          // Rebase/prune justification tracking across the new finalized
+          // boundary. The state stores justified slot flags starting at
+          // (finalized_slot + 1), so when finalization advances by `delta`, we
+          // drop the first `delta` bits. We also prune any pending
+          // justifications whose latest slot is now finalized (latest <=
+          // finalized_slot).
+          auto delta = latest_finalized.slot - old_finalized_slot;
+          if (delta > 0) {
+            shiftWindow(justified_slots, delta);
+            retain_if(justifications, [&](const Justifications::value_type &p) {
+              return root_to_slot.at(p.first) > latest_finalized.slot;
+            });
+          }
         }
       }
       metrics_->stf_attestations_processed_total()->inc();
@@ -391,7 +482,6 @@ namespace lean {
     setJustifications(state, justifications);
 
     // Apply tracked state changes
-    state.justified_slots.data() = std::move(justified_slots);
     state.latest_justified = latest_justified;
     state.latest_finalized = latest_finalized;
 
