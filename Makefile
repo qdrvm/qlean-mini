@@ -24,7 +24,9 @@ DOCKER_PLATFORM ?= linux/arm64 #linux/amd64
 DOCKER_REGISTRY ?= qdrvm
 DOCKER_PUSH_TAG ?= false
 DOCKER_PUSH_LATEST ?= false
+# Use short git commit SHA for image tags, and full SHA for labels
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_COMMIT_LONG := $(shell git rev-parse HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
 # Supported platforms: linux/arm64, linux/amd64
@@ -150,7 +152,7 @@ docker_build_builder:
 	DOCKER_BUILDKIT=1 docker build \
 		--platform $(DOCKER_PLATFORM) \
 		--build-arg DEPS_IMAGE=$(DOCKER_IMAGE_DEPS) \
-		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT_LONG) \
 		--build-arg GIT_BRANCH=$(GIT_BRANCH) \
 		-f Dockerfile.builder \
 		--progress=plain \
@@ -183,7 +185,7 @@ docker_build_runtime:
 	DOCKER_BUILDKIT=1 docker build \
 		--platform $(DOCKER_PLATFORM) \
 		--build-arg BUILDER_IMAGE=$(DOCKER_IMAGE_BUILDER_TAG) \
-		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT_LONG) \
 		--build-arg GIT_BRANCH=$(GIT_BRANCH) \
 		-f Dockerfile.runtime \
 		--progress=plain \
