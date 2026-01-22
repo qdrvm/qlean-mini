@@ -138,11 +138,9 @@ namespace lean {
     for (auto i = 0; i < JUSTIFICATION_LOOKBACK_SLOTS; ++i) {
       auto target_header_res = block_tree_->getBlockHeader(target_block_root);
       if (target_header_res.has_error()) {
-        SL_CRITICAL(
-            logger_,
-            "Failed getting header of head or some it's ancestor: {}",
-            target_header_res.error());
-        std::abort();  // Terminate to avoid breaking run
+        SL_FATAL(logger_,
+                 "Failed getting header of head or some it's ancestor: {}",
+                 target_header_res.error());
       }
       auto &target_header = target_header_res.value();
       if (target_header.slot > lookback_limit) {
@@ -158,11 +156,9 @@ namespace lean {
     while (true) {
       auto target_header_res = block_tree_->getBlockHeader(target_block_root);
       if (target_header_res.has_error()) {
-        SL_CRITICAL(
-            logger_,
-            "Failed getting header of some finalized block: {}",
-            target_header_res.error());
-        std::abort();  // Terminate to avoid breaking run
+        SL_FATAL(logger_,
+                 "Failed getting header of some finalized block: {}",
+                 target_header_res.error());
       }
       auto &target_header = target_header_res.value();
       if (isJustifiableSlot(latest_finalized_slot, target_header.slot)) {
@@ -173,11 +169,9 @@ namespace lean {
 
     auto target_header_res = block_tree_->getBlockHeader(target_block_root);
     if (target_header_res.has_error()) {
-      SL_CRITICAL(
-          logger_,
-          "Failed getting header of target block: {}",
-          target_header_res.error());
-      std::abort();  // Terminate to avoid breaking run
+      SL_FATAL(logger_,
+               "Failed getting header of target block: {}",
+               target_header_res.error());
     }
     auto &target_header = target_header_res.value();
     return Checkpoint{
@@ -699,11 +693,9 @@ namespace lean {
 
     auto head_state_res = getState(head_.root);
     if (head_state_res.has_error()) {
-      SL_CRITICAL(
-          logger_,
-          "Fatal error: Failed getting state of head ({}): {}",
-          head_state_res.error());
-      std::abort();  // Terminate to avoid breaking run
+      SL_FATAL(logger_,
+               "Fatal error: Failed getting state of head ({}): {}",
+               head_state_res.error());
     }
     auto &head_state = head_state_res.value();
 
