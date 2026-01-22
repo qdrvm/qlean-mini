@@ -280,7 +280,9 @@ namespace lean::modules {
       SL_TRACE(self->logger_,
                "🔗 Peer connected: {}",
                connection->remotePeer().toBase58());
-      self->metrics_->connect_event_count()->inc();
+      auto direction =
+          connection->isInitiator() ? "outbound" : "inbound";
+      self->metrics_->connect_event_count({{"direction", direction}, {"result", "success"}})->inc();
       auto peer_id = connection->remotePeer();
       auto state_it = self->peer_states_.find(peer_id);
       if (state_it != self->peer_states_.end()) {
@@ -401,7 +403,9 @@ namespace lean::modules {
           SL_TRACE(self->logger_,
                    "❌ Connection closed: {}",
                    connection->remotePeer().toBase58());
-          self->metrics_->disconnect_event_count()->inc();
+          auto direction =
+              connection->isInitiator() ? "outbound" : "inbound";
+          self->metrics_->disconnect_event_count({{"direction", direction}, {"reason", "unknown"}})->inc();
         };
 
     on_peer_connected_sub_ =
@@ -808,7 +812,7 @@ namespace lean::modules {
 
   void NetworkingImpl::updateMetricConnectedPeerCount() {
     auto count = host_->getConnectedPeerCount();
-    metrics_->connected_peer_count()->set(count);
+    metrics_->connected_peer_count({{"client", "unknown"}})->set(count);
     loader_.dispatch_peers_total_count_updated(
         std::make_shared<messages::PeersTotalCountMessage>(count));
   }

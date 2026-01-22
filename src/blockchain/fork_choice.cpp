@@ -28,6 +28,56 @@ namespace lean {
     return sszHash(attestation_data);
   }
 
+  static bool isDescendant(const qtils::SharedRef<blockchain::BlockTree>& block_tree, 
+                           BlockHash ancestor, 
+                           BlockHash descendant) {
+     if (ancestor == descendant) return true;
+     auto curr = descendant;
+     auto anc_slot_res = block_tree->getSlotByHash(ancestor);
+     if (anc_slot_res.has_error()) return false;
+     auto limit_slot = anc_slot_res.value();
+     
+     while (true) {
+         auto header_res = block_tree->getBlockHeader(curr);
+         if (header_res.has_error()) return false;
+         const auto& header = header_res.value();
+         if (header.slot < limit_slot) return false;
+         if (header.slot == limit_slot) return curr == ancestor;
+         curr = header.parent_root;
+     }
+  }
+
+  static outcome::result<BlockHash> findLCA(const qtils::SharedRef<blockchain::BlockTree>& block_tree,
+                                            BlockHash h1, BlockHash h2) {
+       auto s1_res = block_tree->getSlotByHash(h1);
+       auto s2_res = block_tree->getSlotByHash(h2);
+       if (!s1_res) return s1_res.as_failure();
+       if (!s2_res) return s2_res.as_failure();
+       
+       Slot s1 = s1_res.value();
+       Slot s2 = s2_res.value();
+       
+       while (s1 > s2) {
+           OUTCOME_TRY(header, block_tree->getBlockHeader(h1));
+           h1 = header.parent_root;
+           OUTCOME_TRY(s, block_tree->getSlotByHash(h1));
+           s1 = s;
+       }
+       while (s2 > s1) {
+           OUTCOME_TRY(header, block_tree->getBlockHeader(h2));
+           h2 = header.parent_root;
+           OUTCOME_TRY(s, block_tree->getSlotByHash(h2));
+           s2 = s;
+       }
+       while (h1 != h2) {
+           OUTCOME_TRY(header1, block_tree->getBlockHeader(h1));
+           h1 = header1.parent_root;
+           OUTCOME_TRY(header2, block_tree->getBlockHeader(h2));
+           h2 = header2.parent_root;
+       }
+       return h1;
+   }
+
   outcome::result<void> ForkChoiceStore::updateSafeTarget() {
     SL_TRACE(logger_, "Update safe target");
     // Get validator count from head state
@@ -44,6 +94,7 @@ namespace lean {
     OUTCOME_TRY(slot, getBlockSlot(lmd_ghost_head));
 
     safe_target_ = {.root = lmd_ghost_head, .slot = slot};
+    metrics_->fc_safe_target_slot()->set(slot);
     SL_TRACE(logger_, "Safe target was set to {}", safe_target_);
 
     return outcome::success();
@@ -59,6 +110,26 @@ namespace lean {
                 computeLmdGhostHead(block_tree_->getLatestJustified().root,
                                     latest_new_attestations_,
                                     0));
+
+    // Reorg detection
+    if (head_.root != lmd_ghost_head) {
+      if (!isDescendant(block_tree_, head_.root, lmd_ghost_head)) {
+        metrics_->fc_reorgs_total()->inc();
+        // Calculate reorg depth by finding LCA
+        auto old_head = head_.root;
+        auto new_head = lmd_ghost_head;
+        auto lca_res = findLCA(block_tree_, old_head, new_head);
+        if (lca_res.has_value()) {
+            auto lca = lca_res.value();
+            auto old_head_slot_res = block_tree_->getSlotByHash(old_head);
+            auto lca_slot_res = block_tree_->getSlotByHash(lca);
+            if (old_head_slot_res.has_value() && lca_slot_res.has_value()) {
+                auto depth = old_head_slot_res.value() - lca_slot_res.value();
+                metrics_->fc_reorg_depth()->observe(depth);
+            }
+        }
+      }
+    }
 
     OUTCOME_TRY(slot, getBlockSlot(lmd_ghost_head));
 
@@ -283,9 +354,24 @@ namespace lean {
 
     // Compute the aggregated signatures for the attestations.
     // If the attestations cannot be aggregated, split it in a greedy way.
-    auto aggregated =
-        computeAggregatedSignatures(*head_state, aggregated_attestations);
-    aggregated_attestations = aggregated.first;
+    std::pair<AggregatedAttestations, AttestationSignatures> aggregated;
+    {
+      auto timer =
+          metrics_->crypto_pq_sig_attestation_signatures_building_time_seconds()
+              ->timer();
+      aggregated =
+          computeAggregatedSignatures(*head_state, aggregated_attestations);
+      aggregated_attestations = aggregated.first;
+      
+      metrics_->crypto_pq_sig_aggregated_signatures_total()->inc(
+          aggregated.second.size());
+      
+      size_t attestations_count = 0;
+      for (const auto& att : aggregated_attestations.data()) {
+         attestations_count += std::ranges::distance(getAggregatedValidators(att.aggregation_bits));
+      }
+      metrics_->crypto_pq_sig_attestations_in_aggregated_signatures_total()->inc(attestations_count);
+    }
 
     // Create the final block with all collected attestations
     Block block{
@@ -308,7 +394,7 @@ namespace lean {
     // Sign proposer attestation
     auto payload = attestationPayload(proposer_attestation.data);
     auto timer =
-        metrics_->crypto_pq_signature_attestation_signing_time_seconds()
+        metrics_->crypto_pq_sig_attestation_signing_time_seconds()
             ->timer();
     crypto::xmss::XmssSignature proposer_signature = xmss_provider_->sign(
         validator_keys_manifest_->currentNodeXmssKeypair().private_key,
@@ -614,16 +700,18 @@ namespace lean {
 
       auto timer =
           metrics_
-              ->crypto_pq_signature_aggregated_attestation_verification_time_seconds()
+              ->crypto_pq_sig_aggregated_signatures_verification_time_seconds()
               ->timer();
       bool verify_result = xmss_provider_->verifyAggregatedSignatures(
           public_keys,
           epoch,
           message,
           qtils::ByteVec{aggregated_signature.data()});
-      timer.stop();
+      timer.stop(); 
+
 
       if (not verify_result) {
+        metrics_->crypto_pq_sig_aggregated_signatures_invalid_total()->inc();
         SL_WARN(logger_,
                 "Attestation signature verification failed for validators {}",
                 fmt::join(getAggregatedValidators(
@@ -631,11 +719,12 @@ namespace lean {
                           " "));
         return false;
       }
+      metrics_->crypto_pq_sig_aggregated_signatures_valid_total()->inc();
     }
     auto payload = attestationPayload(message.proposer_attestation.data);
 
     auto timer =
-        metrics_->crypto_pq_signature_attestation_verification_time_seconds()
+        metrics_->crypto_pq_sig_attestation_verification_time_seconds()
             ->timer();
     bool verify_result = xmss_provider_->verify(
         validators.data().at(message.proposer_attestation.validator_id).pubkey,
@@ -848,6 +937,7 @@ namespace lean {
                    produced_block.message.block.parent_root,
                    produced_block.message.block.state_root);
           result.emplace_back(std::move(produced_block));
+          metrics_->fc_current_slot()->set(current_slot);
 
         } else {
           SL_TRACE(logger_,
@@ -894,7 +984,7 @@ namespace lean {
           crypto::xmss::XmssKeypair keypair =
               validator_keys_manifest_->currentNodeXmssKeypair();
           auto timer =
-              metrics_->crypto_pq_signature_attestation_signing_time_seconds()
+              metrics_->crypto_pq_sig_attestation_signing_time_seconds()
                   ->timer();
           crypto::xmss::XmssSignature signature =
               xmss_provider_->sign(keypair.private_key, current_slot, payload);

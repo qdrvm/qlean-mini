@@ -39,15 +39,35 @@
  */
 
 // PQ signatures
-METRIC_HISTOGRAM(crypto_pq_signature_attestation_signing_time_seconds,
-                 "lean_pq_signature_attestation_signing_time_seconds",
+// PQ signatures
+METRIC_HISTOGRAM(crypto_pq_sig_attestation_signing_time_seconds,
+                 "lean_pq_sig_attestation_signing_time_seconds",
                  "Time taken to sign an attestation",
                  (0.005, 0.01, 0.025, 0.05, 0.1, 1))
-METRIC_HISTOGRAM(crypto_pq_signature_attestation_verification_time_seconds,
-                 "lean_pq_signature_attestation_verification_time_seconds",
+METRIC_HISTOGRAM(crypto_pq_sig_attestation_verification_time_seconds,
+                 "lean_pq_sig_attestation_verification_time_seconds",
                  "Time taken to verify an attestation signature",
                  (0.005, 0.01, 0.025, 0.05, 0.1, 1))
-METRIC_HISTOGRAM(crypto_pq_signature_aggregated_attestation_verification_time_seconds,
-                 "TODO_lean_pq_signature_aggregated_attestation_verification_time_seconds",
-                 "TODO Time taken to verify an aggregated attestation signature",
+
+METRIC_COUNTER(crypto_pq_sig_aggregated_signatures_total,
+               "lean_pq_sig_aggregated_signatures_total",
+               "Total number of aggregated signatures")
+METRIC_COUNTER(crypto_pq_sig_attestations_in_aggregated_signatures_total,
+               "lean_pq_sig_attestations_in_aggregated_signatures_total",
+               "Total number of attestations included into aggregated signatures")
+
+METRIC_HISTOGRAM(crypto_pq_sig_attestation_signatures_building_time_seconds,
+                 "lean_pq_sig_attestation_signatures_building_time_seconds",
+                 "Time taken to verify an aggregated attestation signature",
                  (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+METRIC_HISTOGRAM(crypto_pq_sig_aggregated_signatures_verification_time_seconds,
+                 "lean_pq_sig_aggregated_signatures_verification_time_seconds",
+                 "Time taken to verify an aggregated attestation signature",
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+
+METRIC_COUNTER(crypto_pq_sig_aggregated_signatures_valid_total,
+               "lean_pq_sig_aggregated_signatures_valid_total",
+               "Total number of valid aggregated signatures")
+METRIC_COUNTER(crypto_pq_sig_aggregated_signatures_invalid_total,
+               "lean_pq_sig_aggregated_signatures_invalid_total",
+               "Total number of invalid aggregated signatures")
