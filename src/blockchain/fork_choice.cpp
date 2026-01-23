@@ -14,11 +14,15 @@
 
 #include <qtils/value_or_raise.hpp>
 
+#include "app/validator_keys_manifest.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/is_proposer.hpp"
+#include "blockchain/validator_registry.hpp"
 #include "impl/block_tree_impl.hpp"
+#include "is_justifiable_slot.hpp"
 #include "metrics/impl/metrics_impl.hpp"
 #include "types/signed_block_with_attestation.hpp"
+#include "utils/ceil_div.hpp"
 #include "utils/lru_cache.hpp"
 
 namespace lean {
