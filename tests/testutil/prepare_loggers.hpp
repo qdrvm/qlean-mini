@@ -45,8 +45,8 @@ groups:
         throw std::runtime_error("Log config is not defined");
       }
 
-      auto log_configurator = std::make_shared<soralog::ConfiguratorFromYAML>(
-          std::shared_ptr<soralog::Configurator>(nullptr), log_config);
+      auto log_configurator =
+          std::make_shared<soralog::ConfiguratorFromYAML>(log_config);
 
       auto logging_system_ =
           std::make_shared<soralog::LoggingSystem>(std::move(log_configurator));
