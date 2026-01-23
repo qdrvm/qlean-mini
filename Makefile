@@ -28,6 +28,10 @@ DOCKER_PUSH_LATEST ?= false
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_COMMIT_LONG := $(shell git rev-parse HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+# Build date in RFC 3339 format for OCI labels
+BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+# Version from git tags (uses scripts/get_version.sh)
+VERSION := $(shell ./scripts/get_version.sh --sanitized 2>/dev/null || echo "unknown")
 
 # Supported platforms: linux/arm64, linux/amd64
 # Usage: make docker_build_all DOCKER_PLATFORM=linux/amd64
@@ -154,6 +158,8 @@ docker_build_builder:
 		--build-arg DEPS_IMAGE=$(DOCKER_IMAGE_DEPS) \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT_LONG) \
 		--build-arg GIT_BRANCH=$(GIT_BRANCH) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg VERSION=$(VERSION) \
 		-f Dockerfile.builder \
 		--progress=plain \
 		-t $(DOCKER_IMAGE_BUILDER) \
@@ -187,6 +193,8 @@ docker_build_runtime:
 		--build-arg BUILDER_IMAGE=$(DOCKER_IMAGE_BUILDER_TAG) \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT_LONG) \
 		--build-arg GIT_BRANCH=$(GIT_BRANCH) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg VERSION=$(VERSION) \
 		-f Dockerfile.runtime \
 		--progress=plain \
 		-t $(DOCKER_IMAGE_RUNTIME) \

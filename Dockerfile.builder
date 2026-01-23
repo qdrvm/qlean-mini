@@ -9,6 +9,8 @@ FROM ubuntu:24.04 AS builder
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_COMMIT=unknown
 ARG GIT_BRANCH=unknown
+ARG BUILD_DATE=unknown
+ARG VERSION=unknown
 ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
 ENV VCPKG_FORCE_SYSTEM_BINARIES=1
 ENV GIT_COMMIT=${GIT_COMMIT}
@@ -85,6 +87,18 @@ RUN set -eux; \
     ls -lh /opt/artifacts/modules/ || true; \
     ls -lh /opt/artifacts/lib/ || true; \
     echo "Vcpkg libraries: $(find /opt/artifacts/vcpkg/ -name '*.so*' | wc -l) files"
+
+# OCI Image Spec annotations
+# https://github.com/opencontainers/image-spec/blob/main/annotations.md
+LABEL org.opencontainers.image.title="qlean-mini-builder"
+LABEL org.opencontainers.image.description="Qlean-mini: builder image with compiled artifacts"
+LABEL org.opencontainers.image.source="https://github.com/qdrvm/qlean-mini"
+LABEL org.opencontainers.image.vendor="QDRVM"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.version=$VERSION
+LABEL org.opencontainers.image.created=$BUILD_DATE
+LABEL org.opencontainers.image.revision=$GIT_COMMIT
+LABEL org.opencontainers.image.ref.name=$GIT_BRANCH
 
 CMD ["/bin/bash"]
 

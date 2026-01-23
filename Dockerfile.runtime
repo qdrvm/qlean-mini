@@ -2,12 +2,17 @@
 # Production-ready image with binaries only
 
 ARG BUILDER_IMAGE=qlean-mini-builder:latest
+ARG BASE_IMAGE=ubuntu:24.04
+
 FROM ${BUILDER_IMAGE} AS builder
 
-FROM ubuntu:24.04 AS runtime
+FROM ${BASE_IMAGE} AS runtime
 
+ARG BASE_IMAGE
 ARG GIT_COMMIT=unknown
 ARG GIT_BRANCH=unknown
+ARG BUILD_DATE=unknown
+ARG VERSION=unknown
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -34,10 +39,20 @@ RUN echo "=== Runtime image contents ===" && \
     echo "" && echo "Vcpkg libraries:" && ls /opt/qlean/vcpkg/ | wc -l && echo " files" && \
     echo "" && echo "Total image libraries:" && find /opt/qlean -name "*.so*" | wc -l && echo " .so files"
 
-LABEL org.opencontainers.image.description="Qlean-mini runtime image (optimized)"
+# OCI Image Spec annotations
+# https://github.com/opencontainers/image-spec/blob/main/annotations.md
+LABEL org.opencontainers.image.title="qlean-mini"
+LABEL org.opencontainers.image.description="Qlean-mini: lean Ethereum consensus client for devnets — minimal optimized runtime"
+LABEL org.opencontainers.image.source="https://github.com/qdrvm/qlean-mini"
+LABEL org.opencontainers.image.url="https://github.com/qdrvm/qlean-mini"
+LABEL org.opencontainers.image.documentation="https://github.com/qdrvm/qlean-mini#readme"
+LABEL org.opencontainers.image.vendor="QDRVM"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.version=$VERSION
+LABEL org.opencontainers.image.created=$BUILD_DATE
 LABEL org.opencontainers.image.revision=$GIT_COMMIT
 LABEL org.opencontainers.image.ref.name=$GIT_BRANCH
-LABEL stage=runtime
+LABEL org.opencontainers.image.base.name=$BASE_IMAGE
 
 ENTRYPOINT ["qlean", "--modules-dir", "/opt/qlean/modules"]
 CMD ["--help"]
