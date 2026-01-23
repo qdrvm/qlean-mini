@@ -17,5 +17,6 @@ namespace lean {
     LeanAggregatedSignature proof_data;
 
     SSZ_CONT(participants, proof_data);
+    bool operator==(const AggregatedSignatureProof &) const = default;
   };
 }  // namespace lean
