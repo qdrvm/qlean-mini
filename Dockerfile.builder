@@ -8,9 +8,13 @@ FROM ubuntu:24.04 AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=unknown
+ARG BUILD_DATE=unknown
+ARG VERSION=unknown
 ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
 ENV VCPKG_FORCE_SYSTEM_BINARIES=1
 ENV GIT_COMMIT=${GIT_COMMIT}
+ENV GIT_BRANCH=${GIT_BRANCH}
 
 ENV PROJECT=/qlean-mini
 ENV VENV=${PROJECT}/.venv
@@ -59,12 +63,12 @@ RUN set -eux; \
     echo "=== Checking vcpkg_installed ==="; \
     ls -la ${BUILD}/vcpkg_installed/ || echo "No vcpkg_installed found!"; \
     VCPKG_ROOT=${PROJECT}/.vcpkg cmake -G Ninja --preset=default \
-        -DPython3_EXECUTABLE="${VENV}/bin/python3" \
-        -DTESTING=OFF \
-        -DVCPKG_INSTALLED_DIR=${BUILD}/vcpkg_installed \
-        -DVCPKG_MANIFEST_MODE=OFF \
-        -B ${BUILD} \
-        ${PROJECT}; \
+    -DPython3_EXECUTABLE="${VENV}/bin/python3" \
+    -DTESTING=OFF \
+    -DVCPKG_INSTALLED_DIR=${BUILD}/vcpkg_installed \
+    -DVCPKG_MANIFEST_MODE=OFF \
+    -B ${BUILD} \
+    ${PROJECT}; \
     cmake --build ${BUILD} --parallel; \
     mkdir -p /opt/artifacts/bin /opt/artifacts/modules /opt/artifacts/lib /opt/artifacts/vcpkg; \
     cp -v ${BUILD}/src/executable/qlean /opt/artifacts/bin/; \
@@ -74,15 +78,27 @@ RUN set -eux; \
     find ${BUILD}/src -type f -name "*.so" ! -name "*_module.so" -exec cp -v {} /opt/artifacts/lib/ \; || true; \
     find /opt/artifacts/lib/ -name "*.so" -exec strip {} \; || true; \
     if [ -d "${BUILD}/vcpkg_installed" ]; then \
-      echo "Collecting only runtime .so libraries from vcpkg..."; \
-      find ${BUILD}/vcpkg_installed -name "*.so*" -type f -exec cp -v {} /opt/artifacts/vcpkg/ \; 2>/dev/null || true; \
-      find /opt/artifacts/vcpkg/ -name "*.so*" -exec strip {} \; 2>/dev/null || true; \
+    echo "Collecting only runtime .so libraries from vcpkg..."; \
+    find ${BUILD}/vcpkg_installed -name "*.so*" -type f -exec cp -v {} /opt/artifacts/vcpkg/ \; 2>/dev/null || true; \
+    find /opt/artifacts/vcpkg/ -name "*.so*" -exec strip {} \; 2>/dev/null || true; \
     fi; \
     echo "=== Artifacts ==="; \
     ls -lh /opt/artifacts/bin/; \
     ls -lh /opt/artifacts/modules/ || true; \
     ls -lh /opt/artifacts/lib/ || true; \
     echo "Vcpkg libraries: $(find /opt/artifacts/vcpkg/ -name '*.so*' | wc -l) files"
+
+# OCI Image Spec annotations
+# https://github.com/opencontainers/image-spec/blob/main/annotations.md
+LABEL org.opencontainers.image.title="qlean-mini-builder"
+LABEL org.opencontainers.image.description="Qlean-mini: builder image with compiled artifacts"
+LABEL org.opencontainers.image.source="https://github.com/qdrvm/qlean-mini"
+LABEL org.opencontainers.image.vendor="QDRVM"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.version=$VERSION
+LABEL org.opencontainers.image.created=$BUILD_DATE
+LABEL org.opencontainers.image.revision=$GIT_COMMIT
+LABEL org.opencontainers.image.ref.name=$GIT_BRANCH
 
 CMD ["/bin/bash"]
 

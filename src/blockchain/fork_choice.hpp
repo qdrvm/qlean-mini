@@ -10,27 +10,25 @@
 #include <optional>
 #include <unordered_map>
 
-#include <boost/assert.hpp>
 #include <boost/di.hpp>
 #include <qtils/shared_ref.hpp>
 
-#include "app/validator_keys_manifest.hpp"
-#include "blockchain/is_justifiable_slot.hpp"
 #include "blockchain/state_transition_function.hpp"
-#include "blockchain/validator_registry.hpp"
 #include "clock/clock.hpp"
 #include "crypto/xmss/xmss_provider.hpp"
+#include "log/logger.hpp"
 #include "types/block.hpp"
 #include "types/signed_attestation.hpp"
 #include "types/signed_block_with_attestation.hpp"
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
-#include "utils/ceil_div.hpp"
 #include "utils/lru_cache.hpp"
 #include "utils/tuple_hash.hpp"
 
 namespace lean {
   struct GenesisConfig;
+  class ValidatorRegistry;
+  class ValidatorKeysManifest;
 }  // namespace lean
 
 namespace lean::blockchain {
