@@ -270,7 +270,7 @@ namespace lean::blockchain {
           getFromSpace(*storage_, storage::Space::Attestation, block_hash));
       if (encoded_attestation_opt.has_value()) {
         OUTCOME_TRY(attestation,
-                    decode<Attestations>(encoded_attestation_opt.value()));
+                    decode<Attestation>(encoded_attestation_opt.value()));
         data.attestation.emplace(std::move(attestation));
       } else {
         return BlockStorageError::ATTESTATION_NOT_FOUND;
@@ -309,15 +309,7 @@ namespace lean::blockchain {
     block.signature = std::move(*data.signature);
 
     // Block attestation
-    auto &attestations = *data.attestation;
-    auto it = std::ranges::find_if(attestations, [&](const auto &attestation) {
-      return attestation.validator_id == block.message.block.proposer_index;
-    });
-    BOOST_ASSERT(it != attestations.end());
-    if (it == attestations.end()) [[unlikely]] {
-      return BlockStorageError::INCONSISTENT_DATA;
-    }
-    block.message.proposer_attestation = *it;
+    block.message.proposer_attestation = *data.attestation;
 
     // Block body
     block.message.block.body = std::move(*data.body);

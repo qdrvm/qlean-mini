@@ -475,16 +475,16 @@ namespace lean::modules {
           SL_DEBUG(self->logger_,
                    "Received vote for target={} 🗳️ from peer={} 👤 "
                    "validator_id={} ✅",
-                   signed_attestation.message.data.target,
+                   signed_attestation.message.target,
                    peer_id.has_value() ? peer_id->toBase58() : "unknown",
-                   signed_attestation.message.validator_id);
+                   signed_attestation.validator_id);
 
-          auto res = self->fork_choice_store_->onAttestation(signed_attestation,
-                                                             false);
+          auto res =
+              self->fork_choice_store_->onGossipAttestation(signed_attestation);
           if (not res.has_value()) {
             SL_WARN(self->logger_,
                     "Error processing vote for target={}: {}",
-                    signed_attestation.message.data.target,
+                    signed_attestation.message.target,
                     res.error());
             return;
           }
@@ -518,7 +518,7 @@ namespace lean::modules {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       SL_DEBUG(self->logger_,
                "📣 Gossiped vote for target={} 🗳️",
-               message->notification.message.data.target);
+               message->notification.message.target);
       self->gossip_votes_topic_->publish(
           encodeSszSnappy(message->notification));
     });

@@ -23,6 +23,7 @@
 #include "qtils/test/outcome.hpp"
 #include "testutil/prepare_loggers.hpp"
 
+using lean::Attestation;
 using lean::Block;
 using lean::BlockHash;
 using lean::BlockHeader;
@@ -45,30 +46,26 @@ BlockHash testHash(std::string_view s) {
   return hash;
 }
 
-SignedAttestation makeAttestation(const Block &source, const Block &target) {
-  return SignedAttestation{
-      .message =
+Attestation makeAttestation(const Block &source, const Block &target) {
+  return Attestation{
+      .validator_id = 0,
+      .data =
           {
-              .validator_id = 0,
-              .data =
-                  {
-                      .slot = target.slot,
-                      .head = Checkpoint::from(target),
-                      .target = Checkpoint::from(target),
-                      .source = Checkpoint::from(source),
-                  },
+              .slot = target.slot,
+              .head = Checkpoint::from(target),
+              .target = Checkpoint::from(target),
+              .source = Checkpoint::from(source),
           },
-      .signature = {},
   };
 }
 
 std::optional<Checkpoint> getAttestation(
-    const ForkChoiceStore::SignedAttestations &votes) {
+    const ForkChoiceStore::AttestationDataByValidator &votes) {
   auto it = votes.find(0);
   if (it == votes.end()) {
     return std::nullopt;
   }
-  return it->second.message.data.target;
+  return it->second.target;
 }
 
 Config config{
@@ -83,8 +80,8 @@ auto createTestStore(
     Checkpoint latest_finalized = {},
     std::unordered_map<BlockHash, SignedBlockWithAttestation> blocks = {},
     std::unordered_map<BlockHash, State> states = {},
-    ForkChoiceStore::SignedAttestations latest_known_attestations = {},
-    ForkChoiceStore::SignedAttestations latest_new_attestations = {},
+    ForkChoiceStore::AttestationDataByValidator latest_known_attestations = {},
+    ForkChoiceStore::AttestationDataByValidator latest_new_attestations = {},
     ValidatorIndex validator_index = 0) {
   auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
   static lean::ValidatorRegistry::ValidatorIndices validators{0};
@@ -328,20 +325,12 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::SignedAttestations attestations;
-  attestations[0] = SignedAttestation{
-      .message =
-          {
-              .validator_id = 0,
-              .data =
-                  {
-                      .slot = target.slot,
-                      .head = Checkpoint::from(target),
-                      .target = Checkpoint::from(target),
-                      .source = Checkpoint::from(root),
-                  },
-          },
-      .signature = {},
+  ForkChoiceStore::AttestationDataByValidator attestations;
+  attestations[0] = {
+      .slot = target.slot,
+      .head = Checkpoint::from(target),
+      .target = Checkpoint::from(target),
+      .source = Checkpoint::from(root),
   };
 
   auto store = createTestStore(100,
@@ -368,7 +357,7 @@ TEST(TestForkChoiceHeadFunction, test_fork_choice_no_attestations) {
   auto &root = blocks.at(0);
   auto &leaf = blocks.at(2);
 
-  ForkChoiceStore::SignedAttestations empty_attestations;
+  ForkChoiceStore::AttestationDataByValidator empty_attestations;
   auto store = createTestStore(100,
                                config,
                                root.index(),
@@ -388,20 +377,12 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::SignedAttestations attestations;
-  attestations[0] = SignedAttestation{
-      .message =
-          {
-              .validator_id = 0,
-              .data =
-                  {
-                      .slot = target.slot,
-                      .head = Checkpoint::from(target),
-                      .target = Checkpoint::from(target),
-                      .source = Checkpoint::from(root),
-                  },
-          },
-      .signature = {},
+  ForkChoiceStore::AttestationDataByValidator attestations;
+  attestations[0] = {
+      .slot = target.slot,
+      .head = Checkpoint::from(target),
+      .target = Checkpoint::from(target),
+      .source = Checkpoint::from(root),
   };
 
   auto store = createTestStore(100,
@@ -423,21 +404,13 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
   auto &root = blocks.at(0);
   auto &target = blocks.at(2);
 
-  ForkChoiceStore::SignedAttestations attestations;
+  ForkChoiceStore::AttestationDataByValidator attestations;
   for (int i = 0; i < 3; ++i) {
-    attestations[i] = SignedAttestation{
-        .message =
-            {
-                .validator_id = static_cast<uint64_t>(i),
-                .data =
-                    {
-                        .slot = target.slot,
-                        .head = Checkpoint::from(target),
-                        .target = Checkpoint::from(target),
-                        .source = Checkpoint::from(root),
-                    },
-            },
-        .signature = {},
+    attestations[i] = {
+        .slot = target.slot,
+        .head = Checkpoint::from(target),
+        .target = Checkpoint::from(target),
+        .source = Checkpoint::from(root),
     };
   }
 
@@ -525,7 +498,7 @@ TEST(TestAttestationValidation,
 
   // Create signed vote with mismatched checkpoint slot
   auto attestation = makeAttestation(source, target);
-  ++attestation.message.data.source.slot;
+  ++attestation.data.source.slot;
   EXPECT_OUTCOME_ERROR(sample_store.validateAttestation(attestation));
 }
 

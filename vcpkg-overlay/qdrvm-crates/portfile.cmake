@@ -2,8 +2,8 @@ vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 vcpkg_from_github(
   OUT_SOURCE_PATH SOURCE_PATH
   REPO qdrvm/qdrvm-crates
-  REF refs/tags/v1.0.6
-  SHA512 bede49cb4d42ada9daefee57b8b2ba7726231fcfbdfff28ed8c0f91fdb97cb56bfdc4baef611943454424668bdc9bc2fd9e284426934e19bb822452c10cf7be9
+  REF refs/tags/v1.0.8
+  SHA512 b6422376099c788221d6b177b82304e769a26c291e9366dd16b9d7a928dd9573465eebc2060c8f997475dcd0d415a6c51872fdf3ad12fe4d1cad5f826e620886
 )
 vcpkg_cmake_configure(SOURCE_PATH "${SOURCE_PATH}" OPTIONS
   "-DQDRVM_BIND_CRATES=c_hash_sig"

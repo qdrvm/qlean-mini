@@ -10,10 +10,10 @@
 #include <qtils/outcome.hpp>
 #include <qtils/shared_ref.hpp>
 
-#include "log/logger.hpp"
 #include "app/impl/chain_spec_impl.hpp"
 #include "app/validator_keys_manifest.hpp"
 #include "blockchain/validator_registry.hpp"
+#include "log/logger.hpp"
 #include "types/block.hpp"
 #include "types/slot.hpp"
 #include "types/state.hpp"
@@ -62,7 +62,8 @@ namespace lean {
       abort();
     }
 
-    explicit STF(qtils::SharedRef<metrics::Metrics> metrics, log::Logger logger);
+    explicit STF(qtils::SharedRef<metrics::Metrics> metrics,
+                 log::Logger logger);
 
     static State generateGenesisState(
         const Config &config,
@@ -86,7 +87,7 @@ namespace lean {
     outcome::result<void> processOperations(State &state,
                                             const BlockBody &body) const;
     outcome::result<void> processAttestations(
-        State &state, const Attestations &attestations) const;
+        State &state, const AggregatedAttestations &attestations) const;
     bool validateProposerIndex(const State &state, const Block &block) const;
 
    private:

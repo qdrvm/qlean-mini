@@ -17,12 +17,23 @@ namespace lean::crypto::xmss {
 
     XmssSignature sign(XmssPrivateKey xmss_private_key,
                        uint32_t epoch,
-                       qtils::BytesIn message) override;
+                       const XmssMessage &message) override;
 
-    bool verify(XmssPublicKey xmss_public_key,
-                qtils::BytesIn message,
+    bool verify(const XmssPublicKey &xmss_public_key,
+                const XmssMessage &message,
                 uint32_t epoch,
-                XmssSignature xmss_signature) override;
+                const XmssSignature &xmss_signature) override;
+
+    XmssAggregatedSignature aggregateSignatures(
+        std::span<const XmssPublicKey> public_keys,
+        std::span<const XmssSignature> signatures,
+        uint32_t epoch,
+        const XmssMessage &message) const override;
+    bool verifyAggregatedSignatures(
+        std::span<const XmssPublicKey> public_keys,
+        uint32_t epoch,
+        const XmssMessage &message,
+        XmssAggregatedSignatureIn aggregated_signature) const override;
   };
 
 }  // namespace lean::crypto::xmss
