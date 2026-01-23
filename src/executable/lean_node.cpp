@@ -159,8 +159,8 @@ int main(int argc, const char **argv, const char **env) {
       return EXIT_FAILURE;
     }
 
-    auto log_configurator = std::make_shared<soralog::ConfiguratorFromYAML>(
-        std::shared_ptr<soralog::Configurator>(nullptr), log_config.value());
+    auto log_configurator =
+        std::make_shared<soralog::ConfiguratorFromYAML>(log_config.value());
 
     auto logging_system =
         std::make_shared<soralog::LoggingSystem>(std::move(log_configurator));
