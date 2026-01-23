@@ -123,6 +123,9 @@ env:
   DOCKER_IMAGE_NAME: qlean-mini
   DOCKER_DEPS_TAG: ${{ inputs.deps_tag || 'latest' }}
   GIT_COMMIT: ${{ github.sha }}
+  # GIT_BRANCH: for PRs use head_ref (source branch), otherwise ref_name
+  GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
+  # VERSION: computed by .ci/scripts/get_version.sh in job steps
   
   # Tagging logic:
   # - Manual trigger: use inputs.custom_tag
@@ -341,8 +344,10 @@ jobs:
       - name: "Build builder and runtime images"
         run: |
           echo "Building for ${{ matrix.platform }}"
-          make docker_build_builder
-          make docker_build_runtime
+          VERSION=$(.ci/scripts/get_version.sh --sanitized)
+          echo "VERSION: $VERSION"
+          VERSION="$VERSION" make docker_build_builder
+          VERSION="$VERSION" make docker_build_runtime
 
       - name: "Verify runtime image"
         run: |
