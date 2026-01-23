@@ -268,11 +268,10 @@ namespace lean {
         auto &aggregated_attestation =
             aggregated_attestations.data().at(attestation_index);
 
-        if (not hasAggregatedValidator(aggregated_attestation.aggregation_bits,
-                                       validator_id)) {
+        if (not aggregated_attestation.aggregation_bits.contains(
+                validator_id)) {
           new_attestations = true;
-          addAggregatedValidator(aggregated_attestation.aggregation_bits,
-                                 validator_id);
+          aggregated_attestation.aggregation_bits.add(validator_id);
         }
       }
 
@@ -596,7 +595,7 @@ namespace lean {
          std::views::zip(aggregated_attestations, attestation_signatures)) {
       std::vector<crypto::xmss::XmssPublicKey> public_keys;
       for (auto &&validator_id :
-           getAggregatedValidators(aggregated_attestation.aggregation_bits)) {
+           aggregated_attestation.aggregation_bits.iter()) {
         if (validator_id >= validators.size()) {
           SL_WARN(logger_, "Validator index out of range");
           return false;
@@ -624,9 +623,7 @@ namespace lean {
       if (not verify_result) {
         SL_WARN(logger_,
                 "Attestation signature verification failed for validators {}",
-                fmt::join(getAggregatedValidators(
-                              aggregated_attestation.aggregation_bits),
-                          " "));
+                fmt::join(aggregated_attestation.aggregation_bits.iter(), " "));
         return false;
       }
     }
@@ -735,7 +732,7 @@ namespace lean {
       auto shared_aggregated_payload = qtils::toSharedPtr(
           std::make_pair(aggregated_attestation, aggregated_signature));
       for (auto &&validator_id :
-           getAggregatedValidators(aggregated_attestation.aggregation_bits)) {
+           aggregated_attestation.aggregation_bits.iter()) {
         // Store the aggregated signature payload against (validator_id,
         // data_root) This is a list because the same (validator_id, data) can
         // appear in multiple aggregated attestations, especially when we have
@@ -1167,7 +1164,7 @@ namespace lean {
       // received these signatures, we can aggregate them ourselves.
       // This is the preferred path: fresh signatures from the network.
       for (auto &&validator_id :
-           getAggregatedValidators(aggregated_attestation.aggregation_bits)) {
+           aggregated_attestation.aggregation_bits.iter()) {
         auto key =
             validatorAttestationKey(validator_id, aggregated_attestation.data);
         auto signatures_it = gossip_attestation_signatures_.find(key);
@@ -1178,7 +1175,7 @@ namespace lean {
         // phase.
         if (signatures_it != gossip_attestation_signatures_.end()) {
           // Found a signature: collect it along with the public key.
-          addAggregatedValidator(aggregation_bits, validator_id);
+          aggregation_bits.add(validator_id);
           public_keys.emplace_back(
               state.validators.data().at(validator_id).pubkey);
           signatures.emplace_back(signatures_it->second);
@@ -1249,7 +1246,7 @@ namespace lean {
         for (auto &payload : aggregated_payload_it->second) {
           size_t overlap = 0;
           for (auto &&validator_index :
-               getAggregatedValidators(payload->first.aggregation_bits)) {
+               payload->first.aggregation_bits.iter()) {
             if (remaining_validators.contains(validator_index)) {
               ++overlap;
             }
@@ -1265,7 +1262,7 @@ namespace lean {
         // In the future, we should be able to aggregate the proofs into a
         // single proof.
         for (auto &&validator_index :
-             getAggregatedValidators(best_payload->first.aggregation_bits)) {
+             best_payload->first.aggregation_bits.iter()) {
           remaining_validators.erase(validator_index);
         }
         aggregated_attestations.push_back(best_payload->first);

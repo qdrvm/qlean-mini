@@ -9,32 +9,34 @@
 #include <ranges>
 
 #include <sszpp/lists.hpp>
+#include <sszpp/wrapper.hpp>
 
 #include "types/constants.hpp"
 #include "types/validator_index.hpp"
 
 namespace lean {
-  using AggregationBits = ssz::list<bool, VALIDATOR_REGISTRY_LIMIT>;
-
-  inline auto getAggregatedValidators(const AggregationBits &aggregation_bits) {
-    return std::views::iota(ValidatorIndex{0},
-                            ValidatorIndex{aggregation_bits.size()})
-         | std::views::filter([&](ValidatorIndex validator_index) {
-             return aggregation_bits.data()[validator_index];
-           });
-  }
-
-  inline bool hasAggregatedValidator(const AggregationBits &aggregation_bits,
-                                     ValidatorIndex validator_index) {
-    return validator_index < aggregation_bits.size()
-       and aggregation_bits.data()[validator_index];
-  }
-
-  inline void addAggregatedValidator(AggregationBits &aggregation_bits,
-                                     ValidatorIndex validator_index) {
-    if (aggregation_bits.size() <= validator_index) {
-      aggregation_bits.data().resize(validator_index + 1);
+  struct AggregationBits : ssz::ssz_variable_size_container {
+    auto iter() const {
+      return std::views::iota(ValidatorIndex{0}, ValidatorIndex{bits.size()})
+           | std::views::filter([this](ValidatorIndex validator_index) {
+               return bits.data()[validator_index];
+             });
     }
-    aggregation_bits.data()[validator_index] = true;
-  }
+
+    bool contains(ValidatorIndex validator_index) const {
+      return validator_index < bits.size() and bits.data()[validator_index];
+    }
+
+    void add(ValidatorIndex validator_index) {
+      if (bits.size() <= validator_index) {
+        bits.data().resize(validator_index + 1);
+      }
+      bits.data()[validator_index] = true;
+    }
+
+    ssz::list<bool, VALIDATOR_REGISTRY_LIMIT> bits;
+
+    SSZ_WRAPPER(bits);
+    bool operator==(const AggregationBits &) const = default;
+  };
 }  // namespace lean

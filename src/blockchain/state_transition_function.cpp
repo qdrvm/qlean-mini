@@ -422,8 +422,7 @@ namespace lean {
         justifications_it->second.resize(state.validatorCount());
       }
 
-      for (auto &&validator_id :
-           getAggregatedValidators(attestation.aggregation_bits)) {
+      for (auto &&validator_id : attestation.aggregation_bits.iter()) {
         if (validator_id >= justifications_it->second.size()) {
           return Error::INVALID_VOTER;
         }
