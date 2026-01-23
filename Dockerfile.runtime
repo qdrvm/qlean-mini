@@ -44,7 +44,6 @@ RUN echo "=== Runtime image contents ===" && \
 LABEL org.opencontainers.image.title="qlean-mini"
 LABEL org.opencontainers.image.description="Qlean-mini: lean Ethereum consensus client for devnets — minimal optimized runtime"
 LABEL org.opencontainers.image.source="https://github.com/qdrvm/qlean-mini"
-LABEL org.opencontainers.image.url="https://github.com/qdrvm/qlean-mini"
 LABEL org.opencontainers.image.documentation="https://github.com/qdrvm/qlean-mini#readme"
 LABEL org.opencontainers.image.vendor="QDRVM"
 LABEL org.opencontainers.image.licenses="Apache-2.0"

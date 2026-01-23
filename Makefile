@@ -27,11 +27,11 @@ DOCKER_PUSH_LATEST ?= false
 # Use short git commit SHA for image tags, and full SHA for labels
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_COMMIT_LONG := $(shell git rev-parse HEAD 2>/dev/null || echo "unknown")
-GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null | grep -v '^HEAD$$' || git describe --tags --exact-match 2>/dev/null || echo "unknown")
 # Build date in RFC 3339 format for OCI labels
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-# Version from git tags (uses scripts/get_version.sh)
-VERSION := $(shell ./scripts/get_version.sh --sanitized 2>/dev/null || echo "unknown")
+# Version: use VERSION env if set (CI), otherwise compute from git
+VERSION ?= $(shell ./scripts/get_version.sh --sanitized 2>/dev/null || echo "unknown")
 
 # Supported platforms: linux/arm64, linux/amd64
 # Usage: make docker_build_all DOCKER_PLATFORM=linux/amd64
@@ -272,20 +272,20 @@ docker_verify:
 	@echo "Image: $(DOCKER_IMAGE_RUNTIME)"
 	@echo "Platform: $(DOCKER_PLATFORM)"
 	@echo ""
-	@echo "[1/6] Testing help command..."
+	@echo "[1/7] Testing help command..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) $(DOCKER_IMAGE_RUNTIME) --help > /dev/null && echo "  ✓ Help works" || (echo "  ✗ Help failed" && exit 1)
 	@echo ""
-	@echo "[2/6] Testing version command..."
+	@echo "[2/7] Testing version command..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) $(DOCKER_IMAGE_RUNTIME) --version && echo "  ✓ Version works" || (echo "  ✗ Version failed" && exit 1)
 	@echo ""
-	@echo "[3/6] Checking binary dependencies..."
+	@echo "[3/7] Checking binary dependencies..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		apt-get update -qq && apt-get install -y -qq file > /dev/null 2>&1 && \
 		echo "Binary info:" && file /usr/local/bin/qlean && \
 		echo "" && echo "Checking for missing libraries..." && \
 		ldd /usr/local/bin/qlean | grep "not found" && exit 1 || echo "  ✓ All binary dependencies OK"'
 	@echo ""
-	@echo "[4/6] Checking modules..."
+	@echo "[4/7] Checking modules..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		echo "Modules:" && ls -lh /opt/qlean/modules/ && \
 		echo "" && echo "Checking module dependencies..." && \
@@ -294,7 +294,7 @@ docker_verify:
 			ldd $$mod | grep "not found" && exit 1 || echo "  ✓ OK"; \
 		done'
 	@echo ""
-	@echo "[5/6] Checking environment variables..."
+	@echo "[5/7] Checking environment variables..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		echo "LD_LIBRARY_PATH=$$LD_LIBRARY_PATH" && \
 		echo "QLEAN_MODULES_DIR=$$QLEAN_MODULES_DIR" && \
@@ -302,12 +302,58 @@ docker_verify:
 		ls -ld $$QLEAN_MODULES_DIR > /dev/null && echo "  ✓ Modules dir exists" || (echo "  ✗ Modules dir missing" && exit 1) && \
 		ls -d /opt/qlean/lib > /dev/null && echo "  ✓ Lib dir exists" || (echo "  ✗ Lib dir missing" && exit 1)'
 	@echo ""
-	@echo "[6/6] Checking project libraries..."
+	@echo "[6/7] Checking project libraries..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		apt-get update -qq && apt-get install -y -qq file > /dev/null 2>&1 && \
 		echo "Project libraries:" && ls /opt/qlean/lib/ && \
 		echo "" && echo "Checking libapplication.so dependencies..." && \
 		ldd /opt/qlean/lib/libapplication.so | grep "not found" && exit 1 || echo "  ✓ All project libraries OK"'
+	@echo ""
+	@echo "[7/7] Checking OCI labels (https://github.com/opencontainers/image-spec/blob/main/annotations.md)"
+	@docker inspect $(DOCKER_IMAGE_RUNTIME) --format '{{range $$k, $$v := .Config.Labels}}{{$$k}}={{$$v}}{{"\n"}}{{end}}' | \
+	awk -F= ' \
+		/^org.opencontainers.image.title=/ { title=$$2 } \
+		/^org.opencontainers.image.description=/ { desc=substr($$0, index($$0,"=")+1) } \
+		/^org.opencontainers.image.version=/ { version=$$2 } \
+		/^org.opencontainers.image.source=/ { source=$$2 } \
+		/^org.opencontainers.image.revision=/ { revision=$$2 } \
+		/^org.opencontainers.image.ref.name=/ { branch=$$2 } \
+		/^org.opencontainers.image.created=/ { created=$$2 } \
+		/^org.opencontainers.image.base.name=/ { base=$$2 } \
+		/^org.opencontainers.image.documentation=/ { docs=$$2 } \
+		/^org.opencontainers.image.vendor=/ { vendor=$$2 } \
+		/^org.opencontainers.image.licenses=/ { license=$$2 } \
+		END { \
+			print ""; \
+			printf "  %-14s %s\n", "title:", title ? title : "⚠ missing"; \
+			printf "  %-14s %s\n", "version:", version ? version : "⚠ missing"; \
+			printf "  %-14s %s\n", "description:", desc ? desc : "⚠ missing"; \
+			print ""; \
+			printf "  %-14s %s\n", "source:", source ? source : "⚠ missing"; \
+			printf "  %-14s %s\n", "revision:", revision ? revision : "⚠ missing"; \
+			printf "  %-14s %s\n", "branch:", branch ? branch : "-"; \
+			print ""; \
+			printf "  %-14s %s\n", "created:", created ? created : "⚠ missing"; \
+			printf "  %-14s %s\n", "base:", base ? base : "-"; \
+			print ""; \
+			printf "  %-14s %s\n", "vendor:", vendor ? vendor : "-"; \
+			printf "  %-14s %s\n", "licenses:", license ? license : "-"; \
+			if (docs) { print ""; printf "  %-14s %s\n", "docs:", docs; } \
+		} \
+	'
+	@echo ""
+	@LABELS=$$(docker inspect $(DOCKER_IMAGE_RUNTIME) --format '{{json .Config.Labels}}'); \
+	MISSING=""; \
+	echo "$$LABELS" | grep -q '"org.opencontainers.image.revision"' || MISSING="$$MISSING revision"; \
+	echo "$$LABELS" | grep -q '"org.opencontainers.image.created"' || MISSING="$$MISSING created"; \
+	echo "$$LABELS" | grep -q '"org.opencontainers.image.version"' || MISSING="$$MISSING version"; \
+	echo "$$LABELS" | grep -q '"org.opencontainers.image.source"' || MISSING="$$MISSING source"; \
+	if [ -n "$$MISSING" ]; then \
+		echo "  ✗ Missing required labels:$$MISSING"; \
+		exit 1; \
+	else \
+		echo "  ✓ All required OCI labels present"; \
+	fi
 	@echo ""
 	@echo "=== ✓ Runtime image verified successfully! ==="
 
