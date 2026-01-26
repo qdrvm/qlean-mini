@@ -25,7 +25,10 @@ namespace lean::modules {
         block_tree_{std::move(block_tree)} {}
 
   libp2p::StreamProtocols BlockRequestProtocol::getProtocolIds() const {
-    return {"/leanconsensus/req/blocks_by_root/1/ssz_snappy"};
+    return {
+        "/leanconsensus/req/blocks_by_root/1/ssz_snappy",
+        "/leanconsensus/req/lean_blocks_by_root/1/ssz_snappy",
+    };
   }
 
   void BlockRequestProtocol::handle(std::shared_ptr<libp2p::Stream> stream) {
