@@ -689,7 +689,7 @@ namespace lean::modules {
           }
         }
 
-        return;
+        continue;
       }
 
       // Fail -> forget children
