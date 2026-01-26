@@ -394,6 +394,10 @@ namespace lean {
         continue;
       }
 
+      if (source.root == kZeroHash or target.root == kZeroHash) {
+        continue;
+      }
+
       // Source root must match the state's historical block hashes
       if (source.root != state.historical_block_hashes.data().at(source_slot)) {
         continue;
