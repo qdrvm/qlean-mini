@@ -19,9 +19,11 @@
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/is_proposer.hpp"
 #include "blockchain/validator_registry.hpp"
+#include "crypto/xmss/xmss_provider.hpp"
 #include "impl/block_tree_impl.hpp"
 #include "is_justifiable_slot.hpp"
 #include "metrics/impl/metrics_impl.hpp"
+#include "types/aggregated_attestations.hpp"
 #include "types/signed_block_with_attestation.hpp"
 #include "utils/ceil_div.hpp"
 #include "utils/lru_cache.hpp"
@@ -307,14 +309,10 @@ namespace lean {
 
     // Sign proposer attestation
     auto payload = attestationPayload(proposer_attestation.data);
-    auto timer =
-        metrics_->crypto_pq_signature_attestation_signing_time_seconds()
-            ->timer();
     crypto::xmss::XmssSignature proposer_signature = xmss_provider_->sign(
         validator_keys_manifest_->currentNodeXmssKeypair().private_key,
         slot,
         payload);
-    timer.stop();
     SignedBlockWithAttestation signed_block_with_attestation{
         .message =
             {
@@ -348,7 +346,7 @@ namespace lean {
              "Validating attestation for target={}, source={}",
              data.target,
              data.source);
-    auto timer = metrics_->fc_attestation_validation_time_seconds()->timer();
+    auto timer = metrics_->fc_attestation_validation_time()->timer();
 
     // Availability Check
 
@@ -612,14 +610,8 @@ namespace lean {
       auto message = attestationPayload(aggregated_attestation.data);
       Epoch epoch = aggregated_attestation.data.slot;
 
-      auto timer =
-          metrics_
-              ->crypto_pq_signature_aggregated_attestation_verification_time_seconds()
-              ->timer();
       bool verify_result = xmss_provider_->verifyAggregatedSignatures(
           public_keys, epoch, message, aggregated_signature.proof_data.data());
-      timer.stop();
-
       if (not verify_result) {
         SL_WARN(logger_,
                 "Attestation signature verification failed for validators {}",
@@ -629,15 +621,11 @@ namespace lean {
     }
     auto payload = attestationPayload(message.proposer_attestation.data);
 
-    auto timer =
-        metrics_->crypto_pq_signature_attestation_verification_time_seconds()
-            ->timer();
     bool verify_result = xmss_provider_->verify(
         validators.data().at(message.proposer_attestation.validator_id).pubkey,
         payload,
         message.proposer_attestation.data.slot,
         signed_block.signature.proposer_signature);
-    timer.stop();
 
     if (not verify_result) {
       SL_WARN(logger_,
@@ -665,7 +653,7 @@ namespace lean {
         signed_block_with_attestation.message.proposer_attestation;
     auto &signatures = signed_block_with_attestation.signature;
 
-    auto timer = metrics_->fc_block_processing_time_seconds()->timer();
+    auto timer = metrics_->fc_block_processing_time()->timer();
 
     // Verify parent-chain is available
 
@@ -887,12 +875,8 @@ namespace lean {
           auto payload = attestationPayload(attestation.data);
           crypto::xmss::XmssKeypair keypair =
               validator_keys_manifest_->currentNodeXmssKeypair();
-          auto timer =
-              metrics_->crypto_pq_signature_attestation_signing_time_seconds()
-                  ->timer();
           crypto::xmss::XmssSignature signature =
               xmss_provider_->sign(keypair.private_key, current_slot, payload);
-          timer.stop();
           SignedAttestation signed_attestation{
               .validator_id = validator_index,
               .message = attestation.data,

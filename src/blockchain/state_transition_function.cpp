@@ -12,6 +12,7 @@
 #include "blockchain/is_justifiable_slot.hpp"
 #include "metrics/metrics.hpp"
 #include "types/state.hpp"
+#include "types/aggregated_attestations.hpp"
 #include "utils/retain_if.hpp"
 
 namespace lean {
@@ -152,7 +153,7 @@ namespace lean {
   outcome::result<State> STF::stateTransition(const Block &block,
                                               const State &parent_state,
                                               bool check_state_root) const {
-    auto timer = metrics_->stf_state_transition_time_seconds()->timer();
+    auto timer = metrics_->stf_state_transition_time()->timer();
     auto state = parent_state;
     // Process slots (including those with no blocks) since block
     OUTCOME_TRY(processSlots(state, block.slot));
@@ -169,7 +170,7 @@ namespace lean {
   }
 
   outcome::result<void> STF::processSlots(State &state, Slot slot) const {
-    auto timer = metrics_->stf_slots_processing_time_seconds()->timer();
+    auto timer = metrics_->stf_slots_processing_time()->timer();
     if (state.slot >= slot) {
       return Error::INVALID_SLOT;
     }
@@ -207,7 +208,7 @@ namespace lean {
 
   outcome::result<void> STF::processBlock(State &state,
                                           const Block &block) const {
-    auto timer = metrics_->stf_block_processing_time_seconds()->timer();
+    auto timer = metrics_->stf_block_processing_time()->timer();
     OUTCOME_TRY(processBlockHeader(state, block));
     OUTCOME_TRY(processOperations(state, block.body));
     return outcome::success();
@@ -298,7 +299,7 @@ namespace lean {
 
   outcome::result<void> STF::processAttestations(
       State &state, const AggregatedAttestations &attestations) const {
-    auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
+    auto timer = metrics_->stf_attestations_processing_time()->timer();
 
     // NOTE:
     // The state already contains three pieces of data:

@@ -4,46 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * @brief Application-level metrics definitions
- *
- * Format:
- *   METRIC_GAUGE(field_name,
- *                "prometheus_metric_name",
- *                "help_text")
- *
- *   METRIC_GAUGE_LABELS(field_name,
- *                       "prometheus_metric_name",
- *                       "help_text",
- *                       {"label1", "label2", ...})
- *
- *   METRIC_COUNTER(field_name,
- *                  "prometheus_metric_name",
- *                  "help_text")
- *
- *   METRIC_COUNTER_LABELS(field_name,
- *                         "prometheus_metric_name",
- *                         "help_text",
- *                         {"label1", "label2", ...})
- *
- *   METRIC_HISTOGRAM(field_name,
- *                    "prometheus_metric_name",
- *                    "help_text",
- *                    {bucket1, bucket2, ...})
- *
- *   METRIC_HISTOGRAM_LABELS(field_name,
- *                           "prometheus_metric_name",
- *                           "help_text",
- *                           {bucket1, bucket2, ...},
- *                           {"label1", "label2", ...})
- */
+/// Application-level metrics definitions
 
-METRIC_GAUGE_LABELS(
-    app_build_info,
-    "lean_build_info",
-    "A metric with a constant '1' value labeled by name, version",
-    ("name", "version"))
+// Node build information
+// On scrape; name, version
+METRIC_GAUGE_LABELS(app_build_info,
+                    "lean_node_info",
+                    "A metric with a constant '1' value labeled by name and version",
+                    ({"name", "version"}));
 
+// Process start time
+// On scrape
 METRIC_GAUGE(app_process_start_time,
-             "lean_process_start_time_seconds",
-             "UNIX timestamp of the moment the process started")
+             "lean_node_start_time_seconds",
+             "UNIX timestamp of the moment the process started");

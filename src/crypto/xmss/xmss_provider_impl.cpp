@@ -14,8 +14,13 @@
 #include <c_hash_sig/c_hash_sig.h>
 
 #include "crypto/xmss/ffi.hpp"
+#include "metrics/metrics.hpp"
 
 namespace lean::crypto::xmss {
+
+  XmssProviderImpl::XmssProviderImpl(qtils::SharedRef<metrics::Metrics> metrics)
+      : use_metrics_(true), metrics_(std::move(metrics)) {}
+
   XmssKeypair XmssProviderImpl::generateKeypair(uint64_t activation_epoch,
                                                 uint64_t num_active_epochs) {
     // Validate parameters
@@ -57,6 +62,11 @@ namespace lean::crypto::xmss {
   XmssSignature XmssProviderImpl::sign(XmssPrivateKey xmss_private_key,
                                        uint32_t epoch,
                                        const XmssMessage &message) {
+    std::optional<metrics::HistogramTimer> timer{};
+    if (use_metrics_) {
+      timer.emplace(metrics_->pq_sig_attestation_signing_time()->timer());
+    }
+
     // Sign the message
     PQSignature *signature_raw = nullptr;
     ffi::asOutcome(
@@ -75,6 +85,11 @@ namespace lean::crypto::xmss {
                                 const XmssMessage &message,
                                 uint32_t epoch,
                                 const XmssSignature &xmss_signature) {
+    std::optional<metrics::HistogramTimer> timer{};
+    if (use_metrics_) {
+      timer.emplace(metrics_->pq_sig_attestation_verification_time()->timer());
+    }
+
     // Deserialize public key
     PQPublicKey *public_key_raw = nullptr;
     ffi::asOutcome(
@@ -114,6 +129,12 @@ namespace lean::crypto::xmss {
       std::span<const XmssSignature> signatures,
       uint32_t epoch,
       const XmssMessage &message) const {
+    std::optional<metrics::HistogramTimer> timer{};
+    if (use_metrics_) {
+      timer.emplace(
+          metrics_->pq_sig_attestation_signatures_building_time()->timer());
+    }
+
     if (public_keys.size() != signatures.size()) {
       throw std::logic_error{
           "XmssProviderImpl::aggregateSignatures public key and signature "
@@ -139,12 +160,29 @@ namespace lean::crypto::xmss {
       uint32_t epoch,
       const XmssMessage &message,
       XmssAggregatedSignatureIn aggregated_signature) const {
+    std::optional<metrics::HistogramTimer> timer{};
+    if (use_metrics_) {
+      timer.emplace(
+          metrics_->pq_sig_aggregated_signatures_verification_time()->timer());
+    }
+
     auto public_keys_raw = manyToRaw(public_keys);
-    return pq_verify_aggregated_signatures(public_keys.size(),
-                                           public_keys_raw.data(),
-                                           epoch,
-                                           message.data(),
-                                           aggregated_signature.data(),
-                                           aggregated_signature.size());
+    bool is_valid =
+        pq_verify_aggregated_signatures(public_keys.size(),
+                                        public_keys_raw.data(),
+                                        epoch,
+                                        message.data(),
+                                        aggregated_signature.data(),
+                                        aggregated_signature.size());
+    if (use_metrics_) {
+      if (is_valid) {
+        metrics_->pq_sig_aggregated_signatures_valid_total()->inc();
+      } else {
+        metrics_->pq_sig_aggregated_signatures_invalid_total()->inc();
+      }
+    }
+
+    return is_valid;
   }
+
 }  // namespace lean::crypto::xmss

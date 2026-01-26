@@ -277,10 +277,19 @@ namespace lean::modules {
       if (not self) {
         return;
       }
+
+      const auto direction_label =
+          connection->isInitiator() ? "inbound" : "outbound";
+      const auto result_label =  // TODO Implement remaining
+          "success";             //, "timeout", "error";
+      self->metrics_
+          ->network_connect_event_count(
+              {{"direction", direction_label}, {"result", result_label}})
+          ->inc();
+
       SL_TRACE(self->logger_,
                "🔗 Peer connected: {}",
                connection->remotePeer().toBase58());
-      self->metrics_->connect_event_count()->inc();
       auto peer_id = connection->remotePeer();
       auto state_it = self->peer_states_.find(peer_id);
       if (state_it != self->peer_states_.end()) {
@@ -398,10 +407,21 @@ namespace lean::modules {
           if (not self) {
             return;
           }
+
+          const auto direction_label =
+              connection->isInitiator() ? "inbound" : "outbound";
+          const auto reason_label =  // TODO Implement remaining
+              "unknown";  //  "timeout", "remote_close", "local_close", "error";
+          self->metrics_
+              ->network_disconnect_event_count(
+                  {{"direction", direction_label}, {"reason", reason_label}})
+              ->inc();
+
           SL_TRACE(self->logger_,
-                   "❌ Connection closed: {}",
-                   connection->remotePeer().toBase58());
-          self->metrics_->disconnect_event_count()->inc();
+                   "❌ Connection with {} ({}) closed; reason: {}",
+                   connection->remotePeer().toBase58(),
+                   direction_label,
+                   reason_label);
         };
 
     on_peer_connected_sub_ =
@@ -807,9 +827,17 @@ namespace lean::modules {
   }
 
   void NetworkingImpl::updateMetricConnectedPeerCount() {
-    auto count = host_->getConnectedPeerCount();
-    metrics_->connected_peer_count()->set(count);
+    // TODO: implement affecting counter of such type of client
+    std::unordered_map<std::string, size_t> client_counters;
+    // FIXME: Fill counters above
+    size_t total = 0;
+    for (const auto &[kind, number] : client_counters) {
+      metrics_->network_connected_peer_count({{"client", kind}})->set(number);
+      total += number;
+    }
+
+    total = host_->getConnectedPeerCount(); // TODO: use sum of clients
     loader_.dispatch_peers_total_count_updated(
-        std::make_shared<messages::PeersTotalCountMessage>(count));
+        std::make_shared<messages::PeersTotalCountMessage>(total));
   }
 }  // namespace lean::modules
