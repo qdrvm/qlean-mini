@@ -394,6 +394,7 @@ namespace lean {
         continue;
       }
 
+      // Ignore votes that reference zero-hash slots.
       if (source.root == kZeroHash or target.root == kZeroHash) {
         continue;
       }
