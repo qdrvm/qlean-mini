@@ -13,6 +13,7 @@
 #include <libp2p/basic/read_varint.hpp>
 #include <libp2p/basic/write_varint.hpp>
 #include <libp2p/common/saturating.hpp>
+#include <libp2p/connection/stream.hpp>
 #include <qtils/bytes.hpp>
 #include <qtils/bytestr.hpp>
 
