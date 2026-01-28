@@ -11,6 +11,7 @@
 
 #include "blockchain/is_justifiable_slot.hpp"
 #include "metrics/metrics.hpp"
+#include "types/aggregated_attestations.hpp"
 #include "types/state.hpp"
 #include "utils/retain_if.hpp"
 
@@ -80,8 +81,12 @@ namespace lean {
                bits.begin() + std::min<size_t>(bits.size(), delta));
   }
 
-  STF::STF(qtils::SharedRef<metrics::Metrics> metrics, log::Logger logger)
-      : metrics_(std::move(metrics)), log_(std::move(logger)) {}
+  STF::STF(qtils::SharedRef<log::LoggingSystem> logging_system,
+           qtils::SharedRef<blockchain::BlockTree> block_tree,
+           qtils::SharedRef<metrics::Metrics> metrics)
+      : logger_(logging_system->getLogger("STF", "stf")),
+        block_tree_(std::move(block_tree)),
+        metrics_(std::move(metrics)) {}
 
   using Justifications = std::map<BlockHash, std::vector<bool>>;
 
@@ -152,7 +157,7 @@ namespace lean {
   outcome::result<State> STF::stateTransition(const Block &block,
                                               const State &parent_state,
                                               bool check_state_root) const {
-    auto timer = metrics_->stf_state_transition_time_seconds()->timer();
+    auto timer = metrics_->stf_state_transition_time()->timer();
     auto state = parent_state;
     // Process slots (including those with no blocks) since block
     OUTCOME_TRY(processSlots(state, block.slot));
@@ -169,7 +174,7 @@ namespace lean {
   }
 
   outcome::result<void> STF::processSlots(State &state, Slot slot) const {
-    auto timer = metrics_->stf_slots_processing_time_seconds()->timer();
+    auto timer = metrics_->stf_slots_processing_time()->timer();
     if (state.slot >= slot) {
       return Error::INVALID_SLOT;
     }
@@ -207,7 +212,7 @@ namespace lean {
 
   outcome::result<void> STF::processBlock(State &state,
                                           const Block &block) const {
-    auto timer = metrics_->stf_block_processing_time_seconds()->timer();
+    auto timer = metrics_->stf_block_processing_time()->timer();
     OUTCOME_TRY(processBlockHeader(state, block));
     OUTCOME_TRY(processOperations(state, block.body));
     return outcome::success();
@@ -298,7 +303,7 @@ namespace lean {
 
   outcome::result<void> STF::processAttestations(
       State &state, const AggregatedAttestations &attestations) const {
-    auto timer = metrics_->stf_attestations_processing_time_seconds()->timer();
+    auto timer = metrics_->stf_attestations_processing_time()->timer();
 
     // NOTE:
     // The state already contains three pieces of data:
@@ -446,7 +451,6 @@ namespace lean {
       // testing scenarios
       if (3 * count >= 2 * state.validatorCount()) {
         latest_justified = target;
-        metrics_->stf_latest_justified_slot()->set(latest_justified.slot);
         withJustified(justified_slots, latest_finalized.slot, target_slot);
         justifications.erase(target.root);
 
@@ -462,7 +466,7 @@ namespace lean {
         if (not any) {
           auto old_finalized_slot = latest_finalized.slot;
           latest_finalized = source;
-          metrics_->stf_latest_finalized_slot()->set(latest_finalized.slot);
+          //? metrics_->stf_latest_finalized_slot()->set(latest_finalized.slot);
 
           // Rebase/prune justification tracking across the new finalized
           // boundary. The state stores justified slot flags starting at
@@ -488,6 +492,14 @@ namespace lean {
     // Apply tracked state changes
     state.latest_justified = latest_justified;
     state.latest_finalized = latest_finalized;
+
+    if (latest_justified.slot > block_tree_->getLatestJustified().slot) {
+      metrics_->stf_latest_justified_slot()->set(latest_justified.slot);
+    }
+    if (latest_finalized.slot > block_tree_->lastFinalized().slot) {
+      metrics_->stf_latest_finalized_slot()->set(latest_finalized.slot);
+      metrics_->stf_finalizations_total({{"result", "success"}})->inc();
+    }
 
     return outcome::success();
   }

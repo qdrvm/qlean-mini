@@ -33,7 +33,7 @@ namespace lean::metrics {
   Gauge *metric_##field##_;             \
                                         \
  public:                                \
-  Gauge *field() override;
+  Gauge *field() const override;
 #define METRIC_GAUGE_LABELS(field, name, help, ...) \
  public:                                            \
   Gauge *field(const Labels &labels) override;
@@ -42,7 +42,7 @@ namespace lean::metrics {
   Counter *metric_##field##_;             \
                                           \
  public:                                  \
-  Counter *field() override;
+  Counter *field() const override;
 #define METRIC_COUNTER_LABELS(field, name, help, ...) \
  public:                                              \
   Counter *field(const Labels &labels) override;
@@ -51,7 +51,7 @@ namespace lean::metrics {
   Histogram *metric_##field##_;                  \
                                                  \
  public:                                         \
-  Histogram *field() override;
+  Histogram *field() const override;
 #define METRIC_HISTOGRAM_LABELS(field, name, help, ...) \
  public:                                                \
   Histogram *field(const Labels &labels) override;

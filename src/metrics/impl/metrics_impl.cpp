@@ -42,7 +42,7 @@ namespace lean::metrics {
   }
 
 #define METRIC_GAUGE(field, name, help) \
-  Gauge *MetricsImpl::field() {         \
+  Gauge *MetricsImpl::field() const {         \
     return metric_##field##_;           \
   }
 #define METRIC_GAUGE_LABELS(field, name, help, label_names) \
@@ -50,15 +50,15 @@ namespace lean::metrics {
     return registry_->registerGaugeMetric(name, labels);    \
   }
 #define METRIC_COUNTER(field, name, help) \
-  Counter *MetricsImpl::field() {         \
+  Counter *MetricsImpl::field() const {         \
     return metric_##field##_;             \
   }
 #define METRIC_COUNTER_LABELS(field, name, help, label_names) \
-  Counter *MetricsImpl::field(const Labels &labels) {         \
+  Counter *MetricsImpl::field(const Labels &labels)  {         \
     return registry_->registerCounterMetric(name, labels);    \
   }
 #define METRIC_HISTOGRAM(field, name, help, buckets) \
-  Histogram *MetricsImpl::field() {                  \
+  Histogram *MetricsImpl::field()  const{                  \
     return metric_##field##_;                        \
   }
 #define METRIC_HISTOGRAM_LABELS(field, name, help, buckets, label_names)   \

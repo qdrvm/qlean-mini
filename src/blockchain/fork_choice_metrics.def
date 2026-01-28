@@ -4,58 +4,63 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * @brief ForkChoiceStore metrics definitions
- *
- * Format:
- *   METRIC_GAUGE(field_name,
- *                "prometheus_metric_name",
- *                "help_text")
- *
- *   METRIC_GAUGE_LABELS(field_name,
- *                       "prometheus_metric_name",
- *                       "help_text",
- *                       {"label1", "label2", ...})
- *
- *   METRIC_COUNTER(field_name,
- *                  "prometheus_metric_name",
- *                  "help_text")
- *
- *   METRIC_COUNTER_LABELS(field_name,
- *                         "prometheus_metric_name",
- *                         "help_text",
- *                         {"label1", "label2", ...})
- *
- *   METRIC_HISTOGRAM(field_name,
- *                    "prometheus_metric_name",
- *                    "help_text",
- *                    {bucket1, bucket2, ...})
- *
- *   METRIC_HISTOGRAM_LABELS(field_name,
- *                           "prometheus_metric_name",
- *                           "help_text",
- *                           {bucket1, bucket2, ...},
- *                           {"label1", "label2", ...})
- */
+/// Fork Choice metrics definitions
 
-METRIC_GAUGE(fc_head_slot, "lean_head_slot", "Latest slot of the beacon chain")
+// Fork choice head slot
+// On get fork choice head
+METRIC_GAUGE(fc_head_slot,
+             "lean_head_slot",
+             "Latest slot of the lean chain")
 
-// Attestation validation
+// Current slot
+// On scrape
+METRIC_GAUGE(fc_current_slot,
+             "lean_current_slot",
+             "Current slot of the lean chain")
+
+// Safe target slot
+// On safe target update
+METRIC_GAUGE(fc_safe_target_slot,
+             "lean_safe_target_slot",
+             "Safe target slot")
+
+// Block processing duration
+// On fork choice process block
+METRIC_HISTOGRAM(fc_block_processing_time,
+                 "lean_fork_choice_block_processing_time_seconds",
+                 "Time taken to process block",
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+
+// Valid attestations counter
+// On validate attestation; source=block,gossip
 METRIC_COUNTER_LABELS(fc_attestations_valid_total,
                       "lean_attestations_valid_total",
                       "Total number of valid attestations",
                       {"source"})
+
+// Invalid attestations counter
+// On validate attestation; source=block,gossip
 METRIC_COUNTER_LABELS(fc_attestations_invalid_total,
                       "lean_attestations_invalid_total",
                       "Total number of invalid attestations",
                       {"source"})
-METRIC_HISTOGRAM(fc_attestation_validation_time_seconds,
+
+// Attestation validation timing
+// On validate attestation
+METRIC_HISTOGRAM(fc_attestation_validation_time,
                  "lean_attestation_validation_time_seconds",
                  "Time taken to validate attestation",
                  (0.005, 0.01, 0.025, 0.05, 0.1, 1))
 
-// Block processing
-METRIC_HISTOGRAM(fc_block_processing_time_seconds,
-                 "lean_fork_choice_block_processing_time_seconds",
-                 "Time taken to process block in fork choice",
-                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+// Fork choice reorgs counter
+// On fork choice reorg
+METRIC_COUNTER(fc_fork_choice_reorgs_total,
+               "lean_fork_choice_reorgs_total",
+               "Total number of fork choice reorgs")
+
+// Fork choice reorg depth
+// On fork choice reorg
+METRIC_HISTOGRAM(fc_fork_choice_reorg_depth,
+                 "lean_fork_choice_reorg_depth",
+                 "Depth of fork choice reorgs (in blocks)",
+                 (1, 2, 3, 5, 7, 10, 20, 30, 50, 100))

@@ -17,6 +17,7 @@
 #include "clock/clock.hpp"
 #include "crypto/xmss/xmss_provider.hpp"
 #include "log/logger.hpp"
+#include "types/aggregated_attestations.hpp"
 #include "types/block.hpp"
 #include "types/signed_attestation.hpp"
 #include "types/signed_block_with_attestation.hpp"
@@ -34,6 +35,10 @@ namespace lean {
 namespace lean::blockchain {
   class BlockStorage;
   class BlockTree;
+}
+
+namespace lean::crypto::xmss {
+  class XmssProvider;
 }
 
 namespace lean::metrics {
