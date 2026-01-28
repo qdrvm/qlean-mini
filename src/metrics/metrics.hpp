@@ -260,7 +260,7 @@ namespace lean::metrics {
     bool running_;
   };
 
-  inline HistogramTimer Histogram::timer() {
+  [[nodiscard]] inline HistogramTimer Histogram::timer() {
     return HistogramTimer(this);
   }
 
