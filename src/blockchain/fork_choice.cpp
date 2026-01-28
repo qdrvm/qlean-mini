@@ -163,14 +163,54 @@ namespace lean {
     //
     // Selects canonical head by walking the tree from the justified root,
     // choosing the heaviest child at each fork based on attestation weights.
-    OUTCOME_TRY(lmd_ghost_head,
+    OUTCOME_TRY(lmd_ghost_head_root,
                 computeLmdGhostHead(block_tree_->getLatestJustified().root,
                                     latest_new_attestations_,
                                     0));
 
-    OUTCOME_TRY(slot, getBlockSlot(lmd_ghost_head));
+    OUTCOME_TRY(lmd_ghost_head_slot, getBlockSlot(lmd_ghost_head_root));
+    Checkpoint lmd_ghost_head = {.root = lmd_ghost_head_root,
+                                 .slot = lmd_ghost_head_slot};
 
-    head_ = {.root = lmd_ghost_head, .slot = slot};
+    // Reorg detection
+    if (head_.root != lmd_ghost_head.root) {
+      Checkpoint a = head_;
+      Checkpoint b = lmd_ghost_head;
+
+      size_t da = 0;
+      size_t db = 0;
+
+      auto lift_one = [&](Checkpoint &cp, size_t &d) -> outcome::result<void> {
+        OUTCOME_TRY(header, block_tree_->getBlockHeader(cp.root));
+        auto &parent_root = header.parent_root;
+        OUTCOME_TRY(parent_slot, block_tree_->getSlotByHash(parent_root));
+        cp = {.root = parent_root, .slot = parent_slot};
+        ++d;
+        return outcome::success();
+      };
+
+      while (a.root != b.root) {
+        if (a.slot > b.slot) {
+          OUTCOME_TRY(lift_one(a, da));
+          continue;
+        }
+        if (b.slot > a.slot) {
+          OUTCOME_TRY(lift_one(b, db));
+          continue;
+        }
+        OUTCOME_TRY(lift_one(a, da));
+        OUTCOME_TRY(lift_one(b, db));
+      }
+
+      const bool lmd_is_descendant_of_head = (a.root == head_.root);
+      if (not lmd_is_descendant_of_head) {
+        metrics_->fc_fork_choice_reorgs_total()->inc();
+        metrics_->fc_fork_choice_reorg_depth()->observe(
+            static_cast<double>(std::max(da, db)));
+      }
+    }
+
+    head_ = lmd_ghost_head;
     SL_TRACE(logger_, "Head was set to {}", head_);
 
     metrics_->fc_head_slot()->set(head_.slot);
