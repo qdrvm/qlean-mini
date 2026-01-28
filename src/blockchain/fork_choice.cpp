@@ -579,7 +579,7 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::onAttestation(
       const Attestation &attestation, bool is_from_block) {
-    metrics_->fc_attestation_validation_time()->timer();
+    auto timer = metrics_->fc_attestation_validation_time()->timer();
 
     auto source = is_from_block ? "block" : "gossip";
 
