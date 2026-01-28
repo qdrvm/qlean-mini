@@ -26,13 +26,13 @@ namespace lean::crypto::xmss {
                         uint32_t epoch,
                         const XmssSignature &xmss_signature) = 0;
 
-    virtual XmssAggregatedSignature aggregateSignatures(
+    [[nodiscard]] virtual XmssAggregatedSignature aggregateSignatures(
         std::span<const XmssPublicKey> public_keys,
         std::span<const XmssSignature> signatures,
         uint32_t epoch,
         const XmssMessage &message) const = 0;
 
-    virtual bool verifyAggregatedSignatures(
+    [[nodiscard]] virtual bool verifyAggregatedSignatures(
         std::span<const XmssPublicKey> public_keys,
         uint32_t epoch,
         const XmssMessage &message,

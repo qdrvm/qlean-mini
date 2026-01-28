@@ -127,13 +127,13 @@ namespace lean::metrics {
    public:
     virtual ~Metrics() = default;
 
-#define METRIC_GAUGE(field, name, help) virtual Gauge *field() = 0;
+#define METRIC_GAUGE(field, name, help) virtual Gauge *field() const = 0;
 #define METRIC_GAUGE_LABELS(field, name, help, ...) \
   virtual Gauge *field(const Labels &labels) = 0;
-#define METRIC_COUNTER(field, name, help) virtual Counter *field() = 0;
+#define METRIC_COUNTER(field, name, help) virtual Counter *field() const = 0;
 #define METRIC_COUNTER_LABELS(field, name, help, ...) \
   virtual Counter *field(const Labels &labels) = 0;
-#define METRIC_HISTOGRAM(field, name, help, ...) virtual Histogram *field() = 0;
+#define METRIC_HISTOGRAM(field, name, help, ...) virtual Histogram *field() const = 0;
 #define METRIC_HISTOGRAM_LABELS(field, name, help, ...) \
   virtual Histogram *field(const Labels &labels) = 0;
 
@@ -260,7 +260,7 @@ namespace lean::metrics {
     bool running_;
   };
 
-  inline HistogramTimer Histogram::timer() {
+  [[nodiscard]] inline HistogramTimer Histogram::timer() {
     return HistogramTimer(this);
   }
 

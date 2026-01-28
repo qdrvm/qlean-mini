@@ -1,6 +1,40 @@
+/**
+ * @brief Metrics definitions
+ *
+ * Format:
+ *   METRIC_GAUGE(getter_name,
+ *                "metric_"name",
+ *                "help_text")
+ *
+ *   METRIC_GAUGE_LABELS(getter_name,
+ *                       "metric_"name",
+ *                       "help_text",
+ *                       {"label1", "label2", ...})
+ *
+ *   METRIC_COUNTER(getter_name,
+ *                  "metric_"name",
+ *                  "help_text")
+ *
+ *   METRIC_COUNTER_LABELS(getter_name,
+ *                         "metric_"name",
+ *                         "help_text",
+ *                         {"label1", "label2", ...})
+ *
+ *   METRIC_HISTOGRAM(getter_name,
+ *                    "metric_"name",
+ *                    "help_text",
+ *                    {bucket1, bucket2, ...})
+ *
+ *   METRIC_HISTOGRAM_LABELS(getter_name,
+ *                           "metric_"name",
+ *                           "help_text",
+ *                           {bucket1, bucket2, ...},
+ *                           {"label1", "label2", ...})
+ */
+
 #include "app/application_metrics.def"
 #include "blockchain/fork_choice_metrics.def"
-#include "blockchain/impl/validator_metrics.def"
+#include "blockchain/validator_metrics.def"
 #include "blockchain/state_transition_metrics.def"
-#include "crypto/crypto_metrics.def"
-#include "modules/networking/metrics.def"
+#include "crypto/pq_sig_metrics.def"
+#include "modules/networking/network_metrics.def"

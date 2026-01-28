@@ -10,6 +10,7 @@
 
 #include "blockchain/impl/anchor_block_impl.hpp"
 #include "blockchain/impl/anchor_state_impl.hpp"
+#include "mock/blockchain/block_tree_mock.hpp"
 #include "mock/metrics_mock.hpp"
 #include "testutil/prepare_loggers.hpp"
 #include "types/config.hpp"
@@ -17,8 +18,9 @@
 
 TEST(STF, Test) {
   auto metrics = std::make_shared<lean::metrics::MetricsMock>();
+  auto block_tree = std::make_shared<lean::blockchain::BlockTreeMock>();
   auto logsys = testutil::prepareLoggers();
-  lean::STF stf(metrics, logsys->getLogger("STF", "test"));
+  lean::STF stf(logsys, block_tree, metrics);
 
   lean::Config config{
       .genesis_time = 0,

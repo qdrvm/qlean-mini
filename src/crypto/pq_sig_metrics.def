@@ -1,0 +1,58 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/// PQ Signature metrics definitions
+
+// Attestation signing timing
+// On attestation signing
+METRIC_HISTOGRAM(pq_sig_attestation_signing_time,
+                 "lean_pq_sig_attestation_signing_time_seconds",
+                 "Time taken to sign an attestation",
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+
+// Attestation signature verification timing
+// On attestation signature verification
+METRIC_HISTOGRAM(pq_sig_attestation_verification_time,
+                 "lean_pq_sig_attestation_verification_time_seconds",
+                 "Time taken to verify an attestation signature",
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+
+// Aggregation counters
+// On building attestation signatures
+METRIC_COUNTER(pq_sig_aggregated_signatures_total,
+               "lean_pq_sig_aggregated_signatures_total",
+               "Total number of aggregated signatures")
+
+// On building attestation signatures
+METRIC_COUNTER(pq_sig_attestations_in_aggregated_signatures_total,
+               "lean_pq_sig_attestations_in_aggregated_signatures_total",
+               "Total number of attestations included into aggregated signatures")
+
+// Attestation signatures building timing (pre-aggregation)
+// On building attestation signatures
+METRIC_HISTOGRAM(pq_sig_attestation_signatures_building_time,
+                 "lean_pq_sig_attestation_signatures_building_time_seconds",
+                 "Time taken to verify an aggregated attestation signature",
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+
+// Aggregated signature verification timing
+// On aggregated signature verification
+METRIC_HISTOGRAM(pq_sig_aggregated_signatures_verification_time,
+                 "lean_pq_sig_aggregated_signatures_verification_time_seconds",
+                 "Time taken to verify an aggregated attestation signature",
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+
+// Aggregated signatures: valid counter
+// On aggregated signature verification
+METRIC_COUNTER(pq_sig_aggregated_signatures_valid_total,
+               "lean_pq_sig_aggregated_signatures_valid_total",
+               "Total number of valid aggregated signatures")
+
+// Aggregated signatures: invalid counter
+// On aggregated signature verification
+METRIC_COUNTER(pq_sig_aggregated_signatures_invalid_total,
+               "lean_pq_sig_aggregated_signatures_invalid_total",
+               "Total number of invalid aggregated signatures")

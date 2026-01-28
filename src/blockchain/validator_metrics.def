@@ -1,0 +1,13 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/// Validator metrics definitions
+
+// Validators count
+// On scrape
+METRIC_GAUGE(val_validators_count,
+             "lean_validators_count",
+             "Number of validators managed by a node")
