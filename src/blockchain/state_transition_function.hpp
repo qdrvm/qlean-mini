@@ -10,10 +10,10 @@
 #include <qtils/outcome.hpp>
 #include <qtils/shared_ref.hpp>
 
-#include "app/impl/chain_spec_impl.hpp"
 #include "app/validator_keys_manifest.hpp"
-#include "blockchain/validator_registry.hpp"
+#include "blockchain/block_tree.hpp"
 #include "log/logger.hpp"
+#include "types/aggregated_attestations.hpp"
 #include "types/block.hpp"
 #include "types/slot.hpp"
 #include "types/state.hpp"
@@ -25,11 +25,16 @@ namespace lean {
   struct State;
 }  // namespace lean
 
+namespace lean::blockchain {
+  class BlockTree;
+}  // namespace lean::blockchain
+
 namespace lean::metrics {
   class Metrics;
 }  // namespace lean::metrics
 
 namespace lean {
+
   class STF {
    public:
     enum class Error {
@@ -62,8 +67,9 @@ namespace lean {
       abort();
     }
 
-    explicit STF(qtils::SharedRef<metrics::Metrics> metrics,
-                 log::Logger logger);
+    explicit STF(qtils::SharedRef<log::LoggingSystem> logging_system,
+                 qtils::SharedRef<blockchain::BlockTree> block_tree,
+                 qtils::SharedRef<metrics::Metrics> metrics);
 
     static State generateGenesisState(
         const Config &config,
@@ -74,7 +80,7 @@ namespace lean {
      * Apply block to parent state.
      * @returns new state
      */
-    outcome::result<State> stateTransition(const Block &block,
+    [[nodiscard]] outcome::result<State> stateTransition(const Block &block,
                                            const State &parent_state,
                                            bool check_state_root) const;
 
@@ -88,10 +94,11 @@ namespace lean {
                                             const BlockBody &body) const;
     outcome::result<void> processAttestations(
         State &state, const AggregatedAttestations &attestations) const;
-    bool validateProposerIndex(const State &state, const Block &block) const;
+    [[nodiscard]] bool validateProposerIndex(const State &state, const Block &block) const;
 
-   private:
+    log::Logger logger_;
+    qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<metrics::Metrics> metrics_;
-    log::Logger log_;
   };
+
 }  // namespace lean

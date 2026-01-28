@@ -152,6 +152,14 @@ namespace lean::crypto::xmss {
         ffi_bytevec.size,
     }};
     PQByteVec_drop(ffi_bytevec);
+
+    if (use_metrics_) {
+      metrics_->pq_sig_attestations_in_aggregated_signatures_total()->inc(
+          signatures.size()  // NOLINT(cppcoreguidelines-narrowing-conversions)
+      );
+      metrics_->pq_sig_aggregated_signatures_total()->inc();
+    }
+
     return aggregated_signature;
   }
 

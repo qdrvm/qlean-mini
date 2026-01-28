@@ -14,11 +14,6 @@
 #include <ranges>
 #include <stdexcept>
 
-#include <app/configuration.hpp>
-#include <blockchain/fork_choice.hpp>
-#include <boost/endian/conversion.hpp>
-#include <libp2p/basic/read_varint.hpp>
-#include <libp2p/basic/write_varint.hpp>
 #include <libp2p/coro/spawn.hpp>
 #include <libp2p/coro/timer_loop.hpp>
 #include <libp2p/crypto/key_marshaller.hpp>
@@ -34,7 +29,11 @@
 #include <libp2p/transport/tcp/tcp_util.hpp>
 #include <qtils/to_shared_ptr.hpp>
 
+#include "app/chain_spec.hpp"
+#include "app/configuration.hpp"
 #include "blockchain/block_tree.hpp"
+#include "blockchain/fork_choice.hpp"
+#include "boost/endian/conversion.hpp"
 #include "metrics/metrics.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
@@ -836,7 +835,7 @@ namespace lean::modules {
       total += number;
     }
 
-    total = host_->getConnectedPeerCount(); // TODO: use sum of clients
+    total = host_->getConnectedPeerCount();  // TODO: use sum of clients
     loader_.dispatch_peers_total_count_updated(
         std::make_shared<messages::PeersTotalCountMessage>(total));
   }

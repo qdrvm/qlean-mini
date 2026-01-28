@@ -29,6 +29,107 @@
 #include "utils/lru_cache.hpp"
 
 namespace lean {
+
+  ForkChoiceStore::ForkChoiceStore(
+      qtils::SharedRef<AnchorState> anchor_state,
+      qtils::SharedRef<AnchorBlock> anchor_block,
+      qtils::SharedRef<clock::SystemClock> clock,
+      qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
+      qtils::SharedRef<ValidatorRegistry> validator_registry,
+      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
+      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
+      qtils::SharedRef<blockchain::BlockTree> block_tree,
+      qtils::SharedRef<blockchain::BlockStorage> block_storage)
+      : logger_(logging_system->getLogger("ForkChoice", "fork_choice")),
+        metrics_(std::move(metrics)),
+        xmss_provider_(std::move(xmss_provider)),
+        block_tree_(std::move(block_tree)),
+        block_storage_(std::move(block_storage)),
+        stf_(std::move(logging_system), block_tree_, metrics_),
+        config_(anchor_state->config),
+        validator_registry_(std::move(validator_registry)),
+        validator_keys_manifest_(std::move(validator_keys_manifest)) {
+    SL_TRACE(logger_, "Initialise fork-choice");
+
+    for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
+      SL_INFO(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
+    }
+    SL_INFO(
+        logger_,
+        "Our pubkey: {}",
+        validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
+
+    BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
+    anchor_block->setHash();
+    SL_TRACE(logger_, "Anchor block: {}", anchor_block->index());
+    SL_TRACE(logger_, "Anchor state: {}", anchor_block->state_root);
+
+    auto now_sec = clock->nowSec();
+    time_ = now_sec > config_.genesis_time
+              ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
+              : 0;
+
+    // Set last finalized as pre-initial-head
+    auto latest_finalized = block_tree_->lastFinalized();
+    SL_TRACE(logger_, "Last finalized: {}", head_);
+
+    auto latest_justified = block_tree_->getLatestJustified();
+    SL_TRACE(logger_, "Last justified: {}", latest_justified);
+
+    head_ = latest_justified;
+
+    // Init safe-target
+    if (auto res = updateSafeTarget(); res.has_error()) {
+      SL_WARN(logger_,
+              "Failed initial safe-target update: {}; No changed ",
+              res.error());
+    }
+
+    // Update head based on anchor block and state
+    if (auto res = updateHead(); res.has_error()) {
+      SL_WARN(
+          logger_, "Failed initial head update: {}; No changed ", res.error());
+    }
+
+    SL_INFO(logger_, "🔷 Head:   {}", head_);
+    SL_INFO(logger_, "🎯 Target: {}", safe_target_);
+    SL_INFO(logger_, "📌 Source: {}", latest_justified);
+
+    SL_TRACE(logger_, "Fork-choice initialized");
+  }
+
+  // Test constructor implementation
+  ForkChoiceStore::ForkChoiceStore(
+      uint64_t now_sec,
+      qtils::SharedRef<log::LoggingSystem> logging_system,
+      qtils::SharedRef<metrics::Metrics> metrics,
+      Config config,
+      Checkpoint head,
+      Checkpoint safe_target,
+      AttestationDataByValidator latest_known_attestations,
+      AttestationDataByValidator latest_new_attestations,
+      ValidatorIndex validator_index,
+      qtils::SharedRef<ValidatorRegistry> validator_registry,
+      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
+      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
+      qtils::SharedRef<blockchain::BlockTree> block_tree,
+      qtils::SharedRef<blockchain::BlockStorage> block_storage)
+      : logger_(logging_system->getLogger("ForkChoice", "fork_choice")),
+        metrics_(std::move(metrics)),
+        xmss_provider_(std::move(xmss_provider)),
+        block_tree_(std::move(block_tree)),
+        block_storage_(std::move(block_storage)),
+        stf_(std::move(logging_system), block_tree_, metrics_),
+        time_(now_sec / SECONDS_PER_INTERVAL),
+        config_(config),
+        head_(head),
+        safe_target_(safe_target),
+        latest_known_attestations_(std::move(latest_known_attestations)),
+        latest_new_attestations_(std::move(latest_new_attestations)),
+        validator_registry_(std::move(validator_registry)),
+        validator_keys_manifest_(std::move(validator_keys_manifest)) {}
+
   inline crypto::xmss::XmssMessage attestationPayload(
       const AttestationData &attestation_data) {
     return sszHash(attestation_data);
@@ -52,6 +153,7 @@ namespace lean {
     safe_target_ = {.root = lmd_ghost_head, .slot = slot};
     SL_TRACE(logger_, "Safe target was set to {}", safe_target_);
 
+    metrics_->fc_safe_target_slot()->set(safe_target_.slot);
     return outcome::success();
   }
 
@@ -70,6 +172,8 @@ namespace lean {
 
     head_ = {.root = lmd_ghost_head, .slot = slot};
     SL_TRACE(logger_, "Head was set to {}", head_);
+
+    metrics_->fc_head_slot()->set(head_.slot);
     return outcome::success();
   }
 
@@ -435,8 +539,11 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::onAttestation(
       const Attestation &attestation, bool is_from_block) {
-    // First, ensure the attestation is structurally and temporally valid.
+    metrics_->fc_attestation_validation_time()->timer();
+
     auto source = is_from_block ? "block" : "gossip";
+
+    // First, ensure the attestation is structurally and temporally valid.
 
     // Extract node id
     auto node_id_opt =
@@ -696,6 +803,8 @@ namespace lean {
         > block_tree_->getLatestJustified().slot) {
       OUTCOME_TRY(block_tree_->setJustified(post_state.latest_justified.root));
       SL_INFO(logger_, "🔒 Justified block: {}", post_state.latest_finalized);
+      metrics_->stf_latest_justified_slot()->set(
+          post_state.latest_justified.slot);
     }
 
     // If post-state has a higher finalized checkpoint, update it to the store.
@@ -782,6 +891,7 @@ namespace lean {
         result{};
     while (time_ <= time_since_genesis) {
       Slot current_slot = time_ / INTERVALS_PER_SLOT;
+      metrics_->fc_current_slot()->set(current_slot);
       [[unlikely]] if (current_slot == 0) {
         // Skip actions for slot zero, which is the genesis slot
         time_ += 1;
@@ -848,7 +958,6 @@ namespace lean {
                   ana_res.error());
         }
 
-        metrics_->fc_head_slot()->set(head_.slot);
         Checkpoint head = head_;
         auto target = getAttestationTarget();
         auto source = block_tree_->getLatestJustified();
@@ -1015,106 +1124,6 @@ namespace lean {
           });
     }
   }
-
-  ForkChoiceStore::ForkChoiceStore(
-      qtils::SharedRef<AnchorState> anchor_state,
-      qtils::SharedRef<AnchorBlock> anchor_block,
-      qtils::SharedRef<clock::SystemClock> clock,
-      qtils::SharedRef<log::LoggingSystem> logging_system,
-      qtils::SharedRef<metrics::Metrics> metrics,
-      qtils::SharedRef<ValidatorRegistry> validator_registry,
-      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
-      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
-      qtils::SharedRef<blockchain::BlockTree> block_tree,
-      qtils::SharedRef<blockchain::BlockStorage> block_storage)
-      : logger_(logging_system->getLogger("ForkChoice", "fork_choice")),
-        metrics_(std::move(metrics)),
-        xmss_provider_(std::move(xmss_provider)),
-        block_tree_(std::move(block_tree)),
-        block_storage_(std::move(block_storage)),
-        stf_(metrics_, logging_system->getLogger("STF", "stf")),
-        config_(anchor_state->config),
-        validator_registry_(std::move(validator_registry)),
-        validator_keys_manifest_(std::move(validator_keys_manifest)) {
-    SL_TRACE(logger_, "Initialise fork-choice");
-
-    for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
-      SL_INFO(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
-    }
-    SL_INFO(
-        logger_,
-        "Our pubkey: {}",
-        validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
-
-    BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
-    anchor_block->setHash();
-    SL_TRACE(logger_, "Anchor block: {}", anchor_block->index());
-    SL_TRACE(logger_, "Anchor state: {}", anchor_block->state_root);
-
-    auto now_sec = clock->nowSec();
-    time_ = now_sec > config_.genesis_time
-              ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
-              : 0;
-
-    // Set last finalized as pre-initial-head
-    auto latest_finalized = block_tree_->lastFinalized();
-    SL_TRACE(logger_, "Last finalized: {}", head_);
-
-    auto latest_justified = block_tree_->getLatestJustified();
-    SL_TRACE(logger_, "Last justified: {}", latest_justified);
-
-    head_ = latest_justified;
-
-    // Init safe-target
-    if (auto res = updateSafeTarget(); res.has_error()) {
-      SL_WARN(logger_,
-              "Failed initial safe-target update: {}; No changed ",
-              res.error());
-    }
-
-    // Update head based on anchor block and state
-    if (auto res = updateHead(); res.has_error()) {
-      SL_WARN(
-          logger_, "Failed initial head update: {}; No changed ", res.error());
-    }
-
-    SL_INFO(logger_, "🔷 Head:   {}", head_);
-    SL_INFO(logger_, "🎯 Target: {}", safe_target_);
-    SL_INFO(logger_, "📌 Source: {}", latest_justified);
-
-    SL_TRACE(logger_, "Fork-choice initialized");
-  }
-
-  // Test constructor implementation
-  ForkChoiceStore::ForkChoiceStore(
-      uint64_t now_sec,
-      qtils::SharedRef<log::LoggingSystem> logging_system,
-      qtils::SharedRef<metrics::Metrics> metrics,
-      Config config,
-      Checkpoint head,
-      Checkpoint safe_target,
-      AttestationDataByValidator latest_known_attestations,
-      AttestationDataByValidator latest_new_attestations,
-      ValidatorIndex validator_index,
-      qtils::SharedRef<ValidatorRegistry> validator_registry,
-      qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
-      qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
-      qtils::SharedRef<blockchain::BlockTree> block_tree,
-      qtils::SharedRef<blockchain::BlockStorage> block_storage)
-      : logger_(logging_system->getLogger("ForkChoice", "fork_choice")),
-        metrics_(metrics),
-        xmss_provider_(std::move(xmss_provider)),
-        block_tree_(std::move(block_tree)),
-        block_storage_(std::move(block_storage)),
-        stf_(std::move(metrics), logging_system->getLogger("STF", "stf")),
-        time_(now_sec / SECONDS_PER_INTERVAL),
-        config_(config),
-        head_(head),
-        safe_target_(safe_target),
-        latest_known_attestations_(std::move(latest_known_attestations)),
-        latest_new_attestations_(std::move(latest_new_attestations)),
-        validator_registry_(std::move(validator_registry)),
-        validator_keys_manifest_(std::move(validator_keys_manifest)) {}
 
   ForkChoiceStore::ValidatorAttestationKey
   ForkChoiceStore::validatorAttestationKey(
