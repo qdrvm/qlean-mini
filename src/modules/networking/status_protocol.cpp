@@ -6,8 +6,6 @@
 
 #include "modules/networking/status_protocol.hpp"
 
-#include <libp2p/basic/read_varint.hpp>
-#include <libp2p/basic/write_varint.hpp>
 #include <libp2p/coro/spawn.hpp>
 #include <libp2p/host/basic_host.hpp>
 
@@ -54,10 +52,9 @@ namespace lean::modules {
   libp2p::CoroOutcome<void> StatusProtocol::read(
       std::shared_ptr<libp2p::Stream> stream) {
     auto peer_id = stream->remotePeerId();
-    qtils::ByteVec encoded;
-    BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-    BOOST_OUTCOME_CO_TRY(auto status,
-                         decodeSszSnappyFramed<StatusMessage>(encoded));
+    BOOST_OUTCOME_CO_TRY(auto encoded,
+                         co_await snappy::coUncompressFramed(stream));
+    BOOST_OUTCOME_CO_TRY(auto status, decode<StatusMessage>(encoded));
     on_status_(messages::StatusMessageReceived{
         .from_peer = peer_id,
         .notification = status,
@@ -67,8 +64,8 @@ namespace lean::modules {
 
   libp2p::CoroOutcome<void> StatusProtocol::write(
       std::shared_ptr<libp2p::Stream> stream) {
-    BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
-        stream, encodeSszSnappyFramed(get_status_())));
+    BOOST_OUTCOME_CO_TRY(co_await snappy::coCompressFramed(
+        stream, encode(get_status_()).value()));
     co_return outcome::success();
   }
 
