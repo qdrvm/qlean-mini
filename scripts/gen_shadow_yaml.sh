@@ -318,7 +318,7 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
       "--node-id" "node_${i}"
       "--node-key" "$key_file"
       "--listen-addr" "/ip4/0.0.0.0/udp/${udp_port}/quic-v1"
-      "--prometheus-port" "$prom_port"
+      "--metrics-port" "$prom_port"
       "--shadow"
     )
     # Append max bootnodes flag if requested
