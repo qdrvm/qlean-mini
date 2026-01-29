@@ -57,6 +57,10 @@ namespace lean::app {
     [[nodiscard]] virtual const std::filesystem::path &
     validatorKeysManifestPath() const;
 
+    [[nodiscard]] virtual bool fakeXmss() const;
+    [[nodiscard]] virtual double fakeXmssAggregateSignaturesRate() const;
+    [[nodiscard]] virtual double fakeXmssVerifyAggregatedSignaturesRate() const;
+
     [[nodiscard]] virtual const DatabaseConfig &database() const;
 
     [[nodiscard]] virtual const MetricsConfig &metrics() const;
@@ -81,6 +85,10 @@ namespace lean::app {
     std::optional<crypto::xmss::XmssKeypair> xmss_keypair_;
 
     std::filesystem::path validator_keys_manifest_path_;
+
+    bool fake_xmss_ = false;
+    double fake_xmss_aggregate_signatures_rate_ = 22.704;
+    double fake_xmss_verify_aggregated_signatures_rate_ = 3463.106;
 
     DatabaseConfig database_;
     MetricsConfig metrics_;
