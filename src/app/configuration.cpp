@@ -75,10 +75,6 @@ namespace lean::app {
     return validator_keys_manifest_path_;
   }
 
-  bool Configuration::fakeXmss() const {
-    return fake_xmss_;
-  }
-
   double Configuration::fakeXmssAggregateSignaturesRate() const {
     return fake_xmss_aggregate_signatures_rate_;
   }

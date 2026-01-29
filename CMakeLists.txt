@@ -6,6 +6,7 @@
 
 cmake_minimum_required(VERSION 3.25)
 
+option(QLEAN_ENABLE_SHADOW "Build executable for shadow simulator" OFF)
 option(TESTING "Build and run test suite" ON)
 if (TESTING)
   list(APPEND VCPKG_MANIFEST_FEATURES test)

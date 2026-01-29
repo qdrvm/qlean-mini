@@ -1,0 +1,9 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#pragma once
+
+#cmakedefine01 QLEAN_ENABLE_SHADOW
