@@ -391,6 +391,8 @@ namespace lean::modules {
                  "on_peer_disconnected: unknown peer {}",
                  peer_id.toBase58());
       }
+      self->host_->getPeerRepository().getUserAgentRepository().unsetUserAgent(
+          peer_id);
       self->updateMetricConnectedPeerCount();
       self->loader_.dispatch_peer_disconnected(
           qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
@@ -826,16 +828,20 @@ namespace lean::modules {
   }
 
   void NetworkingImpl::updateMetricConnectedPeerCount() {
-    // TODO: implement affecting counter of such type of client
     std::unordered_map<std::string, size_t> client_counters;
-    // FIXME: Fill counters above
+    const auto &ua_repo = host_->getPeerRepository().getUserAgentRepository();
+
+    for (const auto &peer_id : host_->getConnectedPeers()) {
+      auto ua = ua_repo.getUserAgent(peer_id).value_or("unknown");
+      ++client_counters[ua];
+    }
+
     size_t total = 0;
     for (const auto &[kind, number] : client_counters) {
       metrics_->network_connected_peer_count({{"client", kind}})->set(number);
       total += number;
     }
 
-    total = host_->getConnectedPeerCount();  // TODO: use sum of clients
     loader_.dispatch_peers_total_count_updated(
         std::make_shared<messages::PeersTotalCountMessage>(total));
   }
