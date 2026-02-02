@@ -833,6 +833,17 @@ namespace lean::modules {
 
     for (const auto &peer_id : host_->getConnectedPeers()) {
       auto ua = ua_repo.getUserAgent(peer_id).value_or("unknown");
+      // To lower case + drop version if any
+      for (size_t i = 0; i < ua.size(); ++i) {
+        auto &ch = ua[i];
+        if (ch == '/') {
+          ua.resize(i);
+          break;
+        }
+        if (ch >= 'A' and ch <= 'Z') {
+          ch = static_cast<char>(ch - 'A' + 'a');
+        }
+      }
       ++client_counters[ua];
     }
 
