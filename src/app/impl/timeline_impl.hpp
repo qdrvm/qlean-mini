@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <unordered_map>
+
 #include <qtils/empty.hpp>
 #include <qtils/shared_ref.hpp>
 
@@ -14,7 +16,7 @@
 
 namespace lean::messages {
   struct SlotStarted;
-  struct PeersTotalCountMessage;
+  struct PeerCountsMessage;
 }
 namespace lean {
   struct GenesisConfig;
@@ -62,7 +64,7 @@ namespace lean::app {
     qtils::SharedRef<Subscription> se_manager_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
 
-    std::atomic<size_t> connected_peers_{0};
+    std::unordered_map<std::string, size_t> connected_peers_;
 
     bool stopped_ = false;
 
@@ -72,7 +74,7 @@ namespace lean::app {
         on_slot_started_;
     std::shared_ptr<
         BaseSubscriber<qtils::Empty,
-                       std::shared_ptr<const messages::PeersTotalCountMessage>>>
+                       std::shared_ptr<const messages::PeerCountsMessage>>>
         on_peers_total_count_updated_;
   };
 

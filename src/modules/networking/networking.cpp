@@ -854,13 +854,12 @@ namespace lean::modules {
       ++client_counters[ua];
     }
 
-    size_t total = 0;
     for (const auto &[kind, number] : client_counters) {
       metrics_->network_connected_peer_count({{"client", kind}})->set(number);
-      total += number;
     }
 
     loader_.dispatch_peers_total_count_updated(
-        std::make_shared<messages::PeersTotalCountMessage>(total));
+        std::make_shared<messages::PeerCountsMessage>(
+            std::move(client_counters)));
   }
 }  // namespace lean::modules

@@ -14,6 +14,10 @@
 namespace lean::metrics {
   PrometheusCounter::PrometheusCounter(prometheus::Counter &m) : m_(m) {}
 
+  double PrometheusCounter::value() const {
+    return m_.Value();
+  }
+
   void PrometheusCounter::inc() {
     m_.Increment();
   }
@@ -23,6 +27,10 @@ namespace lean::metrics {
   }
 
   PrometheusGauge::PrometheusGauge(prometheus::Gauge &m) : m_(m) {}
+
+  double PrometheusGauge::value() const {
+    return m_.Value();
+  }
 
   void PrometheusGauge::inc() {
     m_.Increment();
@@ -46,13 +54,13 @@ namespace lean::metrics {
 
   PrometheusSummary::PrometheusSummary(prometheus::Summary &m) : m_(m) {}
 
-  void PrometheusSummary::observe(const double value) {
+  void PrometheusSummary::observe(double value) {
     m_.Observe(value);
   }
 
   PrometheusHistogram::PrometheusHistogram(prometheus::Histogram &m) : m_(m) {}
 
-  void PrometheusHistogram::observe(const double value) {
+  void PrometheusHistogram::observe(double value) {
     m_.Observe(value);
   }
 }  // namespace lean::metrics

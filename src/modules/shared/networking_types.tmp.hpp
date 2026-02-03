@@ -40,8 +40,8 @@ namespace lean::messages {
     // reason?
   };
 
-  struct PeersTotalCountMessage {
-    size_t count;
+  struct PeerCountsMessage {
+    std::unordered_map<std::string, size_t> map;
   };
 
   using StatusMessageReceived = NotificationReceived<StatusMessage>;

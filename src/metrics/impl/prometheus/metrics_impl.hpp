@@ -24,7 +24,7 @@ namespace lean::metrics {
    public:
     PrometheusCounter(prometheus::Counter &m);
 
-   public:
+    [[nodiscard]] double value() const override;
     void inc() override;
     void inc(double val) override;
   };
@@ -36,7 +36,7 @@ namespace lean::metrics {
    public:
     PrometheusGauge(prometheus::Gauge &m);
 
-   public:
+    [[nodiscard]] double value() const override;
     void inc() override;
     void inc(double val) override;
     void dec() override;
@@ -51,8 +51,7 @@ namespace lean::metrics {
    public:
     PrometheusSummary(prometheus::Summary &m);
 
-   public:
-    void observe(const double value) override;
+    void observe(double value) override;
   };
 
   class PrometheusHistogram : public Histogram {
@@ -62,8 +61,7 @@ namespace lean::metrics {
    public:
     PrometheusHistogram(prometheus::Histogram &m);
 
-   public:
-    void observe(const double value) override;
+    void observe(double value) override;
   };
 
 }  // namespace lean::metrics

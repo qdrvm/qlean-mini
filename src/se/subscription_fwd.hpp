@@ -48,8 +48,8 @@ namespace lean {
     PeerConnected,
     /// Peer disconnected
     PeerDisconnected,
-    /// Peers total count updated
-    PeersTotalCountUpdated,
+    /// Peer counts by user-agent is updated
+    PeerCountsUpdated,
     /// Data of a block is requested
     BlockRequest,
     /// Data of a block is respond
