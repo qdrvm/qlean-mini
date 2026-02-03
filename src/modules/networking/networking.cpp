@@ -29,6 +29,7 @@
 #include <libp2p/transport/tcp/tcp_util.hpp>
 #include <qtils/to_shared_ptr.hpp>
 
+#include "app/build_version.hpp"
 #include "app/chain_spec.hpp"
 #include "app/configuration.hpp"
 #include "blockchain/block_tree.hpp"
@@ -142,13 +143,18 @@ namespace lean::modules {
     libp2p::muxer::MuxedConnectionConfig mux_config;
     mux_config.no_streams_interval = std::chrono::seconds{10};
 
+    auto identify_config = std::make_shared<libp2p::protocol::IdentifyConfig>();
+    identify_config->agent_version = "qlean/" + buildVersion();
+
     auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
         libp2p::injector::useKeyPair(keypair),
         libp2p::injector::useGossipConfig(std::move(gossip_config)),
         boost::di::bind<libp2p::muxer::MuxedConnectionConfig>().to(
             mux_config)[boost::di::override],
         libp2p::injector::useTransportAdaptors<
-            libp2p::transport::QuicTransport>()));
+            libp2p::transport::QuicTransport>(),
+        boost::di::bind<libp2p::protocol::IdentifyConfig>().to(
+            identify_config)[boost::di::override]));
     injector_ = injector;
     io_context_ = injector->create<std::shared_ptr<boost::asio::io_context>>();
 

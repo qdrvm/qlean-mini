@@ -24,4 +24,5 @@ add_lean_module(networking
     soralog::soralog
     sszpp
     validator_registry
+    build_version
 )
