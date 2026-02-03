@@ -845,7 +845,7 @@ namespace lean::modules {
     const auto &ua_repo = host_->getPeerRepository().getUserAgentRepository();
 
     for (const auto &peer_id : host_->getConnectedPeers()) {
-      auto ua = ua_repo.getUserAgent(peer_id).value_or("unknown");
+      auto ua = ua_repo.getUserAgent(peer_id).value_or("");
       // To lower case + drop version if any
       for (size_t i = 0; i < ua.size(); ++i) {
         auto &ch = ua[i];
@@ -856,6 +856,9 @@ namespace lean::modules {
         if (ch >= 'A' and ch <= 'Z') {
           ch = static_cast<char>(ch - 'A' + 'a');
         }
+      }
+      if (ua.empty()) {
+        ua = "unknown";
       }
       ++client_counters[ua];
     }
