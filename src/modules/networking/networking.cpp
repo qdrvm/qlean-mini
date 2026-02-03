@@ -279,8 +279,11 @@ namespace lean::modules {
 
       const auto direction_label =
           connection->isInitiator() ? "inbound" : "outbound";
-      const auto result_label =  // TODO Implement remaining
-          "success";             //, "timeout", "error";
+
+      // TODO Implement result extraction: "success", "timeout", "error"
+      //  Issue: https://github.com/qdrvm/qlean-mini/issues/60#sync-metrics
+      const auto result_label = "success";
+
       self->metrics_
           ->network_connect_event_count(
               {{"direction", direction_label}, {"result", result_label}})
@@ -411,8 +414,12 @@ namespace lean::modules {
 
           const auto direction_label =
               connection->isInitiator() ? "inbound" : "outbound";
-          const auto reason_label =  // TODO Implement remaining
-              "unknown";  //  "timeout", "remote_close", "local_close", "error";
+
+          // TODO Implement reason extraction:
+          //  "timeout", "remote_close", "local_close", "error"
+          //  Issue: https://github.com/qdrvm/qlean-mini/issues/60#sync-metrics
+          const auto reason_label = "unknown";
+
           self->metrics_
               ->network_disconnect_event_count(
                   {{"direction", direction_label}, {"reason", reason_label}})
