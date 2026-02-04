@@ -612,11 +612,7 @@ namespace lean::modules {
                             co_await self->block_request_protocol_->request(
                                 peer_id, {.blocks = {{block_hash}}});
                         if (response_res.has_value()) {
-                          auto &blocks = response_res.value().blocks.data();
-                          if (blocks.empty()) {
-                            co_return;
-                          }
-                          auto &block = blocks.at(0);
+                          auto &block = response_res.value();
                           block.message.block.setHash();
                           self->receiveBlock(peer_id, std::move(block));
                         }
@@ -723,7 +719,7 @@ namespace lean::modules {
           }
         }
 
-        return;
+        continue;
       }
 
       // Fail -> forget children

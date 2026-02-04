@@ -19,7 +19,6 @@
 #include "mock/blockchain/validator_registry_mock.hpp"
 #include "mock/crypto/xmss_provider_mock.hpp"
 #include "mock/metrics_mock.hpp"
-#include "modules/networking/ssz_snappy.hpp"
 #include "qtils/test/outcome.hpp"
 #include "testutil/prepare_loggers.hpp"
 

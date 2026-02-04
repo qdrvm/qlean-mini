@@ -22,9 +22,5 @@ namespace lean {
     SSZ_CONT(blocks);
   };
 
-  struct BlockResponse : ssz::ssz_variable_size_container {
-    ssz::list<SignedBlockWithAttestation, MAX_REQUEST_BLOCKS> blocks;
-
-    SSZ_CONT(blocks);
-  };
+  using BlockResponse = SignedBlockWithAttestation;
 }  // namespace lean

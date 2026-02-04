@@ -44,33 +44,32 @@ namespace lean::modules {
       libp2p::PeerId peer_id, BlockRequest request) {
     BOOST_OUTCOME_CO_TRY(auto stream,
                          co_await host_->newStream(peer_id, getProtocolIds()));
-    BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
-        stream, encodeSszSnappyFramed(request)));
+    BOOST_OUTCOME_CO_TRY(
+        co_await snappy::coCompressFramed(stream, encode(request).value()));
     BOOST_OUTCOME_CO_TRY(co_await readResponseStatus(stream));
-    qtils::ByteVec encoded;
-    BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-    BOOST_OUTCOME_CO_TRY(auto response,
-                         decodeSszSnappyFramed<BlockResponse>(encoded));
+    BOOST_OUTCOME_CO_TRY(auto encoded,
+                         co_await snappy::coUncompressFramed(stream));
+    BOOST_OUTCOME_CO_TRY(auto response, decode<BlockResponse>(encoded));
     co_return response;
   }
 
   libp2p::CoroOutcome<void> BlockRequestProtocol::coroRespond(
       std::shared_ptr<libp2p::Stream> stream) {
-    qtils::ByteVec encoded;
-    BOOST_OUTCOME_CO_TRY(co_await libp2p::readVarintMessage(stream, encoded));
-    BOOST_OUTCOME_CO_TRY(auto request,
-                         decodeSszSnappyFramed<BlockRequest>(encoded));
-    BlockResponse response;
+    BOOST_OUTCOME_CO_TRY(auto encoded,
+                         co_await snappy::coUncompressFramed(stream));
+    BOOST_OUTCOME_CO_TRY(auto request, decode<BlockRequest>(encoded));
     for (auto &block_hash : request.blocks) {
       BOOST_OUTCOME_CO_TRY(auto block,
                            block_tree_->tryGetSignedBlock(block_hash));
-      if (block.has_value()) {
-        response.blocks.push_back(std::move(block.value()));
+      if (not block.has_value()) {
+        // TODO: how to respond?
+        continue;
       }
+      BlockResponse &response = block.value();
+      BOOST_OUTCOME_CO_TRY(co_await writeResponseStatus(stream));
+      BOOST_OUTCOME_CO_TRY(co_await snappy::coCompressFramed(
+          stream, encode(block.value()).value()));
     }
-    BOOST_OUTCOME_CO_TRY(co_await writeResponseStatus(stream));
-    BOOST_OUTCOME_CO_TRY(co_await libp2p::writeVarintMessage(
-        stream, encodeSszSnappyFramed(response)));
     co_return outcome::success();
   }
 }  // namespace lean::modules
