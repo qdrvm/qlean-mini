@@ -400,8 +400,8 @@ namespace lean::modules {
                  "on_peer_disconnected: unknown peer {}",
                  peer_id.toBase58());
       }
-      self->host_->getPeerRepository().getUserAgentRepository().unsetUserAgent(
-          peer_id);
+      self->host_->getPeerRepository().getUserAgentRepository().updateTtl(
+          peer_id, libp2p::peer::ttl::kTransient);
       self->updateMetricConnectedPeerCount();
       self->loader_.dispatch_peer_disconnected(
           qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
