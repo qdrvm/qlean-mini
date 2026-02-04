@@ -10,7 +10,10 @@
 
 #include <boost/endian/conversion.hpp>
 #include <crc32c/crc32c.h>
+#include <libp2p/basic/read_varint.hpp>
+#include <libp2p/basic/write_varint.hpp>
 #include <libp2p/common/saturating.hpp>
+#include <libp2p/connection/stream.hpp>
 #include <qtils/bytes.hpp>
 #include <qtils/bytestr.hpp>
 
@@ -112,18 +115,23 @@ namespace lean::snappy {
     return framed;
   }
 
+  inline std::optional<size_t> chunkNeedBytes(qtils::BytesIn input) {
+    if (input.size() < kHeaderSize) {
+      return std::nullopt;
+    }
+    return kHeaderSize + boost::endian::load_little_u24(input.data() + 1);
+  }
+
   inline outcome::result<qtils::ByteVec> uncompressFramed(
       qtils::BytesIn compressed, size_t max_size = kDefaultMaxSize) {
     qtils::ByteVec result;
     while (not compressed.empty()) {
-      if (compressed.size() < kHeaderSize) {
+      auto need = chunkNeedBytes(compressed);
+      if (not need or compressed.size() < *need) {
         return SnappyError::UNCOMPRESS_TRUNCATED;
       }
       auto type = ChunkType{compressed[0]};
       auto size = boost::endian::load_little_u24(compressed.data() + 1);
-      if (compressed.size() < kHeaderSize + size) {
-        return SnappyError::UNCOMPRESS_TRUNCATED;
-      }
       auto content = compressed.subspan(kHeaderSize, size);
       compressed = compressed.subspan(kHeaderSize + size);
       if (type == ChunkType::Stream) {
@@ -154,5 +162,38 @@ namespace lean::snappy {
       }
     }
     return result;
+  }
+
+  inline libp2p::CoroOutcome<qtils::ByteVec> coUncompressFramed(
+      std::shared_ptr<libp2p::Stream> stream,
+      size_t max_size = kDefaultMaxSize) {
+    BOOST_OUTCOME_CO_TRY(auto size, co_await libp2p::readVarint(stream));
+    if (size > max_size) {
+      co_return SnappyError::UNCOMPRESS_TOO_LONG;
+    }
+    qtils::ByteVec result;
+    while (result.size() < size) {
+      qtils::ByteVec chunk;
+      chunk.resize(kHeaderSize);
+      BOOST_OUTCOME_CO_TRY(co_await libp2p::read(stream, chunk));
+      auto need = chunkNeedBytes(chunk).value();
+      chunk.resize(need);
+      BOOST_OUTCOME_CO_TRY(
+          co_await libp2p::read(stream, std::span{chunk}.subspan(kHeaderSize)));
+      BOOST_OUTCOME_CO_TRY(
+          auto uncompressed,
+          uncompressFramed(chunk, libp2p::saturating_sub(size, result.size())));
+      result.put(uncompressed);
+    }
+    co_return result;
+  }
+
+  inline libp2p::CoroOutcome<void> coCompressFramed(
+      std::shared_ptr<libp2p::Stream> stream, qtils::BytesIn message) {
+    auto compressed = compressFramed(message);
+    BOOST_OUTCOME_CO_TRY(
+        co_await libp2p::write(stream, libp2p::EncodeVarint{message.size()}));
+    BOOST_OUTCOME_CO_TRY(co_await libp2p::write(stream, compressed));
+    co_return outcome::success();
   }
 }  // namespace lean::snappy
