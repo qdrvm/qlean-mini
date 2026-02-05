@@ -38,7 +38,6 @@ namespace lean::storage {
   template <std::ranges::range ColumnFamilyNames>
   void configureColumnFamilies(
       std::vector<rocksdb::ColumnFamilyDescriptor> &column_family_descriptors,
-      std::vector<int32_t> &ttls,
       ColumnFamilyNames &&cf_names,
       const std::unordered_map<std::string, int32_t> &column_ttl,
       const std::unordered_map<std::string, double> &column_cache_sizes,
@@ -75,7 +74,6 @@ namespace lean::storage {
       }
       auto column_options = configureColumn(cache_size);
       column_family_descriptors.emplace_back(space_name, column_options);
-      ttls.push_back(ttl);
       SL_DEBUG(
           log,
           "Column family '{}' configured with ttl={}sec, cache_size={:.0f}Mb",
@@ -167,9 +165,7 @@ namespace lean::storage {
     const auto memory_budget = app_config->database().cache_size;
 
     std::vector<rocksdb::ColumnFamilyDescriptor> column_family_descriptors;
-    std::vector<int32_t> ttls;
     configureColumnFamilies(column_family_descriptors,
-                            ttls,
                             all_families,
                             column_ttl,
                             column_cache_size,
@@ -178,8 +174,8 @@ namespace lean::storage {
 
     options.create_missing_column_families = true;
 
-    qtils::raise_on_err(openDatabaseWithTTL(
-        options, path, column_family_descriptors, ttls, *this, logger_));
+    qtils::raise_on_err(openDatabase(
+        options, path, column_family_descriptors, *this, logger_));
 
     // Print size of each column family
     SL_VERBOSE(logger_, "Current column family sizes:");
@@ -224,21 +220,19 @@ namespace lean::storage {
     return outcome::success();
   }
 
-  outcome::result<void> RocksDb::openDatabaseWithTTL(
+  outcome::result<void> RocksDb::openDatabase(
       const rocksdb::Options &options,
       const std::filesystem::path &path,
       const std::vector<rocksdb::ColumnFamilyDescriptor>
           &column_family_descriptors,
-      const std::vector<int32_t> &ttls,
       RocksDb &rocks_db,
       log::Logger &log) {
     const auto status =
-        rocksdb::DBWithTTL::Open(options,
-                                 path.native(),
-                                 column_family_descriptors,
-                                 &rocks_db.column_family_handles_,
-                                 &rocks_db.db_,
-                                 ttls);
+        rocksdb::DB::Open(options,
+                          path.native(),
+                          column_family_descriptors,
+                          &rocks_db.column_family_handles_,
+                          &rocks_db.db_);
     if (not status.ok()) {
       SL_ERROR(log,
                "Can't open database in {}: {}",
