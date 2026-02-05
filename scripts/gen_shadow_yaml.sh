@@ -113,6 +113,7 @@ PY
 }
 
 GENESIS_DIR_ABS="$(py_abspath "$GENESIS_DIR")"
+PROJECT_ROOT_ABS="$(py_abspath "$PROJECT_ROOT")"
 QLEAN_PATH_ABS="$(py_abspath "$QLEAN_PATH")"
 MODULES_DIR_ABS="$(py_abspath "$MODULES_DIR")"
 OUTPUT_YAML_ABS="$(py_abspath "$(dirname "$OUTPUT_YAML")")/$(basename "$OUTPUT_YAML")"
@@ -310,6 +311,7 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
 
     # Build args string
     args_str=(
+      "--base-path" "$PROJECT_ROOT_ABS/data/node_${i}"
       "--modules-dir" "$MODULES_DIR_ABS"
       "--bootnodes" "$NODES_YAML"
       "--genesis" "$CONFIG_YAML"
@@ -319,7 +321,6 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
       "--node-key" "$key_file"
       "--listen-addr" "/ip4/0.0.0.0/udp/${udp_port}/quic-v1"
       "--metrics-port" "$prom_port"
-      "--shadow"
     )
     # Append max bootnodes flag if requested
     if [[ -n "$MAX_BOOTNODES" ]]; then
