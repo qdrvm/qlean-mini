@@ -6,6 +6,8 @@
 
 #include "app/configuration.hpp"
 
+#include "executable/qlean_enable_shadow.hpp"
+
 namespace lean::app {
 
   Configuration::Configuration()
@@ -73,6 +75,16 @@ namespace lean::app {
   const std::filesystem::path &Configuration::validatorKeysManifestPath()
       const {
     return validator_keys_manifest_path_;
+  }
+
+  double Configuration::fakeXmssAggregateSignaturesRate() const {
+    ASSERT_QLEAN_ENABLE_SHADOW();
+    return fake_xmss_aggregate_signatures_rate_;
+  }
+
+  double Configuration::fakeXmssVerifyAggregatedSignaturesRate() const {
+    ASSERT_QLEAN_ENABLE_SHADOW();
+    return fake_xmss_verify_aggregated_signatures_rate_;
   }
 
   const Configuration::DatabaseConfig &Configuration::database() const {

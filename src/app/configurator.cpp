@@ -28,7 +28,9 @@
 #include "app/configuration.hpp"
 #include "app/default_config.hpp"
 #include "app/validator_keys_manifest.hpp"
+#include "crypto/xmss/xmss_provider_fake.hpp"
 #include "crypto/xmss/xmss_util.hpp"
+#include "executable/qlean_enable_shadow.hpp"
 #include "log/formatters/filepath.hpp"
 #include "modules/networking/get_node_key.hpp"
 #include "utils/parsers.hpp"
@@ -133,7 +135,14 @@ namespace lean::app {
           "Log levels: trace, debug, verbose, info, warn, error, critical, off.\n"
           "Default: all targets log at `info`.\n"
           "Global log level can be set with: -l<level>.")
-        ;
+          ;
+
+    if constexpr (QLEAN_ENABLE_SHADOW) {
+      general_options.add_options()
+          ("shadow-xmss-aggregate-signatures-rate", "How many signatures can be aggregated per second (fake xmss provider)")
+          ("shadow-xmss-verify-aggregated-signatures-rate", "How many signatures inside aggregated signature can be verified per second (fake xmss provider)")
+          ;
+    }
 
     po::options_description storage_options("Storage options");
     storage_options.add_options()
@@ -674,45 +683,59 @@ namespace lean::app {
       return Error::InvalidValue;
     }
 
-    // Validate and load XMSS keys (mandatory)
-    if (config_->xmss_public_key_path_.empty()) {
-      SL_ERROR(logger_,
-               "The '--xmss-pk' (XMSS public key) path must be provided");
-      return Error::InvalidValue;
-    }
-    if (config_->xmss_secret_key_path_.empty()) {
-      SL_ERROR(logger_,
-               "The '--xmss-sk' (XMSS secret key) path must be provided");
-      return Error::InvalidValue;
-    }
+    if constexpr (QLEAN_ENABLE_SHADOW) {
+      if (auto value = find_argument<double>(
+              cli_values_map_, "shadow-xmss-aggregate-signatures-rate")) {
+        config_->fake_xmss_aggregate_signatures_rate_ = value.value();
+      }
+      if (auto value = find_argument<double>(
+              cli_values_map_,
+              "shadow-xmss-verify-aggregated-signatures-rate")) {
+        config_->fake_xmss_verify_aggregated_signatures_rate_ = value.value();
+      }
+      config_->xmss_keypair_ = crypto::xmss::XmssProviderFake::loadKeypair(
+          config_->xmss_secret_key_path_.string());
+    } else {
+      // Validate and load XMSS keys (mandatory)
+      if (config_->xmss_public_key_path_.empty()) {
+        SL_ERROR(logger_,
+                 "The '--xmss-pk' (XMSS public key) path must be provided");
+        return Error::InvalidValue;
+      }
+      if (config_->xmss_secret_key_path_.empty()) {
+        SL_ERROR(logger_,
+                 "The '--xmss-sk' (XMSS secret key) path must be provided");
+        return Error::InvalidValue;
+      }
 
-    config_->xmss_public_key_path_ =
-        resolve_relative(config_->xmss_public_key_path_, "xmss-pk");
-    if (not is_regular_file(config_->xmss_public_key_path_)) {
-      SL_ERROR(logger_,
-               "The 'xmss-pk' file does not exist or is not a file: {}",
-               config_->xmss_public_key_path_);
-      return Error::InvalidValue;
-    }
+      config_->xmss_public_key_path_ =
+          resolve_relative(config_->xmss_public_key_path_, "xmss-pk");
+      if (not is_regular_file(config_->xmss_public_key_path_)) {
+        SL_ERROR(logger_,
+                 "The 'xmss-pk' file does not exist or is not a file: {}",
+                 config_->xmss_public_key_path_);
+        return Error::InvalidValue;
+      }
 
-    config_->xmss_secret_key_path_ =
-        resolve_relative(config_->xmss_secret_key_path_, "xmss-sk");
-    if (not is_regular_file(config_->xmss_secret_key_path_)) {
-      SL_ERROR(logger_,
-               "The 'xmss-sk' file does not exist or is not a file: {}",
-               config_->xmss_secret_key_path_);
-      return Error::InvalidValue;
-    }
+      config_->xmss_secret_key_path_ =
+          resolve_relative(config_->xmss_secret_key_path_, "xmss-sk");
+      if (not is_regular_file(config_->xmss_secret_key_path_)) {
+        SL_ERROR(logger_,
+                 "The 'xmss-sk' file does not exist or is not a file: {}",
+                 config_->xmss_secret_key_path_);
+        return Error::InvalidValue;
+      }
 
-    // Load XMSS keypair from JSON files
-    OUTCOME_TRY(
-        keypair,
-        crypto::xmss::loadKeypairFromJson(config_->xmss_secret_key_path_,
-                                          config_->xmss_public_key_path_));
-    config_->xmss_keypair_ = std::move(keypair);
-    SL_INFO(logger_, "Loaded XMSS keypair from:");
-    SL_INFO(logger_, "  Public key: {}", config_->xmss_public_key_path_);
-    SL_INFO(logger_, "  Secret key: {}", config_->xmss_secret_key_path_);
+      // Load XMSS keypair from JSON files
+      OUTCOME_TRY(
+          keypair,
+          crypto::xmss::loadKeypairFromJson(config_->xmss_secret_key_path_,
+                                            config_->xmss_public_key_path_));
+      config_->xmss_keypair_ = std::move(keypair);
+      SL_INFO(logger_, "Loaded XMSS keypair from:");
+      SL_INFO(logger_, "  Public key: {}", config_->xmss_public_key_path_);
+      SL_INFO(logger_, "  Secret key: {}", config_->xmss_secret_key_path_);
+    }
 
     // Load validator keys manifest (mandatory)
     if (config_->validator_keys_manifest_path_.empty()) {

@@ -1,0 +1,16 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#pragma once
+
+#cmakedefine01 QLEAN_ENABLE_SHADOW
+
+#define ASSERT_QLEAN_ENABLE_SHADOW()         \
+  ({                                         \
+    if constexpr (not QLEAN_ENABLE_SHADOW) { \
+      abort();                               \
+    }                                        \
+  })

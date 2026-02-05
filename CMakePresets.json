@@ -10,6 +10,17 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay"
       }
+    },
+    {
+      "name": "shadow",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlay",
+        "QLEAN_ENABLE_SHADOW": "ON"
+      }
     }
   ]
 }
