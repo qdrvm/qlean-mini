@@ -57,6 +57,10 @@ namespace lean::loaders {
                        modules::Networking,
                        &modules::Networking::onSendSignedVote>
         subscription_send_signed_vote_;
+    SimpleSubscription<messages::SendSignedAggregatedAttestation,
+                       modules::Networking,
+                       &modules::Networking::onSendSignedAggregatedAttestation>
+        subscription_send_signed_aggregated_attestation_;
 
    public:
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
@@ -138,6 +142,8 @@ namespace lean::loaders {
 
       subscription_send_signed_block_.subscribe(*se_manager_, module_internal);
       subscription_send_signed_vote_.subscribe(*se_manager_, module_internal);
+      subscription_send_signed_aggregated_attestation_.subscribe(
+          *se_manager_, module_internal);
 
       se_manager_->notify(lean::EventTypes::NetworkingIsLoaded);
     }

@@ -157,7 +157,8 @@ auto createTestStore(
                          validator_keys_manifest,
                          xmss_provider,
                          block_tree,
-                         block_storage);
+                         block_storage,
+                         false);
 }
 
 auto makeBlockMap(const std::vector<Block> &blocks) {

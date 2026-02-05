@@ -51,6 +51,10 @@ namespace lean::modules {
             loader_.dispatchSendSignedVote(
                 std::make_shared<messages::SendSignedVote>(v));
           },
+          [&](const SignedAggregatedAttestation &v) {
+            loader_.dispatchSendSignedAggregatedAttestation(
+                std::make_shared<messages::SendSignedAggregatedAttestation>(v));
+          },
           [&](const SignedBlockWithAttestation &v) {
             loader_.dispatchSendSignedBlock(
                 std::make_shared<messages::SendSignedBlock>(v));

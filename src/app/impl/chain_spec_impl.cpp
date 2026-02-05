@@ -11,7 +11,9 @@
 #include <system_error>
 
 #include <app/configuration.hpp>
+#include <libp2p/crypto/key_marshaller.hpp>
 #include <libp2p/multi/multiaddress.hpp>
+#include <libp2p/peer/identity_manager.hpp>
 #include <libp2p/peer/peer_id.hpp>
 
 #include "modules/networking/read_nodes_yaml.hpp"
@@ -46,6 +48,20 @@ namespace lean::app {
 
   outcome::result<void> ChainSpecImpl::load() {
     OUTCOME_TRY(loadBootNodes());
+
+    auto peer_id =
+        libp2p::peer::IdentityManager{
+            app_config_->nodeKey(),
+            std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(
+                nullptr)}
+            .getId();
+    for (auto &info : bootnodes_.getBootnodes()) {
+      if (info.peer_id != peer_id) {
+        continue;
+      }
+      is_aggregator_ = info.is_aggregator;
+      break;
+    }
 
     return outcome::success();
   }

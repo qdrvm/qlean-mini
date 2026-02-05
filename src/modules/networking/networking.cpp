@@ -124,6 +124,10 @@ namespace lean::modules {
          validator_registry_->currentValidatorIndices()) {
       subnets.emplace(validatorSubnet(validator_index, *genesis_config_));
     }
+    if (subnets.size() != 1) {
+      SL_FATAL(logger_, "multiple validators on same node are not supported");
+    }
+    auto subnet_id = *subnets.begin();
 
     SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
 
@@ -505,7 +509,7 @@ namespace lean::modules {
                              std::move(signed_block_with_attestation));
         });
     gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
-        "attestation",
+        std::format("attestation_{}", subnet_id),
         [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation,
                                       std::optional<libp2p::PeerId> peer_id) {
           auto self = weak_self.lock();
@@ -530,6 +534,40 @@ namespace lean::modules {
             return;
           }
         });
+    gossip_signed_aggregated_attestation_topic_ =
+        gossipSubscribe<SignedAggregatedAttestation>(
+            "aggregation",
+            [weak_self{weak_from_this()}](
+                SignedAggregatedAttestation &&signed_aggregated_attestation,
+                std::optional<libp2p::PeerId> peer_id) {
+              auto self = weak_self.lock();
+              if (not self) {
+                return;
+              }
+
+              SL_DEBUG(
+                  self->logger_,
+                  "Received aggregated attestation for target={} 🗳️ from "
+                  "peer={} 👤 "
+                  "validator_ids=[{}] ✅",
+                  signed_aggregated_attestation.data.target,
+                  peer_id.has_value() ? peer_id->toBase58() : "unknown",
+                  fmt::join(
+                      signed_aggregated_attestation.proof.participants.iter(),
+                      " "));
+
+              auto res =
+                  self->fork_choice_store_->onGossipAggregatedAttestation(
+                      signed_aggregated_attestation);
+              if (not res.has_value()) {
+                SL_WARN(
+                    self->logger_,
+                    "Error processing aggregated attestation for target={}: {}",
+                    signed_aggregated_attestation.data.target,
+                    res.error());
+                return;
+              }
+            });
 
     io_thread_.emplace([io_context{io_context_}] {
       auto work_guard = boost::asio::make_work_guard(*io_context);
@@ -561,6 +599,18 @@ namespace lean::modules {
                "📣 Gossiped vote for target={} 🗳️",
                message->notification.message.target);
       self->gossip_votes_topic_->publish(
+          encodeSszSnappy(message->notification));
+    });
+  }
+
+  void NetworkingImpl::onSendSignedAggregatedAttestation(
+      std::shared_ptr<const messages::SendSignedAggregatedAttestation>
+          message) {
+    boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
+      SL_DEBUG(self->logger_,
+               "📣 Gossiped aggregated attestation for target={} 🗳️",
+               message->notification.data.target);
+      self->gossip_signed_aggregated_attestation_topic_->publish(
           encodeSszSnappy(message->notification));
     });
   }

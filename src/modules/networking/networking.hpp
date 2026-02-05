@@ -143,6 +143,9 @@ namespace lean::modules {
         std::shared_ptr<const messages::SendSignedBlock> message) override;
     void onSendSignedVote(
         std::shared_ptr<const messages::SendSignedVote> message) override;
+    void onSendSignedAggregatedAttestation(
+        std::shared_ptr<const messages::SendSignedAggregatedAttestation>
+            message) override;
 
    private:
     template <typename T>
@@ -185,6 +188,8 @@ namespace lean::modules {
     std::shared_ptr<libp2p::protocol::Identify> identify_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_blocks_topic_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
+    std::shared_ptr<libp2p::protocol::gossip::Topic>
+        gossip_signed_aggregated_attestation_topic_;
     std::unordered_map<BlockHash, SignedBlockWithAttestation> block_cache_;
     std::unordered_multimap<BlockHash, BlockHash> block_children_;
     std::default_random_engine random_;

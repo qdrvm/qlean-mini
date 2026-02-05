@@ -15,7 +15,7 @@ using qtils::literals::operator""_bytes;
 
 namespace lean {
 
-  static constexpr uint64_t INTERVALS_PER_SLOT = 4;  // 4 intervals by 1 second
+  static constexpr uint64_t INTERVALS_PER_SLOT = 5;  // 5 intervals by 1 second
   static constexpr uint64_t SECONDS_PER_INTERVAL = 1;
   static constexpr uint64_t SECONDS_PER_SLOT =
       SECONDS_PER_INTERVAL * INTERVALS_PER_SLOT;
