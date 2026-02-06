@@ -24,6 +24,11 @@ namespace lean::metrics {
     virtual ~Counter() = default;
 
     /**
+     * @brief Get current value.
+     */
+    [[nodiscard]] virtual double value() const = 0;
+
+    /**
      * @brief Increment the counter by 1.
      */
     virtual void inc() = 0;
@@ -44,6 +49,11 @@ namespace lean::metrics {
   class Gauge {
    public:
     virtual ~Gauge() = default;
+
+    /**
+     * @brief Get current value.
+     */
+    [[nodiscard]] virtual double value() const = 0;
 
     /**
      * @brief Increment the gauge by 1.
@@ -90,7 +100,7 @@ namespace lean::metrics {
     /**
      * @brief Observe the given amount.
      */
-    virtual void observe(const double value) = 0;
+    virtual void observe(double value) = 0;
   };
 
   class HistogramTimer;
@@ -109,7 +119,7 @@ namespace lean::metrics {
     /**
      * @brief Observe the given amount.
      */
-    virtual void observe(const double value) = 0;
+    virtual void observe(double value) = 0;
 
     /**
      * @brief Create a timer that automatically observes elapsed time.
@@ -133,11 +143,13 @@ namespace lean::metrics {
 #define METRIC_COUNTER(field, name, help) virtual Counter *field() const = 0;
 #define METRIC_COUNTER_LABELS(field, name, help, ...) \
   virtual Counter *field(const Labels &labels) = 0;
-#define METRIC_HISTOGRAM(field, name, help, ...) virtual Histogram *field() const = 0;
+#define METRIC_HISTOGRAM(field, name, help, ...) \
+  virtual Histogram *field() const = 0;
 #define METRIC_HISTOGRAM_LABELS(field, name, help, ...) \
   virtual Histogram *field(const Labels &labels) = 0;
 
 #include "metrics/all_metrics.def"
+
 
 #undef METRIC_GAUGE
 #undef METRIC_GAUGE_LABELS

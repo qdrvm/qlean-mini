@@ -29,6 +29,7 @@
 #include <libp2p/transport/tcp/tcp_util.hpp>
 #include <qtils/to_shared_ptr.hpp>
 
+#include "app/build_version.hpp"
 #include "app/chain_spec.hpp"
 #include "app/configuration.hpp"
 #include "blockchain/block_tree.hpp"
@@ -142,13 +143,18 @@ namespace lean::modules {
     libp2p::muxer::MuxedConnectionConfig mux_config;
     mux_config.no_streams_interval = std::chrono::seconds{10};
 
+    auto identify_config = std::make_shared<libp2p::protocol::IdentifyConfig>();
+    identify_config->agent_version = "qlean/" + buildVersion();
+
     auto injector = qtils::toSharedPtr(libp2p::injector::makeHostInjector(
         libp2p::injector::useKeyPair(keypair),
         libp2p::injector::useGossipConfig(std::move(gossip_config)),
         boost::di::bind<libp2p::muxer::MuxedConnectionConfig>().to(
             mux_config)[boost::di::override],
         libp2p::injector::useTransportAdaptors<
-            libp2p::transport::QuicTransport>()));
+            libp2p::transport::QuicTransport>(),
+        boost::di::bind<libp2p::protocol::IdentifyConfig>().to(
+            identify_config)[boost::di::override]));
     injector_ = injector;
     io_context_ = injector->create<std::shared_ptr<boost::asio::io_context>>();
 
@@ -279,8 +285,11 @@ namespace lean::modules {
 
       const auto direction_label =
           connection->isInitiator() ? "inbound" : "outbound";
-      const auto result_label =  // TODO Implement remaining
-          "success";             //, "timeout", "error";
+
+      // TODO Implement result extraction: "success", "timeout", "error"
+      //  Issue: https://github.com/qdrvm/qlean-mini/issues/60#sync-metrics
+      const auto result_label = "success";
+
       self->metrics_
           ->network_connect_event_count(
               {{"direction", direction_label}, {"result", result_label}})
@@ -391,6 +400,8 @@ namespace lean::modules {
                  "on_peer_disconnected: unknown peer {}",
                  peer_id.toBase58());
       }
+      self->host_->getPeerRepository().getUserAgentRepository().updateTtl(
+          peer_id, libp2p::peer::ttl::kTransient);
       self->updateMetricConnectedPeerCount();
       self->loader_.dispatch_peer_disconnected(
           qtils::toSharedPtr(messages::PeerDisconnectedMessage{peer_id}));
@@ -409,8 +420,12 @@ namespace lean::modules {
 
           const auto direction_label =
               connection->isInitiator() ? "inbound" : "outbound";
-          const auto reason_label =  // TODO Implement remaining
-              "unknown";  //  "timeout", "remote_close", "local_close", "error";
+
+          // TODO Implement reason extraction:
+          //  "timeout", "remote_close", "local_close", "error"
+          //  Issue: https://github.com/qdrvm/qlean-mini/issues/60#sync-metrics
+          const auto reason_label = "unknown";
+
           self->metrics_
               ->network_disconnect_event_count(
                   {{"direction", direction_label}, {"reason", reason_label}})
@@ -822,17 +837,34 @@ namespace lean::modules {
   }
 
   void NetworkingImpl::updateMetricConnectedPeerCount() {
-    // TODO: implement affecting counter of such type of client
     std::unordered_map<std::string, size_t> client_counters;
-    // FIXME: Fill counters above
-    size_t total = 0;
-    for (const auto &[kind, number] : client_counters) {
-      metrics_->network_connected_peer_count({{"client", kind}})->set(number);
-      total += number;
+    const auto &ua_repo = host_->getPeerRepository().getUserAgentRepository();
+
+    for (const auto &peer_id : host_->getConnectedPeers()) {
+      auto ua = ua_repo.getUserAgent(peer_id).value_or("");
+      // To lower case + drop version if any
+      for (size_t i = 0; i < ua.size(); ++i) {
+        auto &ch = ua[i];
+        if (ch == '/') {
+          ua.resize(i);
+          break;
+        }
+        if (ch >= 'A' and ch <= 'Z') {
+          ch = static_cast<char>(ch - 'A' + 'a');
+        }
+      }
+      if (ua.empty()) {
+        ua = "unknown";
+      }
+      ++client_counters[ua];
     }
 
-    total = host_->getConnectedPeerCount();  // TODO: use sum of clients
+    for (const auto &[kind, number] : client_counters) {
+      metrics_->network_connected_peer_count({{"client", kind}})->set(number);
+    }
+
     loader_.dispatch_peers_total_count_updated(
-        std::make_shared<messages::PeersTotalCountMessage>(total));
+        std::make_shared<messages::PeerCountsMessage>(
+            std::move(client_counters)));
   }
 }  // namespace lean::modules

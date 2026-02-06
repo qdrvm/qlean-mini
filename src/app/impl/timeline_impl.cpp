@@ -54,14 +54,13 @@ namespace lean::app {
                 });
     on_peers_total_count_updated_ = se::SubscriberCreator<
         qtils::Empty,
-        std::shared_ptr<const messages::PeersTotalCountMessage>>::
-        create<EventTypes::PeersTotalCountUpdated>(
+        std::shared_ptr<const messages::PeerCountsMessage>>::
+        create<EventTypes::PeerCountsUpdated>(
             *se_manager_,
             SubscriptionEngineHandlers::kTest,
-            [this](
-                auto &,
-                std::shared_ptr<const messages::PeersTotalCountMessage> msg) {
-              connected_peers_ = msg->count;
+            [this](auto &,
+                   std::shared_ptr<const messages::PeerCountsMessage> msg) {
+              connected_peers_ = msg->map;
             });
   }
 
@@ -107,8 +106,22 @@ namespace lean::app {
       state_root = head_block_header_res.value().state_root;
     }
 
+    size_t peer_count = 0;
+    auto peers_by_ua =
+        connected_peers_.empty()
+            ? ""
+            : fmt::format(
+                  "({})",
+                  fmt::join(connected_peers_
+                                | std::views::transform([&](const auto &kv) {
+                                    peer_count += kv.second;
+                                    return fmt::format(
+                                        "{}: {}", kv.first, kv.second);
+                                  }),
+                            ", "));
+
     constexpr int kFillWidth = 98;
-    auto hnc = "\x1b[1G"; // Move home and clear line
+    auto hnc = "\x1b[1G";  // Move home and clear line
     // clang-format off
     SL_VERBOSE(digest_, "\x1b[2J\x1b[H"  // Clear screen and move cursor to home
                         "{}+{:-<{}}+", hnc, "", kFillWidth);
@@ -118,7 +131,7 @@ namespace lean::app {
       fmt::format("Current Slot: {}", msg->slot), kFillWidth/2-1,
       fmt::format("Head Slot: {}", head.slot), kFillWidth/2);
     SL_VERBOSE(digest_, "{}+{:-<{}}+{:-<{}}+", hnc, "", kFillWidth/2-1, "", kFillWidth/2);
-    SL_VERBOSE(digest_, "{}| Connected Peers:    {: <{}} |", hnc, connected_peers_.load(), kFillWidth - 22);
+    SL_VERBOSE(digest_, "{}| Connected Peers:    {: <4} {}{: >{}} |", hnc, peer_count, peers_by_ua, "", kFillWidth - 22 - 5 - peers_by_ua.size());
     SL_VERBOSE(digest_, "{}+{:-<{}}+", hnc, "", kFillWidth);
     SL_VERBOSE(digest_, "{}| Head Block Root:    {: <{};0xx} |", hnc, head.hash, kFillWidth - 22);
     SL_VERBOSE(digest_, "{}| Parent Block Root:  {: <{};0xx} |", hnc, parent_root, kFillWidth - 22);

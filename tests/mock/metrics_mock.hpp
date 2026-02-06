@@ -11,6 +11,9 @@
 namespace lean::metrics {
   class GaugeMock : public Gauge {
    public:
+    double value() const override {
+      return 0.0;
+    }
     void inc() override {}
     void inc(double val) override {}
     void dec() override {}
@@ -20,6 +23,9 @@ namespace lean::metrics {
 
   class CounterMock : public Counter {
    public:
+    double value() const override {
+      return 0.0;
+    }
     void inc() override {}
     void inc(double val) override {}
   };
@@ -32,7 +38,7 @@ namespace lean::metrics {
   class MetricsMock : public Metrics {
    public:
 #define METRIC_GAUGE(field, name, help) \
-  Gauge *field() const override {             \
+  Gauge *field() const override {       \
     return &gauge_;                     \
   }
 #define METRIC_GAUGE_LABELS(field, name, help, ...) \
@@ -40,7 +46,7 @@ namespace lean::metrics {
     return &gauge_;                                 \
   }
 #define METRIC_COUNTER(field, name, help) \
-  Counter *field() const override {             \
+  Counter *field() const override {       \
     return &counter_;                     \
   }
 #define METRIC_COUNTER_LABELS(field, name, help, ...) \
@@ -48,7 +54,7 @@ namespace lean::metrics {
     return &counter_;                                 \
   }
 #define METRIC_HISTOGRAM(field, name, help, ...) \
-  Histogram *field() const override {                  \
+  Histogram *field() const override {            \
     return &histogram_;                          \
   }
 #define METRIC_HISTOGRAM_LABELS(field, name, help, ...) \
@@ -57,6 +63,7 @@ namespace lean::metrics {
   }
 
 #include "metrics/all_metrics.def"
+
 
 #undef METRIC_GAUGE
 #undef METRIC_GAUGE_LABELS
