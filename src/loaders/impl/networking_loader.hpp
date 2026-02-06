@@ -38,6 +38,7 @@ namespace lean::loaders {
         public modules::NetworkingLoader {
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;
+    qtils::SharedRef<app::StateManager> app_state_manager_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
@@ -60,6 +61,7 @@ namespace lean::loaders {
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
                      std::shared_ptr<Subscription> se_manager,
                      qtils::SharedRef<metrics::Metrics> metrics,
+                     qtils::SharedRef<app::StateManager> app_state_manager,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
                      qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                      qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -67,6 +69,7 @@ namespace lean::loaders {
         : Loader(std::move(logsys), std::move(se_manager)),
           logger_(logsys_->getLogger("Networking", "networking_module")),
           metrics_{std::move(metrics)},
+          app_state_manager_(std::move(app_state_manager)),
           block_tree_{std::move(block_tree)},
           fork_choice_store_{std::move(fork_choice_store)},
           chain_spec_{std::move(chain_spec)},
@@ -83,8 +86,9 @@ namespace lean::loaders {
           get_module()
               ->getFunctionFromLibrary<std::weak_ptr<modules::Networking>,
                                        modules::NetworkingLoader &,
-                                       std::shared_ptr<log::LoggingSystem>,
+                                       qtils::SharedRef<log::LoggingSystem>,
                                        qtils::SharedRef<metrics::Metrics>,
+                                       qtils::SharedRef<app::StateManager>,
                                        qtils::SharedRef<blockchain::BlockTree>,
                                        qtils::SharedRef<ForkChoiceStore>,
                                        qtils::SharedRef<app::ChainSpec>,
@@ -98,6 +102,7 @@ namespace lean::loaders {
       auto module_internal = (*module_accessor)(*this,
                                                 logsys_,
                                                 metrics_,
+                                                app_state_manager_,
                                                 block_tree_,
                                                 fork_choice_store_,
                                                 chain_spec_,

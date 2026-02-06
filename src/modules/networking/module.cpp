@@ -37,22 +37,19 @@ static std::shared_ptr<lean::modules::Networking> module_instance;
 
 MODULE_C_API std::weak_ptr<lean::modules::Networking> query_module_instance(
     lean::modules::NetworkingLoader &loader,
-    std::shared_ptr<lean::log::LoggingSystem> logsys,
+    qtils::SharedRef<lean::log::LoggingSystem> logsys,
     qtils::SharedRef<lean::metrics::Metrics> metrics,
+    qtils::SharedRef<lean::app::StateManager> app_state_mngr,
     qtils::SharedRef<lean::blockchain::BlockTree> block_tree,
     qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
     qtils::SharedRef<lean::app::ChainSpec> chain_spec,
     qtils::SharedRef<lean::app::Configuration> app_config) {
   if (!module_instance) {
-    BOOST_ASSERT(logsys);
-    BOOST_ASSERT(block_tree);
-    BOOST_ASSERT(fork_choice_store);
-    BOOST_ASSERT(chain_spec);
-    BOOST_ASSERT(app_config);
     module_instance =
         lean::modules::NetworkingImpl::create_shared(loader,
                                                      std::move(logsys),
                                                      std::move(metrics),
+                                                     std::move(app_state_mngr),
                                                      block_tree,
                                                      fork_choice_store,
                                                      chain_spec,

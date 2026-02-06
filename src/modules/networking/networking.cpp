@@ -40,6 +40,8 @@
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
 #include "modules/networking/types.hpp"
+#include "ssl_context.hpp"
+#include "state_sync_client.hpp"
 
 namespace lean::modules {
   constexpr std::chrono::seconds kConnectToPeersTimer{5};
@@ -80,6 +82,7 @@ namespace lean::modules {
       NetworkingLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
+      qtils::SharedRef<app::StateManager> app_state_manager,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
       qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -87,6 +90,7 @@ namespace lean::modules {
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
         metrics_{std::move(metrics)},
+        app_state_manager_{std::move(app_state_manager)},
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)},
         chain_spec_{std::move(chain_spec)},
@@ -528,6 +532,10 @@ namespace lean::modules {
       auto work_guard = boost::asio::make_work_guard(*io_context);
       io_context->run();
     });
+
+    ssl_context_ = std::make_shared<AsioSslContext>();
+    state_sync_client_ =
+        std::make_unique<StateSyncClient>(ssl_context_, app_state_manager_);
   }
 
   void NetworkingImpl::on_loading_is_finished() {
