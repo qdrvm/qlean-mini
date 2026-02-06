@@ -4,6 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+add_library(state_sync_client
+    state_sync_client.cpp
+)
+target_link_libraries(state_sync_client
+    qtils::qtils
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    Boost::url
+)
+
 add_lean_module(networking
     SOURCE
     block_request_protocol.cpp
@@ -26,7 +36,5 @@ add_lean_module(networking
     sszpp
     validator_registry
     build_version
-    OpenSSL::SSL
-    OpenSSL::Crypto
-    Boost::url
+    state_sync_client
 )
