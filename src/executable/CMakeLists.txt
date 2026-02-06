@@ -16,6 +16,11 @@ include_directories(
     ${CMAKE_BINARY_DIR}/generated
 )
 
+configure_file(
+    ${CMAKE_CURRENT_LIST_DIR}/qlean_enable_shadow.hpp.in
+    ${CMAKE_BINARY_DIR}/generated/executable/qlean_enable_shadow.hpp
+)
+
 # fix for dyld bug on mac
 # we should actually check the target platform here, not the host platform,
 # but not that we explicitly support cross-compilation anyway
