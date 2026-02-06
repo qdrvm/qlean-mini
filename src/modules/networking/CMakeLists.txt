@@ -5,17 +5,18 @@
 #
 
 add_lean_module(networking
-  SOURCE
+    SOURCE
     block_request_protocol.cpp
     networking.cpp
     status_protocol.cpp
-  INCLUDE_DIRS
+    state_sync_client.cpp
+    INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_BINARY_DIR}/generated
-  DEFINITIONS
+    DEFINITIONS
     SOME_FLAG=1
-  LIBRARIES
+    LIBRARIES
     blockchain
     bootnodes
     p2p::libp2p
@@ -25,4 +26,7 @@ add_lean_module(networking
     sszpp
     validator_registry
     build_version
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    Boost::url
 )
