@@ -552,13 +552,30 @@ namespace lean::modules {
         [this, type, topic, f{std::move(f)}]() -> libp2p::Coro<void> {
           while (auto raw_result = co_await topic->receiveMessage()) {
             auto &raw = raw_result.value();
-            if (auto r = decodeSszSnappy<T>(raw.data)) {
-              f(std::move(r.value()), raw.received_from);
+            if (auto uncompressed_res = snappy::uncompress(raw.data)) {
+              auto &uncompressed = uncompressed_res.value();
+              SL_TRACE(this->logger_,
+                       "Gossip message received: topic={}, "
+                       "size_compressed={}, size_uncompressed={}",
+                       std::string_view{
+                           reinterpret_cast<const char *>(raw.topic.data()),
+                           raw.topic.size()},
+                       raw.data.size(),
+                       uncompressed.size());
+
+              if (auto r = decode<T>(uncompressed)) {
+                f(std::move(r.value()), raw.received_from);
+              } else {
+                SL_WARN(this->logger_,
+                        "❌ Error decoding Gossip message for type {}: {}",
+                        type,
+                        r.error().message());
+              }
             } else {
               SL_WARN(this->logger_,
-                      "❌ Error decoding Gossip message for type {}: {}",
+                      "❌ Error decompressing Gossip message for type {}: {}",
                       type,
-                      r.error().message());
+                      uncompressed_res.error().message());
             }
           }
         });

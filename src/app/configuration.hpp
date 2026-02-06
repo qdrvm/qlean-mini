@@ -85,8 +85,8 @@ namespace lean::app {
 
     std::filesystem::path validator_keys_manifest_path_;
 
-    double fake_xmss_aggregate_signatures_rate_ = 22.704;
-    double fake_xmss_verify_aggregated_signatures_rate_ = 3463.106;
+    double fake_xmss_aggregate_signatures_rate_ = 1000;
+    double fake_xmss_verify_aggregated_signatures_rate_ = 34630.106;
 
     DatabaseConfig database_;
     MetricsConfig metrics_;

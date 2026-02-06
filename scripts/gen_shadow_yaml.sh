@@ -13,7 +13,7 @@
 #   -x QLEAN_PATH            Path to qlean executable (default: <repo_root>/build/src/executable/qlean)
 #   -m MODULES_DIR           Path to modules dir (default: <repo_root>/build/src/modules)
 #   -r PROJECT_ROOT          Project root to use for defaults (default: parent dir of this script)
-#   -G GRAPH_FILE            Path to GML graph file (default: atlas_v201801.shadow_v2.gml.xz)
+#   -G GRAPH_FILE            Path to GML graph file (default: empty -> uses 1_gbit_switch)
 #   -b MAX_BOOTNODES         Max bootnodes to pass to each node (short for --max-bootnodes)
 #   --use-inline-graph       Use inline graph instead of external GML file (default: use external graph)
 #   --max-bootnodes          Max bootnodes to pass to each node (supported: --max-bootnodes=5 or --max-bootnodes 5)
@@ -44,7 +44,7 @@ MODULES_DIR_DEFAULT="$PROJECT_ROOT/build/src/modules"
 QLEAN_PATH="$QLEAN_PATH_DEFAULT"
 MODULES_DIR="$MODULES_DIR_DEFAULT"
 GENESIS_DIR=""
-GRAPH_FILE="atlas_v201801.shadow_v2.gml.xz"
+GRAPH_FILE=""
 USE_INLINE_GRAPH=false
 MAX_BOOTNODES=""
 
@@ -117,7 +117,11 @@ PROJECT_ROOT_ABS="$(py_abspath "$PROJECT_ROOT")"
 QLEAN_PATH_ABS="$(py_abspath "$QLEAN_PATH")"
 MODULES_DIR_ABS="$(py_abspath "$MODULES_DIR")"
 OUTPUT_YAML_ABS="$(py_abspath "$(dirname "$OUTPUT_YAML")")/$(basename "$OUTPUT_YAML")"
-GRAPH_FILE_ABS="$(py_abspath "$GRAPH_FILE")"
+if [[ -n "$GRAPH_FILE" ]]; then
+  GRAPH_FILE_ABS="$(py_abspath "$GRAPH_FILE")"
+else
+  GRAPH_FILE_ABS=""
+fi
 
 CONFIG_YAML="$GENESIS_DIR_ABS/config.yaml"
 VALIDATORS_YAML="$GENESIS_DIR_ABS/validators.yaml"
@@ -233,9 +237,9 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
   printf "  native_preemption_enabled: true\n"
   printf "network:\n"
   printf "  graph:\n"
-  printf "    type: gml\n"
   
   if [[ "$USE_INLINE_GRAPH" == "true" ]]; then
+    printf "    type: gml\n"
     # Emit inline GML graph
     printf "    inline: |\n"
     printf "      graph [\n"
@@ -279,10 +283,15 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
     done
 
     printf "      ]\n"
-  else
+  elif [[ -n "$GRAPH_FILE_ABS" ]]; then
+    printf "    type: gml\n"
     # Use external GML file (absolute path)
     printf "    file:\n"
     printf "      path: \"%s\"\n" "$GRAPH_FILE_ABS"
+  else
+    printf "    type: 1_gbit_switch\n"
+    printf "    options:\n"
+    printf "      num_nodes: %d\n" "$NODE_COUNT"
   fi
 
   printf "  use_shortest_path: true\n"
@@ -311,6 +320,7 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
 
     # Build args string
     args_str=(
+      "-ltrace"
       "--base-path" "$PROJECT_ROOT_ABS/data/node_${i}"
       "--modules-dir" "$MODULES_DIR_ABS"
       "--bootnodes" "$NODES_YAML"
@@ -322,6 +332,15 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
       "--listen-addr" "/ip4/0.0.0.0/udp/${udp_port}/quic-v1"
       "--metrics-port" "$prom_port"
     )
+
+    # Add XMSS keys if present
+    xmss_pk="$GENESIS_DIR_ABS/hash-sig-keys/validator_${i}_pk.json"
+    xmss_sk="$GENESIS_DIR_ABS/hash-sig-keys/validator_${i}_sk.json"
+    if [[ -f "$xmss_pk" && -f "$xmss_sk" ]]; then
+      args_str+=("--xmss-pk" "$xmss_pk")
+      args_str+=("--xmss-sk" "$xmss_sk")
+    fi
+
     # Append max bootnodes flag if requested
     if [[ -n "$MAX_BOOTNODES" ]]; then
       args_str+=("--max-bootnodes" "$MAX_BOOTNODES")
@@ -333,7 +352,7 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
     printf "  %s:\n" "$node_name"
   printf "    bandwidth_up: \"%s\"\n" "$BANDWIDTH_HOST"
   printf "    bandwidth_down: \"%s\"\n" "$BANDWIDTH_HOST"
-    printf "    network_node_id: %d\n" "$i"
+    printf "    network_node_id: 0\n" #"$i"
     printf "    ip_addr: %s\n" "$ip"
     printf "    processes:\n"
     printf "      - path: %s\n" "$QLEAN_PATH_ABS"
