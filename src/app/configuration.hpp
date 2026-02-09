@@ -54,6 +54,7 @@ namespace lean::app {
     [[nodiscard]] virtual const libp2p::crypto::KeyPair &nodeKey() const;
     [[nodiscard]] virtual const crypto::xmss::XmssKeypair &xmssKeypair() const;
     [[nodiscard]] virtual const std::optional<size_t> &maxBootnodes() const;
+    [[nodiscard]] virtual int soonDelta() const;
     [[nodiscard]] virtual const std::filesystem::path &
     validatorKeysManifestPath() const;
 
@@ -78,6 +79,7 @@ namespace lean::app {
     std::optional<libp2p::Multiaddress> listen_multiaddr_;
     std::optional<libp2p::crypto::KeyPair> node_key_;
     std::optional<size_t> max_bootnodes_;
+    int soon_delta_ = -1;
 
     std::filesystem::path xmss_public_key_path_;
     std::filesystem::path xmss_secret_key_path_;

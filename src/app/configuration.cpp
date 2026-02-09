@@ -72,6 +72,10 @@ namespace lean::app {
     return max_bootnodes_;
   }
 
+  int Configuration::soonDelta() const {
+    return soon_delta_;
+  }
+
   const std::filesystem::path &Configuration::validatorKeysManifestPath()
       const {
     return validator_keys_manifest_path_;

@@ -118,7 +118,10 @@ namespace lean::modules {
     libp2p::protocol::gossip::Config gossip_config;
     gossip_config.default_mesh_params = {
         .mesh_n = 8, .mesh_n_low = 6, .mesh_n_high = 12};
-    gossip_config.soon_delta = 4;
+    auto soon_delta = config_->soonDelta();
+    if (soon_delta >= 0) {
+      gossip_config.soon_delta = static_cast<size_t>(soon_delta);
+    }
     gossip_config.validation_mode =
         libp2p::protocol::gossip::ValidationMode::Anonymous;
     gossip_config.message_authenticity =

@@ -129,6 +129,7 @@ namespace lean::app {
          po::value<std::string>(),
          "Set path to yaml file containing validator keys manifest (required).")
         ("max-bootnodes", po::value<size_t>(), "Max bootnodes count to connect to.")
+        ("soon-delta", po::value<int>()->default_value(-1), "Set gossip soon delta parameter.")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
           "Syntax: <target>=<level>, e.g., -llibp2p=off.\n"
@@ -491,6 +492,10 @@ namespace lean::app {
     if (auto max_bootnodes =
             find_argument<size_t>(cli_values_map_, "max-bootnodes")) {
       config_->max_bootnodes_ = *max_bootnodes;
+    }
+    if (auto soon_delta =
+            find_argument<int>(cli_values_map_, "soon-delta")) {
+      config_->soon_delta_ = *soon_delta;
     }
     find_argument<std::string>(
         cli_values_map_, "base-path", [&](const std::string &value) {
