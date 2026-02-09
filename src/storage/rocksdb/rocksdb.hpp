@@ -87,16 +87,15 @@ namespace lean::storage {
     static outcome::result<void> createDirectory(
         const std::filesystem::path &absolute_path, log::Logger &log);
 
-    static outcome::result<void> openDatabaseWithTTL(
+    static outcome::result<void> openDatabase(
         const rocksdb::Options &options,
         const std::filesystem::path &path,
         const std::vector<rocksdb::ColumnFamilyDescriptor>
             &column_family_descriptors,
-        const std::vector<int32_t> &ttls,
         RocksDb &rocks_db,
         log::Logger &log);
 
-    rocksdb::DBWithTTL *db_{};
+    rocksdb::DB *db_{};
     std::vector<ColumnFamilyHandlePtr> column_family_handles_;
     boost::container::flat_map<Space, std::shared_ptr<BufferStorage>> spaces_;
     rocksdb::ReadOptions ro_;
