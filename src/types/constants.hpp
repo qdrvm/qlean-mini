@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 
 #include <qtils/byte_arr.hpp>
@@ -16,10 +17,7 @@ using qtils::literals::operator""_bytes;
 namespace lean {
 
   static constexpr uint64_t INTERVALS_PER_SLOT = 5;  // 5 intervals by 1 second
-  static constexpr uint64_t SECONDS_PER_INTERVAL = 1;
-  static constexpr uint64_t SECONDS_PER_SLOT =
-      SECONDS_PER_INTERVAL * INTERVALS_PER_SLOT;
-  static constexpr uint64_t SLOT_DURATION_MS = SECONDS_PER_SLOT * 1000;
+  static constexpr std::chrono::milliseconds INTERVAL_DURATION_MS{800};
 
   // The number of slots to lookback for justification.
   static constexpr uint64_t JUSTIFICATION_LOOKBACK_SLOTS = 3;

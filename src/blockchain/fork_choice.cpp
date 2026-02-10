@@ -79,10 +79,9 @@ namespace lean {
     SL_TRACE(logger_, "Anchor block: {}", anchor_block->index());
     SL_TRACE(logger_, "Anchor state: {}", anchor_block->state_root);
 
-    auto now_sec = clock->nowSec();
-    time_ = now_sec > config_.genesis_time
-              ? (now_sec - config_.genesis_time) / SECONDS_PER_INTERVAL
-              : 0;
+    auto now_ms = clock->nowMsec();
+    time_ =
+        Interval::fromTime(now_ms, config_).value_or(Interval::fromSlot(0, 0));
 
     // Set last finalized as pre-initial-head
     auto latest_finalized = block_tree_->lastFinalized();
@@ -115,7 +114,7 @@ namespace lean {
 
   // Test constructor implementation
   ForkChoiceStore::ForkChoiceStore(
-      uint64_t now_sec,
+      Interval time,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
       Config config,
@@ -136,7 +135,7 @@ namespace lean {
         block_tree_(std::move(block_tree)),
         block_storage_(std::move(block_storage)),
         stf_(std::move(logging_system), block_tree_, metrics_),
-        time_(now_sec / SECONDS_PER_INTERVAL),
+        time_{time},
         config_(config),
         head_(head),
         safe_target_(safe_target),
@@ -246,8 +245,7 @@ namespace lean {
   }
 
   Slot ForkChoiceStore::getCurrentSlot() const {
-    Slot current_slot = time_ / INTERVALS_PER_SLOT;
-    return current_slot;
+    return time_.slot();
   }
 
   Checkpoint ForkChoiceStore::getHead() {
@@ -958,8 +956,12 @@ namespace lean {
   }
 
   std::vector<ForkChoiceStore::OnTickAction> ForkChoiceStore::onTick(
-      uint64_t now_sec) {
-    auto time_since_genesis = now_sec - config_.genesis_time;
+      std::chrono::milliseconds now) {
+    auto now_interval = Interval::fromTime(now, config_);
+    if (not now_interval.has_value()) {
+      SL_WARN(logger_, "Can't tick before genesis");
+      return {};
+    }
 
     auto head_state_res = getState(head_.root);
     if (head_state_res.has_error()) {
@@ -972,20 +974,17 @@ namespace lean {
     auto validator_count = head_state->validatorCount();
 
     std::vector<OnTickAction> result{};
-    while (time_ <= time_since_genesis) {
-      Slot current_slot = time_ / INTERVALS_PER_SLOT;
+    while (time_.interval <= now_interval->interval) {
+      Slot current_slot = time_.slot();
       metrics_->fc_current_slot()->set(current_slot);
       [[unlikely]] if (current_slot == 0) {
         // Skip actions for slot zero, which is the genesis slot
-        time_ += 1;
+        time_.interval += 1;
         continue;
       }
-      if (time_ % INTERVALS_PER_SLOT == 0) {
+      if (time_.phase() == 0) {
         // Slot start
-        SL_DEBUG(logger_,
-                 "Slot {} started with time {}",
-                 current_slot,
-                 time_ * SECONDS_PER_INTERVAL);
+        SL_DEBUG(logger_, "Slot {} started", current_slot);
         auto producer_index = current_slot % validator_count;
         auto is_producer =
             validator_registry_->currentValidatorIndices().contains(
@@ -1012,7 +1011,7 @@ namespace lean {
                      "Failed to produce block for slot {}: {}",
                      current_slot,
                      res.error());
-            time_ += 1;
+            time_.interval += 1;
             continue;
           }
           auto &produced_block = res.value();
@@ -1030,7 +1029,7 @@ namespace lean {
                    current_slot);
         }
 
-      } else if (time_ % INTERVALS_PER_SLOT == 1) {
+      } else if (time_.phase() == 1) {
         SL_TRACE(logger_, "Interval 1 of slot {}", current_slot);
 
         // Ensure the head is updated before voting
@@ -1053,7 +1052,7 @@ namespace lean {
                   "Attestation source slot {} is not less than target slot {}",
                   source.slot,
                   target.slot);
-          time_ += 1;
+          time_.interval += 1;
           continue;
         }
 
@@ -1088,7 +1087,7 @@ namespace lean {
           result.emplace_back(signed_attestation);
         }
 
-      } else if (time_ % INTERVALS_PER_SLOT == 2) {
+      } else if (time_.phase() == 2) {
         SL_TRACE(logger_, "Interval 2 of slot {}: aggregate", current_slot);
         if (is_aggregator_) {
           auto aggregated_attestations = aggregateSignatures();
@@ -1102,7 +1101,7 @@ namespace lean {
             result.emplace_back(aggregated_attestation);
           }
         }
-      } else if (time_ % INTERVALS_PER_SLOT == 3) {
+      } else if (time_.phase() == 3) {
         SL_TRACE(logger_,
                  "Interval 3 of slot {}: update safe-target ",
                  current_slot);
@@ -1112,7 +1111,7 @@ namespace lean {
           SL_WARN(logger_, "Failed to update safe-target: {}", res.error());
         }
 
-      } else if (time_ % INTERVALS_PER_SLOT == 4) {
+      } else if (time_.phase() == 4) {
         SL_TRACE(logger_,
                  "Interval 4 of slot {}: accepting new attestations",
                  current_slot);
@@ -1124,7 +1123,7 @@ namespace lean {
                   ana_res.error());
         }
       }
-      time_ += 1;
+      time_.interval += 1;
     }
     return result;
   }

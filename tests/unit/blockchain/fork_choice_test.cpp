@@ -71,8 +71,9 @@ Config config{
     .genesis_time = 1,
 };
 
+constexpr Interval kDefaultTime{.interval = 100};
 auto createTestStore(
-    uint64_t time = 100,
+    Interval time = kDefaultTime,
     Config config_param = config,
     Checkpoint head = {},
     Checkpoint safe_target = {},
@@ -200,7 +201,7 @@ ForkChoiceStore advanceTimeStore() {
   auto &genesis = blocks.at(0);
   auto finalized = Checkpoint::from(genesis);
   return createTestStore(
-      100,
+      kDefaultTime,
       config,
       genesis.index(),
       genesis.index(),
@@ -221,7 +222,7 @@ TEST(TestVoteTargetCalculation, test_get_vote_target_basic) {
   // Recent finalization
   auto finalized = Checkpoint::from(genesis);
 
-  auto store = createTestStore(100,
+  auto store = createTestStore(kDefaultTime,
                                config,
                                block_1.index(),
                                block_1.index(),
@@ -245,8 +246,12 @@ TEST(TestVoteTargetCalculation, test_vote_target_with_old_finalized) {
   // Current head is at slot 9
   auto &head = blocks.at(9);
 
-  auto store = createTestStore(
-      100, config, head.index(), head.index(), finalized, makeBlockMap(blocks));
+  auto store = createTestStore(kDefaultTime,
+                               config,
+                               head.index(),
+                               head.index(),
+                               finalized,
+                               makeBlockMap(blocks));
 
   auto target = store.getAttestationTarget();
 
@@ -264,7 +269,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_walks_back_from_head) {
   // Finalized at genesis
   auto finalized = Checkpoint::from(genesis);
 
-  auto store = createTestStore(100,
+  auto store = createTestStore(kDefaultTime,
                                config,
                                block_2.index(),
                                block_1.index(),
@@ -288,8 +293,12 @@ TEST(TestVoteTargetCalculation, test_vote_target_justifiable_slot_constraint) {
   // Head at slot 20
   auto &head = blocks.at(20);
 
-  auto store = createTestStore(
-      100, config, head.index(), head.index(), finalized, makeBlockMap(blocks));
+  auto store = createTestStore(kDefaultTime,
+                               config,
+                               head.index(),
+                               head.index(),
+                               finalized,
+                               makeBlockMap(blocks));
 
   auto target = store.getAttestationTarget();
 
@@ -309,8 +318,12 @@ TEST(TestVoteTargetCalculation,
 
   auto finalized = Checkpoint::from(genesis);
 
-  auto store = createTestStore(
-      500, config, head.index(), head.index(), finalized, makeBlockMap(blocks));
+  auto store = createTestStore({.interval = 500},
+                               config,
+                               head.index(),
+                               head.index(),
+                               finalized,
+                               makeBlockMap(blocks));
 
   auto target = store.getAttestationTarget();
 
@@ -333,7 +346,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_votes) {
       .source = Checkpoint::from(root),
   };
 
-  auto store = createTestStore(100,
+  auto store = createTestStore(kDefaultTime,
                                config,
                                root.index(),
                                root.index(),
@@ -358,7 +371,7 @@ TEST(TestForkChoiceHeadFunction, test_fork_choice_no_attestations) {
   auto &leaf = blocks.at(2);
 
   ForkChoiceStore::AttestationDataByValidator empty_attestations;
-  auto store = createTestStore(100,
+  auto store = createTestStore(kDefaultTime,
                                config,
                                root.index(),
                                root.index(),
@@ -385,7 +398,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_with_min_score) {
       .source = Checkpoint::from(root),
   };
 
-  auto store = createTestStore(100,
+  auto store = createTestStore(kDefaultTime,
                                config,
                                root.index(),
                                root.index(),
@@ -414,7 +427,7 @@ TEST(TestForkChoiceHeadFunction, test_get_fork_choice_head_multiple_votes) {
     };
   }
 
-  auto store = createTestStore(100,
+  auto store = createTestStore(kDefaultTime,
                                config,
                                root.index(),
                                root.index(),
@@ -434,7 +447,7 @@ TEST(TestEdgeCases, test_vote_target_single_block) {
 
   auto finalized = Checkpoint::from(genesis);
 
-  auto store = createTestStore(100,
+  auto store = createTestStore(kDefaultTime,
                                config,
                                genesis.index(),
                                genesis.index(),
@@ -454,7 +467,7 @@ TEST(TestAttestationValidation, test_validate_attestation_valid) {
   auto &target = blocks.at(2);
 
   auto sample_store =
-      createTestStore(100, config, {}, {}, {}, makeBlockMap(blocks));
+      createTestStore(kDefaultTime, config, {}, {}, {}, makeBlockMap(blocks));
 
   // Create valid signed vote
   // Should validate without error
@@ -471,7 +484,7 @@ TEST(TestAttestationValidation, test_validate_attestation_slot_order_invalid) {
   auto &target = blocks.at(1);
 
   auto sample_store =
-      createTestStore(100, config, {}, {}, {}, makeBlockMap(blocks));
+      createTestStore(kDefaultTime, config, {}, {}, {}, makeBlockMap(blocks));
 
   // Create invalid signed vote (source > target slot)
   EXPECT_OUTCOME_ERROR(
@@ -494,7 +507,7 @@ TEST(TestAttestationValidation,
   auto &target = blocks.at(2);
 
   auto sample_store =
-      createTestStore(100, config, {}, {}, {}, makeBlockMap(blocks));
+      createTestStore(kDefaultTime, config, {}, {}, {}, makeBlockMap(blocks));
 
   // Create signed vote with mismatched checkpoint slot
   auto attestation = makeAttestation(source, target);
@@ -511,8 +524,8 @@ TEST(TestAttestationValidation, test_validate_attestation_too_far_future) {
   // Use very low genesis time (0) so that target at slot 9 is far in future
   // (slot 9 > current slot + 1)
   Config low_time_config{.genesis_time = 0};
-  auto sample_store =
-      createTestStore(0, low_time_config, {}, {}, {}, makeBlockMap(blocks));
+  auto sample_store = createTestStore(
+      {.interval = 0}, low_time_config, {}, {}, {}, makeBlockMap(blocks));
 
   // Create signed vote for future slot (target slot 9 when current is ~0)
   EXPECT_OUTCOME_ERROR(
@@ -526,7 +539,7 @@ TEST(TestAttestationProcessing, test_process_network_attestation) {
   auto &target = blocks.at(2);
 
   auto sample_store =
-      createTestStore(100, config, {}, {}, {}, makeBlockMap(blocks));
+      createTestStore(kDefaultTime, config, {}, {}, {}, makeBlockMap(blocks));
 
   // Create valid signed vote
   // Process as network attestation
@@ -545,7 +558,7 @@ TEST(TestAttestationProcessing, test_process_block_attestation) {
   auto &target = blocks.at(2);
 
   auto sample_store =
-      createTestStore(100, config, {}, {}, {}, makeBlockMap(blocks));
+      createTestStore(kDefaultTime, config, {}, {}, {}, makeBlockMap(blocks));
 
   // Create valid signed vote
   // Process as block attestation
@@ -564,7 +577,7 @@ TEST(TestAttestationProcessing, test_process_attestation_superseding) {
   auto &target_2 = blocks.at(2);
 
   auto sample_store =
-      createTestStore(100, config, {}, {}, {}, makeBlockMap(blocks));
+      createTestStore(kDefaultTime, config, {}, {}, {}, makeBlockMap(blocks));
 
   // Process first (older) attestation
   EXPECT_OUTCOME_SUCCESS(
@@ -587,7 +600,7 @@ TEST(TestAttestationProcessing,
   auto &target = blocks.at(2);
 
   auto sample_store =
-      createTestStore(100, config, {}, {}, {}, makeBlockMap(blocks));
+      createTestStore(kDefaultTime, config, {}, {}, {}, makeBlockMap(blocks));
 
   // First process as network vote
   auto signed_attestation = makeAttestation(source, target);
@@ -613,12 +626,12 @@ TEST(TestTimeAdvancement, test_advance_time_basic) {
   auto initial_time = sample_store.time();
 
   // Target time equal to genesis time - should be a no-op
-  auto target_time = sample_store.getConfig().genesis_time + 200;
+  auto target_time = Interval{.interval = 200}.time(sample_store.getConfig());
 
   // This should not throw an exception and should return empty result
   auto result = sample_store.onTick(target_time);
   EXPECT_TRUE(result.empty());
-  EXPECT_GT(sample_store.time(), initial_time);
+  EXPECT_GT(sample_store.time().interval, initial_time.interval);
 }
 
 // Test time advancement without proposal.
@@ -628,12 +641,12 @@ TEST(TestTimeAdvancement, test_advance_time_no_proposal) {
   auto initial_time = sample_store.time();
 
   // Target time equal to genesis time - should be a no-op
-  auto target_time = sample_store.getConfig().genesis_time + 100;
+  auto target_time = Interval{.interval = 100}.time(sample_store.getConfig());
 
   // This should not throw an exception and should return empty result
   auto result = sample_store.onTick(target_time);
   EXPECT_TRUE(result.empty());
-  EXPECT_GE(sample_store.time(), initial_time);
+  EXPECT_GE(sample_store.time().interval, initial_time.interval);
 }
 
 // Test advance_time when already at target time.
@@ -643,12 +656,12 @@ TEST(TestTimeAdvancement, test_advance_time_already_current) {
   auto initial_time = sample_store.time();
 
   // Target time is in the past relative to current time - should be a no-op
-  auto current_target = sample_store.getConfig().genesis_time + initial_time;
+  auto current_target = initial_time.time(sample_store.getConfig());
 
   // Try to advance to past time (should be no-op)
   auto result = sample_store.onTick(current_target);
   EXPECT_TRUE(result.empty());
-  EXPECT_LE(sample_store.time() - initial_time, 10);
+  EXPECT_LE(sample_store.time().interval - initial_time.interval, 10);
 }
 
 // Test advance_time with small time increment.
@@ -658,19 +671,24 @@ TEST(TestTimeAdvancement, test_advance_time_small_increment) {
   auto initial_time = sample_store.time();
 
   // Target time equal to genesis time - should be a no-op
-  auto target_time = sample_store.getConfig().genesis_time + initial_time + 1;
+  auto target_time = Interval{.interval = initial_time.interval + 1}.time(
+      sample_store.getConfig());
 
   auto result = sample_store.onTick(target_time);
   EXPECT_TRUE(result.empty());
-  EXPECT_GE(sample_store.time(), initial_time);
+  EXPECT_GE(sample_store.time().interval, initial_time.interval);
 }
 
 // Test getting current head.
 TEST(TestHeadSelection, test_get_head_basic) {
   auto blocks = makeBlocks(1);
   auto &genesis = blocks.at(0);
-  auto sample_store = createTestStore(
-      100, config, genesis.index(), genesis.index(), {}, makeBlockMap(blocks));
+  auto sample_store = createTestStore(kDefaultTime,
+                                      config,
+                                      genesis.index(),
+                                      genesis.index(),
+                                      {},
+                                      makeBlockMap(blocks));
 
   // Get current head
   auto head = sample_store.getHead();
@@ -682,7 +700,7 @@ TEST(TestHeadSelection, test_get_head_basic) {
 // Test basic block production capability.
 TEST(TestHeadSelection, test_produce_block_basic) {
   // Create a simple store
-  auto sample_store = createTestStore(0, config);
+  auto sample_store = createTestStore({.interval = 0}, config);
 
   // Try to produce a block - should return error of missing state, which is
   // expected

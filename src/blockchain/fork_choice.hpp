@@ -132,7 +132,7 @@ namespace lean {
 
     // Test constructor - only for use in tests
     ForkChoiceStore(
-        uint64_t now_sec,
+        Interval time,
         qtils::SharedRef<log::LoggingSystem> logging_system,
         qtils::SharedRef<metrics::Metrics> metrics,
         Config config,
@@ -426,7 +426,7 @@ namespace lean {
     // actions for each interval type.
     // Args:
     //    time: Target time in seconds since genesis.
-    std::vector<OnTickAction> onTick(uint64_t now_sec);
+    std::vector<OnTickAction> onTick(std::chrono::milliseconds now);
 
     Interval time() const {
       return time_;

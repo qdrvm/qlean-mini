@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <chrono>
+
 #include <sszpp/container.hpp>
 
 namespace lean {
@@ -16,5 +18,9 @@ namespace lean {
     SSZ_CONT(genesis_time, subnet_count);
 
     bool operator==(const Config &) const = default;
+
+    std::chrono::milliseconds genesisTimeMs() const {
+      return std::chrono::seconds{genesis_time};
+    }
   };
 }  // namespace lean
