@@ -586,7 +586,9 @@ namespace lean {
             signed_attestation.signature)) {
       return Error::INVALID_ATTESTATION;
     }
-    if (is_aggregator_) {
+    if (is_aggregator_
+        and validatorSubnet(signed_attestation.validator_id, config_)
+                == validatorSubnet(validator_id_, config_)) {
       addSignatureToAggregate(signed_attestation.message,
                               signed_attestation.validator_id,
                               signed_attestation.signature);
