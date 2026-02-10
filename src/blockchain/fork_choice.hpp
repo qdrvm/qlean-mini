@@ -493,6 +493,8 @@ namespace lean {
 
     std::vector<SignedAggregatedAttestation> aggregateSignatures();
 
+    void prune(Slot finalized_slot);
+
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider_;

@@ -20,6 +20,7 @@
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/is_proposer.hpp"
 #include "blockchain/validator_registry.hpp"
+#include "blockchain/validator_subnet.hpp"
 #include "crypto/xmss/xmss_provider.hpp"
 #include "impl/block_tree_impl.hpp"
 #include "is_justifiable_slot.hpp"
@@ -28,6 +29,7 @@
 #include "types/signed_block_with_attestation.hpp"
 #include "utils/ceil_div.hpp"
 #include "utils/lru_cache.hpp"
+#include "utils/retain_if.hpp"
 
 namespace lean {
   inline ValidatorIndex getValidatorId(
@@ -909,6 +911,8 @@ namespace lean {
     if (post_state.latest_finalized.slot > block_tree_->lastFinalized().slot) {
       OUTCOME_TRY(block_tree_->finalize(post_state.latest_finalized.root));
       SL_INFO(logger_, "🔒 Finalized block: {}", post_state.latest_finalized);
+
+      prune(post_state.latest_finalized.slot);
     }
 
     // Cache state
@@ -1364,5 +1368,19 @@ namespace lean {
       signatures_to_aggregate.aggregated = true;
     }
     return aggregated_attestations;
+  }
+
+  void ForkChoiceStore::prune(Slot finalized_slot) {
+    auto should_retain = [&](const AttestationData &data) {
+      return data.target.slot > finalized_slot;
+    };
+    retain_if(signatures_to_aggregate_,
+              [&](const decltype(signatures_to_aggregate_)::value_type &p) {
+                return should_retain(p.second.data);
+              });
+    retain_if(aggregated_payloads_,
+              [&](const decltype(aggregated_payloads_)::value_type &p) {
+                return should_retain(p.second.at(0)->data);
+              });
   }
 }  // namespace lean
