@@ -13,9 +13,8 @@
 namespace lean {
   struct Config : ssz::ssz_container {
     uint64_t genesis_time;
-    uint64_t subnet_count;
 
-    SSZ_CONT(genesis_time, subnet_count);
+    SSZ_CONT(genesis_time);
 
     bool operator==(const Config &) const = default;
 

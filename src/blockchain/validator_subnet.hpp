@@ -11,7 +11,7 @@
 
 namespace lean {
   inline bool validatorSubnet(ValidatorIndex validator_index,
-                              const Config &config) {
-    return validator_index % config.subnet_count;
+                              uint64_t subnet_count) {
+    return validator_index % subnet_count;
   }
 }  // namespace lean

@@ -202,6 +202,7 @@ namespace lean::modules {
      */
     std::unordered_map<libp2p::PeerId, PeerState> peer_states_;
     std::unordered_set<libp2p::PeerId> subnet_aggregators_;
+    uint64_t subnet_count_;
   };
 
 }  // namespace lean::modules

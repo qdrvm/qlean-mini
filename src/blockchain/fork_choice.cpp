@@ -16,6 +16,7 @@
 #include <qtils/value_or_raise.hpp>
 
 #include "app/chain_spec.hpp"
+#include "app/configuration.hpp"
 #include "app/validator_keys_manifest.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/is_proposer.hpp"
@@ -47,6 +48,7 @@ namespace lean {
       qtils::SharedRef<clock::SystemClock> clock,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
+      qtils::SharedRef<app::Configuration> app_config,
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<app::ChainSpec> chain_spec,
       qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
@@ -63,7 +65,8 @@ namespace lean {
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)),
         validator_id_{getValidatorId(logger_, *validator_registry_)},
-        is_aggregator_{chain_spec->isAggregator()} {
+        is_aggregator_{chain_spec->isAggregator()},
+        subnet_count_{app_config->cliSubnetCount()} {
     SL_TRACE(logger_, "Initialise fork-choice");
 
     for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
@@ -128,7 +131,8 @@ namespace lean {
       qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<blockchain::BlockStorage> block_storage,
-      bool is_aggregator)
+      bool is_aggregator,
+      uint64_t subnet_count)
       : logger_(logging_system->getLogger("ForkChoice", "fork_choice")),
         metrics_(std::move(metrics)),
         xmss_provider_(std::move(xmss_provider)),
@@ -144,7 +148,8 @@ namespace lean {
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)),
         validator_id_{getValidatorId(logger_, *validator_registry_)},
-        is_aggregator_{is_aggregator} {}
+        is_aggregator_{is_aggregator},
+        subnet_count_{subnet_count} {}
 
   inline crypto::xmss::XmssMessage attestationPayload(
       const AttestationData &attestation_data) {
@@ -585,8 +590,8 @@ namespace lean {
       return Error::INVALID_ATTESTATION;
     }
     if (is_aggregator_
-        and validatorSubnet(signed_attestation.validator_id, config_)
-                == validatorSubnet(validator_id_, config_)) {
+        and validatorSubnet(signed_attestation.validator_id, subnet_count_)
+                == validatorSubnet(validator_id_, subnet_count_)) {
       addSignatureToAggregate(signed_attestation.message,
                               signed_attestation.validator_id,
                               signed_attestation.signature);

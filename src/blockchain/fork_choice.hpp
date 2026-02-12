@@ -37,6 +37,7 @@ namespace lean {
 
 namespace lean::app {
   class ChainSpec;
+  class Configuration;
 }  // namespace lean::app
 
 namespace lean::blockchain {
@@ -111,6 +112,7 @@ namespace lean {
         qtils::SharedRef<clock::SystemClock> clock,
         qtils::SharedRef<log::LoggingSystem> logging_system,
         qtils::SharedRef<metrics::Metrics> metrics,
+        qtils::SharedRef<app::Configuration> app_config,
         qtils::SharedRef<ValidatorRegistry> validator_registry,
         qtils::SharedRef<app::ChainSpec> chain_spec,
         qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
@@ -123,6 +125,7 @@ namespace lean {
                                 qtils::SharedRef<clock::SystemClock>,
                                 qtils::SharedRef<log::LoggingSystem>,
                                 qtils::SharedRef<metrics::Metrics>,
+                                qtils::SharedRef<app::Configuration>,
                                 qtils::SharedRef<ValidatorRegistry>,
                                 qtils::SharedRef<app::ChainSpec>,
                                 qtils::SharedRef<app::ValidatorKeysManifest>,
@@ -146,7 +149,8 @@ namespace lean {
         qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
         qtils::SharedRef<blockchain::BlockTree> block_tree,
         qtils::SharedRef<blockchain::BlockStorage> block_storage,
-        bool is_aggregator);
+        bool is_aggregator,
+        uint64_t subnet_count);
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -581,6 +585,7 @@ namespace lean {
      */
     ValidatorIndex validator_id_;
     bool is_aggregator_;
+    uint64_t subnet_count_;
   };
 
 }  // namespace lean

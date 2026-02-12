@@ -128,6 +128,8 @@ namespace lean::app {
         ("validator-keys-manifest",
          po::value<std::string>(),
          "Set path to yaml file containing validator keys manifest (required).")
+        ("is-aggregator", po::bool_switch())
+        ("attestation-committee-count", po::value<uint64_t>())
         ("max-bootnodes", po::value<size_t>(), "Max bootnodes count to connect to.")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
@@ -542,6 +544,13 @@ namespace lean::app {
                                [&](const std::string &value) {
                                  config_->validator_keys_manifest_path_ = value;
                                });
+    if (find_argument(cli_values_map_, "is-aggregator")) {
+      config_->cli_is_aggregator_ = true;
+    }
+    if (auto value = find_argument<uint64_t>(cli_values_map_,
+                                             "attestation-committee-count")) {
+      config_->cli_subnet_count_ = *value;
+    }
     if (fail) {
       return Error::CliArgsParseFailed;
     }

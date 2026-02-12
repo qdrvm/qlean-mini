@@ -63,6 +63,10 @@ namespace lean::app {
       break;
     }
 
+    if (app_config_->cliIsAggregator()) {
+      is_aggregator_ = true;
+    }
+
     return outcome::success();
   }
 

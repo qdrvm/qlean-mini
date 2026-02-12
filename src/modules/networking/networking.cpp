@@ -98,7 +98,8 @@ namespace lean::modules {
         genesis_config_{std::move(genesis_config)},
         chain_spec_{std::move(chain_spec)},
         config_{std::move(config)},
-        random_{std::random_device{}()} {
+        random_{std::random_device{}()},
+        subnet_count_{config_->cliSubnetCount()} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
   }
 
@@ -123,7 +124,7 @@ namespace lean::modules {
     std::unordered_set<ValidatorIndex> subnets;
     for (auto &validator_index :
          validator_registry_->currentValidatorIndices()) {
-      subnets.emplace(validatorSubnet(validator_index, *genesis_config_));
+      subnets.emplace(validatorSubnet(validator_index, subnet_count_));
     }
     if (subnets.size() != 1) {
       SL_FATAL(logger_, "multiple validators on same node are not supported");
@@ -238,7 +239,7 @@ namespace lean::modules {
         }
         if (bootnode.is_aggregator
             and subnets.contains(
-                validatorSubnet(validator_index, *genesis_config_))) {
+                validatorSubnet(validator_index, subnet_count_))) {
           subnet_aggregators_.emplace(bootnode.peer_id);
         } else {
           connectable_peers_.emplace_back(bootnode.peer_id);

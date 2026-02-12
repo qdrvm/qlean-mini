@@ -56,6 +56,8 @@ namespace lean::app {
     [[nodiscard]] virtual const std::optional<size_t> &maxBootnodes() const;
     [[nodiscard]] virtual const std::filesystem::path &
     validatorKeysManifestPath() const;
+    [[nodiscard]] virtual bool cliIsAggregator() const;
+    [[nodiscard]] virtual uint64_t cliSubnetCount() const;
 
     [[nodiscard]] virtual double fakeXmssAggregateSignaturesRate() const;
     [[nodiscard]] virtual double fakeXmssVerifyAggregatedSignaturesRate() const;
@@ -84,6 +86,8 @@ namespace lean::app {
     std::optional<crypto::xmss::XmssKeypair> xmss_keypair_;
 
     std::filesystem::path validator_keys_manifest_path_;
+    bool cli_is_aggregator_ = false;
+    uint64_t cli_subnet_count_ = 1;
 
     double fake_xmss_aggregate_signatures_rate_ = 22.704;
     double fake_xmss_verify_aggregated_signatures_rate_ = 3463.106;
