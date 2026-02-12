@@ -159,7 +159,8 @@ auto createTestStore(
                          xmss_provider,
                          block_tree,
                          block_storage,
-                         false);
+                         false,
+                         1);
 }
 
 auto makeBlockMap(const std::vector<Block> &blocks) {
