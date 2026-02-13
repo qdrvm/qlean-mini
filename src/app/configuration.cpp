@@ -77,6 +77,14 @@ namespace lean::app {
     return validator_keys_manifest_path_;
   }
 
+  bool Configuration::cliIsAggregator() const {
+    return cli_is_aggregator_;
+  }
+
+  uint64_t Configuration::cliSubnetCount() const {
+    return cli_subnet_count_;
+  }
+
   double Configuration::fakeXmssAggregateSignaturesRate() const {
     ASSERT_QLEAN_ENABLE_SHADOW();
     return fake_xmss_aggregate_signatures_rate_;

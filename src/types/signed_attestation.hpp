@@ -18,6 +18,15 @@ namespace lean {
     AttestationData message;
     Signature signature;
 
+    static SignedAttestation from(const auto &attestation,
+                                  const auto &signature) {
+      return SignedAttestation{
+          .validator_id = attestation.validator_id,
+          .message = attestation.data,
+          .signature = signature,
+      };
+    }
+
     SSZ_CONT(validator_id, message, signature);
   };
 }  // namespace lean

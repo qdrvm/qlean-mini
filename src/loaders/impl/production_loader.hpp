@@ -157,6 +157,12 @@ namespace lean::loaders {
         std::shared_ptr<const messages::SendSignedVote> message) override {
       dispatchDerive(*se_manager_, message);
     }
+
+    void dispatchSendSignedAggregatedAttestation(
+        std::shared_ptr<const messages::SendSignedAggregatedAttestation>
+            message) override {
+      dispatchDerive(*se_manager_, message);
+    }
   };
 
 }  // namespace lean::loaders

@@ -40,6 +40,8 @@ namespace lean::loaders {
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<ValidatorRegistry> validator_registry_;
+    qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
     qtils::SharedRef<app::Configuration> app_config_;
 
@@ -55,6 +57,10 @@ namespace lean::loaders {
                        modules::Networking,
                        &modules::Networking::onSendSignedVote>
         subscription_send_signed_vote_;
+    SimpleSubscription<messages::SendSignedAggregatedAttestation,
+                       modules::Networking,
+                       &modules::Networking::onSendSignedAggregatedAttestation>
+        subscription_send_signed_aggregated_attestation_;
 
    public:
     NetworkingLoader(std::shared_ptr<log::LoggingSystem> logsys,
@@ -62,6 +68,8 @@ namespace lean::loaders {
                      qtils::SharedRef<metrics::Metrics> metrics,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
                      qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                     qtils::SharedRef<ValidatorRegistry> validator_registry,
+                     qtils::SharedRef<GenesisConfig> genesis_config,
                      qtils::SharedRef<app::ChainSpec> chain_spec,
                      qtils::SharedRef<app::Configuration> app_config)
         : Loader(std::move(logsys), std::move(se_manager)),
@@ -69,6 +77,8 @@ namespace lean::loaders {
           metrics_{std::move(metrics)},
           block_tree_{std::move(block_tree)},
           fork_choice_store_{std::move(fork_choice_store)},
+          genesis_config_{std::move(genesis_config)},
+          validator_registry_{std::move(validator_registry)},
           chain_spec_{std::move(chain_spec)},
           app_config_{std::move(app_config)} {}
 
@@ -87,6 +97,8 @@ namespace lean::loaders {
                                        qtils::SharedRef<metrics::Metrics>,
                                        qtils::SharedRef<blockchain::BlockTree>,
                                        qtils::SharedRef<ForkChoiceStore>,
+                                       qtils::SharedRef<ValidatorRegistry>,
+                                       qtils::SharedRef<GenesisConfig>,
                                        qtils::SharedRef<app::ChainSpec>,
                                        qtils::SharedRef<app::Configuration>>(
                   "query_module_instance");
@@ -100,6 +112,8 @@ namespace lean::loaders {
                                                 metrics_,
                                                 block_tree_,
                                                 fork_choice_store_,
+                                                validator_registry_,
+                                                genesis_config_,
                                                 chain_spec_,
                                                 app_config_);
 
@@ -128,6 +142,8 @@ namespace lean::loaders {
 
       subscription_send_signed_block_.subscribe(*se_manager_, module_internal);
       subscription_send_signed_vote_.subscribe(*se_manager_, module_internal);
+      subscription_send_signed_aggregated_attestation_.subscribe(
+          *se_manager_, module_internal);
 
       se_manager_->notify(lean::EventTypes::NetworkingIsLoaded);
     }

@@ -16,9 +16,12 @@
 #include "blockchain/state_transition_function.hpp"
 #include "clock/clock.hpp"
 #include "crypto/xmss/xmss_provider.hpp"
+#include "injector/boost_di_inject_traits_many.hpp"
 #include "log/logger.hpp"
 #include "types/aggregated_attestations.hpp"
 #include "types/block.hpp"
+#include "types/hash.hpp"
+#include "types/signed_aggregated_attestation.hpp"
 #include "types/signed_attestation.hpp"
 #include "types/signed_block_with_attestation.hpp"
 #include "types/state.hpp"
@@ -31,6 +34,11 @@ namespace lean {
   class ValidatorRegistry;
   class ValidatorKeysManifest;
 }  // namespace lean
+
+namespace lean::app {
+  class ChainSpec;
+  class Configuration;
+}  // namespace lean::app
 
 namespace lean::blockchain {
   class BlockStorage;
@@ -104,26 +112,30 @@ namespace lean {
         qtils::SharedRef<clock::SystemClock> clock,
         qtils::SharedRef<log::LoggingSystem> logging_system,
         qtils::SharedRef<metrics::Metrics> metrics,
+        qtils::SharedRef<app::Configuration> app_config,
         qtils::SharedRef<ValidatorRegistry> validator_registry,
+        qtils::SharedRef<app::ChainSpec> chain_spec,
         qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
         qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
         qtils::SharedRef<blockchain::BlockTree> block_tree,
         qtils::SharedRef<blockchain::BlockStorage> block_storage);
 
-    BOOST_DI_INJECT_TRAITS(qtils::SharedRef<AnchorState>,
-                           qtils::SharedRef<AnchorBlock>,
-                           qtils::SharedRef<clock::SystemClock>,
-                           qtils::SharedRef<log::LoggingSystem>,
-                           qtils::SharedRef<metrics::Metrics>,
-                           qtils::SharedRef<ValidatorRegistry>,
-                           qtils::SharedRef<app::ValidatorKeysManifest>,
-                           qtils::SharedRef<crypto::xmss::XmssProvider>,
-                           qtils::SharedRef<blockchain::BlockTree>,
-                           qtils::SharedRef<blockchain::BlockStorage>);
+    BOOST_DI_INJECT_TRAITS_MANY(qtils::SharedRef<AnchorState>,
+                                qtils::SharedRef<AnchorBlock>,
+                                qtils::SharedRef<clock::SystemClock>,
+                                qtils::SharedRef<log::LoggingSystem>,
+                                qtils::SharedRef<metrics::Metrics>,
+                                qtils::SharedRef<app::Configuration>,
+                                qtils::SharedRef<ValidatorRegistry>,
+                                qtils::SharedRef<app::ChainSpec>,
+                                qtils::SharedRef<app::ValidatorKeysManifest>,
+                                qtils::SharedRef<crypto::xmss::XmssProvider>,
+                                qtils::SharedRef<blockchain::BlockTree>,
+                                qtils::SharedRef<blockchain::BlockStorage>);
 
     // Test constructor - only for use in tests
     ForkChoiceStore(
-        uint64_t now_sec,
+        Interval time,
         qtils::SharedRef<log::LoggingSystem> logging_system,
         qtils::SharedRef<metrics::Metrics> metrics,
         Config config,
@@ -136,7 +148,9 @@ namespace lean {
         qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest,
         qtils::SharedRef<crypto::xmss::XmssProvider> xmss_provider,
         qtils::SharedRef<blockchain::BlockTree> block_tree,
-        qtils::SharedRef<blockchain::BlockStorage> block_storage);
+        qtils::SharedRef<blockchain::BlockStorage> block_storage,
+        bool is_aggregator,
+        uint64_t subnet_count);
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -342,6 +356,18 @@ namespace lean {
         const SignedAttestation &signed_attestation);
 
     /**
+     * Process a signed aggregated attestation received via aggregation topic
+     * This method:
+     * 1. Verifies the aggregated attestation
+     * 2. Stores the aggregation in aggregation_payloads map
+     */
+    outcome::result<void> onGossipAggregatedAttestation(
+        const SignedAggregatedAttestation &signed_aggregated_attestation);
+    outcome::result<void> onAggregatedAttestation(
+        const SignedAggregatedAttestation &signed_aggregated_attestation,
+        bool is_from_block);
+
+    /**
      * Process a new attestation and place it into the correct attestation
      * stage.
      *
@@ -395,22 +421,34 @@ namespace lean {
     outcome::result<void> onBlock(
         SignedBlockWithAttestation signed_block_with_attestation);
 
+    using OnTickAction = std::variant<SignedAttestation,
+                                      SignedAggregatedAttestation,
+                                      SignedBlockWithAttestation>;
+
     // Advance forkchoice store time to given timestamp.
     // Ticks store forward interval by interval, performing appropriate
     // actions for each interval type.
     // Args:
     //    time: Target time in seconds since genesis.
-    std::vector<std::variant<SignedAttestation, SignedBlockWithAttestation>>
-    onTick(uint64_t now_sec);
+    std::vector<OnTickAction> onTick(std::chrono::milliseconds now);
 
     Interval time() const {
       return time_;
     }
 
    private:
-    using AggregatedPayload =
-        std::pair<AggregatedAttestation, AggregatedSignatureProof>;
     using ValidatorAttestationKey = std::tuple<ValidatorIndex, BlockHash>;
+
+    struct SignaturesToAggregate {
+      AttestationData data;
+      // signatures and public keys must follow bitset order
+      std::map<ValidatorIndex, Signature> signatures;
+      bool aggregated = false;
+    };
+
+    void addSignatureToAggregate(const AttestationData &data,
+                                 ValidatorIndex validator_index,
+                                 const Signature &signature);
 
     /**
      * Compute map key for validator index and attestation data.
@@ -436,6 +474,10 @@ namespace lean {
     //     True if all signatures are cryptographically valid.
     bool validateBlockSignatures(
         const SignedBlockWithAttestation &signed_block) const;
+    bool validateAggregatedSignature(
+        const State &state,
+        const AttestationData &attestation,
+        const AggregatedSignatureProof &signature) const;
 
     // Compute aggregated signatures for a set of attestations.
     // This method implements a two-phase signature collection strategy:
@@ -452,6 +494,10 @@ namespace lean {
     computeAggregatedSignatures(
         const State &state,
         const AggregatedAttestations &completely_aggregated_attestations);
+
+    std::vector<SignedAggregatedAttestation> aggregateSignatures();
+
+    void prune(Slot finalized_slot);
 
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;
@@ -516,10 +562,10 @@ namespace lean {
      */
     AttestationDataByValidator latest_new_attestations_;
     /**
-     * Map of validator id and attestation root to the XMSS signature.
+     * Accumulates signatures to be aggregated in slot interval 2.
+     * Grouped by attestation data.
      */
-    std::unordered_map<ValidatorAttestationKey, Signature>
-        gossip_attestation_signatures_;
+    std::unordered_map<Hash, SignaturesToAggregate> signatures_to_aggregate_;
     /**
      * Aggregated signature payloads for attestations from blocks.
      * - Keyed by (validator_id, attestation_data_root).
@@ -528,11 +574,18 @@ namespace lean {
      * - Used for recursive signature aggregation when building blocks.
      * - Populated by on_block.
      */
-    std::unordered_map<ValidatorAttestationKey,
-                       std::vector<std::shared_ptr<AggregatedPayload>>>
+    std::unordered_map<
+        ValidatorAttestationKey,
+        std::vector<std::shared_ptr<SignedAggregatedAttestation>>>
         aggregated_payloads_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
+    /**
+     * Index of the validator running this store instance.
+     */
+    ValidatorIndex validator_id_;
+    bool is_aggregator_;
+    uint64_t subnet_count_;
   };
 
 }  // namespace lean

@@ -8,6 +8,7 @@
 
 #include <random>
 #include <thread>
+#include <unordered_set>
 
 #include <libp2p/event/bus.hpp>
 #include <libp2p/peer/peer_info.hpp>
@@ -37,6 +38,8 @@ namespace libp2p::protocol::gossip {
 
 namespace lean {
   class ForkChoiceStore;
+  class ValidatorRegistry;
+  struct GenesisConfig;
 }  // namespace lean
 
 namespace lean::app {
@@ -123,6 +126,8 @@ namespace lean::modules {
                    qtils::SharedRef<metrics::Metrics> metrics,
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
                    qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                   qtils::SharedRef<ValidatorRegistry> validator_registry,
+                   qtils::SharedRef<GenesisConfig> genesis_config,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
                    qtils::SharedRef<app::Configuration> config);
 
@@ -138,6 +143,9 @@ namespace lean::modules {
         std::shared_ptr<const messages::SendSignedBlock> message) override;
     void onSendSignedVote(
         std::shared_ptr<const messages::SendSignedVote> message) override;
+    void onSendSignedAggregatedAttestation(
+        std::shared_ptr<const messages::SendSignedAggregatedAttestation>
+            message) override;
 
    private:
     template <typename T>
@@ -162,6 +170,8 @@ namespace lean::modules {
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<ValidatorRegistry> validator_registry_;
+    qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
     qtils::SharedRef<app::Configuration> config_;
     std::shared_ptr<void> injector_;
@@ -178,6 +188,8 @@ namespace lean::modules {
     std::shared_ptr<libp2p::protocol::Identify> identify_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_blocks_topic_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
+    std::shared_ptr<libp2p::protocol::gossip::Topic>
+        gossip_signed_aggregated_attestation_topic_;
     std::unordered_map<BlockHash, SignedBlockWithAttestation> block_cache_;
     std::unordered_multimap<BlockHash, BlockHash> block_children_;
     std::default_random_engine random_;
@@ -189,6 +201,8 @@ namespace lean::modules {
      * Bootnode peers states.
      */
     std::unordered_map<libp2p::PeerId, PeerState> peer_states_;
+    std::unordered_set<libp2p::PeerId> subnet_aggregators_;
+    uint64_t subnet_count_;
   };
 
 }  // namespace lean::modules

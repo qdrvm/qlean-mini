@@ -36,6 +36,7 @@ Node 0:
   --validator-registry-path example/1-network/genesis/validators.yaml \
   --validator-keys-manifest example/1-network/genesis/validator-keys-manifest.yaml \
   --node-id node_0 \
+  --is-aggregator \
   --node-key example/1-network/genesis/node_0.key \
   --xmss-pk example/1-network/genesis/validator_0_pk.json \
   --xmss-sk example/1-network/genesis/validator_0_sk.json \

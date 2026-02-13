@@ -41,7 +41,7 @@ namespace lean::modules {
   void ProductionModuleImpl::on_slot_interval_started(
       std::shared_ptr<const messages::SlotIntervalStarted> msg) {
     // advance fork choice store to current time
-    auto res = fork_choice_store_->onTick(clock_->nowSec());
+    auto res = fork_choice_store_->onTick(clock_->nowMsec());
 
     // dispatch all votes and blocks produced during advance time
     for (auto &vote_or_block : res) {
@@ -50,6 +50,10 @@ namespace lean::modules {
           [&](const SignedAttestation &v) {
             loader_.dispatchSendSignedVote(
                 std::make_shared<messages::SendSignedVote>(v));
+          },
+          [&](const SignedAggregatedAttestation &v) {
+            loader_.dispatchSendSignedAggregatedAttestation(
+                std::make_shared<messages::SendSignedAggregatedAttestation>(v));
           },
           [&](const SignedBlockWithAttestation &v) {
             loader_.dispatchSendSignedBlock(
