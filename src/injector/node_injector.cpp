@@ -24,6 +24,7 @@
 #include "app/configuration.hpp"
 #include "app/impl/application_impl.hpp"
 #include "app/impl/chain_spec_impl.hpp"
+#include "app/impl/http_server.hpp"
 #include "app/impl/state_manager_impl.hpp"
 #include "app/impl/timeline_impl.hpp"
 #include "app/impl/validator_keys_manifest_impl.hpp"

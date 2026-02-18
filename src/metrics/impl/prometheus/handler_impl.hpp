@@ -26,6 +26,7 @@ namespace lean::metrics {
 
     void onSessionRequest(Session::Request request,
                           std::shared_ptr<Session> session) override;
+    std::string collect() override;
 
    private:
     void registerCollectable(

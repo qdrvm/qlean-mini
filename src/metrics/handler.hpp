@@ -32,6 +32,8 @@ namespace lean::metrics {
      */
     virtual void onSessionRequest(Session::Request request,
                                   std::shared_ptr<Session> session) = 0;
+
+    virtual std::string collect() = 0;
   };
 
 }  // namespace lean::metrics

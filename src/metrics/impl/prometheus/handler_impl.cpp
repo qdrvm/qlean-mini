@@ -44,6 +44,10 @@ namespace lean::metrics {
 
   void PrometheusHandler::onSessionRequest(Session::Request request,
                                            std::shared_ptr<Session> session) {
+    [[maybe_unused]] auto size = writeResponse(session, request, collect());
+  }
+
+  std::string PrometheusHandler::collect() {
     std::vector<MetricFamily> metrics;
 
     {
@@ -53,8 +57,7 @@ namespace lean::metrics {
 
     const TextSerializer serializer;
 
-    [[maybe_unused]] auto size =
-        writeResponse(session, request, serializer.Serialize(metrics));
+    return serializer.Serialize(metrics);
   }
 
   std::size_t PrometheusHandler::writeResponse(std::shared_ptr<Session> session,

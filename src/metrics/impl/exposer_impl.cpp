@@ -29,8 +29,11 @@ namespace lean::metrics {
         session_config_{session_config} {
     if (config_->metrics().enabled == true) {
       setHandler(handler);
-      state_manager->takeControl(*this);
     }
+  }
+
+  std::string ExposerImpl::collect() {
+    return handler_->collect();
   }
 
   bool ExposerImpl::prepare() {

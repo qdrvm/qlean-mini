@@ -53,6 +53,8 @@ namespace lean::metrics {
       }
     }
 
+    std::string collect() override;
+
    private:
     void acceptOnce();
 
