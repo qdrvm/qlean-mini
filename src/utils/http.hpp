@@ -27,6 +27,13 @@ namespace lean::http {
   struct ServerConfig {
     boost::asio::ip::tcp::endpoint endpoint;
     OnRequest on_request;
+
+    static constexpr size_t kDefaultRequestSize = 10000u;
+    size_t max_request_size{kDefaultRequestSize};
+
+    using Duration = std::chrono::nanoseconds;
+    static constexpr Duration kDefaultTimeout = std::chrono::seconds{30};
+    Duration operation_timeout{kDefaultTimeout};
   };
 
   outcome::result<void> serve(log::Logger log,

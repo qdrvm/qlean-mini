@@ -39,7 +39,7 @@ namespace lean::log {
 }  // namespace lean::log
 
 namespace lean::metrics {
-  class Exposer;
+  class Handler;
   class Metrics;
 }  // namespace lean::metrics
 
@@ -84,7 +84,7 @@ namespace lean::app {
                     qtils::SharedRef<Watchdog> watchdog,
                     qtils::SharedRef<HttpServer> http_server,
                     qtils::SharedRef<metrics::Metrics> metrics,
-                    qtils::SharedRef<metrics::Exposer> metrics_exposer,
+                    qtils::SharedRef<metrics::Handler> metrics_handler,
                     qtils::SharedRef<clock::SystemClock> system_clock,
                     qtils::SharedRef<Timeline> timeline,
                     qtils::SharedRef<metrics::Registry> metrics_registry,
@@ -99,7 +99,7 @@ namespace lean::app {
     qtils::SharedRef<Watchdog> watchdog_;
     qtils::SharedRef<HttpServer> http_server_;
     qtils::SharedRef<metrics::Metrics> metrics_;
-    qtils::SharedRef<metrics::Exposer> metrics_exposer_;
+    qtils::SharedRef<metrics::Handler> metrics_handler_;
     qtils::SharedRef<clock::SystemClock> system_clock_;
     qtils::SharedRef<Timeline> timeline_;
   };

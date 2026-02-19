@@ -19,14 +19,17 @@ namespace lean::http {
                                   boost::asio::ip::tcp::socket socket,
                                   ServerConfig config) {
     boost::beast::tcp_stream stream{std::move(socket)};
+    stream.expires_after(config.operation_timeout);
+    boost::beast::http::request_parser<Body> parser;
+    parser.body_limit(config.max_request_size);
     boost::beast::flat_buffer buffer;
-    Request request;
     auto read_res = libp2p::coroOutcome(co_await boost::beast::http::async_read(
-        stream, buffer, request, libp2p::useCoroOutcome));
+        stream, buffer, parser, libp2p::useCoroOutcome));
     if (not read_res.has_value()) {
       SL_WARN(log, "http read request error: {}", read_res.error());
       co_return;
     }
+    auto &&request = parser.release();
     auto response = config.on_request(std::move(request));
     auto write_res =
         libp2p::coroOutcome(co_await boost::beast::http::async_write(

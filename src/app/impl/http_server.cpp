@@ -13,18 +13,18 @@
 #include "app/configuration.hpp"
 #include "app/state_manager.hpp"
 #include "blockchain/fork_choice.hpp"
-#include "metrics/exposer.hpp"
+#include "metrics/handler.hpp"
 #include "utils/http.hpp"
 
 namespace lean::app {
   HttpServer::HttpServer(qtils::SharedRef<log::LoggingSystem> logsys,
                          qtils::SharedRef<StateManager> state_manager,
                          qtils::SharedRef<Configuration> app_config,
-                         qtils::SharedRef<metrics::Exposer> metrics_exposer,
+                         qtils::SharedRef<metrics::Handler> metrics_handler,
                          qtils::SharedRef<ForkChoiceStore> fork_choice_store)
       : log_{logsys->getLogger("HttpServer", "http")},
         app_config_{std::move(app_config)},
-        metrics_exposer_{std::move(metrics_exposer)},
+        metrics_handler_{std::move(metrics_handler)},
         fork_choice_store_{std::move(fork_choice_store)} {
     state_manager->takeControl(*this);
   }
@@ -51,7 +51,9 @@ namespace lean::app {
                       std::string_view{request.method_string()},
                       url);
               if (url == "/metrics") {
-                response.body() = self->metrics_exposer_->collect();
+                response.set(boost::beast::http::field::content_type,
+                             "text/plain; charset=utf-8");
+                response.body() = self->metrics_handler_->collect();
                 return response;
               }
               if (url == "/lean/v0/health") {
@@ -66,6 +68,8 @@ namespace lean::app {
                 if (auto state_res =
                         self->fork_choice_store_->getState(finalized.root)) {
                   auto &state = state_res.value();
+                  response.set(boost::beast::http::field::content_type,
+                               "application/octet-stream");
                   response.body() = qtils::byte2str(encode(*state).value());
                 } else {
                   response.result(

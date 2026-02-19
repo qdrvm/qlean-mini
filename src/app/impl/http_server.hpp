@@ -21,7 +21,7 @@ namespace lean {
 }  // namespace lean
 
 namespace lean::metrics {
-  class Exposer;
+  class Handler;
 }  // namespace lean::metrics
 
 namespace lean::app {
@@ -33,7 +33,7 @@ namespace lean::app {
     HttpServer(qtils::SharedRef<log::LoggingSystem> logsys,
                qtils::SharedRef<StateManager> state_manager,
                qtils::SharedRef<Configuration> app_config,
-               qtils::SharedRef<metrics::Exposer> metrics_exposer,
+               qtils::SharedRef<metrics::Handler> metrics_handler,
                qtils::SharedRef<ForkChoiceStore> fork_choice_store);
     ~HttpServer();
 
@@ -43,7 +43,7 @@ namespace lean::app {
    private:
     log::Logger log_;
     qtils::SharedRef<Configuration> app_config_;
-    qtils::SharedRef<metrics::Exposer> metrics_exposer_;
+    qtils::SharedRef<metrics::Handler> metrics_handler_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     std::shared_ptr<boost::asio::io_context> io_context_;
     std::optional<std::thread> io_thread_;

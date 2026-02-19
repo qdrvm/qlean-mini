@@ -42,11 +42,6 @@ namespace lean::metrics {
       std::shared_ptr<log::LoggingSystem> logsys)
       : logger_{logsys->getLogger("PrometheusHandler", "metrics")} {}
 
-  void PrometheusHandler::onSessionRequest(Session::Request request,
-                                           std::shared_ptr<Session> session) {
-    [[maybe_unused]] auto size = writeResponse(session, request, collect());
-  }
-
   std::string PrometheusHandler::collect() {
     std::vector<MetricFamily> metrics;
 
@@ -58,19 +53,6 @@ namespace lean::metrics {
     const TextSerializer serializer;
 
     return serializer.Serialize(metrics);
-  }
-
-  std::size_t PrometheusHandler::writeResponse(std::shared_ptr<Session> session,
-                                               const Session::Request &request,
-                                               const std::string &body) {
-    Session::Response res{boost::beast::http::status::ok, request.version()};
-    res.set(boost::beast::http::field::content_type,
-            "text/plain; charset=utf-8");
-    res.content_length(body.size());
-    res.keep_alive(true);
-    res.body() = body;
-    session->respond(res);
-    return body.size();
   }
 
   // it is called once on init
