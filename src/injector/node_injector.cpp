@@ -24,6 +24,7 @@
 #include "app/configuration.hpp"
 #include "app/impl/application_impl.hpp"
 #include "app/impl/chain_spec_impl.hpp"
+#include "app/impl/http_server.hpp"
 #include "app/impl/state_manager_impl.hpp"
 #include "app/impl/timeline_impl.hpp"
 #include "app/impl/validator_keys_manifest_impl.hpp"
@@ -42,7 +43,6 @@
 #include "injector/bind_by_lambda.hpp"
 #include "loaders/loader.hpp"
 #include "log/logger.hpp"
-#include "metrics/impl/exposer_impl.hpp"
 #include "metrics/impl/metrics_impl.hpp"
 #include "metrics/impl/prometheus/handler_impl.hpp"
 #include "metrics/impl/prometheus/registry_impl.hpp"
@@ -95,14 +95,6 @@ namespace {
         di::bind<metrics::Registry>.to<metrics::PrometheusRegistry>(),
         di::bind<metrics::Metrics>.to<metrics::MetricsImpl>(),
         di::bind<metrics::Handler>.to<metrics::PrometheusHandler>(),
-        di::bind<metrics::Exposer>.to<metrics::ExposerImpl>(),
-        di::bind<metrics::Exposer::Configuration>.to([](const auto &injector) {
-          return metrics::Exposer::Configuration{
-              injector
-                  .template create<app::Configuration const &>()
-                  .openmetricsHttpEndpoint()
-          };
-        }),
         di::bind<storage::BufferStorage>.to<storage::InMemoryStorage>(),
         //di::bind<storage::SpacedStorage>.to<storage::InMemorySpacedStorage>(),
         di::bind<storage::SpacedStorage>.to<storage::RocksDb>(),
