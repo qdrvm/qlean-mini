@@ -19,6 +19,7 @@
 
 namespace lean {
   class ForkChoiceStore;
+  class ValidatorRegistry;
 }  // namespace lean
 
 namespace lean::blockchain {
@@ -42,6 +43,7 @@ namespace lean::loaders {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
+    qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::Configuration> app_config_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
@@ -65,6 +67,7 @@ namespace lean::loaders {
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
                      qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                      qtils::SharedRef<app::ChainSpec> chain_spec,
+                     qtils::SharedRef<ValidatorRegistry> validator_registry,
                      qtils::SharedRef<app::Configuration> app_config)
         : Loader(std::move(logsys), std::move(se_manager)),
           logger_(logsys_->getLogger("Networking", "networking_module")),
@@ -73,6 +76,7 @@ namespace lean::loaders {
           block_tree_{std::move(block_tree)},
           fork_choice_store_{std::move(fork_choice_store)},
           chain_spec_{std::move(chain_spec)},
+          validator_registry_{std::move(validator_registry)},
           app_config_{std::move(app_config)} {}
 
     NetworkingLoader(const NetworkingLoader &) = delete;
@@ -92,6 +96,7 @@ namespace lean::loaders {
                                        qtils::SharedRef<blockchain::BlockTree>,
                                        qtils::SharedRef<ForkChoiceStore>,
                                        qtils::SharedRef<app::ChainSpec>,
+                                       qtils::SharedRef<ValidatorRegistry>,
                                        qtils::SharedRef<app::Configuration>>(
                   "query_module_instance");
 
@@ -106,6 +111,7 @@ namespace lean::loaders {
                                                 block_tree_,
                                                 fork_choice_store_,
                                                 chain_spec_,
+                                                validator_registry_,
                                                 app_config_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::template create<
