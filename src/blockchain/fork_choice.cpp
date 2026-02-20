@@ -96,6 +96,16 @@ namespace lean {
     SL_INFO(logger_, "📌 Source: {}", latest_justified);
 
     SL_TRACE(logger_, "Fork-choice initialized");
+
+    for (auto &&[slot, hash] : std::views::zip(
+             std::views::iota(
+                 Slot{0}, Slot{anchor_state->historical_block_hashes.size()}),
+             anchor_state->historical_block_hashes)) {
+      if (hash == kZeroHash) {
+        continue;
+      }
+      anchor_block_slots_.emplace(hash, slot);
+    }
   }
 
   // Test constructor implementation
@@ -258,6 +268,10 @@ namespace lean {
 
   outcome::result<Slot> ForkChoiceStore::getBlockSlot(
       const BlockHash &block_hash) const {
+    auto it = anchor_block_slots_.find(block_hash);
+    if (it != anchor_block_slots_.end()) {
+      return it->second;
+    }
     return block_tree_->getSlotByHash(block_hash);
   }
 
@@ -483,6 +497,9 @@ namespace lean {
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
       const Attestation &attestation) {
+    auto has_block = [&](const BlockHash &hash) {
+      return anchor_block_slots_.contains(hash) or block_tree_->has(hash);
+    };
     auto &data = attestation.data;
 
     SL_TRACE(logger_,
@@ -494,13 +511,13 @@ namespace lean {
     // Availability Check
 
     // We cannot count a vote if we haven't seen the blocks involved.
-    if (not block_tree_->has(data.source.root)) {
+    if (not has_block(data.source.root)) {
       return Error::CANT_VALIDATE_ATTESTATION_SOURCE_NOT_FOUND;
     }
-    if (not block_tree_->has(data.target.root)) {
+    if (not has_block(data.target.root)) {
       return Error::CANT_VALIDATE_ATTESTATION_TARGET_NOT_FOUND;
     }
-    if (not block_tree_->has(data.head.root)) {
+    if (not has_block(data.head.root)) {
       return Error::CANT_VALIDATE_ATTESTATION_HEAD_NOT_FOUND;
     }
 
