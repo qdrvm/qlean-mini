@@ -37,6 +37,7 @@ namespace libp2p::protocol::gossip {
 
 namespace lean {
   class ForkChoiceStore;
+  class ValidatorRegistry;
 }  // namespace lean
 
 namespace lean::app {
@@ -124,6 +125,7 @@ namespace lean::modules {
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
                    qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
+                   qtils::SharedRef<ValidatorRegistry> validator_registry,
                    qtils::SharedRef<app::Configuration> config);
 
    public:
@@ -163,6 +165,7 @@ namespace lean::modules {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
+    qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::Configuration> config_;
     std::shared_ptr<void> injector_;
     std::shared_ptr<boost::asio::io_context> io_context_;
@@ -189,6 +192,8 @@ namespace lean::modules {
      * Bootnode peers states.
      */
     std::unordered_map<libp2p::PeerId, PeerState> peer_states_;
+    std::unordered_map<libp2p::PeerId, std::string> peer_name_;
+    std::unordered_map<std::string, size_t> connected_peer_count_by_name_;
   };
 
 }  // namespace lean::modules
