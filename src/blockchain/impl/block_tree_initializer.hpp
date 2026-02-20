@@ -10,6 +10,9 @@
 #include <types/block_header.hpp>
 #include <utils/ctor_limiters.hpp>
 
+namespace lean {
+  class AnchorBlock;
+}  // namespace lean
 namespace lean::log {
   class LoggingSystem;
 }
@@ -22,6 +25,7 @@ namespace lean::blockchain {
   class BlockTreeInitializer final : Singleton<BlockTreeInitializer> {
    public:
     BlockTreeInitializer(qtils::SharedRef<log::LoggingSystem> logsys,
+                         qtils::SharedRef<AnchorBlock> anchor_block,
                          qtils::SharedRef<BlockStorage> storage);
 
     BlockIndex latestFinalizedAtStart();
