@@ -61,7 +61,6 @@ namespace lean {
         validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
 
     BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
-    anchor_block->setHash();
     SL_TRACE(logger_, "Anchor block: {}", anchor_block->index());
     SL_TRACE(logger_, "Anchor state: {}", anchor_block->state_root);
 
