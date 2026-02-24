@@ -15,7 +15,7 @@ namespace lean::clock {
    public:
     typename Clock<ClockType>::TimePoint now() const override;
     uint64_t nowSec() const override;
-    uint64_t nowMsec() const override;
+    std::chrono::milliseconds nowMsec() const override;
   };
 
   class SystemClockImpl : public SystemClock,

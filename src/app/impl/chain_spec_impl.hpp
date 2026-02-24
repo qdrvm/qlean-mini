@@ -39,6 +39,10 @@ namespace lean::app {
       return bootnodes_;
     }
 
+    bool isAggregator() const override {
+      return is_aggregator_;
+    }
+
    private:
     outcome::result<void> load();
     outcome::result<void> loadBootNodes();
@@ -46,6 +50,7 @@ namespace lean::app {
     log::Logger log_;
     qtils::SharedRef<Configuration> app_config_;
     app::Bootnodes bootnodes_;
+    bool is_aggregator_ = false;
   };
 
 }  // namespace lean::app

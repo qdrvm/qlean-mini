@@ -21,10 +21,9 @@ namespace lean::clock {
   }
 
   template <typename ClockType>
-  uint64_t ClockImpl<ClockType>::nowMsec() const {
+  std::chrono::milliseconds ClockImpl<ClockType>::nowMsec() const {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
-               now().time_since_epoch())
-        .count();
+        now().time_since_epoch());
   }
 
   template class ClockImpl<std::chrono::steady_clock>;

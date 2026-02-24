@@ -13,7 +13,7 @@
 namespace lean {
   GenesisConfig::GenesisConfig(const log::LoggingSystem &logsys,
                                const AnchorState &state)
-      : Config(state.config) {
+      : Config{state.config}, validator_count{state.validatorCount()} {
     auto logger = logsys.getLogger("GenesisConfig", "genesis_config");
     SL_INFO(logger,
             "Genesis config loaded: "

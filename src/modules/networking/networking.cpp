@@ -14,6 +14,7 @@
 #include <ranges>
 #include <stdexcept>
 
+#include <boost/endian/conversion.hpp>
 #include <libp2p/coro/spawn.hpp>
 #include <libp2p/coro/timer_loop.hpp>
 #include <libp2p/crypto/key_marshaller.hpp>
@@ -34,8 +35,9 @@
 #include "app/configuration.hpp"
 #include "blockchain/block_tree.hpp"
 #include "blockchain/fork_choice.hpp"
+#include "blockchain/genesis_config.hpp"
 #include "blockchain/validator_registry.hpp"
-#include "boost/endian/conversion.hpp"
+#include "blockchain/validator_subnet.hpp"
 #include "metrics/metrics.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
@@ -86,8 +88,9 @@ namespace lean::modules {
       qtils::SharedRef<app::StateManager> app_state_manager,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
-      qtils::SharedRef<app::ChainSpec> chain_spec,
       qtils::SharedRef<ValidatorRegistry> validator_registry,
+      qtils::SharedRef<GenesisConfig> genesis_config,
+      qtils::SharedRef<app::ChainSpec> chain_spec,
       qtils::SharedRef<app::Configuration> config)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
@@ -95,10 +98,12 @@ namespace lean::modules {
         app_state_manager_{std::move(app_state_manager)},
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)},
-        chain_spec_{std::move(chain_spec)},
         validator_registry_{std::move(validator_registry)},
+        genesis_config_{std::move(genesis_config)},
+        chain_spec_{std::move(chain_spec)},
         config_{std::move(config)},
-        random_{std::random_device{}()} {
+        random_{std::random_device{}()},
+        subnet_count_{config_->cliSubnetCount()} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
   }
 
@@ -120,7 +125,17 @@ namespace lean::modules {
         std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(nullptr)};
     auto peer_id = identity_manager.getId();
 
-    SL_INFO(logger_, "Networking loaded with PeerId={}", peer_id.toBase58());
+    std::unordered_set<ValidatorIndex> subnets;
+    for (auto &validator_index :
+         validator_registry_->currentValidatorIndices()) {
+      subnets.emplace(validatorSubnet(validator_index, subnet_count_));
+    }
+    if (subnets.size() != 1) {
+      SL_FATAL(logger_, "multiple validators on same node are not supported");
+    }
+    auto subnet_id = *subnets.begin();
+
+    SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
 
     libp2p::protocol::gossip::Config gossip_config;
     gossip_config.validation_mode =
@@ -226,13 +241,22 @@ namespace lean::modules {
       auto &address_repo = host->getPeerRepository().getAddressRepository();
 
       // Collect candidates (exclude ourselves)
-      auto all_bootnodes = bootnodes.getBootnodes();
-      connectable_peers_.reserve(all_bootnodes.size());
-      for (auto &bootnode : all_bootnodes) {
+      connectable_peers_.reserve(bootnodes.size());
+      for (auto &&[validator_index, bootnode] : std::views::zip(
+               std::views::iota(
+                   ValidatorIndex{0},
+                   ValidatorIndex{genesis_config_->validator_count}),
+               bootnodes.getBootnodes())) {
         if (bootnode.peer_id == peer_id) {
           continue;
         }
-        connectable_peers_.emplace_back(bootnode.peer_id);
+        if (bootnode.is_aggregator
+            and subnets.contains(
+                validatorSubnet(validator_index, subnet_count_))) {
+          subnet_aggregators_.emplace(bootnode.peer_id);
+        } else {
+          connectable_peers_.emplace_back(bootnode.peer_id);
+        }
         peer_states_.emplace(
             bootnode.peer_id,
             PeerState{
@@ -249,7 +273,7 @@ namespace lean::modules {
               "Adding {} bootnodes to address repository",
               connectable_peers_.size());
 
-      for (const auto &bootnode : all_bootnodes) {
+      for (const auto &bootnode : bootnodes.getBootnodes()) {
         if (bootnode.peer_id == peer_id) {
           continue;
         }
@@ -514,7 +538,7 @@ namespace lean::modules {
                              std::move(signed_block_with_attestation));
         });
     gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
-        "attestation",
+        std::format("attestation_{}", subnet_id),
         [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation,
                                       std::optional<libp2p::PeerId> peer_id) {
           auto self = weak_self.lock();
@@ -539,6 +563,40 @@ namespace lean::modules {
             return;
           }
         });
+    gossip_signed_aggregated_attestation_topic_ =
+        gossipSubscribe<SignedAggregatedAttestation>(
+            "aggregation",
+            [weak_self{weak_from_this()}](
+                SignedAggregatedAttestation &&signed_aggregated_attestation,
+                std::optional<libp2p::PeerId> peer_id) {
+              auto self = weak_self.lock();
+              if (not self) {
+                return;
+              }
+
+              SL_DEBUG(
+                  self->logger_,
+                  "Received aggregated attestation for target={} 🗳️ from "
+                  "peer={} 👤 "
+                  "validator_ids=[{}] ✅",
+                  signed_aggregated_attestation.data.target,
+                  peer_id.has_value() ? peer_id->toBase58() : "unknown",
+                  fmt::join(
+                      signed_aggregated_attestation.proof.participants.iter(),
+                      " "));
+
+              auto res =
+                  self->fork_choice_store_->onGossipAggregatedAttestation(
+                      signed_aggregated_attestation);
+              if (not res.has_value()) {
+                SL_WARN(
+                    self->logger_,
+                    "Error processing aggregated attestation for target={}: {}",
+                    signed_aggregated_attestation.data.target,
+                    res.error());
+                return;
+              }
+            });
 
     io_thread_.emplace([io_context{io_context_}] {
       auto work_guard = boost::asio::make_work_guard(*io_context);
@@ -574,6 +632,18 @@ namespace lean::modules {
                "📣 Gossiped vote for target={} 🗳️",
                message->notification.message.target);
       self->gossip_votes_topic_->publish(
+          encodeSszSnappy(message->notification));
+    });
+  }
+
+  void NetworkingImpl::onSendSignedAggregatedAttestation(
+      std::shared_ptr<const messages::SendSignedAggregatedAttestation>
+          message) {
+    boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
+      SL_DEBUG(self->logger_,
+               "📣 Gossiped aggregated attestation for target={} 🗳️",
+               message->notification.data.target);
+      self->gossip_signed_aggregated_attestation_topic_->publish(
           encodeSszSnappy(message->notification));
     });
   }
@@ -782,7 +852,9 @@ namespace lean::modules {
                        backoff->backoff)
                        .count());
           state.state = PeerState::Connectable{.backoff = backoff->backoff};
-          connectable_peers_.emplace_back(state.info.id);
+          if (not subnet_aggregators_.contains(state.info.id)) {
+            connectable_peers_.emplace_back(state.info.id);
+          }
         }
       }
     }
@@ -790,28 +862,9 @@ namespace lean::modules {
              "connectToPeers: active={}, connectable_candidates={}",
              active,
              connectable_peers_.size());
-    if (want <= active) {
-      SL_TRACE(logger_,
-               "connectToPeers: want ({}) <= active ({}), returning",
-               want,
-               active);
-      return;
-    }
-    want -= active;
-    while (want != 0 and not connectable_peers_.empty()) {
-      --want;
-      size_t i = std::uniform_int_distribution<size_t>{
-          0, connectable_peers_.size() - 1}(random_);
-      std::swap(connectable_peers_.at(i), connectable_peers_.back());
-      auto peer_id = std::move(connectable_peers_.back());
-      connectable_peers_.pop_back();
-      auto &state = peer_states_.at(peer_id);
+    auto connect = [&](PeerState &state) {
+      ++active;
       auto &connectable = std::get<PeerState::Connectable>(state.state);
-      SL_DEBUG(
-          logger_,
-          "connectToPeers: initiating connect to peer {} (selected index={})",
-          peer_id.toBase58(),
-          i);
       // Connectable => Connecting
       state.state = PeerState::Connecting{.backoff = connectable.backoff};
       libp2p::coroSpawn(
@@ -853,6 +906,33 @@ namespace lean::modules {
                       peer_info.id.toBase58());
             }
           });
+    };
+    for (auto &peer_id : subnet_aggregators_) {
+      auto &state = peer_states_.at(peer_id);
+      if (not std::holds_alternative<PeerState::Connectable>(state.state)) {
+        continue;
+      }
+      connect(state);
+    }
+    if (want <= active) {
+      SL_TRACE(logger_,
+               "connectToPeers: want ({}) <= active ({}), returning",
+               want,
+               active);
+    }
+    while (active < want and not connectable_peers_.empty()) {
+      size_t i = std::uniform_int_distribution<size_t>{
+          0, connectable_peers_.size() - 1}(random_);
+      std::swap(connectable_peers_.at(i), connectable_peers_.back());
+      auto peer_id = std::move(connectable_peers_.back());
+      connectable_peers_.pop_back();
+      SL_DEBUG(
+          logger_,
+          "connectToPeers: initiating connect to peer {} (selected index={})",
+          peer_id.toBase58(),
+          i);
+      auto &state = peer_states_.at(peer_id);
+      connect(state);
     }
   }
 
