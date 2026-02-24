@@ -35,8 +35,6 @@
 #include "modules/networking/get_node_key.hpp"
 #include "utils/parsers.hpp"
 
-using Endpoint = boost::asio::ip::tcp::endpoint;
-
 OUTCOME_CPP_DEFINE_CATEGORY(lean::app, Configurator::Error, e) {
   using E = lean::app::Configurator::Error;
   switch (e) {
@@ -88,6 +86,30 @@ namespace {
 }  // namespace
 
 namespace lean::app {
+  inline outcome::result<bool> parseEndpoint(
+      Configuration::Endpoint &endpoint,
+      boost::program_options::variables_map &cli_values_map,
+      const std::string &flag_host,
+      const std::string &flag_port) {
+    bool changed = false;
+    if (auto host_str = find_argument<std::string>(cli_values_map, flag_host)) {
+      boost::beast::error_code ec;
+      auto host = boost::asio::ip::make_address(*host_str, ec);
+      if (ec) {
+        std::println(std::cerr, "Option {} has invalid value", flag_host);
+        std::println(std::cerr,
+                     "Try run with option '--help' for more information");
+        return ec;
+      }
+      changed = true;
+      endpoint = {host, endpoint.port()};
+    }
+    if (auto port = find_argument<uint16_t>(cli_values_map, flag_port)) {
+      changed = true;
+      endpoint = {endpoint.address(), *port};
+    }
+    return changed;
+  }
 
   Configurator::Configurator(int argc, const char **argv, const char **env)
       : argc_(argc), argv_(argv), env_(env) {
@@ -153,6 +175,8 @@ namespace lean::app {
         ("metrics-disable", "Set to disable OpenMetrics.")
         ("metrics-host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
         ("metrics-port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
+        ("api-host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
+        ("api-port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
         ;
 
     // clang-format on
@@ -235,16 +259,6 @@ namespace lean::app {
   outcome::result<bool> Configurator::step2() {
     namespace po = boost::program_options;
     namespace fs = std::filesystem;
-
-    // clang-format off
-    po::options_description metrics_options("Hidden options");
-    metrics_options.add_options()
-        ("prometheus-disable", "Set to disable OpenMetrics.")
-        ("prometheus-host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
-        ("prometheus-port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
-        ;
-    cli_options_.add(metrics_options);
-    // clang-format on
 
     try {
       // second-run parse to gather all known options
@@ -916,104 +930,23 @@ namespace lean::app {
       }
     }
 
-    bool fail;
-
-    fail = false;
-    if (find_argument(cli_values_map_, "metrics-host")) {
-      find_argument<std::string>(
-          cli_values_map_, "metrics-host", [&](const std::string &value) {
-            boost::beast::error_code ec;
-            auto address = boost::asio::ip::make_address(value, ec);
-            if (!ec) {
-              config_->metrics_.endpoint = {address,
-                                            config_->metrics_.endpoint.port()};
-              if (not config_->metrics_.enabled.has_value()) {
-                config_->metrics_.enabled = true;
-              }
-            } else {
-              std::cerr
-                  << "Option --metrics-host has invalid value\n"
-                  << "Try run with option '--help' for more information\n";
-              fail = true;
-            }
-          });
-    } else if (find_argument(cli_values_map_, "prometheus-host")) {
-      std::cerr << "Option --prometheus-host is deprecated: "
-                   "use --metric-host instead\n";
-      find_argument<std::string>(
-          cli_values_map_, "prometheus-host", [&](const std::string &value) {
-            boost::beast::error_code ec;
-            auto address = boost::asio::ip::make_address(value, ec);
-            if (!ec) {
-              config_->metrics_.endpoint = {address,
-                                            config_->metrics_.endpoint.port()};
-              if (not config_->metrics_.enabled.has_value()) {
-                config_->metrics_.enabled = true;
-              }
-            } else {
-              std::cerr
-                  << "Option --prometheus-host has invalid value\n"
-                  << "Try run with option '--help' for more information\n";
-              fail = true;
-            }
-          });
+    BOOST_OUTCOME_TRY(auto metrics_changed,
+                      parseEndpoint(config_->metrics_.endpoint,
+                                    cli_values_map_,
+                                    "metrics-host",
+                                    "metrics-port"));
+    if (not config_->metrics_.enabled.has_value() and metrics_changed) {
+      config_->metrics_.enabled = true;
     }
-    if (fail) {
-      return Error::CliArgsParseFailed;
-    }
-
-    fail = false;
-    if (find_argument(cli_values_map_, "metrics-port")) {
-      find_argument<uint16_t>(
-          cli_values_map_, "metrics-port", [&](const uint16_t &value) {
-            if (value > 0 and value <= 65535) {
-              config_->metrics_.endpoint = {
-                  config_->metrics_.endpoint.address(),
-                  static_cast<uint16_t>(value)};
-              if (not config_->metrics_.enabled.has_value()) {
-                config_->metrics_.enabled = true;
-              }
-            } else {
-              std::cerr
-                  << "Option --metric-port has invalid value\n"
-                  << "Try run with option '--help' for more information\n";
-              fail = true;
-            }
-          });
-    } else if (find_argument(cli_values_map_, "prometheus-port")) {
-      std::cerr << "Option --prometheus-port is deprecated: "
-                   "use --metric-port instead\n";
-      find_argument<uint16_t>(
-          cli_values_map_, "prometheus-port", [&](const uint16_t &value) {
-            if (value > 0 and value <= 65535) {
-              config_->metrics_.endpoint = {
-                  config_->metrics_.endpoint.address(),
-                  static_cast<uint16_t>(value)};
-              if (not config_->metrics_.enabled.has_value()) {
-                config_->metrics_.enabled = true;
-              }
-            } else {
-              std::cerr
-                  << "Option --prometheus-port has invalid value\n"
-                  << "Try run with option '--help' for more information\n";
-              fail = true;
-            }
-          });
-    }
-    if (fail) {
-      return Error::CliArgsParseFailed;
-    }
-
     if (find_argument(cli_values_map_, "metrics-disable")) {
-      config_->metrics_.enabled = false;
-    } else if (find_argument(cli_values_map_, "prometheus-disable")) {
-      std::cerr << "Option --prometheus-disable is deprecated: "
-                   "use --metric-disable instead\n";
       config_->metrics_.enabled = false;
     }
     if (not config_->metrics_.enabled.has_value()) {
       config_->metrics_.enabled = false;
     }
+
+    BOOST_OUTCOME_TRY(parseEndpoint(
+        config_->api_endpoint_, cli_values_map_, "api-host", "api-port"));
 
     if (not config_->node_key_.has_value()) {
       config_->node_key_ = randomKeyPair();
