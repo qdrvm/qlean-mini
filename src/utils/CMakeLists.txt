@@ -11,3 +11,11 @@ target_link_libraries(fd_limit
     Boost::boost
     logger
 )
+
+add_library(http SHARED
+    http.cpp
+)
+target_link_libraries(http
+    Boost::boost
+    logger
+)
