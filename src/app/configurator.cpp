@@ -96,8 +96,8 @@ namespace lean::app {
       boost::beast::error_code ec;
       auto host = boost::asio::ip::make_address(*host_str, ec);
       if (ec) {
-        std::println(std::cerr, "Option {} has invalid value", flag_host);
-        std::println(std::cerr,
+        fmt::println(std::cerr, "Option {} has invalid value", flag_host);
+        fmt::println(std::cerr,
                      "Try run with option '--help' for more information");
         return ec;
       }
