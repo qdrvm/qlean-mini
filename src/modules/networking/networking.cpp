@@ -91,7 +91,6 @@ namespace lean::modules {
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<GenesisConfig> genesis_config,
       qtils::SharedRef<app::ChainSpec> chain_spec,
-      qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<app::Configuration> config)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
@@ -102,7 +101,6 @@ namespace lean::modules {
         validator_registry_{std::move(validator_registry)},
         genesis_config_{std::move(genesis_config)},
         chain_spec_{std::move(chain_spec)},
-        validator_registry_{std::move(validator_registry)},
         config_{std::move(config)},
         random_{std::random_device{}()},
         subnet_count_{config_->cliSubnetCount()} {

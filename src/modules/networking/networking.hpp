@@ -133,7 +133,6 @@ namespace lean::modules {
                    qtils::SharedRef<ValidatorRegistry> validator_registry,
                    qtils::SharedRef<GenesisConfig> genesis_config,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
-                   qtils::SharedRef<ValidatorRegistry> validator_registry,
                    qtils::SharedRef<app::Configuration> config);
 
    public:
@@ -179,7 +178,6 @@ namespace lean::modules {
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
-    qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::Configuration> config_;
     std::shared_ptr<void> injector_;
     std::shared_ptr<boost::asio::io_context> io_context_;

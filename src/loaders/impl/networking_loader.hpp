@@ -45,7 +45,6 @@ namespace lean::loaders {
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
-    qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::Configuration> app_config_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
@@ -75,7 +74,6 @@ namespace lean::loaders {
                      qtils::SharedRef<ValidatorRegistry> validator_registry,
                      qtils::SharedRef<GenesisConfig> genesis_config,
                      qtils::SharedRef<app::ChainSpec> chain_spec,
-                     qtils::SharedRef<ValidatorRegistry> validator_registry,
                      qtils::SharedRef<app::Configuration> app_config)
         : Loader(std::move(logsys), std::move(se_manager)),
           logger_(logsys_->getLogger("Networking", "networking_module")),
@@ -83,10 +81,9 @@ namespace lean::loaders {
           app_state_manager_(std::move(app_state_manager)),
           block_tree_{std::move(block_tree)},
           fork_choice_store_{std::move(fork_choice_store)},
+          validator_registry_{std::move(validator_registry)},
           genesis_config_{std::move(genesis_config)},
-          validator_registry_{std::move(validator_registry)},
           chain_spec_{std::move(chain_spec)},
-          validator_registry_{std::move(validator_registry)},
           app_config_{std::move(app_config)} {}
 
     NetworkingLoader(const NetworkingLoader &) = delete;
@@ -108,7 +105,6 @@ namespace lean::loaders {
                                        qtils::SharedRef<ValidatorRegistry>,
                                        qtils::SharedRef<GenesisConfig>,
                                        qtils::SharedRef<app::ChainSpec>,
-                                       qtils::SharedRef<ValidatorRegistry>,
                                        qtils::SharedRef<app::Configuration>>(
                   "query_module_instance");
 
@@ -125,7 +121,6 @@ namespace lean::loaders {
                                                 validator_registry_,
                                                 genesis_config_,
                                                 chain_spec_,
-                                                validator_registry_,
                                                 app_config_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::template create<
