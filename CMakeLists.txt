@@ -35,7 +35,7 @@ find_package(Python3 REQUIRED)
 find_package(PkgConfig REQUIRED)
 #pkg_check_modules(libb2 REQUIRED IMPORTED_TARGET GLOBAL libb2)
 
-find_package(Boost CONFIG REQUIRED COMPONENTS algorithm filesystem outcome program_options property_tree random)
+find_package(Boost CONFIG REQUIRED COMPONENTS algorithm filesystem outcome program_options property_tree random url)
 find_package(Boost.DI CONFIG REQUIRED)
 find_package(Crc32c CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)

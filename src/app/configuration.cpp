@@ -47,6 +47,10 @@ namespace lean::app {
     return bootnodes_file_;
   }
 
+  const std::optional<std::string> &Configuration::stateSyncUrl() const {
+    return state_sync_url_;
+  }
+
   const std::filesystem::path &Configuration::validatorRegistryPath() const {
     return validator_registry_path_;
   }

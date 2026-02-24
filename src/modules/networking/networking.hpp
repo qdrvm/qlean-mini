@@ -36,11 +36,14 @@ namespace libp2p::protocol::gossip {
 }  // namespace libp2p::protocol::gossip
 
 namespace lean {
+  struct AsioSslContext;
+  class StateSyncClient;
   class ForkChoiceStore;
   class ValidatorRegistry;
 }  // namespace lean
 
 namespace lean::app {
+  class StateManager;
   class ChainSpec;
   class Configuration;
 }  // namespace lean::app
@@ -122,6 +125,7 @@ namespace lean::modules {
     NetworkingImpl(NetworkingLoader &loader,
                    qtils::SharedRef<log::LoggingSystem> logging_system,
                    qtils::SharedRef<metrics::Metrics> metrics,
+                   qtils::SharedRef<app::StateManager> app_state_manager,
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
                    qtils::SharedRef<ForkChoiceStore> fork_choice_store,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -162,6 +166,7 @@ namespace lean::modules {
     NetworkingLoader &loader_;
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;
+    qtils::SharedRef<app::StateManager> app_state_manager_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
@@ -184,6 +189,8 @@ namespace lean::modules {
     std::unordered_map<BlockHash, SignedBlockWithAttestation> block_cache_;
     std::unordered_multimap<BlockHash, BlockHash> block_children_;
     std::default_random_engine random_;
+    std::shared_ptr<AsioSslContext> ssl_context_;
+    std::unique_ptr<StateSyncClient> state_sync_client_;
     /**
      * Array of connectable peers to pick random peer from.
      */

@@ -533,6 +533,7 @@ namespace lean {
         aggregated_payloads_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
+    std::unordered_map<BlockHash, Slot> anchor_block_slots_;
   };
 
 }  // namespace lean

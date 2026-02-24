@@ -139,17 +139,14 @@ namespace lean::app {
         ("listen-addr", po::value<std::string>(), "Set libp2p listen multiaddress.")
         ("modules-dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to yaml file containing boot node ENRs (genesis/nodes.yaml).")
-        ("validator-registry-path",
-         po::value<std::string>(),
-         "Set path to yaml file containing validator registry (genesis/validators.yaml).")
+        ("checkpoint-sync-url", po::value<std::string>(),  "Optional. URL for pre-syncing the state at startup if any")
+        ("validator-registry-path", po::value<std::string>(), "Set path to yaml file containing validator registry (genesis/validators.yaml).")
         ("name,n", po::value<std::string>(), "Set name of node.")
         ("node-id", po::value<std::string>(), "Node id from validator registry (genesis/validators.yaml).")
         ("node-key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
         ("xmss-pk", po::value<std::string>(), "Path to XMSS public key JSON file (required).")
         ("xmss-sk", po::value<std::string>(), "Path to XMSS secret key JSON file (required).")
-        ("validator-keys-manifest",
-         po::value<std::string>(),
-         "Set path to yaml file containing validator keys manifest (required).")
+        ("validator-keys-manifest", po::value<std::string>(), "Set path to yaml file containing validator keys manifest (required).")
         ("max-bootnodes", po::value<size_t>(), "Max bootnodes count to connect to.")
         ("log,l", po::value<std::vector<std::string>>(),
           "Sets a custom logging filter.\n"
@@ -537,6 +534,10 @@ namespace lean::app {
     find_argument<std::string>(
         cli_values_map_, "bootnodes", [&](const std::string &value) {
           config_->bootnodes_file_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "checkpoint-sync-url", [&](const std::string &value) {
+          config_->state_sync_url_.emplace(value);
         });
     find_argument<std::string>(cli_values_map_,
                                "validator-registry-path",
