@@ -35,8 +35,6 @@
 #include "modules/networking/get_node_key.hpp"
 #include "utils/parsers.hpp"
 
-using Endpoint = boost::asio::ip::tcp::endpoint;
-
 OUTCOME_CPP_DEFINE_CATEGORY(lean::app, Configurator::Error, e) {
   using E = lean::app::Configurator::Error;
   switch (e) {
@@ -88,6 +86,30 @@ namespace {
 }  // namespace
 
 namespace lean::app {
+  inline outcome::result<bool> parseEndpoint(
+      Configuration::Endpoint &endpoint,
+      boost::program_options::variables_map &cli_values_map,
+      const std::string &flag_host,
+      const std::string &flag_port) {
+    bool changed = false;
+    if (auto host_str = find_argument<std::string>(cli_values_map, flag_host)) {
+      boost::beast::error_code ec;
+      auto host = boost::asio::ip::make_address(*host_str, ec);
+      if (ec) {
+        fmt::println(std::cerr, "Option {} has invalid value", flag_host);
+        fmt::println(std::cerr,
+                     "Try run with option '--help' for more information");
+        return ec;
+      }
+      changed = true;
+      endpoint = {host, endpoint.port()};
+    }
+    if (auto port = find_argument<uint16_t>(cli_values_map, flag_port)) {
+      changed = true;
+      endpoint = {endpoint.address(), *port};
+    }
+    return changed;
+  }
 
   Configurator::Configurator(int argc, const char **argv, const char **env)
       : argc_(argc), argv_(argv), env_(env) {
@@ -117,17 +139,14 @@ namespace lean::app {
         ("listen-addr", po::value<std::string>(), "Set libp2p listen multiaddress.")
         ("modules-dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to yaml file containing boot node ENRs (genesis/nodes.yaml).")
-        ("validator-registry-path",
-         po::value<std::string>(),
-         "Set path to yaml file containing validator registry (genesis/validators.yaml).")
+        ("checkpoint-sync-url", po::value<std::string>(),  "Optional. URL for pre-syncing the state at startup if any")
+        ("validator-registry-path", po::value<std::string>(), "Set path to yaml file containing validator registry (genesis/validators.yaml).")
         ("name,n", po::value<std::string>(), "Set name of node.")
         ("node-id", po::value<std::string>(), "Node id from validator registry (genesis/validators.yaml).")
         ("node-key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
         ("xmss-pk", po::value<std::string>(), "Path to XMSS public key JSON file (required).")
         ("xmss-sk", po::value<std::string>(), "Path to XMSS secret key JSON file (required).")
-        ("validator-keys-manifest",
-         po::value<std::string>(),
-         "Set path to yaml file containing validator keys manifest (required).")
+        ("validator-keys-manifest", po::value<std::string>(), "Set path to yaml file containing validator keys manifest (required).")
         ("is-aggregator", po::bool_switch())
         ("attestation-committee-count", po::value<uint64_t>())
         ("max-bootnodes", po::value<size_t>(), "Max bootnodes count to connect to.")
@@ -158,6 +177,8 @@ namespace lean::app {
         ("metrics-disable", "Set to disable OpenMetrics.")
         ("metrics-host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
         ("metrics-port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
+        ("api-host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
+        ("api-port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
         ;
 
     // clang-format on
@@ -240,16 +261,6 @@ namespace lean::app {
   outcome::result<bool> Configurator::step2() {
     namespace po = boost::program_options;
     namespace fs = std::filesystem;
-
-    // clang-format off
-    po::options_description metrics_options("Hidden options");
-    metrics_options.add_options()
-        ("prometheus-disable", "Set to disable OpenMetrics.")
-        ("prometheus-host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
-        ("prometheus-port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
-        ;
-    cli_options_.add(metrics_options);
-    // clang-format on
 
     try {
       // second-run parse to gather all known options
@@ -525,6 +536,10 @@ namespace lean::app {
     find_argument<std::string>(
         cli_values_map_, "bootnodes", [&](const std::string &value) {
           config_->bootnodes_file_ = value;
+        });
+    find_argument<std::string>(
+        cli_values_map_, "checkpoint-sync-url", [&](const std::string &value) {
+          config_->state_sync_url_.emplace(value);
         });
     find_argument<std::string>(cli_values_map_,
                                "validator-registry-path",
@@ -924,104 +939,23 @@ namespace lean::app {
       }
     }
 
-    bool fail;
-
-    fail = false;
-    if (find_argument(cli_values_map_, "metrics-host")) {
-      find_argument<std::string>(
-          cli_values_map_, "metrics-host", [&](const std::string &value) {
-            boost::beast::error_code ec;
-            auto address = boost::asio::ip::make_address(value, ec);
-            if (!ec) {
-              config_->metrics_.endpoint = {address,
-                                            config_->metrics_.endpoint.port()};
-              if (not config_->metrics_.enabled.has_value()) {
-                config_->metrics_.enabled = true;
-              }
-            } else {
-              std::cerr
-                  << "Option --metrics-host has invalid value\n"
-                  << "Try run with option '--help' for more information\n";
-              fail = true;
-            }
-          });
-    } else if (find_argument(cli_values_map_, "prometheus-host")) {
-      std::cerr << "Option --prometheus-host is deprecated: "
-                   "use --metric-host instead\n";
-      find_argument<std::string>(
-          cli_values_map_, "prometheus-host", [&](const std::string &value) {
-            boost::beast::error_code ec;
-            auto address = boost::asio::ip::make_address(value, ec);
-            if (!ec) {
-              config_->metrics_.endpoint = {address,
-                                            config_->metrics_.endpoint.port()};
-              if (not config_->metrics_.enabled.has_value()) {
-                config_->metrics_.enabled = true;
-              }
-            } else {
-              std::cerr
-                  << "Option --prometheus-host has invalid value\n"
-                  << "Try run with option '--help' for more information\n";
-              fail = true;
-            }
-          });
+    BOOST_OUTCOME_TRY(auto metrics_changed,
+                      parseEndpoint(config_->metrics_.endpoint,
+                                    cli_values_map_,
+                                    "metrics-host",
+                                    "metrics-port"));
+    if (not config_->metrics_.enabled.has_value() and metrics_changed) {
+      config_->metrics_.enabled = true;
     }
-    if (fail) {
-      return Error::CliArgsParseFailed;
-    }
-
-    fail = false;
-    if (find_argument(cli_values_map_, "metrics-port")) {
-      find_argument<uint16_t>(
-          cli_values_map_, "metrics-port", [&](const uint16_t &value) {
-            if (value > 0 and value <= 65535) {
-              config_->metrics_.endpoint = {
-                  config_->metrics_.endpoint.address(),
-                  static_cast<uint16_t>(value)};
-              if (not config_->metrics_.enabled.has_value()) {
-                config_->metrics_.enabled = true;
-              }
-            } else {
-              std::cerr
-                  << "Option --metric-port has invalid value\n"
-                  << "Try run with option '--help' for more information\n";
-              fail = true;
-            }
-          });
-    } else if (find_argument(cli_values_map_, "prometheus-port")) {
-      std::cerr << "Option --prometheus-port is deprecated: "
-                   "use --metric-port instead\n";
-      find_argument<uint16_t>(
-          cli_values_map_, "prometheus-port", [&](const uint16_t &value) {
-            if (value > 0 and value <= 65535) {
-              config_->metrics_.endpoint = {
-                  config_->metrics_.endpoint.address(),
-                  static_cast<uint16_t>(value)};
-              if (not config_->metrics_.enabled.has_value()) {
-                config_->metrics_.enabled = true;
-              }
-            } else {
-              std::cerr
-                  << "Option --prometheus-port has invalid value\n"
-                  << "Try run with option '--help' for more information\n";
-              fail = true;
-            }
-          });
-    }
-    if (fail) {
-      return Error::CliArgsParseFailed;
-    }
-
     if (find_argument(cli_values_map_, "metrics-disable")) {
-      config_->metrics_.enabled = false;
-    } else if (find_argument(cli_values_map_, "prometheus-disable")) {
-      std::cerr << "Option --prometheus-disable is deprecated: "
-                   "use --metric-disable instead\n";
       config_->metrics_.enabled = false;
     }
     if (not config_->metrics_.enabled.has_value()) {
       config_->metrics_.enabled = false;
     }
+
+    BOOST_OUTCOME_TRY(parseEndpoint(
+        config_->api_endpoint_, cli_values_map_, "api-host", "api-port"));
 
     if (not config_->node_key_.has_value()) {
       config_->node_key_ = randomKeyPair();

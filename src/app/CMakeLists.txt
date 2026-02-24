@@ -128,10 +128,13 @@ target_link_libraries(chain_spec
 
 add_library(application SHARED
     impl/application_impl.cpp
+    impl/http_server.cpp
 )
 target_link_libraries(application
     qtils::qtils
     app_configuration
+    blockchain
+    http
     metrics
 )
 

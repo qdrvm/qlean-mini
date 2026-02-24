@@ -45,6 +45,8 @@ namespace lean::app {
     [[nodiscard]] virtual const std::filesystem::path &basePath() const;
     [[nodiscard]] virtual const std::filesystem::path &modulesDir() const;
     [[nodiscard]] virtual const std::filesystem::path &bootnodesFile() const;
+    [[nodiscard]] virtual const std::optional<std::string> &stateSyncUrl()
+        const;
     [[nodiscard]] virtual const std::filesystem::path &validatorRegistryPath()
         const;
     [[nodiscard]] virtual const std::filesystem::path &genesisConfigPath()
@@ -65,6 +67,7 @@ namespace lean::app {
     [[nodiscard]] virtual const DatabaseConfig &database() const;
 
     [[nodiscard]] virtual const MetricsConfig &metrics() const;
+    [[nodiscard]] virtual const Endpoint &apiEndpoint() const;
 
    private:
     friend class Configurator;  // for external configure
@@ -80,6 +83,7 @@ namespace lean::app {
     std::optional<libp2p::Multiaddress> listen_multiaddr_;
     std::optional<libp2p::crypto::KeyPair> node_key_;
     std::optional<size_t> max_bootnodes_;
+    std::optional<std::string> state_sync_url_;
 
     std::filesystem::path xmss_public_key_path_;
     std::filesystem::path xmss_secret_key_path_;
@@ -94,6 +98,7 @@ namespace lean::app {
 
     DatabaseConfig database_;
     MetricsConfig metrics_;
+    Endpoint api_endpoint_;
   };
 
 }  // namespace lean::app

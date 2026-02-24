@@ -7,13 +7,11 @@
 #pragma once
 
 #include <memory>
-
-#include "metrics/session.hpp"
+#include <string>
 
 namespace lean::metrics {
 
   class Registry;
-  class Session;
 
   /**
    * @brief an interface to add request handler for metrics::Exposer
@@ -27,11 +25,7 @@ namespace lean::metrics {
      */
     virtual void registerCollectable(Registry &registry) = 0;
 
-    /**
-     * @brief main interface for session request handling
-     */
-    virtual void onSessionRequest(Session::Request request,
-                                  std::shared_ptr<Session> session) = 0;
+    virtual std::string collect() = 0;
   };
 
 }  // namespace lean::metrics

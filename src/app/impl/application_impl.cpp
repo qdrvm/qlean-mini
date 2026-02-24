@@ -15,7 +15,7 @@
 #include "app/timeline.hpp"
 #include "clock/clock.hpp"
 #include "log/logger.hpp"
-#include "metrics/exposer.hpp"
+#include "metrics/handler.hpp"
 #include "metrics/impl/metrics_impl.hpp"
 #include "metrics/metrics.hpp"
 #include "se/impl/subscription_manager.hpp"
@@ -33,8 +33,9 @@ namespace lean::app {
       qtils::SharedRef<Configuration> config,
       qtils::SharedRef<StateManager> state_manager,
       qtils::SharedRef<Watchdog> watchdog,
+      qtils::SharedRef<HttpServer> http_server,
       qtils::SharedRef<metrics::Metrics> metrics,
-      qtils::SharedRef<metrics::Exposer> metrics_exposer,
+      qtils::SharedRef<metrics::Handler> metrics_handler,
       qtils::SharedRef<clock::SystemClock> system_clock,
       qtils::SharedRef<Timeline> timeline,
       qtils::SharedRef<metrics::Registry> metrics_registry,
@@ -43,11 +44,12 @@ namespace lean::app {
         app_config_(std::move(config)),
         state_manager_(std::move(state_manager)),
         watchdog_(std::move(watchdog)),
+        http_server_{std::move(http_server)},
         metrics_(std::move(metrics)),
-        metrics_exposer_(std::move(metrics_exposer)),
+        metrics_handler_(std::move(metrics_handler)),
         system_clock_(std::move(system_clock)),
         timeline_(std::move(timeline)) {
-    metrics_exposer_->registerCollectable(*metrics_registry);
+    metrics_handler_->registerCollectable(*metrics_registry);
 
     // Metric for exposing name and version of node
     metrics_
