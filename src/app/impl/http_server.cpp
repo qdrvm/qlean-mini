@@ -35,7 +35,7 @@ namespace lean::app {
 
   void HttpServer::start() {
     io_context_ = std::make_shared<boost::asio::io_context>();
-    http::ServerConfig config{
+    http::ServerConfig config_metrics{
         .endpoint = app_config_->metrics().endpoint,
         .on_request =
             [weak_self{weak_from_this()}](http::Request request) {
@@ -56,6 +56,25 @@ namespace lean::app {
                 response.body() = self->metrics_handler_->collect();
                 return response;
               }
+              response.result(boost::beast::http::status::not_found);
+              return response;
+            },
+    };
+    http::ServerConfig config_api{
+        .endpoint = app_config_->apiEndpoint(),
+        .on_request =
+            [weak_self{weak_from_this()}](http::Request request) {
+              http::Response response;
+              auto self = weak_self.lock();
+              if (not self) {
+                response.result(boost::beast::http::status::bad_gateway);
+                return response;
+              }
+              std::string_view url{request.target()};
+              SL_INFO(self->log_,
+                      "{} {}",
+                      std::string_view{request.method_string()},
+                      url);
               if (url == "/lean/v0/health") {
                 response.set(boost::beast::http::field::content_type,
                              "application/json");
@@ -90,9 +109,23 @@ namespace lean::app {
               return response;
             },
     };
-    auto listen_res = http::serve(log_, *io_context_, config);
+    if (app_config_->metrics().enabled.value_or(false)) {
+      auto listen_res = http::serve(log_, *io_context_, config_metrics);
+      if (not listen_res.has_value()) {
+        SL_WARN(log_,
+                "listen metrics {}:{} error: {}",
+                config_metrics.endpoint.address().to_string(),
+                config_metrics.endpoint.port(),
+                listen_res.error());
+      }
+    }
+    auto listen_res = http::serve(log_, *io_context_, config_api);
     if (not listen_res.has_value()) {
-      SL_WARN(log_, "listen error: {}", listen_res.error());
+      SL_WARN(log_,
+              "listen api {}:{} error: {}",
+              config_api.endpoint.address().to_string(),
+              config_api.endpoint.port(),
+              listen_res.error());
     }
     io_thread_.emplace([io_context{io_context_}] {
       auto work_guard = boost::asio::make_work_guard(*io_context);
