@@ -32,6 +32,10 @@ namespace lean::modules {
 
     virtual void dispatchSendSignedVote(
         std::shared_ptr<const messages::SendSignedVote> message) = 0;
+
+    virtual void dispatchSendSignedAggregatedAttestation(
+        std::shared_ptr<const messages::SendSignedAggregatedAttestation>
+            message) = 0;
   };
 
   struct ProductionModule {

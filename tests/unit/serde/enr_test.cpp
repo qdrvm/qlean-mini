@@ -22,10 +22,12 @@ using lean::enr::Secp256k1PublicKey;
 using lean::enr::Secp256k1Signature;
 
 TEST(EnrTest, EncodeDecodeRoundTrip) {
-  lean::SamplePeer peer{0, false};
+  lean::SamplePeer peer{0, false, false};
 
   ASSERT_OUTCOME_SUCCESS(
-      encoded, lean::enr::encode(peer.keypair, peer.enr_ip, peer.port));
+      encoded,
+      lean::enr::encode(
+          peer.keypair, peer.enr_ip, peer.port, peer.is_aggregator));
   // Encoded string must start with "enr:"
   ASSERT_TRUE(encoded.rfind("enr:", 0) == 0) << encoded;
 
@@ -54,23 +56,31 @@ TEST(EnrTest, EncodeDecodeRoundTrip) {
 }
 
 TEST(EnrTest, DeterministicEncoding) {
-  lean::SamplePeer peer{0, false};
-  lean::SamplePeer peer2{1, false};
+  lean::SamplePeer peer{0, false, false};
+  lean::SamplePeer peer2{1, false, false};
 
   ASSERT_OUTCOME_SUCCESS(
-      e1, lean::enr::encode(peer.keypair, peer.enr_ip, peer.port));
+      e1,
+      lean::enr::encode(
+          peer.keypair, peer.enr_ip, peer.port, peer.is_aggregator));
   ASSERT_OUTCOME_SUCCESS(
-      e2, lean::enr::encode(peer.keypair, peer.enr_ip, peer.port));
+      e2,
+      lean::enr::encode(
+          peer.keypair, peer.enr_ip, peer.port, peer.is_aggregator));
   EXPECT_EQ(e1, e2);
 
   // Changing port changes ENR
   ASSERT_OUTCOME_SUCCESS(
-      e3, lean::enr::encode(peer.keypair, peer.enr_ip, peer2.port));
+      e3,
+      lean::enr::encode(
+          peer.keypair, peer.enr_ip, peer2.port, peer2.is_aggregator));
   EXPECT_NE(e1, e3);
 
   // Changing key changes ENR
   ASSERT_OUTCOME_SUCCESS(
-      e4, lean::enr::encode(peer2.keypair, peer.enr_ip, peer.port));
+      e4,
+      lean::enr::encode(
+          peer2.keypair, peer.enr_ip, peer.port, peer.is_aggregator));
   EXPECT_NE(e1, e4);
 }
 

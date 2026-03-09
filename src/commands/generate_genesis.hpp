@@ -20,6 +20,7 @@
 inline int cmdGenerateGenesis(auto &&getArg) {
   auto cmd = [](std::filesystem::path genesis_directory,
                 size_t validator_count,
+                size_t subnet_count,
                 bool shadow) {
     auto build_yaml = [](std::filesystem::path path, auto &&build) {
       std::ofstream file{path};
@@ -38,6 +39,11 @@ inline int cmdGenerateGenesis(auto &&getArg) {
       auto json = lean::crypto::xmss::toJson(key);
       std::ofstream{path}.write(json.data(), json.size()).flush();
     };
+
+    if (subnet_count > validator_count) {
+      fmt::println(std::cerr, "subnet_count must not exceed validator_count");
+      return EXIT_FAILURE;
+    }
 
     auto now = shadow
                  ? std::chrono::seconds{946684800}
@@ -125,7 +131,9 @@ inline int cmdGenerateGenesis(auto &&getArg) {
     auto node_id = [](size_t index) { return std::format("node_{}", index); };
     std::vector<lean::SamplePeer> peers;
     for (size_t index = 0; index < validator_count; ++index) {
-      peers.emplace_back(index, shadow);
+      // first peer in subnet is aggregator
+      auto is_aggregator = index < subnet_count;
+      peers.emplace_back(index, is_aggregator, shadow);
     }
 
     for (auto &peer : peers) {
@@ -163,6 +171,7 @@ inline int cmdGenerateGenesis(auto &&getArg) {
                    auto yaml_enr = yaml_peer["enrFields"];
                    yaml_enr["ip"] = lean::enr::toString(peer.enr_ip);
                    yaml_enr["quic"] = peer.port;
+                   yaml_enr["is_aggregator"] = peer.is_aggregator;
                    yaml_peer["count"] = 1;
                    yaml_peer["metricsPort"] = 8080 + peer.index;
                    yaml["validators"].push_back(yaml_peer);
@@ -170,23 +179,39 @@ inline int cmdGenerateGenesis(auto &&getArg) {
                });
     return EXIT_SUCCESS;
   };
-  if (auto arg_2 = getArg(2)) {
-    std::filesystem::path genesis_directory{*arg_2};
-    if (auto arg_3 = getArg(3)) {
-      size_t validator_count = std::stoul(std::string{*arg_3});
-      if (validator_count != 0) {
-        auto arg_4 = getArg(4);
-        auto shadow = arg_4 == "shadow";
-        if (not arg_4 or shadow) {
-          return cmd(genesis_directory, validator_count, shadow);
-        }
-      }
-    }
+  auto help =
+      [exe{std::filesystem::path{getArg(0).value()}.filename().string()}] {
+        fmt::println(std::cerr,
+                     "Usage: {} generate-genesis (genesis_directory) "
+                     "(validator_count) (subnet_count) (shadow?)",
+                     exe);
+        return EXIT_FAILURE;
+      };
+  auto arg_2 = getArg(2);
+  if (not arg_2.has_value()) {
+    return help();
   }
-  auto exe = std::filesystem::path{getArg(0).value()}.filename().string();
-  fmt::println(std::cerr,
-               "Usage: {} generate-genesis (genesis_directory) "
-               "(validator_count) (shadow?)",
-               exe);
-  return EXIT_FAILURE;
+  std::filesystem::path genesis_directory{*arg_2};
+  auto arg_3 = getArg(3);
+  if (not arg_3.has_value()) {
+    return help();
+  }
+  size_t validator_count = std::stoul(std::string{*arg_3});
+  if (validator_count == 0) {
+    return help();
+  }
+  auto arg_4 = getArg(4);
+  if (not arg_4.has_value()) {
+    return help();
+  }
+  size_t subnet_count = std::stoul(std::string{*arg_4});
+  if (subnet_count == 0) {
+    return help();
+  }
+  auto arg_5 = getArg(5);
+  auto shadow = arg_5 == "shadow";
+  if (arg_5.has_value() and not shadow) {
+    return help();
+  }
+  return cmd(genesis_directory, validator_count, subnet_count, shadow);
 }

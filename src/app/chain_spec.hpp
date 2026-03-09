@@ -20,6 +20,8 @@ namespace lean::app {
     virtual ~ChainSpec() = default;
 
     [[nodiscard]] virtual const app::Bootnodes &getBootnodes() const = 0;
+
+    [[nodiscard]] virtual bool isAggregator() const = 0;
   };
 
 }  // namespace lean::app

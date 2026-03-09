@@ -9,6 +9,7 @@
 #include <libp2p/peer/peer_id.hpp>
 
 #include "modules/networking/types.hpp"
+#include "types/signed_aggregated_attestation.hpp"
 #include "types/signed_attestation.hpp"
 #include "types/signed_block_with_attestation.hpp"
 
@@ -50,4 +51,7 @@ namespace lean::messages {
 
   using SendSignedVote = BroadcastNotification<SignedAttestation>;
   using SignedVoteReceived = GossipNotificationReceived<SignedAttestation>;
+
+  using SendSignedAggregatedAttestation =
+      BroadcastNotification<SignedAggregatedAttestation>;
 }  // namespace lean::messages

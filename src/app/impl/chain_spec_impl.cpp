@@ -11,7 +11,9 @@
 #include <system_error>
 
 #include <app/configuration.hpp>
+#include <libp2p/crypto/key_marshaller.hpp>
 #include <libp2p/multi/multiaddress.hpp>
+#include <libp2p/peer/identity_manager.hpp>
 #include <libp2p/peer/peer_id.hpp>
 
 #include "modules/networking/read_nodes_yaml.hpp"
@@ -46,6 +48,24 @@ namespace lean::app {
 
   outcome::result<void> ChainSpecImpl::load() {
     OUTCOME_TRY(loadBootNodes());
+
+    auto peer_id =
+        libp2p::peer::IdentityManager{
+            app_config_->nodeKey(),
+            std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(
+                nullptr)}
+            .getId();
+    for (auto &info : bootnodes_.getBootnodes()) {
+      if (info.peer_id != peer_id) {
+        continue;
+      }
+      is_aggregator_ = info.is_aggregator;
+      break;
+    }
+
+    if (app_config_->cliIsAggregator()) {
+      is_aggregator_ = true;
+    }
 
     return outcome::success();
   }
@@ -82,7 +102,13 @@ namespace lean::app {
         auto peer_id = entry.enr.peerId();
         auto multiaddr = entry.enr.connectAddress();
 
-        bootnode_infos.emplace_back(std::move(multiaddr), std::move(peer_id));
+        bootnode_infos.emplace_back(
+            std::move(multiaddr), std::move(peer_id), entry.enr.isAggregator());
+        SL_INFO(log_,
+                "Added boot node: {} -> peer={}, address={}",
+                entry.raw,
+                bootnode_infos.back().peer_id,
+                bootnode_infos.back().address.getStringAddress());
       } catch (const std::exception &e) {
         SL_WARN(log_,
                 "Failed to extract peer info from ENR '{}': {}",

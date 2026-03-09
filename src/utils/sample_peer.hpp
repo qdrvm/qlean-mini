@@ -19,7 +19,7 @@ namespace lean {
       return enr::makeIp("127.0.0.1", 0);
     }
 
-    SamplePeer(size_t index, bool shadow)
+    SamplePeer(size_t index, bool is_aggregator, bool shadow)
         : libp2p::SamplePeer{
             index,
             enr::toString(makeIp(index, shadow)),
@@ -27,13 +27,16 @@ namespace lean {
             Secp256k1,
           },
           enr_ip{makeIp(index,shadow)},
+          is_aggregator{is_aggregator},
           enr{enr::encode(
             keypair,
             enr_ip,
-            port
+            port,
+            is_aggregator
           ).value()} {}
 
     enr::Ip enr_ip;
+    bool is_aggregator;
     std::string enr;
   };
 }  // namespace lean

@@ -39,6 +39,9 @@ namespace lean::modules {
         std::shared_ptr<const messages::SendSignedBlock> message) = 0;
     virtual void onSendSignedVote(
         std::shared_ptr<const messages::SendSignedVote> message) = 0;
+    virtual void onSendSignedAggregatedAttestation(
+        std::shared_ptr<const messages::SendSignedAggregatedAttestation>
+            message) = 0;
   };
 
 }  // namespace lean::modules

@@ -7,6 +7,7 @@
 set(CMAKE_OSX_ARCHITECTURES "arm64")
 
 set(LIBRARIES
+    Backward::Backward
     node_injector
 )
 

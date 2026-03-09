@@ -18,9 +18,10 @@ namespace lean::app {
             .cache_size = 1 << 30,
         },
         metrics_{
-            .endpoint{},
+            .endpoint{boost::asio::ip::make_address("127.0.0.1"), 9668},
             .enabled{},
-        } {}
+        },
+        api_endpoint_{boost::asio::ip::make_address("127.0.0.1"), 9667} {}
 
   const std::string &Configuration::nodeVersion() const {
     return version_;
@@ -81,6 +82,14 @@ namespace lean::app {
     return validator_keys_manifest_path_;
   }
 
+  bool Configuration::cliIsAggregator() const {
+    return cli_is_aggregator_;
+  }
+
+  uint64_t Configuration::cliSubnetCount() const {
+    return cli_subnet_count_;
+  }
+
   double Configuration::fakeXmssAggregateSignaturesRate() const {
     ASSERT_QLEAN_ENABLE_SHADOW();
     return fake_xmss_aggregate_signatures_rate_;
@@ -99,4 +108,7 @@ namespace lean::app {
     return metrics_;
   }
 
+  const Configuration::Endpoint &Configuration::apiEndpoint() const {
+    return api_endpoint_;
+  }
 }  // namespace lean::app

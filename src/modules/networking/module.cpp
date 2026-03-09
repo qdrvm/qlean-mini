@@ -42,6 +42,8 @@ MODULE_C_API std::weak_ptr<lean::modules::Networking> query_module_instance(
     qtils::SharedRef<lean::app::StateManager> app_state_mngr,
     qtils::SharedRef<lean::blockchain::BlockTree> block_tree,
     qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
+    qtils::SharedRef<lean::ValidatorRegistry> validator_registry,
+    qtils::SharedRef<lean::GenesisConfig> genesis_config,
     qtils::SharedRef<lean::app::ChainSpec> chain_spec,
     qtils::SharedRef<lean::app::Configuration> app_config) {
   if (!module_instance) {
@@ -52,6 +54,8 @@ MODULE_C_API std::weak_ptr<lean::modules::Networking> query_module_instance(
                                                      std::move(app_state_mngr),
                                                      block_tree,
                                                      fork_choice_store,
+                                                     validator_registry,
+                                                     genesis_config,
                                                      chain_spec,
                                                      app_config);
   }
