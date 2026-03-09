@@ -606,6 +606,12 @@ namespace lean {
     if (not validateAggregatedSignature(*state,
                                         signed_aggregated_attestation.data,
                                         signed_aggregated_attestation.proof)) {
+      SL_WARN(logger_,
+              "Signature verification failed for gossip aggregated attestation "
+              "slot={} participants=[{}]",
+              signed_aggregated_attestation.data.slot,
+              fmt::join(signed_aggregated_attestation.proof.participants.iter(),
+                        " "));
       return outcome::success();
     }
     return onAggregatedAttestation(signed_aggregated_attestation, false);
