@@ -15,18 +15,18 @@ target_link_libraries(state_sync_client
 )
 
 add_lean_module(networking
-    SOURCE
+  SOURCE
     block_request_protocol.cpp
     networking.cpp
     status_protocol.cpp
     state_sync_client.cpp
-    INCLUDE_DIRS
+  INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_BINARY_DIR}/generated
-    DEFINITIONS
+  DEFINITIONS
     SOME_FLAG=1
-    LIBRARIES
+  LIBRARIES
     blockchain
     bootnodes
     p2p::libp2p
