@@ -34,6 +34,7 @@
 #include "app/configuration.hpp"
 #include "blockchain/block_tree.hpp"
 #include "blockchain/fork_choice.hpp"
+#include "blockchain/validator_registry.hpp"
 #include "boost/endian/conversion.hpp"
 #include "metrics/metrics.hpp"
 #include "modules/networking/block_request_protocol.hpp"
@@ -83,6 +84,7 @@ namespace lean::modules {
       qtils::SharedRef<blockchain::BlockTree> block_tree,
       qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
       qtils::SharedRef<app::ChainSpec> chain_spec,
+      qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<app::Configuration> config)
       : loader_(loader),
         logger_(logging_system->getLogger("Networking", "networking_module")),
@@ -90,6 +92,7 @@ namespace lean::modules {
         block_tree_{std::move(block_tree)},
         fork_choice_store_{std::move(fork_choice_store)},
         chain_spec_{std::move(chain_spec)},
+        validator_registry_{std::move(validator_registry)},
         config_{std::move(config)},
         random_{std::random_device{}()} {
     libp2p::log::setLoggingSystem(logging_system->getSoralog());
@@ -163,6 +166,15 @@ namespace lean::modules {
 
     bool has_enr_listen_address = false;
     const auto &bootnodes = chain_spec_->getBootnodes();
+    for (auto &index : validator_registry_->allValidatorsIndices()) {
+      auto name = validator_registry_->nodeIdByIndex(index).value();
+      if (index >= bootnodes.getBootnodes().size()) {
+        SL_WARN(logger_, "No ENR for validator {}", index);
+        continue;
+      }
+      auto &peer_id = bootnodes.getBootnodes().at(index).peer_id;
+      peer_name_.emplace(peer_id, name);
+    }
     for (auto &bootnode : bootnodes.getBootnodes()) {
       if (bootnode.peer_id != peer_id) {
         continue;
@@ -837,10 +849,20 @@ namespace lean::modules {
   }
 
   void NetworkingImpl::updateMetricConnectedPeerCount() {
-    std::unordered_map<std::string, size_t> client_counters;
+    // currently metrics don't forget labels, explicitly reset their count
+    for (auto &count : connected_peer_count_by_name_ | std::views::values) {
+      count = 0;
+    }
+
     const auto &ua_repo = host_->getPeerRepository().getUserAgentRepository();
 
     for (const auto &peer_id : host_->getConnectedPeers()) {
+      auto name_it = peer_name_.find(peer_id);
+      if (name_it != peer_name_.end()) {
+        ++connected_peer_count_by_name_[name_it->second];
+        continue;
+      }
+
       auto ua = ua_repo.getUserAgent(peer_id).value_or("");
       // To lower case + drop version if any
       for (size_t i = 0; i < ua.size(); ++i) {
@@ -856,15 +878,15 @@ namespace lean::modules {
       if (ua.empty()) {
         ua = "unknown";
       }
-      ++client_counters[ua];
+      ++connected_peer_count_by_name_[ua];
     }
 
-    for (const auto &[kind, number] : client_counters) {
+    for (const auto &[kind, number] : connected_peer_count_by_name_) {
       metrics_->network_connected_peer_count({{"client", kind}})->set(number);
     }
 
     loader_.dispatch_peers_total_count_updated(
         std::make_shared<messages::PeerCountsMessage>(
-            std::move(client_counters)));
+            connected_peer_count_by_name_));
   }
 }  // namespace lean::modules
