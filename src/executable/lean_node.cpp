@@ -216,6 +216,7 @@ int main(int argc, const char **argv, const char **env) {
 
   int exit_code;
   auto logger = logging_system->getLogger("Main", lean::log::defaultGroupName);
+  SL_INFO(logger, "node is starting");
   {
     std::string_view name{argv[1]};
 
