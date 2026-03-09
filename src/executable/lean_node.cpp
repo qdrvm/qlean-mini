@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <backward.hpp>
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -105,6 +106,8 @@ namespace {
 int main(int argc, const char **argv, const char **env) {
   setlinebuf(stdout);
   setlinebuf(stderr);
+
+  backward::SignalHandling print_stack_on_signal;
 
   soralog::util::setThreadName("lean-node");
 
