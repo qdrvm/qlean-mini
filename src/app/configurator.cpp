@@ -563,6 +563,10 @@ namespace lean::app {
     }
     if (auto value = find_argument<uint64_t>(cli_values_map_,
                                              "attestation-committee-count")) {
+      if (*value == 0) {
+        SL_ERROR(logger_, "--attestation-committee-count must be non-zero");
+        return Error::CliArgsParseFailed;
+      }
       config_->cli_subnet_count_ = *value;
     }
     if (fail) {
