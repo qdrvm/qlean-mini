@@ -63,6 +63,7 @@ namespace lean::app {
     [[nodiscard]] virtual const DatabaseConfig &database() const;
 
     [[nodiscard]] virtual const MetricsConfig &metrics() const;
+    [[nodiscard]] virtual const Endpoint &apiEndpoint() const;
 
    private:
     friend class Configurator;  // for external configure
@@ -90,6 +91,7 @@ namespace lean::app {
 
     DatabaseConfig database_;
     MetricsConfig metrics_;
+    Endpoint api_endpoint_;
   };
 
 }  // namespace lean::app
