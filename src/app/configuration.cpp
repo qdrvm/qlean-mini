@@ -18,9 +18,10 @@ namespace lean::app {
             .cache_size = 1 << 30,
         },
         metrics_{
-            .endpoint{},
+            .endpoint{boost::asio::ip::make_address("127.0.0.1"), 9668},
             .enabled{},
-        } {}
+        },
+        api_endpoint_{boost::asio::ip::make_address("127.0.0.1"), 9667} {}
 
   const std::string &Configuration::nodeVersion() const {
     return version_;
@@ -95,4 +96,7 @@ namespace lean::app {
     return metrics_;
   }
 
+  const Configuration::Endpoint &Configuration::apiEndpoint() const {
+    return api_endpoint_;
+  }
 }  // namespace lean::app
