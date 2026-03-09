@@ -2,6 +2,7 @@
   "name": "qlean-mini",
   "version": "0.0.1",
   "dependencies": [
+    "backward-cpp",
     "boost-asio",
     "boost-beast",
     "boost-di",

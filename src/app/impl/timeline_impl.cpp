@@ -66,25 +66,18 @@ namespace lean::app {
 
   void TimelineImpl::start() {
     auto now = clock_->nowMsec();
-    auto next_slot =
-        now > genesis_config_->genesis_time * 1000
-            ? (now - genesis_config_->genesis_time * 1000) / SLOT_DURATION_MS
-                  + 1
-            : 1;
-    auto time_to_next_slot = genesis_config_->genesis_time * 1000
-                           + SLOT_DURATION_MS * next_slot - now;
-    if (time_to_next_slot < SLOT_DURATION_MS / 2) {
-      ++next_slot;
-      time_to_next_slot += SLOT_DURATION_MS;
-    }
+    auto interval = Interval::fromTime(now, *genesis_config_);
+    auto next_slot_interval =
+        Interval::fromSlot(interval.has_value() ? interval->slot() + 1 : 0, 0);
+    auto time_to_next_slot = next_slot_interval.time(*genesis_config_) - now;
     SL_INFO(logger_,
             "Starting timeline. Next slot is {}, starts in {}ms",
-            next_slot,
-            time_to_next_slot);
-    se_manager_->notifyDelayed(
-        std::chrono::milliseconds(time_to_next_slot),
-        EventTypes::SlotStarted,
-        std::make_shared<const messages::SlotStarted>(next_slot, 0, false));
+            next_slot_interval.slot(),
+            time_to_next_slot.count());
+    se_manager_->notifyDelayed(time_to_next_slot,
+                               EventTypes::SlotStarted,
+                               std::make_shared<const messages::SlotStarted>(
+                                   next_slot_interval.slot(), 0, false));
   }
 
   void TimelineImpl::stop() {
@@ -149,60 +142,23 @@ namespace lean::app {
     }
 
     auto now = clock_->nowMsec();
-    auto next_slot =
-        (now - genesis_config_->genesis_time * 1000) / SLOT_DURATION_MS + 1;
-    auto time_to_next_slot = genesis_config_->genesis_time * 1000
-                           + SLOT_DURATION_MS * next_slot - now;
 
-    SL_TRACE(logger_,
-             "Next slot {} is scheduled in {}ms",
-             next_slot,
-             time_to_next_slot);
-
-    const auto slot_start_abs =
-        genesis_config_->genesis_time * 1000
-        + SLOT_DURATION_MS * msg->slot;  // in milliseconds
-
-    auto abs_interval1 = slot_start_abs + SECONDS_PER_INTERVAL * 1000;
-    auto abs_interval2 = slot_start_abs + 2 * SECONDS_PER_INTERVAL * 1000;
-    auto abs_interval3 = slot_start_abs + 3 * SECONDS_PER_INTERVAL * 1000;
-
-    auto ms_to_abs = [&](uint64_t abs_time_ms) -> uint64_t {
-      return (abs_time_ms > now) ? (abs_time_ms - now) : 0ull;
+    auto timeUntil = [&](std::chrono::milliseconds abs_time_ms) {
+      return (abs_time_ms > now) ? (abs_time_ms - now)
+                                 : std::chrono::milliseconds::zero();
     };
 
-    // trigger interval 0 immediately
-    se_manager_->notify(EventTypes::SlotIntervalStarted,
-                        std::make_shared<const messages::SlotIntervalStarted>(
-                            0, msg->slot, msg->epoch));
+    for (uint64_t phase = 0; phase < INTERVALS_PER_SLOT; ++phase) {
+      auto interval = Interval::fromSlot(msg->slot, phase);
+      se_manager_->notifyDelayed(
+          timeUntil(interval.time(*genesis_config_)),
+          EventTypes::SlotIntervalStarted,
+          std::make_shared<const messages::SlotIntervalStarted>(
+              interval, msg->slot, msg->epoch));
+    }
 
-    // schedule other intervals and next slot
-    auto time_to_interval_1 = ms_to_abs(abs_interval1);
     se_manager_->notifyDelayed(
-        std::chrono::milliseconds(time_to_interval_1),
-        EventTypes::SlotIntervalStarted,
-        std::make_shared<const messages::SlotIntervalStarted>(
-            1, msg->slot, msg->epoch));
-
-    auto time_to_interval_2 = ms_to_abs(abs_interval2);
-    se_manager_->notifyDelayed(
-        std::chrono::milliseconds(time_to_interval_2),
-        EventTypes::SlotIntervalStarted,
-        std::make_shared<const messages::SlotIntervalStarted>(
-            2, msg->slot, msg->epoch));
-
-    auto time_to_interval_3 = ms_to_abs(abs_interval3);
-    se_manager_->notifyDelayed(
-        std::chrono::milliseconds(time_to_interval_3),
-        EventTypes::SlotIntervalStarted,
-        std::make_shared<const messages::SlotIntervalStarted>(
-            3, msg->slot, msg->epoch));
-
-    const auto next_slot_abs = genesis_config_->genesis_time * 1000
-                             + SLOT_DURATION_MS * (msg->slot + 1);
-    auto time_to_next_slot_abs = ms_to_abs(next_slot_abs);
-    se_manager_->notifyDelayed(
-        std::chrono::milliseconds(time_to_next_slot_abs),
+        timeUntil(Interval::fromSlot(msg->slot + 1, 0).time(*genesis_config_)),
         EventTypes::SlotStarted,
         std::make_shared<const messages::SlotStarted>(msg->slot + 1, 0, false));
   }

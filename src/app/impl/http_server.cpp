@@ -9,6 +9,7 @@
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/string_body.hpp>
 #include <qtils/bytestr.hpp>
+#include <qtils/option_take.hpp>
 
 #include "app/configuration.hpp"
 #include "app/state_manager.hpp"
@@ -134,9 +135,9 @@ namespace lean::app {
   }
 
   void HttpServer::stop() {
-    if (io_thread_.has_value()) {
+    if (auto io_thread = qtils::optionTake(io_thread_)) {
       io_context_->stop();
-      io_thread_->join();
+      io_thread->join();
     }
   }
 }  // namespace lean::app

@@ -15,10 +15,8 @@ namespace lean::app {
 
   class ChainSpecMock final : public ChainSpec {
    public:
-    MOCK_METHOD(const app::Bootnodes &,
-                getBootnodes,
-                (),
-                (const, override));
+    MOCK_METHOD(const app::Bootnodes &, getBootnodes, (), (const, override));
+    MOCK_METHOD(bool, isAggregator, (), (const, override));
   };
 
 }  // namespace lean::app

@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include <cstdint>
+#include <qtils/byte_arr.hpp>
 
 namespace lean {
-  using ValidatorIndex = uint64_t;
-  using SubnetIndex = uint64_t;
+  using Hash = qtils::ByteArr<32>;
 }  // namespace lean

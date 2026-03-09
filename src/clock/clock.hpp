@@ -44,7 +44,7 @@ namespace lean::clock {
      * @return uint64_t representing number of milliseconds since the beginning
      * of epoch (Jan 1, 1970)
      */
-    [[nodiscard]] virtual uint64_t nowMsec() const = 0;
+    [[nodiscard]] virtual std::chrono::milliseconds nowMsec() const = 0;
 
     static TimePoint zero() {
       return TimePoint{};

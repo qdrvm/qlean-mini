@@ -57,7 +57,9 @@ namespace lean {
                         crypto::xmss::XmssPublicKey::fromHex(validator_str));
       validators.emplace_back(validator);
     }
-    Config config{.genesis_time = yaml_genesis_time.as<uint64_t>()};
+    Config config{
+        .genesis_time = yaml_genesis_time.as<uint64_t>(),
+    };
     return STF::generateGenesisState(config, validators);
   }
 }  // namespace lean
