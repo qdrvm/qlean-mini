@@ -16,7 +16,7 @@ using qtils::literals::operator""_bytes;
 
 namespace lean {
 
-  static constexpr uint64_t INTERVALS_PER_SLOT = 5;  // 5 intervals by 1 second
+  static constexpr uint64_t INTERVALS_PER_SLOT = 5;
   static constexpr std::chrono::milliseconds INTERVAL_DURATION_MS{800};
 
   // The number of slots to lookback for justification.
