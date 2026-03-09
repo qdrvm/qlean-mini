@@ -40,6 +40,11 @@ inline int cmdGenerateGenesis(auto &&getArg) {
       std::ofstream{path}.write(json.data(), json.size()).flush();
     };
 
+    if (subnet_count > validator_count) {
+      fmt::println(std::cerr, "subnet_count must not exceed validator_count");
+      return EXIT_FAILURE;
+    }
+
     auto now = shadow
                  ? std::chrono::seconds{946684800}
                  : std::chrono::duration_cast<std::chrono::seconds>(
