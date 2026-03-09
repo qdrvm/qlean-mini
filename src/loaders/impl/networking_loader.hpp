@@ -81,8 +81,8 @@ namespace lean::loaders {
           app_state_manager_(std::move(app_state_manager)),
           block_tree_{std::move(block_tree)},
           fork_choice_store_{std::move(fork_choice_store)},
-          genesis_config_{std::move(genesis_config)},
           validator_registry_{std::move(validator_registry)},
+          genesis_config_{std::move(genesis_config)},
           chain_spec_{std::move(chain_spec)},
           app_config_{std::move(app_config)} {}
 
