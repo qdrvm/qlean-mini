@@ -429,7 +429,7 @@ namespace lean {
     // Ticks store forward interval by interval, performing appropriate
     // actions for each interval type.
     // Args:
-    //    time: Target time in seconds since genesis.
+    //    time: Target time since genesis.
     std::vector<OnTickAction> onTick(std::chrono::milliseconds now);
 
     Interval time() const {
