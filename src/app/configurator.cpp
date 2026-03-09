@@ -139,7 +139,7 @@ namespace lean::app {
         ("listen-addr", po::value<std::string>(), "Set libp2p listen multiaddress.")
         ("modules-dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to yaml file containing boot node ENRs (genesis/nodes.yaml).")
-        ("state-sync-url", po::value<std::string>(),  "Optional. URL for pre-syncing the state at startup if any")
+        ("checkpoint-sync-url", po::value<std::string>(),  "Optional. URL for pre-syncing the state at startup if any")
         ("validator-registry-path",
          po::value<std::string>(),
          "Set path to yaml file containing validator registry (genesis/validators.yaml).")
@@ -542,7 +542,7 @@ namespace lean::app {
           config_->bootnodes_file_ = value;
         });
     find_argument<std::string>(
-        cli_values_map_, "state-sync-url", [&](const std::string &value) {
+        cli_values_map_, "checkpoint-sync-url", [&](const std::string &value) {
           config_->state_sync_url_.emplace(value);
         });
     find_argument<std::string>(cli_values_map_,
