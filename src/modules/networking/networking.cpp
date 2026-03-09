@@ -181,6 +181,15 @@ namespace lean::modules {
 
     bool has_enr_listen_address = false;
     const auto &bootnodes = chain_spec_->getBootnodes();
+    for (auto &index : validator_registry_->allValidatorsIndices()) {
+      auto name = validator_registry_->nodeIdByIndex(index).value();
+      if (index >= bootnodes.getBootnodes().size()) {
+        SL_WARN(logger_, "No ENR for validator {}", index);
+        continue;
+      }
+      auto &peer_id = bootnodes.getBootnodes().at(index).peer_id;
+      peer_name_.emplace(peer_id, name);
+    }
     for (auto &bootnode : bootnodes.getBootnodes()) {
       if (bootnode.peer_id != peer_id) {
         continue;
@@ -920,10 +929,20 @@ namespace lean::modules {
   }
 
   void NetworkingImpl::updateMetricConnectedPeerCount() {
-    std::unordered_map<std::string, size_t> client_counters;
+    // currently metrics don't forget labels, explicitly reset their count
+    for (auto &count : connected_peer_count_by_name_ | std::views::values) {
+      count = 0;
+    }
+
     const auto &ua_repo = host_->getPeerRepository().getUserAgentRepository();
 
     for (const auto &peer_id : host_->getConnectedPeers()) {
+      auto name_it = peer_name_.find(peer_id);
+      if (name_it != peer_name_.end()) {
+        ++connected_peer_count_by_name_[name_it->second];
+        continue;
+      }
+
       auto ua = ua_repo.getUserAgent(peer_id).value_or("");
       // To lower case + drop version if any
       for (size_t i = 0; i < ua.size(); ++i) {
@@ -939,15 +958,15 @@ namespace lean::modules {
       if (ua.empty()) {
         ua = "unknown";
       }
-      ++client_counters[ua];
+      ++connected_peer_count_by_name_[ua];
     }
 
-    for (const auto &[kind, number] : client_counters) {
+    for (const auto &[kind, number] : connected_peer_count_by_name_) {
       metrics_->network_connected_peer_count({{"client", kind}})->set(number);
     }
 
     loader_.dispatch_peers_total_count_updated(
         std::make_shared<messages::PeerCountsMessage>(
-            std::move(client_counters)));
+            connected_peer_count_by_name_));
   }
 }  // namespace lean::modules

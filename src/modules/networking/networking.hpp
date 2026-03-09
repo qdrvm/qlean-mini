@@ -38,8 +38,8 @@ namespace libp2p::protocol::gossip {
 
 namespace lean {
   class ForkChoiceStore;
-  class ValidatorRegistry;
   struct GenesisConfig;
+  class ValidatorRegistry;
 }  // namespace lean
 
 namespace lean::app {
@@ -201,6 +201,8 @@ namespace lean::modules {
      * Bootnode peers states.
      */
     std::unordered_map<libp2p::PeerId, PeerState> peer_states_;
+    std::unordered_map<libp2p::PeerId, std::string> peer_name_;
+    std::unordered_map<std::string, size_t> connected_peer_count_by_name_;
     std::unordered_set<libp2p::PeerId> subnet_aggregators_;
     uint64_t subnet_count_;
   };

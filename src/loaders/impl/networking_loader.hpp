@@ -19,6 +19,7 @@
 
 namespace lean {
   class ForkChoiceStore;
+  class ValidatorRegistry;
 }  // namespace lean
 
 namespace lean::blockchain {
