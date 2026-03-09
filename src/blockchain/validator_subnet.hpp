@@ -10,8 +10,8 @@
 #include "types/validator_index.hpp"
 
 namespace lean {
-  inline bool validatorSubnet(ValidatorIndex validator_index,
-                              uint64_t subnet_count) {
+  inline SubnetIndex validatorSubnet(ValidatorIndex validator_index,
+                                     uint64_t subnet_count) {
     return validator_index % subnet_count;
   }
 }  // namespace lean

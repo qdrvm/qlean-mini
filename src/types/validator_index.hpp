@@ -10,4 +10,5 @@
 
 namespace lean {
   using ValidatorIndex = uint64_t;
+  using SubnetIndex = uint64_t;
 }  // namespace lean

@@ -121,7 +121,7 @@ namespace lean::modules {
         std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(nullptr)};
     auto peer_id = identity_manager.getId();
 
-    std::unordered_set<ValidatorIndex> subnets;
+    std::unordered_set<SubnetIndex> subnets;
     for (auto &validator_index :
          validator_registry_->currentValidatorIndices()) {
       subnets.emplace(validatorSubnet(validator_index, subnet_count_));
