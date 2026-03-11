@@ -34,4 +34,5 @@ target_link_libraries(blockchain
     metrics
     sszpp
     validator_registry
+    state_sync_client
 )

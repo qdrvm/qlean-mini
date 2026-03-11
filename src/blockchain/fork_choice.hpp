@@ -586,6 +586,7 @@ namespace lean {
     ValidatorIndex validator_id_;
     bool is_aggregator_;
     uint64_t subnet_count_;
+    std::unordered_map<BlockHash, Slot> anchor_block_slots_;
   };
 
 }  // namespace lean

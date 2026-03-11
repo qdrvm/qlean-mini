@@ -11,12 +11,9 @@
 namespace lean::blockchain {
 
   AnchorBlockImpl::AnchorBlockImpl(const AnchorState &state) {
-    slot = state.slot;
-    proposer_index = 0;
-    parent_root = kZeroHash;
+    BlockHeader::operator=(state.latest_block_header);
     state_root = sszHash(state);
-    body = BlockBody{};
-    setHash();
+    updateHash();
   }
 
 }  // namespace lean::blockchain

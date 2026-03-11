@@ -116,6 +116,7 @@ namespace lean::blockchain {
 
   BlockTreeInitializer::BlockTreeInitializer(
       qtils::SharedRef<log::LoggingSystem> logsys,
+      qtils::SharedRef<AnchorBlock> anchor_block,
       qtils::SharedRef<BlockStorage> storage) {
     auto logger = logsys->getLogger("BlockTree", "block_tree");
 
@@ -155,6 +156,16 @@ namespace lean::blockchain {
       if (header.slot == 0) [[unlikely]] {
         SL_TRACE(logger,
                  "Latest finalized is genesis block: {}",
+                 block_index,
+                 header.state_root);
+        last_finalized_block_index = block_index;
+        last_justified_block_index = block_index;
+        break;
+      }
+
+      if (header.hash() == anchor_block->hash()) [[unlikely]] {
+        SL_TRACE(logger,
+                 "Latest finalized is anchor block: {}",
                  block_index,
                  header.state_root);
         last_finalized_block_index = block_index;

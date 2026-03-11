@@ -45,8 +45,7 @@ namespace lean::blockchain {
     if (not anchor_header_is_exist) {
       // anchor block initialization
       BlockData anchor_block_data;
-      anchor_block_data.header.emplace(anchor_block->getHeader());
-      anchor_block_data.body.emplace(anchor_block->body);
+      anchor_block_data.header.emplace(*anchor_block);
       anchor_block_data.hash = anchor_block->hash();
       BOOST_ASSERT(anchor_block_hash == anchor_block_data.hash);
 

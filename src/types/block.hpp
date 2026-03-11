@@ -48,8 +48,7 @@ namespace lean {
     }
   };
 
-  struct AnchorBlock : Block {
-    using Block::Block;
+  struct AnchorBlock : BlockHeader {
     virtual ~AnchorBlock() = 0;
   };
   inline AnchorBlock::~AnchorBlock() = default;

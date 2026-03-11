@@ -32,7 +32,6 @@ TEST(STF, Test) {
   auto state0 = lean::STF::generateGenesisState(config, validators_pubkeys);
   auto block0 = lean::blockchain::AnchorBlockImpl{
       lean::blockchain::AnchorStateImpl{state0}};
-  block0.setHash();
 
   lean::Block block1{
       .slot = block0.slot + 1,
