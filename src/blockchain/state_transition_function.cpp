@@ -355,12 +355,7 @@ namespace lean {
          slot < state.historical_block_hashes.size();
          ++slot) {
       auto &root = state.historical_block_hashes[slot];
-      auto it = root_to_slot.find(root);
-      if (it == root_to_slot.end()) {
-        root_to_slot.emplace(root, slot);
-      } else if (slot > it->second) {
-        it->second = slot;
-      }
+      root_to_slot[root] = slot;
     }
 
     // Process each attestation in the block.
@@ -420,7 +415,7 @@ namespace lean {
       }
 
       // Target slot must be justifiable after the latest finalized slot
-      if (not isJustifiableSlot(state.latest_finalized.slot, target.slot)) {
+      if (not isJustifiableSlot(latest_finalized.slot, target.slot)) {
         continue;
       }
 
@@ -458,7 +453,7 @@ namespace lean {
         // hash after the source
         auto any = false;
         for (auto slot = source_slot + 1; slot < target_slot; ++slot) {
-          if (isJustifiableSlot(state.latest_finalized.slot, slot)) {
+          if (isJustifiableSlot(latest_finalized.slot, slot)) {
             any = true;
             break;
           }
