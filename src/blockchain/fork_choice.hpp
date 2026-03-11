@@ -498,6 +498,8 @@ namespace lean {
     std::vector<SignedAggregatedAttestation> aggregateSignatures();
 
     void prune(Slot finalized_slot);
+    void updateMetricGossipSignatures();
+    void updateMetricAttestationSignature(bool valid) const;
 
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;

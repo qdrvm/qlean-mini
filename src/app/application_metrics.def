@@ -8,10 +8,11 @@
 
 // Node build information
 // On scrape; name, version
-METRIC_GAUGE_LABELS(app_build_info,
-                    "lean_node_info",
-                    "A metric with a constant '1' value labeled by name and version",
-                    ({"name", "version"}));
+METRIC_GAUGE_LABELS(
+    app_build_info,
+    "lean_node_info",
+    "A metric with a constant '1' value labeled by name and version",
+    ({"name", "version"}));
 
 // Process start time
 // On scrape

@@ -21,8 +21,17 @@ METRIC_COUNTER_LABELS(network_connect_event_count,
                       ({"direction", "result"}))
 
 // Peer disconnection events
-// On peer disconnection; direction=inbound,outbound reason=timeout,remote_close,local_close,error
+// On peer disconnection; direction=inbound,outbound
+// reason=timeout,remote_close,local_close,error
 METRIC_COUNTER_LABELS(network_disconnect_event_count,
                       "lean_peer_disconnection_events_total",
                       "Total number of peer disconnection events",
                       ({"direction", "reason"}))
+
+METRIC_GAUGE(lean_attestation_committee_subnet,
+             "lean_attestation_committee_subnet",
+             "Node's attestation committee subnet")
+
+METRIC_GAUGE(lean_attestation_committee_count,
+             "lean_attestation_committee_count",
+             "Number of attestation committees (ATTESTATION_COMMITTEE_COUNT)")

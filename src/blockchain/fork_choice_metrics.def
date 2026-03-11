@@ -8,9 +8,7 @@
 
 // Fork choice head slot
 // On get fork choice head
-METRIC_GAUGE(fc_head_slot,
-             "lean_head_slot",
-             "Latest slot of the lean chain")
+METRIC_GAUGE(fc_head_slot, "lean_head_slot", "Latest slot of the lean chain")
 
 // Current slot
 // On scrape
@@ -20,30 +18,26 @@ METRIC_GAUGE(fc_current_slot,
 
 // Safe target slot
 // On safe target update
-METRIC_GAUGE(fc_safe_target_slot,
-             "lean_safe_target_slot",
-             "Safe target slot")
+METRIC_GAUGE(fc_safe_target_slot, "lean_safe_target_slot", "Safe target slot")
 
 // Block processing duration
 // On fork choice process block
 METRIC_HISTOGRAM(fc_block_processing_time,
                  "lean_fork_choice_block_processing_time_seconds",
                  "Time taken to process block",
-                 (0.005, 0.01, 0.025, 0.05, 0.1, 1))
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 1, 1.25, 1.5, 2, 4))
 
 // Valid attestations counter
-// On validate attestation; source=block,gossip
-METRIC_COUNTER_LABELS(fc_attestations_valid_total,
-                      "lean_attestations_valid_total",
-                      "Total number of valid attestations",
-                      {"source"})
+// On validate attestation
+METRIC_COUNTER(fc_attestations_valid_total,
+               "lean_attestations_valid_total",
+               "Total number of valid attestations")
 
 // Invalid attestations counter
-// On validate attestation; source=block,gossip
-METRIC_COUNTER_LABELS(fc_attestations_invalid_total,
-                      "lean_attestations_invalid_total",
-                      "Total number of invalid attestations",
-                      {"source"})
+// On validate attestation
+METRIC_COUNTER(fc_attestations_invalid_total,
+               "lean_attestations_invalid_total",
+               "Total number of invalid attestations")
 
 // Attestation validation timing
 // On validate attestation
@@ -64,3 +58,15 @@ METRIC_HISTOGRAM(fc_fork_choice_reorg_depth,
                  "lean_fork_choice_reorg_depth",
                  "Depth of fork choice reorgs (in blocks)",
                  (1, 2, 3, 5, 7, 10, 20, 30, 50, 100))
+
+METRIC_GAUGE(lean_gossip_signatures,
+             "lean_gossip_signatures",
+             "Number of gossip signatures in fork-choice store")
+
+// Not used: lean_latest_new_aggregated_payloads
+// Not used: lean_latest_known_aggregated_payloads
+
+METRIC_HISTOGRAM(lean_committee_signatures_aggregation_time_seconds,
+                 "lean_committee_signatures_aggregation_time_seconds",
+                 "Time taken to aggregate committee signatures",
+                 (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 1));

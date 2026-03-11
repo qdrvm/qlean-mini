@@ -11,3 +11,7 @@
 METRIC_GAUGE(val_validators_count,
              "lean_validators_count",
              "Number of validators managed by a node")
+
+METRIC_GAUGE(lean_is_aggregator,
+             "lean_is_aggregator",
+             "Validator's `is_aggregator` status. True=1, False=0")
