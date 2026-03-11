@@ -871,10 +871,6 @@ namespace lean {
     Epoch epoch = attestation.slot;
     bool verify_result = xmss_provider_->verifyAggregatedSignatures(
         public_keys, epoch, message, signature.proof_data.data());
-    (verify_result
-         ? metrics_->lean_pq_sig_aggregated_signatures_valid_total()
-         : metrics_->lean_pq_sig_aggregated_signatures_invalid_total())
-        ->inc();
     if (not verify_result) {
       SL_WARN(logger_,
               "Aggregated signature verification failed for validators [{}]",

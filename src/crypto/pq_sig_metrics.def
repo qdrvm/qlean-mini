@@ -63,15 +63,3 @@ METRIC_HISTOGRAM(pq_sig_aggregated_signatures_verification_time,
                  "lean_pq_sig_aggregated_signatures_verification_time_seconds",
                  "Time taken to verify an aggregated attestation signature",
                  (0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4))
-
-// Aggregated signatures: valid counter
-// On aggregated signature verification
-METRIC_COUNTER(pq_sig_aggregated_signatures_valid_total,
-               "lean_pq_sig_aggregated_signatures_valid_total",
-               "Total number of valid aggregated signatures")
-
-// Aggregated signatures: invalid counter
-// On aggregated signature verification
-METRIC_COUNTER(pq_sig_aggregated_signatures_invalid_total,
-               "lean_pq_sig_aggregated_signatures_invalid_total",
-               "Total number of invalid aggregated signatures")

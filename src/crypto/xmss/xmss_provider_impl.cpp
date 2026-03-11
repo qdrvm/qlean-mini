@@ -185,9 +185,9 @@ namespace lean::crypto::xmss {
                                         aggregated_signature.size());
     if (use_metrics_) {
       if (is_valid) {
-        metrics_->pq_sig_aggregated_signatures_valid_total()->inc();
+        metrics_->lean_pq_sig_aggregated_signatures_valid_total()->inc();
       } else {
-        metrics_->pq_sig_aggregated_signatures_invalid_total()->inc();
+        metrics_->lean_pq_sig_aggregated_signatures_invalid_total()->inc();
       }
     }
 
