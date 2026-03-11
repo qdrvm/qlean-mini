@@ -135,6 +135,9 @@ namespace lean::modules {
     }
     auto subnet_id = *subnets.begin();
 
+    metrics_->lean_attestation_committee_subnet()->set(subnet_id);
+    metrics_->lean_attestation_committee_count()->set(subnet_count_);
+
     SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
 
     libp2p::protocol::gossip::Config gossip_config;

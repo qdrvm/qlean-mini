@@ -132,7 +132,8 @@ namespace lean::crypto::xmss {
     std::optional<metrics::HistogramTimer> timer{};
     if (use_metrics_) {
       timer.emplace(
-          metrics_->pq_sig_attestation_signatures_building_time()->timer());
+          metrics_->lean_pq_sig_aggregated_signatures_building_time_seconds()
+              ->timer());
     }
 
     if (public_keys.size() != signatures.size()) {

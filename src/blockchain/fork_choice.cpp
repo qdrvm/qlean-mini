@@ -67,6 +67,12 @@ namespace lean {
         validator_id_{getValidatorId(logger_, *validator_registry_)},
         is_aggregator_{chain_spec->isAggregator()},
         subnet_count_{app_config->cliSubnetCount()} {
+    metrics_->lean_is_aggregator()->set(is_aggregator_ ? 1 : 0);
+    metrics_->stf_latest_justified_slot()->set(
+        block_tree_->getLatestJustified().slot);
+    metrics_->stf_latest_finalized_slot()->set(
+        block_tree_->lastFinalized().slot);
+
     SL_TRACE(logger_, "Initialise fork-choice");
 
     for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
@@ -489,6 +495,7 @@ namespace lean {
         validator_keys_manifest_->currentNodeXmssKeypair().private_key,
         slot,
         payload);
+    metrics_->lean_pq_sig_attestation_signatures_total()->inc();
     SignedBlockWithAttestation signed_block_with_attestation{
         .message =
             {
@@ -598,11 +605,13 @@ namespace lean {
       return Error::INVALID_ATTESTATION;
     }
     auto payload = attestationPayload(signed_attestation.message);
-    if (not xmss_provider_->verify(
-            state->validators[signed_attestation.validator_id].pubkey,
-            payload,
-            signed_attestation.message.slot,
-            signed_attestation.signature)) {
+    auto signature_valid = xmss_provider_->verify(
+        state->validators[signed_attestation.validator_id].pubkey,
+        payload,
+        signed_attestation.message.slot,
+        signed_attestation.signature);
+    updateMetricAttestationSignature(signature_valid);
+    if (not signature_valid) {
       return Error::INVALID_ATTESTATION;
     }
     if (is_aggregator_
@@ -665,8 +674,6 @@ namespace lean {
       const Attestation &attestation, bool is_from_block) {
     auto timer = metrics_->fc_attestation_validation_time()->timer();
 
-    auto source = is_from_block ? "block" : "gossip";
-
     // First, ensure the attestation is structurally and temporally valid.
 
     // Extract node id
@@ -679,7 +686,7 @@ namespace lean {
     }
 
     if (auto res = validateAttestation(attestation); res.has_value()) {
-      metrics_->fc_attestations_valid_total({{"source", source}})->inc();
+      metrics_->fc_attestations_valid_total()->inc();
       SL_DEBUG(logger_,
                "⚙️ Processing valid attestation from validator {} for "
                "target={}, source={}",
@@ -687,7 +694,7 @@ namespace lean {
                attestation.data.target,
                attestation.data.source);
     } else {
-      metrics_->fc_attestations_invalid_total({{"source", source}})->inc();
+      metrics_->fc_attestations_invalid_total()->inc();
       SL_WARN(logger_,
               "❌ Invalid attestation from validator {} for target={}, "
               "source={}: {}",
@@ -835,6 +842,7 @@ namespace lean {
         payload,
         message.proposer_attestation.data.slot,
         signed_block.signature.proposer_signature);
+    updateMetricAttestationSignature(verify_result);
 
     if (not verify_result) {
       SL_WARN(logger_,
@@ -863,6 +871,10 @@ namespace lean {
     Epoch epoch = attestation.slot;
     bool verify_result = xmss_provider_->verifyAggregatedSignatures(
         public_keys, epoch, message, signature.proof_data.data());
+    (verify_result
+         ? metrics_->lean_pq_sig_aggregated_signatures_valid_total()
+         : metrics_->lean_pq_sig_aggregated_signatures_invalid_total())
+        ->inc();
     if (not verify_result) {
       SL_WARN(logger_,
               "Aggregated signature verification failed for validators [{}]",
@@ -938,6 +950,8 @@ namespace lean {
     if (post_state.latest_finalized.slot > block_tree_->lastFinalized().slot) {
       OUTCOME_TRY(block_tree_->finalize(post_state.latest_finalized.root));
       SL_INFO(logger_, "🔒 Finalized block: {}", post_state.latest_finalized);
+      metrics_->stf_latest_finalized_slot()->set(
+          post_state.latest_finalized.slot);
 
       prune(post_state.latest_finalized.slot);
     }
@@ -1095,6 +1109,7 @@ namespace lean {
               validator_keys_manifest_->currentNodeXmssKeypair();
           crypto::xmss::XmssSignature signature =
               xmss_provider_->sign(keypair.private_key, current_slot, payload);
+          metrics_->lean_pq_sig_attestation_signatures_total()->inc();
           auto signed_attestation =
               SignedAttestation::from(attestation, signature);
 
@@ -1257,6 +1272,7 @@ namespace lean {
     }
     it->second.signatures[validator_index] = signature;
     it->second.aggregated = false;
+    updateMetricGossipSignatures();
   }
 
   ForkChoiceStore::ValidatorAttestationKey
@@ -1361,6 +1377,9 @@ namespace lean {
 
   std::vector<SignedAggregatedAttestation>
   ForkChoiceStore::aggregateSignatures() {
+    auto timer =
+        metrics_->lean_committee_signatures_aggregation_time_seconds()->timer();
+
     std::vector<SignedAggregatedAttestation> aggregated_attestations;
     for (auto &signatures_to_aggregate :
          signatures_to_aggregate_ | std::views::values) {
@@ -1406,9 +1425,24 @@ namespace lean {
               [&](const decltype(signatures_to_aggregate_)::value_type &p) {
                 return should_retain(p.second.data);
               });
+    updateMetricGossipSignatures();
     retain_if(aggregated_payloads_,
               [&](const decltype(aggregated_payloads_)::value_type &p) {
                 return should_retain(p.second.at(0)->data);
               });
+  }
+
+  void ForkChoiceStore::updateMetricGossipSignatures() {
+    size_t metric_signatures = 0;
+    for (auto &batch : signatures_to_aggregate_ | std::views::values) {
+      metric_signatures += batch.signatures.size();
+    }
+    metrics_->lean_gossip_signatures()->set(metric_signatures);
+  }
+
+  void ForkChoiceStore::updateMetricAttestationSignature(bool valid) const {
+    (valid ? metrics_->lean_pq_sig_attestation_signatures_valid_total()
+           : metrics_->lean_pq_sig_attestation_signatures_invalid_total())
+        ->inc();
   }
 }  // namespace lean
