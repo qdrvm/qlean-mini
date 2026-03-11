@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <concepts>
 #include <string_view>
+#include <type_traits>
 
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -33,9 +35,9 @@ namespace lean::json {
     if constexpr (std::is_same_v<T, bool>) {
       json.v.SetBool(v);
     } else if constexpr (std::is_unsigned_v<T>) {
-      json.v.SetUint(v);
+      json.v.SetUint64(v);
     } else {
-      json.v.SetInt(v);
+      json.v.SetInt64(v);
     }
   }
 

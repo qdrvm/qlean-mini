@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <vector>
+
+#include "serde/json_fwd.hpp"
 #include "types/checkpoint.hpp"
 #include "types/validator_index.hpp"
 
