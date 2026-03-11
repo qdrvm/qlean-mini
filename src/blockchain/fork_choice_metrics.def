@@ -8,9 +8,7 @@
 
 // Fork choice head slot
 // On get fork choice head
-METRIC_GAUGE(fc_head_slot,
-             "lean_head_slot",
-             "Latest slot of the lean chain")
+METRIC_GAUGE(fc_head_slot, "lean_head_slot", "Latest slot of the lean chain")
 
 // Current slot
 // On scrape
@@ -20,9 +18,7 @@ METRIC_GAUGE(fc_current_slot,
 
 // Safe target slot
 // On safe target update
-METRIC_GAUGE(fc_safe_target_slot,
-             "lean_safe_target_slot",
-             "Safe target slot")
+METRIC_GAUGE(fc_safe_target_slot, "lean_safe_target_slot", "Safe target slot")
 
 // Block processing duration
 // On fork choice process block
