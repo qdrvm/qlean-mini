@@ -51,6 +51,18 @@ namespace lean::modules {
   constexpr std::chrono::milliseconds kInitBackoff = std::chrono::seconds{10};
   constexpr std::chrono::milliseconds kMaxBackoff = std::chrono::minutes{5};
 
+  template <typename T>
+  std::vector<typename T::mapped_type> consumeMultimap(
+      T &multimap, const typename T::key_type &key) {
+    auto [begin, end] = multimap.equal_range(key);
+    std::vector<typename T::mapped_type> vector;
+    for (auto &value : std::ranges::subrange{begin, end} | std::views::values) {
+      vector.emplace_back(value);
+    }
+    multimap.erase(begin, end);
+    return vector;
+  }
+
   inline auto gossipTopic(std::string_view type) {
     return std::format("/leanconsensus/devnet0/{}/ssz_snappy", type);
   }
@@ -556,6 +568,22 @@ namespace lean::modules {
                    peer_id.has_value() ? peer_id->toBase58() : "unknown",
                    signed_attestation.validator_id);
 
+          auto &head = signed_attestation.message.head;
+          if (not self->block_tree_->has(head.root)) {
+            if (head.slot <= self->block_tree_->lastFinalized().slot) {
+              SL_WARN(self->logger_, "Pending attestation for finalized fork");
+              return;
+            }
+            SL_INFO(self->logger_,
+                    "Pending attestation from validator {} for head {}",
+                    signed_attestation.validator_id,
+                    head);
+            self->attestation_cache_.emplace(head.root, signed_attestation);
+            if (peer_id.has_value()) {
+              self->requestBlock(*peer_id, head.root);
+            }
+            return;
+          }
           auto res =
               self->fork_choice_store_->onGossipAttestation(signed_attestation);
           if (not res.has_value()) {
@@ -588,6 +616,27 @@ namespace lean::modules {
                       signed_aggregated_attestation.proof.participants.iter(),
                       " "));
 
+              auto &head = signed_aggregated_attestation.data.head;
+              if (not self->block_tree_->has(head.root)) {
+                if (head.slot <= self->block_tree_->lastFinalized().slot) {
+                  SL_WARN(self->logger_,
+                          "Pending aggregated attestation for finalized fork");
+                  return;
+                }
+                SL_INFO(
+                    self->logger_,
+                    "Pending attestation from validators [{}] for head {}",
+                    fmt::join(
+                        signed_aggregated_attestation.proof.participants.iter(),
+                        " "),
+                    head);
+                self->aggregated_attestation_cache_.emplace(
+                    head.root, signed_aggregated_attestation);
+                if (peer_id.has_value()) {
+                  self->requestBlock(*peer_id, head.root);
+                }
+                return;
+              }
               auto res =
                   self->fork_choice_store_->onGossipAggregatedAttestation(
                       signed_aggregated_attestation);
@@ -738,20 +787,6 @@ namespace lean::modules {
       return;
     }
 
-    auto forget_block_with_its_descendants = [&](const BlockHash &block_hash) {
-      std::deque queue{block_hash};
-      while (not queue.empty()) {
-        auto &hash = queue.front();
-        auto [begin, end] = block_children_.equal_range(hash);
-        for (auto it = begin; it != end; ++it) {
-          queue.emplace_back(it->second);
-        }
-        block_children_.erase(begin, end);
-        block_cache_.erase(hash);
-        queue.pop_front();
-      }
-    };
-
     // Ignore blocks of finalized forks
     if (block_index.slot <= block_tree_->lastFinalized().slot) {
       SL_TRACE(
@@ -759,24 +794,26 @@ namespace lean::modules {
           "receiveBlock {} => Block was ignored as block of finalised slot",
           block_index.slot);
 
-      // Forget the block with its cached children
-      forget_block_with_its_descendants(block_index.hash);
+      // Forget cached children
+      auto [child_begin, child_end] =
+          block_children_.equal_range(block_index.hash);
+      for (auto &child :
+           std::ranges::subrange{child_begin, child_end} | std::views::values) {
+        consumeBlockTree(false, child, nullptr);
+      }
       return;
     }
 
-    // Cleanup cache from blocks of finalized forks
-    std::erase_if(block_cache_,
-                  [slot = block_tree_->lastFinalized().slot](const auto &kv) {
-                    const auto &[hash, block] = kv;
-                    return block.message.block.slot <= slot;
-                  });
+    auto &parent_hash = signed_block_with_attestation.message.block.parent_root;
+    auto child_it = block_children_.emplace(parent_hash, block_index.hash);
+    block_cache_.emplace(block_index.hash,
+                         BlockCacheItem{
+                             .child_it = child_it,
+                             .block = std::move(signed_block_with_attestation),
+                         });
 
     // If the parent isn't in the tree-cache block and request of parent
-    auto &parent_hash = signed_block_with_attestation.message.block.parent_root;
     if (not block_tree_->has(parent_hash)) {
-      block_cache_.emplace(block_index.hash,
-                           std::move(signed_block_with_attestation));
-      block_children_.emplace(parent_hash, block_index.hash);
       if (block_cache_.contains(parent_hash)) {
         SL_TRACE(
             logger_, "receiveBlock {} => parent is cached", block_index.slot);
@@ -790,39 +827,55 @@ namespace lean::modules {
       return;
     }
 
-    std::queue<SignedBlockWithAttestation> queue;
-    queue.emplace(std::move(signed_block_with_attestation));
-    while (not queue.empty()) {
-      auto block = std::move(queue.front());
-      queue.pop();
+    auto consume = [&](bool good,
+                       SignedBlockWithAttestation block,
+                       std::vector<SignedAttestation> attestations,
+                       std::vector<SignedAggregatedAttestation>
+                           aggregated_attestations) {
+      auto block_res = fork_choice_store_->onBlock(block);
+      if (not block_res.has_value()) {
+        SL_WARN(logger_,
+                "❌ Error importing block={}: {}",
+                block.message.block.index(),
+                block_res.error());
+        return false;
+      }
+      SL_INFO(logger_, "✅ Imported block {}", block.message.block.index());
 
-      const auto &block_hash = block.message.block.hash();
-
-      // Trying to add block
-      auto res = fork_choice_store_->onBlock(block);
-
-      if (res.has_value()) {  // Success -> import children
-
-        SL_INFO(logger_, "✅ Imported block {}", block.message.block.index());
-
-        auto [b, e] = block_children_.equal_range(block_hash);
-        for (const auto &[parent, child] : std::ranges::subrange(b, e)) {
-          if (auto it = block_cache_.find(child); it != block_cache_.end()) {
-            queue.emplace(std::move(it->second));
-          }
+      for (auto &attestation : attestations) {
+        SL_INFO(logger_,
+                "Import pending attestation from validator {}",
+                attestation.validator_id);
+        auto res = fork_choice_store_->onGossipAttestation(attestation);
+        if (not res.has_value()) {
+          SL_WARN(logger_,
+                  "Error importing pending attestation from validator {}: {}",
+                  attestation.validator_id,
+                  res.error());
         }
-
-        continue;
       }
 
-      // Fail -> forget children
-      SL_WARN(logger_,
-              "❌ Error importing block={}: {}",
-              block.message.block.index(),
+      for (auto &attestation : aggregated_attestations) {
+        SL_INFO(logger_,
+                "Import pending attestation from validators [{}]",
+                fmt::join(attestation.proof.participants.iter(), " "));
+        auto res =
+            fork_choice_store_->onGossipAggregatedAttestation(attestation);
+        if (not res.has_value()) {
+          SL_WARN(
+              logger_,
+              "Error importing pending attestation from validators [{}]: {}",
+              fmt::join(attestation.proof.participants.iter(), " "),
               res.error());
+        }
+      }
 
-      forget_block_with_its_descendants(block_hash);
-    }
+      return true;
+    };
+    consumeBlockTree(true, block_index.hash, consume);
+
+    // Cleanup cache from blocks of finalized forks
+    prune();
   }
 
   bool NetworkingImpl::statusFinalizedIsGood(const BlockIndex &slot_hash) {
@@ -979,5 +1032,57 @@ namespace lean::modules {
     loader_.dispatch_peers_total_count_updated(
         std::make_shared<messages::PeerCountsMessage>(
             connected_peer_count_by_name_));
+  }
+
+  void NetworkingImpl::prune() {
+    auto finalized = block_tree_->lastFinalized();
+    std::erase_if(block_cache_,
+                  [&](const decltype(block_cache_)::value_type &p) {
+                    if (p.second.block.message.block.slot <= finalized.slot) {
+                      block_children_.erase(p.second.child_it);
+                      return true;
+                    }
+                    return false;
+                  });
+    std::erase_if(attestation_cache_,
+                  [&](const decltype(attestation_cache_)::value_type &p) {
+                    return p.second.message.head.slot <= finalized.slot;
+                  });
+    std::erase_if(
+        aggregated_attestation_cache_,
+        [&](const decltype(aggregated_attestation_cache_)::value_type &p) {
+          return p.second.data.head.slot <= finalized.slot;
+        });
+  }
+
+  void NetworkingImpl::consumeBlockTree(bool init_good,
+                                        BlockHash init_hash,
+                                        BlockConsumer consume) {
+    std::deque queue{std::make_pair(init_good, init_hash)};
+    while (not queue.empty()) {
+      const auto [good, hash] = queue.front();
+      queue.pop_front();
+      auto block_it = block_cache_.find(hash);
+      if (block_it == block_cache_.end()) {
+        SL_FATAL(logger_, "consumeBlockTree inconsistent block {}", hash);
+      }
+      auto block = std::move(block_it->second.block);
+      block_children_.erase(block_it->second.child_it);
+      block_cache_.erase(block_it);
+      auto attestations = consumeMultimap(attestation_cache_, hash);
+      auto aggregated_attestations =
+          consumeMultimap(aggregated_attestation_cache_, hash);
+      const auto new_good = consume
+                              ? consume(good,
+                                        std::move(block),
+                                        std::move(attestations),
+                                        std::move(aggregated_attestations))
+                              : good;
+      auto [child_begin, child_end] = block_children_.equal_range(hash);
+      for (auto &child :
+           std::ranges::subrange{child_begin, child_end} | std::views::values) {
+        queue.emplace_back(new_good, child);
+      }
+    }
   }
 }  // namespace lean::modules
