@@ -164,8 +164,7 @@ namespace lean::modules {
         std::string_view type, auto f);
 
     void receiveStatus(const messages::StatusMessageReceived &message);
-    void requestBlock(const libp2p::PeerId &peer_id,
-                      const BlockHash &block_hash);
+    void requestBlock(const libp2p::PeerId &peer_id, BlockHash block_hash);
     void receiveBlock(std::optional<libp2p::PeerId> peer_id,
                       SignedBlockWithAttestation &&block);
     bool statusFinalizedIsGood(const BlockIndex &slot_hash);
@@ -212,6 +211,7 @@ namespace lean::modules {
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
     std::shared_ptr<libp2p::protocol::gossip::Topic>
         gossip_signed_aggregated_attestation_topic_;
+    std::unordered_map<BlockHash, Clock::time_point> block_requested_at_;
     std::unordered_map<BlockHash, BlockCacheItem> block_cache_;
     BlockChildren block_children_;
     std::unordered_multimap<BlockHash, SignedAttestation> attestation_cache_;
