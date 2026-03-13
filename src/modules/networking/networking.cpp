@@ -51,6 +51,8 @@ namespace lean::modules {
   constexpr std::chrono::milliseconds kInitBackoff = std::chrono::seconds{10};
   constexpr std::chrono::milliseconds kMaxBackoff = std::chrono::minutes{5};
 
+  constexpr auto kRetryRequestBlock = std::chrono::seconds{3};
+
   template <typename T>
   std::vector<typename T::mapped_type> consumeMultimap(
       T &multimap, const typename T::key_type &key) {
@@ -736,8 +738,8 @@ namespace lean::modules {
         or not statusFinalizedIsGood(head)) {
       return;
     }
-    if (not block_cache_.contains(head.hash) and not block_tree_->has(head.hash)
-        and head.slot > block_tree_->lastFinalized().slot) {
+    if (head.slot > block_tree_->lastFinalized().slot
+        and not block_tree_->has(head.hash)) {
       SL_TRACE(logger_, "receiveStatus {} => request", head.slot);
       requestBlock(message.from_peer, head.hash);
     }
@@ -745,26 +747,71 @@ namespace lean::modules {
   }
 
   void NetworkingImpl::requestBlock(const libp2p::PeerId &peer_id,
-                                    const BlockHash &block_hash) {
-    libp2p::coroSpawn(*io_context_,
-                      [self{shared_from_this()},
-                       peer_id,
-                       block_hash]() -> libp2p::Coro<void> {
-                        auto response_res =
-                            co_await self->block_request_protocol_->request(
-                                peer_id, {.blocks = {{block_hash}}});
-                        if (response_res.has_value()) {
-                          auto &block = response_res.value();
-                          block.message.block.setHash();
-                          self->receiveBlock(peer_id, std::move(block));
-                        }
-                      });
+                                    BlockHash block_hash) {
+    // find missing block or parent
+    auto finalized = block_tree_->lastFinalized();
+    while (true) {
+      auto block_it = block_cache_.find(block_hash);
+      if (block_it == block_cache_.end()) {
+        break;
+      }
+      auto &block = block_it->second.block.message.block;
+      // ignore finalized fork
+      if (block.slot <= finalized.slot) {
+        return;
+      }
+      block_hash = block.parent_root;
+    }
+    // ignore existing block
+    if (block_tree_->has(block_hash)) {
+      return;
+    }
+
+    // wait before retry
+    auto now = Clock::now();
+    auto &requested_at = block_requested_at_[block_hash];
+    if (now < requested_at + kRetryRequestBlock) {
+      return;
+    }
+    requested_at = now;
+
+    auto name_it = peer_name_.find(peer_id);
+    auto peer_name =
+        name_it != peer_name_.end() ? name_it->second : peer_id.toBase58();
+    SL_INFO(logger_, "request block {} from {}", block_hash, peer_name);
+
+    libp2p::coroSpawn(
+        *io_context_,
+        [self{shared_from_this()}, peer_id, block_hash, peer_name]()
+            -> libp2p::Coro<void> {
+          auto response_res = co_await self->block_request_protocol_->request(
+              peer_id, {.blocks = {{block_hash}}});
+          self->block_requested_at_.erase(block_hash);
+          if (response_res.has_value()) {
+            auto &block = response_res.value();
+            SL_DEBUG(self->logger_,
+                     "request block {} from {} success, slot {}",
+                     block_hash,
+                     peer_name,
+                     block.message.block.slot);
+            block.message.block.setHash();
+            self->receiveBlock(peer_id, std::move(block));
+          } else {
+            SL_WARN(self->logger_,
+                    "request block {} from {} error: {}",
+                    block_hash,
+                    peer_name,
+                    response_res.error());
+          }
+        });
   }
 
   void NetworkingImpl::receiveBlock(
       std::optional<libp2p::PeerId> from_peer,
       SignedBlockWithAttestation &&signed_block_with_attestation) {
     auto block_index = signed_block_with_attestation.message.block.index();
+    auto &parent_hash = signed_block_with_attestation.message.block.parent_root;
+
     SL_DEBUG(logger_,
              "Received block {} parent={:0xx} from peer={}",
              block_index,
@@ -776,6 +823,9 @@ namespace lean::modules {
       SL_TRACE(logger_,
                "receiveBlock {} => Block was ignored as cached",
                block_index.slot);
+      if (from_peer) {
+        requestBlock(*from_peer, parent_hash);
+      }
       return;
     }
 
@@ -804,7 +854,6 @@ namespace lean::modules {
       return;
     }
 
-    auto &parent_hash = signed_block_with_attestation.message.block.parent_root;
     auto child_it = block_children_.emplace(parent_hash, block_index.hash);
     block_cache_.emplace(block_index.hash,
                          BlockCacheItem{
@@ -812,18 +861,12 @@ namespace lean::modules {
                              .block = std::move(signed_block_with_attestation),
                          });
 
+    if (from_peer) {
+      requestBlock(*from_peer, parent_hash);
+    }
+
     // If the parent isn't in the tree-cache block and request of parent
     if (not block_tree_->has(parent_hash)) {
-      if (block_cache_.contains(parent_hash)) {
-        SL_TRACE(
-            logger_, "receiveBlock {} => parent is cached", block_index.slot);
-        return;
-      }
-      if (from_peer) {
-        requestBlock(from_peer.value(), parent_hash);
-        SL_TRACE(
-            logger_, "receiveBlock {} => request parent", block_index.slot);
-      }
       return;
     }
 
