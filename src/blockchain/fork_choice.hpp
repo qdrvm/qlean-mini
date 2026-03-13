@@ -30,6 +30,7 @@
 #include "utils/tuple_hash.hpp"
 
 namespace lean {
+  struct ForkChoiceApiJson;
   struct GenesisConfig;
   class ValidatorRegistry;
   class ValidatorKeysManifest;
@@ -168,7 +169,7 @@ namespace lean {
 
     Slot getCurrentSlot() const;
 
-    Checkpoint getHead();
+    Checkpoint getHead() const;
     [[nodiscard]] outcome::result<std::shared_ptr<const State>> getState(
         const BlockHash &block_hash) const;
 
@@ -435,6 +436,8 @@ namespace lean {
     Interval time() const {
       return time_;
     }
+
+    outcome::result<ForkChoiceApiJson> apiForkChoice() const;
 
    private:
     using ValidatorAttestationKey = std::tuple<ValidatorIndex, BlockHash>;

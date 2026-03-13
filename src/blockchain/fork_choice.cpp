@@ -27,6 +27,7 @@
 #include "is_justifiable_slot.hpp"
 #include "metrics/impl/metrics_impl.hpp"
 #include "types/aggregated_attestations.hpp"
+#include "types/fork_choice_api_json.hpp"
 #include "types/signed_block_with_attestation.hpp"
 #include "utils/ceil_div.hpp"
 #include "utils/lru_cache.hpp"
@@ -268,7 +269,7 @@ namespace lean {
     return time_.slot();
   }
 
-  Checkpoint ForkChoiceStore::getHead() {
+  Checkpoint ForkChoiceStore::getHead() const {
     return head_;
   }
 
@@ -1254,6 +1255,62 @@ namespace lean {
             return lhs_weight < rhs_weight;
           });
     }
+  }
+
+  outcome::result<ForkChoiceApiJson> ForkChoiceStore::apiForkChoice() const {
+    auto finalized = getLatestFinalized();
+    auto head = getHead().root;
+    BOOST_OUTCOME_TRY(auto head_state, getState(head));
+
+    std::unordered_map<BlockHash, ForkChoiceNodeApiJson> nodes;
+    auto block_queue = block_tree_->getLeaves();
+    while (not block_queue.empty()) {
+      auto hash = block_queue.back();
+      block_queue.pop_back();
+      BOOST_OUTCOME_TRY(auto header, block_tree_->tryGetBlockHeader(hash));
+      if (not header.has_value()) {
+        continue;
+      }
+      if (header->slot < finalized.slot) {
+        continue;
+      }
+      nodes.emplace(hash,
+                    ForkChoiceNodeApiJson{
+                        .root = hash,
+                        .slot = header->slot,
+                        .parent_root = header->parent_root,
+                        .proposer_index = header->proposer_index,
+                        .weight = 0,
+                    });
+      if (header->slot > finalized.slot) {
+        block_queue.emplace_back(header->parent_root);
+      }
+    }
+
+    for (auto &attestation : latest_known_attestations_ | std::views::values) {
+      auto hash = attestation.head.root;
+      while (true) {
+        auto node_it = nodes.find(hash);
+        if (node_it == nodes.end()) {
+          break;
+        }
+        auto &node = node_it->second;
+        ++node.weight;
+        hash = node.parent_root;
+      }
+    }
+
+    ForkChoiceApiJson result{
+        .head = head,
+        .justified = getLatestJustified(),
+        .finalized = finalized,
+        .safe_target = getSafeTarget().root,
+        .validator_count = head_state->validatorCount(),
+    };
+    for (auto &node : nodes | std::views::values) {
+      result.nodes.emplace_back(std::move(node));
+    }
+    return result;
   }
 
   void ForkChoiceStore::addSignatureToAggregate(const AttestationData &data,

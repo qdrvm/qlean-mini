@@ -15,9 +15,13 @@
 #include "app/state_manager.hpp"
 #include "blockchain/fork_choice.hpp"
 #include "metrics/handler.hpp"
+#include "serde/json.hpp"
+#include "types/fork_choice_api_json.hpp"
 #include "utils/http.hpp"
 
 namespace lean::app {
+  constexpr auto *kContentTypeJson = "application/json; charset=utf-8";
+
   HttpServer::HttpServer(qtils::SharedRef<log::LoggingSystem> logsys,
                          qtils::SharedRef<StateManager> state_manager,
                          qtils::SharedRef<Configuration> app_config,
@@ -78,7 +82,7 @@ namespace lean::app {
                       url);
               if (url == "/lean/v0/health") {
                 response.set(boost::beast::http::field::content_type,
-                             "application/json");
+                             kContentTypeJson);
                 response.body() =
                     R"({"status":"healthy","service":"qlean-api"})";
                 return response;
@@ -100,10 +104,23 @@ namespace lean::app {
               if (url == "/lean/v0/checkpoints/justified") {
                 auto justified = self->fork_choice_store_->getLatestJustified();
                 response.set(boost::beast::http::field::content_type,
-                             "application/json");
+                             kContentTypeJson);
                 response.body() = std::format(R"({{"root":"0x{}","slot":{}}})",
                                               justified.root.toHex(),
                                               justified.slot);
+                return response;
+              }
+              if (url == "/lean/v0/fork_choice") {
+                if (auto result_res =
+                        self->fork_choice_store_->apiForkChoice()) {
+                  auto &result = result_res.value();
+                  response.set(boost::beast::http::field::content_type,
+                               kContentTypeJson);
+                  response.body() = json::encode(result);
+                } else {
+                  response.result(
+                      boost::beast::http::status::internal_server_error);
+                }
                 return response;
               }
               response.result(boost::beast::http::status::not_found);
