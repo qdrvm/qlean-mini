@@ -152,6 +152,13 @@ namespace lean::modules {
             message) override;
 
    private:
+    using BlockChildren = std::unordered_multimap<BlockHash, BlockHash>;
+
+    struct BlockCacheItem {
+      BlockChildren::iterator child_it;
+      SignedBlockWithAttestation block;
+    };
+
     template <typename T>
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossipSubscribe(
         std::string_view type, auto f);
@@ -168,6 +175,16 @@ namespace lean::modules {
      */
     void connectToPeers();
     void updateMetricConnectedPeerCount();
+    void prune();
+
+    using BlockConsumer =
+        std::function<bool(bool,
+                           SignedBlockWithAttestation,
+                           std::vector<SignedAttestation>,
+                           std::vector<SignedAggregatedAttestation>)>;
+    void consumeBlockTree(bool init_good,
+                          BlockHash init_hash,
+                          BlockConsumer consume);
 
     NetworkingLoader &loader_;
     log::Logger logger_;
@@ -195,8 +212,11 @@ namespace lean::modules {
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
     std::shared_ptr<libp2p::protocol::gossip::Topic>
         gossip_signed_aggregated_attestation_topic_;
-    std::unordered_map<BlockHash, SignedBlockWithAttestation> block_cache_;
-    std::unordered_multimap<BlockHash, BlockHash> block_children_;
+    std::unordered_map<BlockHash, BlockCacheItem> block_cache_;
+    BlockChildren block_children_;
+    std::unordered_multimap<BlockHash, SignedAttestation> attestation_cache_;
+    std::unordered_multimap<BlockHash, SignedAggregatedAttestation>
+        aggregated_attestation_cache_;
     std::default_random_engine random_;
     std::shared_ptr<AsioSslContext> ssl_context_;
     std::unique_ptr<StateSyncClient> state_sync_client_;
