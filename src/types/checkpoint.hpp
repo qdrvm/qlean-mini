@@ -21,10 +21,8 @@ namespace lean {
       return Checkpoint{.root = v.hash(), .slot = v.slot};
     }
 
-    SSZ_CONT(root, slot);
+    SSZ_AND_JSON_FIELDS(root, slot);
     bool operator==(const Checkpoint &) const = default;
-
-    JSON_FIELDS(root, slot);
   };
 
 }  // namespace lean

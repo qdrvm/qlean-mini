@@ -7,11 +7,12 @@
 #pragma once
 
 #include <array>
+#include <cctype>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#define _JSON_FIELDS_1(name) std::string(#name)
+#define _JSON_FIELDS_1(name) ::lean::json::FieldName(#name)
 #define _JSON_FIELDS_2(name, ...) \
   _JSON_FIELDS_1(name), _JSON_FIELDS_1(__VA_ARGS__)
 #define _JSON_FIELDS_3(name, ...) \
@@ -55,4 +56,72 @@
   }                                                                 \
   auto fields() const {                                             \
     return std::tie(__VA_ARGS__);                                   \
+  }                                                                 \
+  auto fields() {                                                   \
+    return std::tie(__VA_ARGS__);                                   \
   }
+
+#define JSON_DISCRIMINATOR(type_field_name, ...)        \
+  static const auto &typeFieldName() {                  \
+    static auto name = _JSON_FIELDS_1(type_field_name); \
+    return name;                                        \
+  }                                                     \
+  static const auto &typeFieldValues() {                \
+    static std::array values{__VA_ARGS__};              \
+    return values;                                      \
+  }
+
+#define JSON_WRAPPER(field)    \
+  auto &wrappedField() const { \
+    return field;              \
+  }                            \
+  auto &wrappedField() {       \
+    return field;              \
+  }
+
+#define SSZ_AND_JSON_FIELDS(...) \
+  SSZ_CONT(__VA_ARGS__);         \
+  JSON_FIELDS(__VA_ARGS__)
+
+#define SSZ_AND_JSON_WRAPPER(field) \
+  SSZ_WRAPPER(field);               \
+  JSON_WRAPPER(field)
+
+namespace lean::json {
+  enum class NameCase : uint8_t { SNAKE, CAMEL };
+
+  inline std::string toCamelCase(std::string_view name) {
+    std::string camel;
+    bool capitalize = false;
+    for (auto &c : name) {
+      if (c == '_') {
+        capitalize = true;
+        continue;
+      }
+      if (capitalize) {
+        capitalize = false;
+        camel.push_back(std::toupper(c));
+      } else {
+        camel.push_back(c);
+      }
+    }
+    return camel;
+  }
+
+  struct FieldName {
+    FieldName(std::string snake)
+        : snake{std::move(snake)}, camel{toCamelCase(this->snake)} {}
+
+    const std::string &operator[](NameCase name_case) const {
+      switch (name_case) {
+        case NameCase::SNAKE:
+          return snake;
+        case NameCase::CAMEL:
+          return camel;
+      }
+    }
+
+    std::string snake;
+    std::string camel;
+  };
+}  // namespace lean::json

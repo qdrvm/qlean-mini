@@ -598,18 +598,18 @@ namespace lean {
       const SignedAttestation &signed_attestation) {
     Attestation attestation{
         .validator_id = signed_attestation.validator_id,
-        .data = signed_attestation.message,
+        .data = signed_attestation.data,
     };
     BOOST_OUTCOME_TRY(validateAttestation(attestation));
-    OUTCOME_TRY(state, getState(signed_attestation.message.target.root));
+    OUTCOME_TRY(state, getState(signed_attestation.data.target.root));
     if (signed_attestation.validator_id >= state->validators.size()) {
       return Error::INVALID_ATTESTATION;
     }
-    auto payload = attestationPayload(signed_attestation.message);
+    auto payload = attestationPayload(signed_attestation.data);
     auto signature_valid = xmss_provider_->verify(
         state->validators[signed_attestation.validator_id].pubkey,
         payload,
-        signed_attestation.message.slot,
+        signed_attestation.data.slot,
         signed_attestation.signature);
     updateMetricAttestationSignature(signature_valid);
     if (not signature_valid) {
@@ -618,7 +618,7 @@ namespace lean {
     if (is_aggregator_
         and validatorSubnet(signed_attestation.validator_id, subnet_count_)
                 == validatorSubnet(validator_id_, subnet_count_)) {
-      addSignatureToAggregate(signed_attestation.message,
+      addSignatureToAggregate(signed_attestation.data,
                               signed_attestation.validator_id,
                               signed_attestation.signature);
     }
@@ -1122,7 +1122,7 @@ namespace lean {
           }
           SL_DEBUG(logger_,
                    "Produced vote for target={}",
-                   signed_attestation.message.target);
+                   signed_attestation.data.target);
           result.emplace_back(signed_attestation);
         }
 

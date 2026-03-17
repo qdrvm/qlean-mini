@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "clock/clock.hpp"
-
 #include <memory>
+
+#include "clock/clock.hpp"
 
 namespace lean::clock {
 
@@ -18,9 +18,9 @@ namespace lean::clock {
    */
   class ManualClock : public SystemClock {
    public:
-    ManualClock() : current_time_msec_(0) {}
-    
-    explicit ManualClock(uint64_t initial_time_msec)
+    ManualClock() = default;
+
+    explicit ManualClock(std::chrono::milliseconds initial_time_msec)
         : current_time_msec_(initial_time_msec) {}
 
     TimePoint now() const override {
@@ -28,29 +28,31 @@ namespace lean::clock {
     }
 
     uint64_t nowSec() const override {
-      return current_time_msec_ / 1000;
+      return std::chrono::duration_cast<std::chrono::seconds>(
+                 current_time_msec_)
+          .count();
     }
 
-    uint64_t nowMsec() const override {
-      return current_time_msec_;
+    std::chrono::milliseconds nowMsec() const override {
+      return std::chrono::milliseconds(current_time_msec_);
     }
 
     /**
      * Advance the mock time by the specified number of milliseconds
      */
-    void advance(uint64_t milliseconds) {
+    void advance(std::chrono::milliseconds milliseconds) {
       current_time_msec_ += milliseconds;
     }
 
     /**
      * Set the mock time to a specific value in milliseconds
      */
-    void setTime(uint64_t milliseconds) {
+    void setTime(std::chrono::milliseconds milliseconds) {
       current_time_msec_ = milliseconds;
     }
 
    private:
-    uint64_t current_time_msec_;
+    std::chrono::milliseconds current_time_msec_;
   };
 
 }  // namespace lean::clock

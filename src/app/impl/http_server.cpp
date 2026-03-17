@@ -116,7 +116,7 @@ namespace lean::app {
                   auto &result = result_res.value();
                   response.set(boost::beast::http::field::content_type,
                                kContentTypeJson);
-                  response.body() = json::encode(result);
+                  response.body() = json::encode(json::NameCase::SNAKE, result);
                 } else {
                   response.result(
                       boost::beast::http::status::internal_server_error);

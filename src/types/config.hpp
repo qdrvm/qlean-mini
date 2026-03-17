@@ -10,12 +10,13 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
+
 namespace lean {
   struct Config : ssz::ssz_container {
     uint64_t genesis_time;
 
-    SSZ_CONT(genesis_time);
-
+    SSZ_AND_JSON_FIELDS(genesis_time);
     bool operator==(const Config &) const = default;
 
     std::chrono::milliseconds genesisTimeMs() const {

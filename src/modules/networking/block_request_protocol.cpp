@@ -58,7 +58,7 @@ namespace lean::modules {
     BOOST_OUTCOME_CO_TRY(auto encoded,
                          co_await snappy::coUncompressFramed(stream));
     BOOST_OUTCOME_CO_TRY(auto request, decode<BlockRequest>(encoded));
-    for (auto &block_hash : request.blocks) {
+    for (auto &block_hash : request.roots) {
       BOOST_OUTCOME_CO_TRY(auto block,
                            block_tree_->tryGetSignedBlock(block_hash));
       if (not block.has_value()) {
