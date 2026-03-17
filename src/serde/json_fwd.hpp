@@ -109,6 +109,12 @@
     return values;                                      \
   }
 
+#define JSON_ENUM(type, ...)                                              \
+  inline const auto &enumValues(const type &) {                           \
+    static std::vector<std::pair<type, std::string>> values{__VA_ARGS__}; \
+    return values;                                                        \
+  }
+
 #define JSON_WRAPPER(field)    \
   auto &wrappedField() const { \
     return field;              \

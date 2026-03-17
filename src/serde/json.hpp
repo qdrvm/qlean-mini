@@ -246,6 +246,20 @@ namespace lean::json {
   }
 
   template <typename T>
+    requires requires(T &v) { enumValues(v); }
+  void decode(JsonIn json, T &v) {
+    auto &enum_values = enumValues(v);
+    auto str = decodeStr(json);
+    for (auto &[enum_value, enum_str] : enum_values) {
+      if (str == enum_str) {
+        v = enum_value;
+        return;
+      }
+    }
+    JSON_ASSERT(false);
+  }
+
+  template <typename T>
     requires requires(T &v) { v.wrappedField(); }
   void decode(JsonIn json, T &v) {
     decode(json, v.wrappedField());

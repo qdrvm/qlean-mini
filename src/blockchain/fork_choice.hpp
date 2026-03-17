@@ -153,6 +153,8 @@ namespace lean {
         bool is_aggregator,
         uint64_t subnet_count);
 
+    void dontPropose();
+
     // Compute the latest block that the validator is allowed to choose as the
     // target
     [[nodiscard]] outcome::result<void> updateSafeTarget();
@@ -592,6 +594,7 @@ namespace lean {
     ValidatorIndex validator_id_;
     bool is_aggregator_;
     uint64_t subnet_count_;
+    bool dont_propose_ = false;
     std::unordered_map<BlockHash, Slot> anchor_block_slots_;
   };
 

@@ -167,6 +167,10 @@ namespace lean {
         is_aggregator_{is_aggregator},
         subnet_count_{subnet_count} {}
 
+  void ForkChoiceStore::dontPropose() {
+    dont_propose_ = true;
+  }
+
   inline crypto::xmss::XmssMessage attestationPayload(
       const AttestationData &attestation_data) {
     return sszHash(attestation_data);
@@ -202,7 +206,7 @@ namespace lean {
     // choosing the heaviest child at each fork based on attestation weights.
     OUTCOME_TRY(lmd_ghost_head_root,
                 computeLmdGhostHead(block_tree_->getLatestJustified().root,
-                                    latest_new_attestations_,
+                                    latest_known_attestations_,
                                     0));
 
     OUTCOME_TRY(lmd_ghost_head_slot, getBlockSlot(lmd_ghost_head_root));
@@ -1028,7 +1032,7 @@ namespace lean {
             validator_registry_->currentValidatorIndices().contains(
                 producer_index);
 
-        if (is_producer) {
+        if (is_producer and not dont_propose_) {
           SL_TRACE(logger_,
                    "Interval 0 of slot {}: node is producer - try to produce",
                    current_slot);
@@ -1096,6 +1100,9 @@ namespace lean {
 
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
+          if (dont_propose_) {
+            continue;
+          }
           if (isProposer(validator_index, current_slot, validator_count)) {
             continue;
           }

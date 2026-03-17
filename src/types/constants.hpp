@@ -18,6 +18,8 @@ namespace lean {
 
   static constexpr uint64_t INTERVALS_PER_SLOT = 5;
   static constexpr std::chrono::milliseconds INTERVAL_DURATION_MS{800};
+  static constexpr std::chrono::milliseconds SLOT_DURATION_MS{
+      INTERVALS_PER_SLOT * INTERVAL_DURATION_MS};
 
   // The number of slots to lookback for justification.
   static constexpr uint64_t JUSTIFICATION_LOOKBACK_SLOTS = 3;
