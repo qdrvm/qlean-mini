@@ -31,12 +31,50 @@
   _JSON_FIELDS_1(name), _JSON_FIELDS_8(__VA_ARGS__)
 #define _JSON_FIELDS_10(name, ...) \
   _JSON_FIELDS_1(name), _JSON_FIELDS_9(__VA_ARGS__)
-#define _JSON_FIELDS_OVERLOAD(                           \
-    _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, macro, ...) \
+#define _JSON_FIELDS_11(name, ...) \
+  _JSON_FIELDS_1(name), _JSON_FIELDS_10(__VA_ARGS__)
+#define _JSON_FIELDS_12(name, ...) \
+  _JSON_FIELDS_1(name), _JSON_FIELDS_11(__VA_ARGS__)
+#define _JSON_FIELDS_13(name, ...) \
+  _JSON_FIELDS_1(name), _JSON_FIELDS_12(__VA_ARGS__)
+#define _JSON_FIELDS_14(name, ...) \
+  _JSON_FIELDS_1(name), _JSON_FIELDS_13(__VA_ARGS__)
+#define _JSON_FIELDS_15(name, ...) \
+  _JSON_FIELDS_1(name), _JSON_FIELDS_14(__VA_ARGS__)
+#define _JSON_FIELDS_16(name, ...) \
+  _JSON_FIELDS_1(name), _JSON_FIELDS_15(__VA_ARGS__)
+#define _JSON_FIELDS_17(name, ...) \
+  _JSON_FIELDS_1(name), _JSON_FIELDS_16(__VA_ARGS__)
+#define _JSON_FIELDS_OVERLOAD(_1,    \
+                              _2,    \
+                              _3,    \
+                              _4,    \
+                              _5,    \
+                              _6,    \
+                              _7,    \
+                              _8,    \
+                              _9,    \
+                              _10,   \
+                              _11,   \
+                              _12,   \
+                              _13,   \
+                              _14,   \
+                              _15,   \
+                              _16,   \
+                              _17,   \
+                              macro, \
+                              ...)   \
   macro
 #define _JSON_FIELDS_OVERLOAD_CALL(macro, ...) macro(__VA_ARGS__)
 #define _JSON_FIELDS(...)                                           \
   _JSON_FIELDS_OVERLOAD_CALL(_JSON_FIELDS_OVERLOAD(__VA_ARGS__,     \
+                                                   _JSON_FIELDS_17, \
+                                                   _JSON_FIELDS_16, \
+                                                   _JSON_FIELDS_15, \
+                                                   _JSON_FIELDS_14, \
+                                                   _JSON_FIELDS_13, \
+                                                   _JSON_FIELDS_12, \
+                                                   _JSON_FIELDS_11, \
                                                    _JSON_FIELDS_10, \
                                                    _JSON_FIELDS_9,  \
                                                    _JSON_FIELDS_8,  \
