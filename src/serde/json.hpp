@@ -162,6 +162,16 @@ namespace lean::json {
   }
 
   template <typename T>
+  void decode(JsonIn json, std::optional<T> &v) {
+    v.reset();
+    if (not json.v.IsNull()) {
+      T value;
+      decode(json, value);
+      v.emplace(std::move(value));
+    }
+  }
+
+  template <typename T>
   void decode(JsonIn json, std::unordered_map<std::string, T> &v) {
     v.clear();
     JSON_ASSERT(json.v.IsObject());

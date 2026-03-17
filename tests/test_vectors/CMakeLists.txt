@@ -9,6 +9,7 @@ addtest(test_vectors_test
 )
 target_link_libraries(test_vectors_test
     blockchain
+    xmss_provider
 )
 target_compile_definitions(test_vectors_test PRIVATE
     PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
