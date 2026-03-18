@@ -34,7 +34,7 @@
 #include "app/chain_spec.hpp"
 #include "app/configuration.hpp"
 #include "blockchain/block_tree.hpp"
-#include "blockchain/fork_choice.hpp"
+#include "blockchain/fork_choice_mutex.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/validator_registry.hpp"
 #include "blockchain/validator_subnet.hpp"
@@ -101,7 +101,7 @@ namespace lean::modules {
       qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<app::StateManager> app_state_manager,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
-      qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
+      qtils::SharedRef<lean::ForkChoiceStoreMutex> fork_choice_store,
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<GenesisConfig> genesis_config,
       qtils::SharedRef<app::ChainSpec> chain_spec,

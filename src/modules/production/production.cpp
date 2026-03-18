@@ -9,6 +9,8 @@
 #include <qtils/visit_in_place.hpp>
 
 #include "blockchain/block_tree.hpp"
+#include "blockchain/fork_choice_mutex.hpp"
+#include "clock/clock.hpp"
 #include "crypto/hasher.hpp"
 #include "modules/shared/networking_types.tmp.hpp"
 #include "modules/shared/prodution_types.tmp.hpp"
@@ -19,7 +21,7 @@ namespace lean::modules {
       ProductionLoader &loader,
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
-      std::shared_ptr<ForkChoiceStore> fork_choice_store,
+      std::shared_ptr<ForkChoiceStoreMutex> fork_choice_store,
       qtils::SharedRef<crypto::Hasher> hasher,
       qtils::SharedRef<clock::SystemClock> clock)
       : loader_(loader),

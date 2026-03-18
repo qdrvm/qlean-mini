@@ -25,7 +25,7 @@ namespace lean::loaders {
         public modules::ProductionLoader {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<crypto::Hasher> hasher_;
-    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store_;
     qtils::SharedRef<clock::SystemClock> clock_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
@@ -52,7 +52,7 @@ namespace lean::loaders {
                      qtils::SharedRef<Subscription> se_manager,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
                      qtils::SharedRef<crypto::Hasher> hasher,
-                     qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                     qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store,
                      qtils::SharedRef<clock::SystemClock> clock)
         : Loader(std::move(logsys), std::move(se_manager)),
           block_tree_(std::move(block_tree)),
@@ -73,7 +73,7 @@ namespace lean::loaders {
                                        modules::ProductionLoader &,
                                        std::shared_ptr<log::LoggingSystem>,
                                        std::shared_ptr<blockchain::BlockTree>,
-                                       qtils::SharedRef<ForkChoiceStore>,
+                                       qtils::SharedRef<ForkChoiceStoreMutex>,
                                        std::shared_ptr<crypto::Hasher>,
                                        std::shared_ptr<clock::SystemClock>>(
                   "query_module_instance");

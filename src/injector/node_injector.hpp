@@ -10,9 +10,6 @@
 
 #include "se/subscription.hpp"
 
-namespace lean {
-  class ForkChoiceStore;
-}
 namespace lean::log {
   class LoggingSystem;
 }  // namespace lean::log

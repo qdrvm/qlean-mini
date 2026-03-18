@@ -10,8 +10,12 @@
 #include <modules/production/interfaces.hpp>
 #include <qtils/create_smart_pointer_macros.hpp>
 
-#include "blockchain/fork_choice.hpp"
-
+namespace lean {
+  class ForkChoiceStoreMutex;
+}  // namespace lean
+namespace lean::clock {
+  class SystemClock;
+}  // namespace lean::clock
 namespace lean::crypto {
   class Hasher;
 }
@@ -22,12 +26,13 @@ namespace lean::blockchain {
 namespace lean::modules {
 
   class ProductionModuleImpl final : public lean::modules::ProductionModule {
-    ProductionModuleImpl(lean::modules::ProductionLoader &loader,
-                         qtils::SharedRef<lean::log::LoggingSystem> logsys,
-                         qtils::SharedRef<blockchain::BlockTree> block_tree,
-                         std::shared_ptr<ForkChoiceStore> fork_choice_store,
-                         qtils::SharedRef<crypto::Hasher> hasher,
-                         qtils::SharedRef<clock::SystemClock> clock);
+    ProductionModuleImpl(
+        lean::modules::ProductionLoader &loader,
+        qtils::SharedRef<lean::log::LoggingSystem> logsys,
+        qtils::SharedRef<blockchain::BlockTree> block_tree,
+        std::shared_ptr<ForkChoiceStoreMutex> fork_choice_store,
+        qtils::SharedRef<crypto::Hasher> hasher,
+        qtils::SharedRef<clock::SystemClock> clock);
 
    public:
     CREATE_SHARED_METHOD(ProductionModuleImpl);
@@ -47,7 +52,7 @@ namespace lean::modules {
     qtils::SharedRef<lean::log::LoggingSystem> logsys_;
     lean::log::Logger logger_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
-    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store_;
     qtils::SharedRef<crypto::Hasher> hasher_;
     qtils::SharedRef<clock::SystemClock> clock_;
   };
