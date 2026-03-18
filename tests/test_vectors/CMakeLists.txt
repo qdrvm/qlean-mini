@@ -5,6 +5,7 @@
 #
 
 addtest(test_vectors_test
+    ssz_test.cpp
     test_vectors_test.cpp
 )
 target_link_libraries(test_vectors_test

@@ -15,6 +15,7 @@
 #include <qtils/byte_vec.hpp>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
+#include <sszpp/lists.hpp>
 
 #include "serde/json_fwd.hpp"
 
@@ -141,7 +142,7 @@ namespace lean::json {
     v = decodeStr(json);
   }
 
-  void decode(JsonIn json, qtils::ByteVec &v) {
+  inline void decode(JsonIn json, qtils::ByteVec &v) {
     v = qtils::unhex0x<qtils::ByteVec>(decodeStr(json)).value();
   }
 

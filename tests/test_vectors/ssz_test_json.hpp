@@ -108,5 +108,5 @@ namespace lean {
 namespace lean::json {
   struct JsonIn;
 
-  void decode(JsonIn json, SszTestJson::Disabled &v) {}
+  void decode(const JsonIn &json, SszTestJson::Disabled &v) {}
 }  // namespace lean::json
