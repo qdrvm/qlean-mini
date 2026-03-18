@@ -6,6 +6,7 @@
 
 addtest(test_vectors_test
     ssz_test.cpp
+    state_transition_test.cpp
     test_vectors_test.cpp
     verify_signatures_test.cpp
 )
