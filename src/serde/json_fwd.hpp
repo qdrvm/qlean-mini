@@ -8,6 +8,8 @@
 
 #include <array>
 #include <cctype>
+#include <cstdint>
+#include <cstdlib>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -132,7 +134,7 @@
   JSON_WRAPPER(field)
 
 namespace lean::json {
-  enum NameCase { SNAKE, CAMEL };
+  enum class NameCase : uint8_t { SNAKE, CAMEL };
 
   inline std::string toCamelCase(std::string_view name) {
     std::string camel;
@@ -163,6 +165,7 @@ namespace lean::json {
         case NameCase::CAMEL:
           return camel;
       }
+      abort();
     }
 
     std::string snake;
