@@ -132,7 +132,7 @@
   JSON_WRAPPER(field)
 
 namespace lean::json {
-  enum class NameCase : uint8_t { SNAKE, CAMEL };
+  enum NameCase { SNAKE, CAMEL };
 
   inline std::string toCamelCase(std::string_view name) {
     std::string camel;
