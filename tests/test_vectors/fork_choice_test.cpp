@@ -4,13 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "test_vectors.hpp"
-
 #include "blockchain/fork_choice.hpp"
+
 #include "blockchain/impl/anchor_block_impl.hpp"
 #include "blockchain/impl/anchor_state_impl.hpp"
-#include "blockchain/state_transition_function.hpp"
-#include "crypto/xmss/xmss_provider_impl.hpp"
 #include "fork_choice_test_json.hpp"
 #include "mock/app/chain_spec_mock.hpp"
 #include "mock/app/configuration_mock.hpp"
@@ -21,9 +18,8 @@
 #include "mock/clock/manual_clock.hpp"
 #include "mock/crypto/xmss_provider_mock.hpp"
 #include "mock/metrics_mock.hpp"
-#include "state_transition_test_json.hpp"
+#include "test_vectors.hpp"
 #include "testutil/prepare_loggers.hpp"
-#include "verify_signatures_test_json.hpp"
 
 using lean::BlockHash;
 using testing::_;
