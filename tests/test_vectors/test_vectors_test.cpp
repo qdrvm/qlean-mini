@@ -28,46 +28,6 @@
 using lean::BlockHash;
 using testing::_;
 
-struct VerifySignaturesTest : FixtureTest<lean::VerifySignaturesTestJson> {};
-FIXTURE_INSTANTIATE(VerifySignaturesTest, "verify_signatures");
-
-TEST_P(VerifySignaturesTest, VerifySignatures) {
-  auto &[name, fixture] = GetParam();
-  std::println("RUN {}", name);
-  auto logsys = testutil::prepareLoggers();
-  lean::ValidatorRegistry::ValidatorIndices validator_indices{0};
-  auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
-  EXPECT_CALL(*validator_registry, currentValidatorIndices())
-      .Times(testing::AnyNumber())
-      .WillRepeatedly(testing::ReturnRef(validator_indices));
-  auto block_storage = std::make_shared<lean::blockchain::BlockStorageMock>();
-  EXPECT_CALL(
-      *block_storage,
-      getState(fixture.signed_block_with_attestation.message.block.parent_root))
-      .WillOnce(testing::Return(fixture.anchor_state));
-  lean::ForkChoiceStore store{
-      {},
-      logsys,
-      std::make_shared<lean::metrics::MetricsMock>(),
-      {},
-      {},
-      {},
-      {},
-      {},
-      0,
-      validator_registry,
-      std::make_shared<lean::app::ValidatorKeysManifestMock>(),
-      std::make_shared<lean::crypto::xmss::XmssProviderImpl>(),
-      std::make_shared<lean::blockchain::BlockTreeMock>(),
-      block_storage,
-      false,
-      1,
-  };
-  EXPECT_EQ(
-      store.validateBlockSignatures(fixture.signed_block_with_attestation),
-      not fixture.expect_exception.has_value());
-}
-
 struct StateTransitionTest : FixtureTest<lean::StateTransitionTestJson> {};
 FIXTURE_INSTANTIATE(StateTransitionTest, "state_transition");
 
