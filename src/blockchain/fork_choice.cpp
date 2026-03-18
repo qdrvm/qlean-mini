@@ -167,6 +167,10 @@ namespace lean {
         is_aggregator_{is_aggregator},
         subnet_count_{subnet_count} {}
 
+  void ForkChoiceStore::dontPropose() {
+    dont_propose_ = true;
+  }
+
   inline crypto::xmss::XmssMessage attestationPayload(
       const AttestationData &attestation_data) {
     return sszHash(attestation_data);
@@ -202,7 +206,7 @@ namespace lean {
     // choosing the heaviest child at each fork based on attestation weights.
     OUTCOME_TRY(lmd_ghost_head_root,
                 computeLmdGhostHead(block_tree_->getLatestJustified().root,
-                                    latest_new_attestations_,
+                                    latest_known_attestations_,
                                     0));
 
     OUTCOME_TRY(lmd_ghost_head_slot, getBlockSlot(lmd_ghost_head_root));
@@ -598,18 +602,18 @@ namespace lean {
       const SignedAttestation &signed_attestation) {
     Attestation attestation{
         .validator_id = signed_attestation.validator_id,
-        .data = signed_attestation.message,
+        .data = signed_attestation.data,
     };
     BOOST_OUTCOME_TRY(validateAttestation(attestation));
-    OUTCOME_TRY(state, getState(signed_attestation.message.target.root));
+    OUTCOME_TRY(state, getState(signed_attestation.data.target.root));
     if (signed_attestation.validator_id >= state->validators.size()) {
       return Error::INVALID_ATTESTATION;
     }
-    auto payload = attestationPayload(signed_attestation.message);
+    auto payload = attestationPayload(signed_attestation.data);
     auto signature_valid = xmss_provider_->verify(
         state->validators[signed_attestation.validator_id].pubkey,
         payload,
-        signed_attestation.message.slot,
+        signed_attestation.data.slot,
         signed_attestation.signature);
     updateMetricAttestationSignature(signature_valid);
     if (not signature_valid) {
@@ -618,7 +622,7 @@ namespace lean {
     if (is_aggregator_
         and validatorSubnet(signed_attestation.validator_id, subnet_count_)
                 == validatorSubnet(validator_id_, subnet_count_)) {
-      addSignatureToAggregate(signed_attestation.message,
+      addSignatureToAggregate(signed_attestation.data,
                               signed_attestation.validator_id,
                               signed_attestation.signature);
     }
@@ -1028,7 +1032,7 @@ namespace lean {
             validator_registry_->currentValidatorIndices().contains(
                 producer_index);
 
-        if (is_producer) {
+        if (is_producer and not dont_propose_) {
           SL_TRACE(logger_,
                    "Interval 0 of slot {}: node is producer - try to produce",
                    current_slot);
@@ -1096,6 +1100,9 @@ namespace lean {
 
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
+          if (dont_propose_) {
+            continue;
+          }
           if (isProposer(validator_index, current_slot, validator_count)) {
             continue;
           }
@@ -1122,7 +1129,7 @@ namespace lean {
           }
           SL_DEBUG(logger_,
                    "Produced vote for target={}",
-                   signed_attestation.message.target);
+                   signed_attestation.data.target);
           result.emplace_back(signed_attestation);
         }
 

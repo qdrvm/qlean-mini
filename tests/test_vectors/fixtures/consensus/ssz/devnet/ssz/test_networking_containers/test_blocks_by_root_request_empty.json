@@ -1,0 +1,20 @@
+{
+    "tests/consensus/devnet/ssz/test_networking_containers.py::test_blocks_by_root_request_empty[fork_Devnet][fork_devnet-ssz]": {
+        "network": "Devnet",
+        "leanEnv": "prod",
+        "typeName": "BlocksByRootRequest",
+        "value": {
+            "roots": {
+                "data": []
+            }
+        },
+        "serialized": "0x04000000",
+        "_info": {
+            "hash": "0xd7833694b0af8cc5d7a060f0184839df531d25faf8de598b9d15ee72514d59dd",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/ssz/test_networking_containers.py::test_blocks_by_root_request_empty[fork_Devnet]",
+            "description": "SSZ roundtrip for BlocksByRootRequest with no roots.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

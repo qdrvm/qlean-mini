@@ -8,6 +8,7 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/aggregation_bits.hpp"
 #include "types/lean_aggregated_signature.hpp"
 
@@ -16,7 +17,7 @@ namespace lean {
     AggregationBits participants;
     LeanAggregatedSignature proof_data;
 
-    SSZ_CONT(participants, proof_data);
+    SSZ_AND_JSON_FIELDS(participants, proof_data);
     bool operator==(const AggregatedSignatureProof &) const = default;
   };
 }  // namespace lean

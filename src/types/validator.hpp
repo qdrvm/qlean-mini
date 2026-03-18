@@ -10,6 +10,7 @@
 #include <sszpp/container.hpp>
 
 #include "crypto/xmss/types.hpp"
+#include "serde/json_fwd.hpp"
 #include "types/validator_index.hpp"
 
 namespace lean {
@@ -17,7 +18,7 @@ namespace lean {
     crypto::xmss::XmssPublicKey pubkey;
     ValidatorIndex index;
 
-    SSZ_CONT(pubkey, index);
+    SSZ_AND_JSON_FIELDS(pubkey, index);
     bool operator==(const Validator &) const = default;
   };
 }  // namespace lean

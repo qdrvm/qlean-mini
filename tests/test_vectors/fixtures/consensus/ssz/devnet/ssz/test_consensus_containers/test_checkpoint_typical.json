@@ -1,0 +1,19 @@
+{
+    "tests/consensus/devnet/ssz/test_consensus_containers.py::test_checkpoint_typical[fork_Devnet][fork_devnet-ssz]": {
+        "network": "Devnet",
+        "leanEnv": "prod",
+        "typeName": "Checkpoint",
+        "value": {
+            "root": "0xabababababababababababababababababababababababababababababababab",
+            "slot": 12345
+        },
+        "serialized": "0xabababababababababababababababababababababababababababababababab3930000000000000",
+        "_info": {
+            "hash": "0x21e2959cd95aa99bf4eda0d33cfc90baa6d06c32d29146735c130ccf6225cef9",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/ssz/test_consensus_containers.py::test_checkpoint_typical[fork_Devnet]",
+            "description": "SSZ roundtrip for Checkpoint with typical values.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

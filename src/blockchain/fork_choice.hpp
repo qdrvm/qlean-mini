@@ -153,6 +153,8 @@ namespace lean {
         bool is_aggregator,
         uint64_t subnet_count);
 
+    void dontPropose();
+
     // Compute the latest block that the validator is allowed to choose as the
     // target
     [[nodiscard]] outcome::result<void> updateSafeTarget();
@@ -439,6 +441,24 @@ namespace lean {
 
     outcome::result<ForkChoiceApiJson> apiForkChoice() const;
 
+    // Verify all XMSS signatures in a signed block.
+    //
+    // This method ensures that every attestation included in the block
+    // (both on-chain attestations from the block body and the proposer's
+    // own attestation) is properly signed by the claimed validator using
+    // their registered XMSS public key.
+    //
+    // Args:
+    //     signed_block: Complete signed block containing:
+    //         - Block body with included attestations
+    //         - Proposer's attestation for this block
+    //         - XMSS signatures for all attestations (ordered)
+    //
+    // Returns:
+    //     True if all signatures are cryptographically valid.
+    bool validateBlockSignatures(
+        const SignedBlockWithAttestation &signed_block) const;
+
    private:
     using ValidatorAttestationKey = std::tuple<ValidatorIndex, BlockHash>;
 
@@ -460,23 +480,6 @@ namespace lean {
         ValidatorIndex validator_index,
         const AttestationData &attestation_data);
 
-    // Verify all XMSS signatures in a signed block.
-    //
-    // This method ensures that every attestation included in the block
-    // (both on-chain attestations from the block body and the proposer's
-    // own attestation) is properly signed by the claimed validator using
-    // their registered XMSS public key.
-    //
-    // Args:
-    //     signed_block: Complete signed block containing:
-    //         - Block body with included attestations
-    //         - Proposer's attestation for this block
-    //         - XMSS signatures for all attestations (ordered)
-    //
-    // Returns:
-    //     True if all signatures are cryptographically valid.
-    bool validateBlockSignatures(
-        const SignedBlockWithAttestation &signed_block) const;
     bool validateAggregatedSignature(
         const State &state,
         const AttestationData &attestation,
@@ -591,6 +594,7 @@ namespace lean {
     ValidatorIndex validator_id_;
     bool is_aggregator_;
     uint64_t subnet_count_;
+    bool dont_propose_ = false;
     std::unordered_map<BlockHash, Slot> anchor_block_slots_;
   };
 

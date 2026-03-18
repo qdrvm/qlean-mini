@@ -1,0 +1,19 @@
+{
+    "tests/consensus/devnet/ssz/test_consensus_containers.py::test_validator_zero[fork_Devnet][fork_devnet-ssz]": {
+        "network": "Devnet",
+        "leanEnv": "prod",
+        "typeName": "Validator",
+        "value": {
+            "pubkey": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "index": 0
+        },
+        "serialized": "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0x1490c6ee5f490cfd04811d12d9af6a5ed06958341edc8cf394a96984f42c4c78",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/ssz/test_consensus_containers.py::test_validator_zero[fork_Devnet]",
+            "description": "SSZ roundtrip for Validator with zero values.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

@@ -8,6 +8,7 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/aggregation_bits.hpp"
 #include "types/attestation_data.hpp"
 
@@ -16,7 +17,7 @@ namespace lean {
     AggregationBits aggregation_bits;
     AttestationData data;
 
-    SSZ_CONT(aggregation_bits, data);
+    SSZ_AND_JSON_FIELDS(aggregation_bits, data);
     bool operator==(const AggregatedAttestation &) const = default;
   };
 }  // namespace lean

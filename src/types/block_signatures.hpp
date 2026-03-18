@@ -8,6 +8,7 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/attestations_signatures.hpp"
 #include "types/signature.hpp"
 
@@ -16,7 +17,7 @@ namespace lean {
     AttestationSignatures attestation_signatures;
     Signature proposer_signature;
 
-    SSZ_CONT(attestation_signatures, proposer_signature);
+    SSZ_AND_JSON_FIELDS(attestation_signatures, proposer_signature);
     bool operator==(const BlockSignatures &) const = default;
   };
 }  // namespace lean
