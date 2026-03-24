@@ -279,7 +279,7 @@ namespace lean {
 
   outcome::result<std::shared_ptr<const State>> ForkChoiceStore::getState(
       const BlockHash &block_hash) const {
-    SL_TRACE(logger_, "Getting state for block {}", block_hash);
+    SL_TRACE(logger_, "Getting state for block {:xx}", block_hash);
     auto state = states_.get_else(block_hash, [&]() -> outcome::result<State> {
       SL_TRACE(logger_, "Loading state for block {}", block_hash);
       OUTCOME_TRY(state_opt, block_storage_->getState(block_hash));
