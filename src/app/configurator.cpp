@@ -759,9 +759,8 @@ namespace lean::app {
       }
 
       // Load XMSS keypair from JSON files
-      OUTCOME_TRY(
-          keypair,
-          crypto::xmss::loadKeypairFromJson(config_->xmss_secret_key_path_,
+      OUTCOME_TRY(keypair,
+                  crypto::xmss::loadKeypair(config_->xmss_secret_key_path_,
                                             config_->xmss_public_key_path_));
       config_->xmss_keypair_ = std::move(keypair);
       SL_INFO(logger_, "Loaded XMSS keypair from:");
