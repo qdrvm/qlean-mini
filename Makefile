@@ -239,7 +239,6 @@ docker_build_ci:
 docker_run:
 	@echo "=== Running Docker image $(DOCKER_IMAGE_RUNTIME) ==="
 	@echo "Platform: $(DOCKER_PLATFORM)"
-	@echo "Note: --modules-dir is already set in ENTRYPOINT"
 	@echo ""
 	@echo "Usage examples:"
 	@echo "  make docker_run                              # Show help"
@@ -281,9 +280,9 @@ docker_verify:
 	@echo "[3/7] Checking binary dependencies..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		apt-get update -qq && apt-get install -y -qq file > /dev/null 2>&1 && \
-		echo "Binary info:" && file /usr/local/bin/qlean && \
+		echo "Binary info:" && file /opt/qlean/bin/qlean && \
 		echo "" && echo "Checking for missing libraries..." && \
-		ldd /usr/local/bin/qlean | grep "not found" && exit 1 || echo "  ✓ All binary dependencies OK"'
+		ldd /opt/qlean/bin/qlean | grep "not found" && exit 1 || echo "  ✓ All binary dependencies OK"'
 	@echo ""
 	@echo "[4/7] Checking modules..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
@@ -297,9 +296,8 @@ docker_verify:
 	@echo "[5/7] Checking environment variables..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		echo "LD_LIBRARY_PATH=$$LD_LIBRARY_PATH" && \
-		echo "QLEAN_MODULES_DIR=$$QLEAN_MODULES_DIR" && \
 		echo "" && echo "Verifying paths exist:" && \
-		ls -ld $$QLEAN_MODULES_DIR > /dev/null && echo "  ✓ Modules dir exists" || (echo "  ✗ Modules dir missing" && exit 1) && \
+		ls -ld /opt/qlean/modules > /dev/null && echo "  ✓ Modules dir exists" || (echo "  ✗ Modules dir missing" && exit 1) && \
 		ls -d /opt/qlean/lib > /dev/null && echo "  ✓ Lib dir exists" || (echo "  ✗ Lib dir missing" && exit 1)'
 	@echo ""
 	@echo "[6/7] Checking project libraries..."

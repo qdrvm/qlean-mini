@@ -17,6 +17,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API ON)
+set(CMAKE_BUILD_RPATH_USE_ORIGIN TRUE)
 
 # Reconfigure cmake when vcpkg-overlay files change
 file(GLOB_RECURSE vcpkg_overlay_files "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg-overlay/*")
@@ -58,6 +59,11 @@ find_package(sszpp CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 include(vcpkg-overlay/cppcodec.cmake)
+
+function(lean_add_library_shared name)
+  add_library(${name} SHARED ${ARGN})
+  set_target_properties(${name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/lib)
+endfunction()
 
 # TODO Temporarily commented out until gcc is updated (gcc-13 crashes because of this).
 # if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

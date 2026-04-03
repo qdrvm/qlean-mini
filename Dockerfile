@@ -53,22 +53,18 @@ RUN --mount=type=cache,target=/qlean-mini/.vcpkg,id=vcpkg-full \
   make configure; \
   make build; \
   # Collect artifacts
-  mkdir -p /opt/artifacts/bin /opt/artifacts/modules /opt/artifacts/lib /opt/artifacts/vcpkg; \
-  # Copy executable
-  cp -v ${BUILD}/src/executable/qlean /opt/artifacts/bin/; \
-  # Copy all module .so files
-  find ${BUILD}/src/modules -type f -name "*_module.so" -exec cp -v {} /opt/artifacts/modules/ \; || true; \
-  # Copy all other project .so libraries (app, utils, etc)
-  find ${BUILD}/src -type f -name "*.so" ! -name "*_module.so" -exec cp -v {} /opt/artifacts/lib/ \; || true; \
+  mkdir -p /opt/artifacts/vcpkg; \
+  # Copy executable, libraries and modules
+  cp -r -v ${BUILD}/out/. /opt/artifacts/out; \
   # Copy vcpkg installed libraries
   if [ -d "${BUILD}/vcpkg_installed" ]; then \
   cp -R ${BUILD}/vcpkg_installed /opt/artifacts/vcpkg/installed; \
   fi; \
   # List collected artifacts
   echo "=== Collected artifacts ==="; \
-  ls -lh /opt/artifacts/bin/; \
-  ls -lh /opt/artifacts/modules/ || true; \
-  ls -lh /opt/artifacts/lib/ || true
+  ls -lh /opt/artifacts/out/bin/; \
+  ls -lh /opt/artifacts/out/modules/ || true; \
+  ls -lh /opt/artifacts/out/lib/ || true
 
 # ==================== Stage 2: Runtime ====================
 FROM ${BASE_IMAGE} AS runtime
@@ -88,19 +84,16 @@ RUN apt-get update && \
 
 # Environment variables for runtime
 ENV LD_LIBRARY_PATH=/opt/qlean/lib:/opt/qlean/vcpkg/installed/x64-linux/lib:/opt/qlean/vcpkg/installed/x64-linux-dynamic/lib:/opt/qlean/vcpkg/installed/lib:/usr/local/lib
-ENV QLEAN_MODULES_DIR=/opt/qlean/modules
 
 WORKDIR /work
 
 # Copy artifacts from builder
-COPY --from=builder /opt/artifacts/bin/qlean /usr/local/bin/qlean
-COPY --from=builder /opt/artifacts/lib/ /opt/qlean/lib/
-COPY --from=builder /opt/artifacts/modules/ /opt/qlean/modules/
+COPY --from=builder /opt/artifacts/out/ /opt/qlean/
 COPY --from=builder /opt/artifacts/vcpkg/installed/ /opt/qlean/vcpkg/installed/
 
 # Verify artifacts
 RUN echo "=== Runtime image contents ===" && \
-  ls -lh /usr/local/bin/qlean && \
+  ls -lh /opt/qlean/bin/qlean && \
   echo "=== Project libraries ===" && \
   ls -lh /opt/qlean/lib/ || true && \
   echo "=== Modules ===" && \
@@ -120,5 +113,5 @@ LABEL org.opencontainers.image.revision=$GIT_COMMIT
 LABEL org.opencontainers.image.ref.name=$GIT_BRANCH
 LABEL org.opencontainers.image.base.name=$BASE_IMAGE
 
-ENTRYPOINT ["qlean", "--modules-dir", "/opt/qlean/modules"]
+ENTRYPOINT ["/opt/qlean/bin/qlean"]
 CMD ["--help"]

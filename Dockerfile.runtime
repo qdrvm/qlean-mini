@@ -21,19 +21,16 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 ENV LD_LIBRARY_PATH=/opt/qlean/lib:/opt/qlean/vcpkg:/usr/local/lib
-ENV QLEAN_MODULES_DIR=/opt/qlean/modules
 
 WORKDIR /work
 
 # Copy artifacts from builder (binaries are already stripped)
-COPY --from=builder /opt/artifacts/bin/qlean /usr/local/bin/qlean
-COPY --from=builder /opt/artifacts/lib/ /opt/qlean/lib/
-COPY --from=builder /opt/artifacts/modules/ /opt/qlean/modules/
+COPY --from=builder /opt/artifacts/out/ /opt/qlean/
 COPY --from=builder /opt/artifacts/vcpkg/ /opt/qlean/vcpkg/
 
 # Verify runtime image
 RUN echo "=== Runtime image contents ===" && \
-    echo "Binary:" && ls -lh /usr/local/bin/qlean && \
+    echo "Binary:" && ls -lh /opt/qlean/bin/qlean && \
     echo "" && echo "Project libraries:" && ls -lh /opt/qlean/lib/ 2>/dev/null || echo "  (none)" && \
     echo "" && echo "Modules:" && ls -lh /opt/qlean/modules/ 2>/dev/null || echo "  (none)" && \
     echo "" && echo "Vcpkg libraries:" && ls /opt/qlean/vcpkg/ | wc -l && echo " files" && \
@@ -53,5 +50,5 @@ LABEL org.opencontainers.image.revision=$GIT_COMMIT
 LABEL org.opencontainers.image.ref.name=$GIT_BRANCH
 LABEL org.opencontainers.image.base.name=$BASE_IMAGE
 
-ENTRYPOINT ["qlean", "--modules-dir", "/opt/qlean/modules"]
+ENTRYPOINT ["/opt/qlean/bin/qlean"]
 CMD ["--help"]

@@ -669,13 +669,15 @@ namespace lean::app {
       return weakly_canonical(std::filesystem::current_path() / path);
     };
 
-    config_->modules_dir_ =
-        resolve_relative(config_->modules_dir_, "modules-dir");
-    if (not is_directory(config_->modules_dir_)) {
-      SL_ERROR(logger_,
-               "The 'modules_dir' does not exist or is not a directory: {}",
-               config_->modules_dir_);
-      return Error::InvalidValue;
+    if (not config_->modules_dir_.empty()) {
+      config_->modules_dir_ =
+          resolve_relative(config_->modules_dir_, "modules-dir");
+      if (not is_directory(config_->modules_dir_)) {
+        SL_ERROR(logger_,
+                 "The 'modules_dir' does not exist or is not a directory: {}",
+                 config_->modules_dir_);
+        return Error::InvalidValue;
+      }
     }
 
     if (not config_->bootnodes_file_.empty()) {

@@ -76,7 +76,7 @@ add_custom_command(
     VERBATIM
 )
 
-add_library(app_configuration SHARED
+lean_add_library_shared(app_configuration
     configuration.cpp
     "${DEFAULT_CONFIG_CPP}"
 )
@@ -85,7 +85,7 @@ target_link_libraries(app_configuration
     fmt::fmt
 )
 
-add_library(app_configurator SHARED
+lean_add_library_shared(app_configurator
     configurator.cpp
 )
 target_link_libraries(app_configurator
@@ -97,7 +97,7 @@ target_link_libraries(app_configurator
     yaml-cpp::yaml-cpp
 )
 
-add_library(app_state_manager SHARED
+lean_add_library_shared(app_state_manager
     impl/state_manager_impl.cpp
 )
 target_link_libraries(app_state_manager
@@ -105,14 +105,14 @@ target_link_libraries(app_state_manager
     logger
 )
 
-add_library(bootnodes SHARED
+lean_add_library_shared(bootnodes
     bootnodes.cpp
 )
 target_link_libraries(bootnodes
     p2p::libp2p
 )
 
-add_library(chain_spec SHARED
+lean_add_library_shared(chain_spec
     impl/chain_spec_impl.cpp
 )
 target_link_libraries(chain_spec
@@ -126,7 +126,7 @@ target_link_libraries(chain_spec
     yaml-cpp::yaml-cpp
 )
 
-add_library(application SHARED
+lean_add_library_shared(application
     impl/application_impl.cpp
     impl/http_server.cpp
 )
@@ -138,7 +138,7 @@ target_link_libraries(application
     metrics
 )
 
-add_library(timeline SHARED
+lean_add_library_shared(timeline
     impl/timeline_impl.cpp
 )
 target_link_libraries(timeline
@@ -149,7 +149,7 @@ target_link_libraries(timeline
 #    metrics
 )
 
-add_library(validator_keys_manifest SHARED
+lean_add_library_shared(validator_keys_manifest
     impl/validator_keys_manifest_impl.cpp
 )
 target_link_libraries(validator_keys_manifest
