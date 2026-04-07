@@ -13,20 +13,23 @@
 
 #include "app/configuration.hpp"
 #include "app/state_manager.hpp"
-#include "blockchain/fork_choice.hpp"
+#include "blockchain/fork_choice_mutex.hpp"
 #include "metrics/handler.hpp"
 #include "serde/json.hpp"
+#include "serde/serialization.hpp"
 #include "types/fork_choice_api_json.hpp"
+#include "types/state.hpp"
 #include "utils/http.hpp"
 
 namespace lean::app {
   constexpr auto *kContentTypeJson = "application/json; charset=utf-8";
 
-  HttpServer::HttpServer(qtils::SharedRef<log::LoggingSystem> logsys,
-                         qtils::SharedRef<StateManager> state_manager,
-                         qtils::SharedRef<Configuration> app_config,
-                         qtils::SharedRef<metrics::Handler> metrics_handler,
-                         qtils::SharedRef<ForkChoiceStore> fork_choice_store)
+  HttpServer::HttpServer(
+      qtils::SharedRef<log::LoggingSystem> logsys,
+      qtils::SharedRef<StateManager> state_manager,
+      qtils::SharedRef<Configuration> app_config,
+      qtils::SharedRef<metrics::Handler> metrics_handler,
+      qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store)
       : log_{logsys->getLogger("HttpServer", "http")},
         app_config_{std::move(app_config)},
         metrics_handler_{std::move(metrics_handler)},
@@ -116,7 +119,7 @@ namespace lean::app {
                   auto &result = result_res.value();
                   response.set(boost::beast::http::field::content_type,
                                kContentTypeJson);
-                  response.body() = json::encode(result);
+                  response.body() = json::encode(json::NameCase::SNAKE, result);
                 } else {
                   response.result(
                       boost::beast::http::status::internal_server_error);

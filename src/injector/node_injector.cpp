@@ -29,6 +29,8 @@
 #include "app/impl/timeline_impl.hpp"
 #include "app/impl/validator_keys_manifest_impl.hpp"
 #include "app/impl/watchdog.hpp"
+#include "blockchain/fork_choice.hpp"
+#include "blockchain/fork_choice_mutex.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/impl/anchor_block_impl.hpp"
 #include "blockchain/impl/anchor_state_impl.hpp"

@@ -16,6 +16,7 @@ target_link_libraries(validator_registry
 
 add_library(blockchain
     fork_choice.cpp
+    fork_choice_mutex.cpp
     genesis_config.cpp
     impl/anchor_block_impl.cpp
     impl/anchor_state_impl.cpp

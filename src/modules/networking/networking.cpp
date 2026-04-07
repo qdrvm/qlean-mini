@@ -34,7 +34,7 @@
 #include "app/chain_spec.hpp"
 #include "app/configuration.hpp"
 #include "blockchain/block_tree.hpp"
-#include "blockchain/fork_choice.hpp"
+#include "blockchain/fork_choice_mutex.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/validator_registry.hpp"
 #include "blockchain/validator_subnet.hpp"
@@ -101,7 +101,7 @@ namespace lean::modules {
       qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<app::StateManager> app_state_manager,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
-      qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
+      qtils::SharedRef<lean::ForkChoiceStoreMutex> fork_choice_store,
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<GenesisConfig> genesis_config,
       qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -566,11 +566,11 @@ namespace lean::modules {
           SL_DEBUG(self->logger_,
                    "Received vote for target={} 🗳️ from peer={} 👤 "
                    "validator_id={} ✅",
-                   signed_attestation.message.target,
+                   signed_attestation.data.target,
                    peer_id.has_value() ? peer_id->toBase58() : "unknown",
                    signed_attestation.validator_id);
 
-          auto &head = signed_attestation.message.head;
+          auto &head = signed_attestation.data.head;
           if (not self->block_tree_->has(head.root)) {
             if (head.slot <= self->block_tree_->lastFinalized().slot) {
               SL_WARN(self->logger_, "Pending attestation for finalized fork");
@@ -591,7 +591,7 @@ namespace lean::modules {
           if (not res.has_value()) {
             SL_WARN(self->logger_,
                     "Error processing vote for target={}: {}",
-                    signed_attestation.message.target,
+                    signed_attestation.data.target,
                     res.error());
             return;
           }
@@ -684,7 +684,7 @@ namespace lean::modules {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       SL_DEBUG(self->logger_,
                "📣 Gossiped vote for target={} 🗳️",
-               message->notification.message.target);
+               message->notification.data.target);
       self->gossip_votes_topic_->publish(
           encodeSszSnappy(message->notification));
     });
@@ -785,7 +785,7 @@ namespace lean::modules {
         [self{shared_from_this()}, peer_id, block_hash, peer_name]()
             -> libp2p::Coro<void> {
           auto response_res = co_await self->block_request_protocol_->request(
-              peer_id, {.blocks = {{block_hash}}});
+              peer_id, {.roots = {{block_hash}}});
           self->block_requested_at_.erase(block_hash);
           if (response_res.has_value()) {
             auto &block = response_res.value();
@@ -1089,7 +1089,7 @@ namespace lean::modules {
                   });
     std::erase_if(attestation_cache_,
                   [&](const decltype(attestation_cache_)::value_type &p) {
-                    return p.second.message.head.slot <= finalized.slot;
+                    return p.second.data.head.slot <= finalized.slot;
                   });
     std::erase_if(
         aggregated_attestation_cache_,

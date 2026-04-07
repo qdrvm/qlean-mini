@@ -48,6 +48,11 @@ namespace lean::http {
     if (ec) {
       return ec;
     }
+    // Prevents EADDRINUSE "Address already in use" after restart.
+    acceptor.set_option(boost::asio::socket_base::reuse_address{true}, ec);
+    if (ec) {
+      return ec;
+    }
     acceptor.bind(config.endpoint, ec);
     if (ec) {
       return ec;

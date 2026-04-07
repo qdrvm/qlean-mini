@@ -167,6 +167,10 @@ namespace lean {
         is_aggregator_{is_aggregator},
         subnet_count_{subnet_count} {}
 
+  void ForkChoiceStore::dontPropose() {
+    dont_propose_ = true;
+  }
+
   inline crypto::xmss::XmssMessage attestationPayload(
       const AttestationData &attestation_data) {
     return sszHash(attestation_data);
@@ -202,7 +206,7 @@ namespace lean {
     // choosing the heaviest child at each fork based on attestation weights.
     OUTCOME_TRY(lmd_ghost_head_root,
                 computeLmdGhostHead(block_tree_->getLatestJustified().root,
-                                    latest_new_attestations_,
+                                    latest_known_attestations_,
                                     0));
 
     OUTCOME_TRY(lmd_ghost_head_slot, getBlockSlot(lmd_ghost_head_root));
@@ -275,7 +279,7 @@ namespace lean {
 
   outcome::result<std::shared_ptr<const State>> ForkChoiceStore::getState(
       const BlockHash &block_hash) const {
-    SL_TRACE(logger_, "Getting state for block {}", block_hash);
+    SL_TRACE(logger_, "Getting state for block {:xx}", block_hash);
     auto state = states_.get_else(block_hash, [&]() -> outcome::result<State> {
       SL_TRACE(logger_, "Loading state for block {}", block_hash);
       OUTCOME_TRY(state_opt, block_storage_->getState(block_hash));
@@ -314,9 +318,27 @@ namespace lean {
     return static_cast<Checkpoint>(block_tree_->getLatestJustified());
   }
 
-  Checkpoint ForkChoiceStore::getAttestationTarget() const {
+  Checkpoint ForkChoiceStore::getAttestationTarget(
+      const Checkpoint &justified,
+      const Checkpoint &head,
+      std::optional<BlockHash> head_parent_hash) const {
+    auto get_slot_and_parent =
+        [&](const BlockHash &hash) -> std::pair<Slot, BlockHash> {
+      if (head_parent_hash.has_value() and hash == head.root) {
+        return {head.slot, head_parent_hash.value()};
+      }
+      auto header_res = block_tree_->getBlockHeader(hash);
+      if (header_res.has_error()) {
+        SL_FATAL(logger_,
+                 "Failed getting header of head or some it's ancestor: {}",
+                 header_res.error());
+      }
+      auto &header = header_res.value();
+      return {header.slot, header.parent_root};
+    };
+
     // Start from head as target-candidate
-    auto target_block_root = head_.root;
+    auto target_block_root = head.root;
 
     // If there is no very recent safe target, then vote for the k'th ancestor
     // of the head
@@ -324,19 +346,14 @@ namespace lean {
 
     // Ensure the attestation target is not older than the latest justified
     // block, as it would violate protocol rules and fail validation.
-    auto latest_justified_slot = block_tree_->getLatestJustified().slot;
+    auto latest_justified_slot = justified.slot;
     auto lookback_limit = std::max(safe_target_slot, latest_justified_slot);
 
     for (auto i = 0; i < JUSTIFICATION_LOOKBACK_SLOTS; ++i) {
-      auto target_header_res = block_tree_->getBlockHeader(target_block_root);
-      if (target_header_res.has_error()) {
-        SL_FATAL(logger_,
-                 "Failed getting header of head or some it's ancestor: {}",
-                 target_header_res.error());
-      }
-      auto &target_header = target_header_res.value();
-      if (target_header.slot > lookback_limit) {
-        target_block_root = target_header.parent_root;
+      auto [target_slot, target_parent] =
+          get_slot_and_parent(target_block_root);
+      if (target_slot > lookback_limit) {
+        target_block_root = target_parent;
       } else {
         break;
       }
@@ -346,41 +363,37 @@ namespace lean {
     // valid to justify, make sure the target is one of those
     auto latest_finalized_slot = block_tree_->lastFinalized().slot;
     while (true) {
-      auto target_header_res = block_tree_->getBlockHeader(target_block_root);
-      if (target_header_res.has_error()) {
-        SL_FATAL(logger_,
-                 "Failed getting header of some finalized block: {}",
-                 target_header_res.error());
-      }
-      auto &target_header = target_header_res.value();
-      if (isJustifiableSlot(latest_finalized_slot, target_header.slot)) {
+      auto [target_slot, target_parent] =
+          get_slot_and_parent(target_block_root);
+      if (isJustifiableSlot(latest_finalized_slot, target_slot)) {
         break;
       }
-      target_block_root = target_header.parent_root;
+      target_block_root = target_parent;
     }
 
-    auto target_header_res = block_tree_->getBlockHeader(target_block_root);
-    if (target_header_res.has_error()) {
-      SL_FATAL(logger_,
-               "Failed getting header of target block: {}",
-               target_header_res.error());
-    }
-    auto &target_header = target_header_res.value();
     return Checkpoint{
         .root = target_block_root,
-        .slot = target_header.slot,
+        .slot = get_slot_and_parent(target_block_root).first,
     };
   }
 
-  AttestationData ForkChoiceStore::produceAttestationData(Slot slot) const {
-    auto target_checkpoint = getAttestationTarget();
-    auto source_checkpoint = getLatestJustified();
-
-    return AttestationData{
-        .slot = slot,
-        .head = head_,
-        .target = target_checkpoint,
-        .source = source_checkpoint,
+  Attestation ForkChoiceStore::produceAttestation(
+      Slot slot,
+      ValidatorIndex validator_index,
+      const Checkpoint &justified,
+      const Checkpoint &head,
+      std::optional<BlockHash> head_parent_hash) const {
+    auto target_checkpoint =
+        getAttestationTarget(justified, head, head_parent_hash);
+    return Attestation{
+        .validator_id = validator_index,
+        .data =
+            {
+                .slot = slot,
+                .head = head,
+                .target = target_checkpoint,
+                .source = justified,
+            },
     };
   }
 
@@ -487,8 +500,11 @@ namespace lean {
     block.state_root = sszHash(state);
     block.setHash();
 
-    auto proposer_attestation = produceAttestation(slot, proposer_index);
-    proposer_attestation.data.head = Checkpoint::from(block);
+    auto proposer_attestation = produceAttestation(slot,
+                                                   proposer_index,
+                                                   state.latest_justified,
+                                                   Checkpoint::from(block),
+                                                   block.parent_root);
 
     // Sign proposer attestation
     auto payload = attestationPayload(proposer_attestation.data);
@@ -512,14 +528,6 @@ namespace lean {
     BOOST_OUTCOME_TRY(onBlock(signed_block_with_attestation));
 
     return signed_block_with_attestation;
-  }
-
-  Attestation ForkChoiceStore::produceAttestation(
-      Slot slot, ValidatorIndex validator_index) const {
-    return Attestation{
-        .validator_id = validator_index,
-        .data = produceAttestationData(slot),
-    };
   }
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
@@ -598,18 +606,18 @@ namespace lean {
       const SignedAttestation &signed_attestation) {
     Attestation attestation{
         .validator_id = signed_attestation.validator_id,
-        .data = signed_attestation.message,
+        .data = signed_attestation.data,
     };
     BOOST_OUTCOME_TRY(validateAttestation(attestation));
-    OUTCOME_TRY(state, getState(signed_attestation.message.target.root));
+    OUTCOME_TRY(state, getState(signed_attestation.data.target.root));
     if (signed_attestation.validator_id >= state->validators.size()) {
       return Error::INVALID_ATTESTATION;
     }
-    auto payload = attestationPayload(signed_attestation.message);
+    auto payload = attestationPayload(signed_attestation.data);
     auto signature_valid = xmss_provider_->verify(
         state->validators[signed_attestation.validator_id].pubkey,
         payload,
-        signed_attestation.message.slot,
+        signed_attestation.data.slot,
         signed_attestation.signature);
     updateMetricAttestationSignature(signature_valid);
     if (not signature_valid) {
@@ -618,7 +626,7 @@ namespace lean {
     if (is_aggregator_
         and validatorSubnet(signed_attestation.validator_id, subnet_count_)
                 == validatorSubnet(validator_id_, subnet_count_)) {
-      addSignatureToAggregate(signed_attestation.message,
+      addSignatureToAggregate(signed_attestation.data,
                               signed_attestation.validator_id,
                               signed_attestation.signature);
     }
@@ -1007,7 +1015,7 @@ namespace lean {
                "Fatal error: Failed getting state of head ({}): {}",
                head_state_res.error());
     }
-    auto &head_state = head_state_res.value();
+    auto head_state = head_state_res.value();
 
     auto validator_count = head_state->validatorCount();
 
@@ -1028,7 +1036,7 @@ namespace lean {
             validator_registry_->currentValidatorIndices().contains(
                 producer_index);
 
-        if (is_producer) {
+        if (is_producer and not dont_propose_) {
           SL_TRACE(logger_,
                    "Interval 0 of slot {}: node is producer - try to produce",
                    current_slot);
@@ -1061,6 +1069,14 @@ namespace lean {
                    produced_block.message.block.state_root);
           result.emplace_back(std::move(produced_block));
 
+
+          head_state_res = getState(head_.root);
+          if (head_state_res.has_error()) {
+            SL_FATAL(logger_,
+                     "Fatal error: Failed getting state of head ({}): {}",
+                     head_state_res.error());
+          }
+          head_state = head_state_res.value();
         } else {
           SL_TRACE(logger_,
                    "Interval 0 of slot {}: node isn't producer - skip",
@@ -1079,7 +1095,8 @@ namespace lean {
         }
 
         Checkpoint head = head_;
-        auto target = getAttestationTarget();
+        auto target =
+            getAttestationTarget(getLatestJustified(), head_, std::nullopt);
         auto source = block_tree_->getLatestJustified();
         SL_INFO(logger_, "🔷 Head={}", head);
         SL_INFO(logger_, "🎯 Target={}", target);
@@ -1096,10 +1113,17 @@ namespace lean {
 
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
+          if (dont_propose_) {
+            continue;
+          }
           if (isProposer(validator_index, current_slot, validator_count)) {
             continue;
           }
-          auto attestation = produceAttestation(current_slot, validator_index);
+          auto attestation = produceAttestation(current_slot,
+                                                validator_index,
+                                                getLatestJustified(),
+                                                head_,
+                                                std::nullopt);
           // sign attestation
           auto payload = attestationPayload(attestation.data);
           crypto::xmss::XmssKeypair keypair =
@@ -1122,7 +1146,7 @@ namespace lean {
           }
           SL_DEBUG(logger_,
                    "Produced vote for target={}",
-                   signed_attestation.message.target);
+                   signed_attestation.data.target);
           result.emplace_back(signed_attestation);
         }
 

@@ -23,8 +23,7 @@ sed -i '' "s/GENESIS_TIME: .*/GENESIS_TIME: $future_time/" example/0-single/gene
 Example CLI command:
 
 ```bash
-./build/src/executable/qlean \
-  --modules-dir ./build/src/modules \
+./build/out/qlean \
   --bootnodes example/0-single/genesis/nodes.yaml \
   --validator-registry-path example/0-single/genesis/validators.yaml \
   --node-id node_0 \
@@ -35,8 +34,6 @@ Example CLI command:
 
 ## What each flag means
 
-- `--modules-dir ./build/src/modules`
-  - Where the node looks for loadable modules built by this repository. The default build places them under `./build/src/modules`.
 - `--bootnodes example/0-single/genesis/nodes.yaml`
   - A YAML file with a list of peers (ENRs or multiaddrs) used for initial connectivity.
 - `--validator-registry-path example/0-single/genesis/validators.yaml`
@@ -49,12 +46,12 @@ Example CLI command:
   - Hex-encoded libp2p private key. Using a fixed key gives a stable PeerId across restarts. You can generate one with:
     
     ```bash
-    ./build/src/executable/qlean key generate-node-key
+    ./build/out/qlean key generate-node-key
     ```
 - `--listen-addr /ip4/0.0.0.0/udp/9000/quic-v1`
   - libp2p multiaddress to bind the QUIC transport. Adjust the port if `9000` is taken, or bind to `127.0.0.1` if you want local-only access.
 
 ## Tips
 
-- If the binary cannot find modules, double-check you built the project and the `--modules-dir` path is correct.
+- If the binary cannot find modules, double-check you built the project.
 - You can run multiple nodes by copying this command and changing `--node-id`, `--node-key`, ports in `--listen-addr`, and using appropriate bootnodes.

@@ -39,7 +39,7 @@ namespace libp2p::protocol::gossip {
 namespace lean {
   struct AsioSslContext;
   class StateSyncClient;
-  class ForkChoiceStore;
+  class ForkChoiceStoreMutex;
   struct GenesisConfig;
   class ValidatorRegistry;
 }  // namespace lean
@@ -129,7 +129,7 @@ namespace lean::modules {
                    qtils::SharedRef<metrics::Metrics> metrics,
                    qtils::SharedRef<app::StateManager> app_state_manager,
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
-                   qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                   qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store,
                    qtils::SharedRef<ValidatorRegistry> validator_registry,
                    qtils::SharedRef<GenesisConfig> genesis_config,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -190,7 +190,7 @@ namespace lean::modules {
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<app::StateManager> app_state_manager_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
-    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;

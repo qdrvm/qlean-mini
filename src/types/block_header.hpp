@@ -9,6 +9,7 @@
 #include <types/types.hpp>
 #include <utils/custom_equality.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "serde/serialization.hpp"
 #include "types/block_index.hpp"
 
@@ -42,7 +43,8 @@ namespace lean {
     CUSTOM_EQUALITY(
         BlockHeader, slot, proposer_index, parent_root, state_root, body_root);
 
-    SSZ_CONT(slot, proposer_index, parent_root, state_root, body_root);
+    SSZ_AND_JSON_FIELDS(
+        slot, proposer_index, parent_root, state_root, body_root);
 
     const HeaderHash &hash() const {
       if (not hash_opt.has_value()) {

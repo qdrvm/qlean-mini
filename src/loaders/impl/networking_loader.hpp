@@ -18,7 +18,7 @@
 #include "se/subscription.hpp"
 
 namespace lean {
-  class ForkChoiceStore;
+  class ForkChoiceStoreMutex;
   class ValidatorRegistry;
 }  // namespace lean
 
@@ -41,7 +41,7 @@ namespace lean::loaders {
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<app::StateManager> app_state_manager_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
-    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;
@@ -70,7 +70,7 @@ namespace lean::loaders {
                      qtils::SharedRef<metrics::Metrics> metrics,
                      qtils::SharedRef<app::StateManager> app_state_manager,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
-                     qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                     qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store,
                      qtils::SharedRef<ValidatorRegistry> validator_registry,
                      qtils::SharedRef<GenesisConfig> genesis_config,
                      qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -101,7 +101,7 @@ namespace lean::loaders {
                                        qtils::SharedRef<metrics::Metrics>,
                                        qtils::SharedRef<app::StateManager>,
                                        qtils::SharedRef<blockchain::BlockTree>,
-                                       qtils::SharedRef<ForkChoiceStore>,
+                                       qtils::SharedRef<ForkChoiceStoreMutex>,
                                        qtils::SharedRef<ValidatorRegistry>,
                                        qtils::SharedRef<GenesisConfig>,
                                        qtils::SharedRef<app::ChainSpec>,

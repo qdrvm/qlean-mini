@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "serde/json_fwd.hpp"
 #include "types/block_body.hpp"
 #include "types/block_header.hpp"
 
@@ -17,7 +18,7 @@ namespace lean {
     qtils::ByteArr<32> state_root;
     BlockBody body;
 
-    SSZ_CONT(slot, proposer_index, parent_root, state_root, body);
+    SSZ_AND_JSON_FIELDS(slot, proposer_index, parent_root, state_root, body);
     bool operator==(const Block &) const = default;
 
     BlockHeader getHeader() const {

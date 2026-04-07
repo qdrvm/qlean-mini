@@ -1,0 +1,224 @@
+{
+    "tests/consensus/devnet/fc/test_signature_aggregation.py::test_auto_collect_combined_with_explicit_attestations[fork_Devnet][fork_devnet-fork_choice_test]": {
+        "network": "Devnet",
+        "leanEnv": "prod",
+        "anchorState": {
+            "config": {
+                "genesisTime": 0
+            },
+            "slot": 0,
+            "latestBlockHeader": {
+                "slot": 0,
+                "proposerIndex": 0,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "bodyRoot": "0xdba9671bac9513c9482f1416a53aabd2c6ce90d5a5f865ce5a55c775325c9136"
+            },
+            "latestJustified": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "latestFinalized": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "historicalBlockHashes": {
+                "data": []
+            },
+            "justifiedSlots": {
+                "data": []
+            },
+            "validators": {
+                "data": [
+                    {
+                        "pubkey": "0x0f46274ecd8e276e43c6e243b34d843dadf82b5d2905b53440b29004fc33dd562382bc7d37b7106d8a552d0925b2d17b22fea300",
+                        "index": 0
+                    },
+                    {
+                        "pubkey": "0x79ac5f47737a783fce3d9b467109513d41dd483fdfe3e51431d5bc5e2d26a056a08350537c613a36914456131cdbff6d3cba7916",
+                        "index": 1
+                    },
+                    {
+                        "pubkey": "0x1c2b9c1a568711044d6bcc074361f41aae528a62db2f5c025deb2108c6eb6e5c857d2452b130eb602ae36e37ab1f4c0882437470",
+                        "index": 2
+                    },
+                    {
+                        "pubkey": "0xf568004c2b1acd10ba05f95a1d1c4016f0bedf5e3fdb8c41b193785f8e70c90680c2f626da0176096a923d725a688c6183b1c57d",
+                        "index": 3
+                    }
+                ]
+            },
+            "justificationsRoots": {
+                "data": []
+            },
+            "justificationsValidators": {
+                "data": []
+            }
+        },
+        "anchorBlock": {
+            "slot": 0,
+            "proposerIndex": 0,
+            "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "stateRoot": "0x3b5d9432f27ccd30f13fee1fd226575f0f73d5207dfa2c6ee9614adbd8730add",
+            "body": {
+                "attestations": {
+                    "data": []
+                }
+            }
+        },
+        "steps": [
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 1
+                },
+                "stepType": "block",
+                "block": {
+                    "block": {
+                        "slot": 1,
+                        "proposerIndex": 1,
+                        "parentRoot": "0x1210030f69c4c69dbe89bed55117e3813863e7ca853bc4fe004e096c860d299e",
+                        "stateRoot": "0xb3853ccfb905fefd7f68aaccd4386cf5e539069236a99abecdfa0432489c0aa0",
+                        "body": {
+                            "attestations": {
+                                "data": []
+                            }
+                        }
+                    },
+                    "proposerAttestation": {
+                        "validatorId": 1,
+                        "data": {
+                            "slot": 1,
+                            "head": {
+                                "root": "0x1a5a61cf807fad97d6f97117c6c6c44ba5f1a5a7e45a2195838b6490a6482bfc",
+                                "slot": 1
+                            },
+                            "target": {
+                                "root": "0x1210030f69c4c69dbe89bed55117e3813863e7ca853bc4fe004e096c860d299e",
+                                "slot": 0
+                            },
+                            "source": {
+                                "root": "0x1210030f69c4c69dbe89bed55117e3813863e7ca853bc4fe004e096c860d299e",
+                                "slot": 0
+                            }
+                        }
+                    },
+                    "blockRootLabel": "block_1"
+                }
+            },
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 2,
+                    "blockAttestationCount": 2,
+                    "blockAttestations": [
+                        {
+                            "participants": [
+                                1
+                            ],
+                            "attestationSlot": 1,
+                            "targetSlot": 0
+                        },
+                        {
+                            "participants": [
+                                0,
+                                3
+                            ],
+                            "attestationSlot": 1,
+                            "targetSlot": 1
+                        }
+                    ]
+                },
+                "stepType": "block",
+                "block": {
+                    "block": {
+                        "slot": 2,
+                        "proposerIndex": 2,
+                        "parentRoot": "0x1a5a61cf807fad97d6f97117c6c6c44ba5f1a5a7e45a2195838b6490a6482bfc",
+                        "stateRoot": "0x1d32dc0f59ecf9258d44aa3cf8ad73257ebdc9529945e9999661454e40b817e3",
+                        "body": {
+                            "attestations": {
+                                "data": [
+                                    {
+                                        "aggregationBits": {
+                                            "data": [
+                                                false,
+                                                true
+                                            ]
+                                        },
+                                        "data": {
+                                            "slot": 1,
+                                            "head": {
+                                                "root": "0x1a5a61cf807fad97d6f97117c6c6c44ba5f1a5a7e45a2195838b6490a6482bfc",
+                                                "slot": 1
+                                            },
+                                            "target": {
+                                                "root": "0x1210030f69c4c69dbe89bed55117e3813863e7ca853bc4fe004e096c860d299e",
+                                                "slot": 0
+                                            },
+                                            "source": {
+                                                "root": "0x1210030f69c4c69dbe89bed55117e3813863e7ca853bc4fe004e096c860d299e",
+                                                "slot": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "aggregationBits": {
+                                            "data": [
+                                                true,
+                                                false,
+                                                false,
+                                                true
+                                            ]
+                                        },
+                                        "data": {
+                                            "slot": 1,
+                                            "head": {
+                                                "root": "0x1a5a61cf807fad97d6f97117c6c6c44ba5f1a5a7e45a2195838b6490a6482bfc",
+                                                "slot": 1
+                                            },
+                                            "target": {
+                                                "root": "0x1a5a61cf807fad97d6f97117c6c6c44ba5f1a5a7e45a2195838b6490a6482bfc",
+                                                "slot": 1
+                                            },
+                                            "source": {
+                                                "root": "0x1210030f69c4c69dbe89bed55117e3813863e7ca853bc4fe004e096c860d299e",
+                                                "slot": 0
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "proposerAttestation": {
+                        "validatorId": 2,
+                        "data": {
+                            "slot": 2,
+                            "head": {
+                                "root": "0x581f082e6a34efb7c943e75659fd46e8e9fd9f0c79581ad4d475351debd8080b",
+                                "slot": 2
+                            },
+                            "target": {
+                                "root": "0x1210030f69c4c69dbe89bed55117e3813863e7ca853bc4fe004e096c860d299e",
+                                "slot": 0
+                            },
+                            "source": {
+                                "root": "0x1210030f69c4c69dbe89bed55117e3813863e7ca853bc4fe004e096c860d299e",
+                                "slot": 0
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "maxSlot": 2,
+        "_info": {
+            "hash": "0x0ff6f1f6fe1953a0103fe61b3a3bd439e753a66c3df900b0220eadd02ae47ad5",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/fc/test_signature_aggregation.py::test_auto_collect_combined_with_explicit_attestations[fork_Devnet]",
+            "description": "Combine auto-collection with explicit attestation specs.\n\nScenario\n--------\nBlock 2 uses both mechanisms:\n- Auto-collection gathers proposer 1's attestation from Store\n- Explicit spec adds validators 0 and 3\n\nExpected\n--------\nBlock body contains attestations from all sources.\nProposer 1's attestation targets genesis (slot 0) via the spec's target\nwalk-back algorithm, while explicit attestations target block_1 (slot 1).\nDifferent targets produce separate aggregation groups.",
+            "fixtureFormat": "fork_choice_test"
+        }
+    }
+}

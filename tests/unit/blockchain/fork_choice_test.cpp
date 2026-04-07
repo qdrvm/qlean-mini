@@ -67,6 +67,11 @@ std::optional<Checkpoint> getAttestation(
   return it->second.target;
 }
 
+auto getAttestationTarget(const ForkChoiceStore &store) {
+  return store.getAttestationTarget(
+      store.getLatestJustified(), store.getHead(), std::nullopt);
+}
+
 Config config{
     .genesis_time = 1,
 };
@@ -230,7 +235,7 @@ TEST(TestVoteTargetCalculation, test_get_vote_target_basic) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should target the head block since finalization is recent
   EXPECT_EQ(target.root, block_1.hash());
@@ -254,7 +259,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_with_old_finalized) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should return a valid checkpoint
   EXPECT_TRUE(store.hasBlock(target.root));
@@ -277,7 +282,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_walks_back_from_head) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should walk back towards safe target
   EXPECT_TRUE(store.hasBlock(target.root));
@@ -301,7 +306,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_justifiable_slot_constraint) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should return a justifiable slot
   EXPECT_TRUE(store.hasBlock(target.root));
@@ -326,7 +331,7 @@ TEST(TestVoteTargetCalculation,
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should target the head (which is also safe_target)
   EXPECT_EQ(target.root, head.hash());
@@ -455,7 +460,7 @@ TEST(TestEdgeCases, test_vote_target_single_block) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   EXPECT_EQ(target.root, genesis.hash());
   EXPECT_EQ(target.slot, genesis.slot);

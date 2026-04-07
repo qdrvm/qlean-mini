@@ -1,0 +1,20 @@
+{
+    "tests/consensus/devnet/ssz/test_consensus_containers.py::test_block_body_empty[fork_Devnet][fork_devnet-ssz]": {
+        "network": "Devnet",
+        "leanEnv": "prod",
+        "typeName": "BlockBody",
+        "value": {
+            "attestations": {
+                "data": []
+            }
+        },
+        "serialized": "0x04000000",
+        "_info": {
+            "hash": "0xd46d65c70daf5fe85e615d9045185019b823a7ecdd1888ac8248b42403e723ee",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/ssz/test_consensus_containers.py::test_block_body_empty[fork_Devnet]",
+            "description": "SSZ roundtrip for BlockBody with no attestations.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}
