@@ -182,7 +182,8 @@ TEST_P(ForkChoiceTest, ForkChoice) {
         ASSERT_EQ(store.getSafeTarget().root, *checks->safe_target);
       }
       if (checks->attestation_target_slot) {
-        auto target = store.getAttestationTarget();
+        auto target = store.getAttestationTarget(
+            store.getLatestJustified(), store.getHead(), std::nullopt);
         ASSERT_EQ(target.slot, *checks->attestation_target_slot);
         ASSERT_EQ(store.getBlockSlot(target.root).value(), target.slot);
       }
