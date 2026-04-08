@@ -11,7 +11,7 @@
 #include "modules/networking/types.hpp"
 #include "types/signed_aggregated_attestation.hpp"
 #include "types/signed_attestation.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 
 namespace lean::messages {
   template <typename Notification>
@@ -47,7 +47,7 @@ namespace lean::messages {
 
   using StatusMessageReceived = NotificationReceived<StatusMessage>;
 
-  using SendSignedBlock = BroadcastNotification<SignedBlockWithAttestation>;
+  using SendSignedBlock = BroadcastNotification<SignedBlock>;
 
   using SendSignedVote = BroadcastNotification<SignedAttestation>;
   using SignedVoteReceived = GossipNotificationReceived<SignedAttestation>;

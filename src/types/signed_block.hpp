@@ -9,15 +9,15 @@
 #include <sszpp/container.hpp>
 
 #include "serde/json_fwd.hpp"
-#include "types/attestation.hpp"
 #include "types/block.hpp"
+#include "types/block_signatures.hpp"
 
 namespace lean {
-  struct BlockWithAttestation : ssz::ssz_variable_size_container {
+  struct SignedBlock : ssz::ssz_variable_size_container {
     Block block;
-    Attestation proposer_attestation;
+    BlockSignatures signature;
 
-    SSZ_AND_JSON_FIELDS(block, proposer_attestation);
-    bool operator==(const BlockWithAttestation &) const = default;
+    SSZ_AND_JSON_FIELDS(block, signature);
+    bool operator==(const SignedBlock &) const = default;
   };
 }  // namespace lean

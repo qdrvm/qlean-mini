@@ -44,9 +44,9 @@ namespace lean {
   }
 
   outcome::result<void> ForkChoiceStoreMutex::onBlock(
-      SignedBlockWithAttestation signed_block_with_attestation) {
+      SignedBlock signed_block) {
     std::unique_lock lock{mutex_};
-    return fork_choice_->onBlock(std::move(signed_block_with_attestation));
+    return fork_choice_->onBlock(std::move(signed_block));
   }
 
   std::vector<ForkChoiceStoreMutex::OnTickAction> ForkChoiceStoreMutex::onTick(

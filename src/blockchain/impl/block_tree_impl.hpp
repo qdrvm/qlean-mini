@@ -63,8 +63,7 @@ namespace lean::blockchain {
 
     outcome::result<void> addBlockHeader(const BlockHeader &header) override;
 
-    outcome::result<void> addBlock(
-        SignedBlockWithAttestation signed_block_with_attestation) override;
+    outcome::result<void> addBlock(SignedBlock signed_block) override;
 
     outcome::result<void> removeLeaf(const BlockHash &block_hash) override;
 
@@ -108,8 +107,8 @@ namespace lean::blockchain {
 
     Checkpoint getLatestJustified() const override;
 
-    outcome::result<std::optional<SignedBlockWithAttestation>>
-    tryGetSignedBlock(const BlockHash block_hash) const override;
+    outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
+        const BlockHash block_hash) const override;
 
     // BlockHeaderRepository methods
 

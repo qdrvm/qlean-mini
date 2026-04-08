@@ -57,7 +57,7 @@ namespace lean::modules {
             loader_.dispatchSendSignedAggregatedAttestation(
                 std::make_shared<messages::SendSignedAggregatedAttestation>(v));
           },
-          [&](const SignedBlockWithAttestation &v) {
+          [&](const SignedBlock &v) {
             loader_.dispatchSendSignedBlock(
                 std::make_shared<messages::SendSignedBlock>(v));
             auto res = block_tree_->addBlock(v);

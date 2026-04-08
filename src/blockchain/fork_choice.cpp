@@ -27,8 +27,9 @@
 #include "is_justifiable_slot.hpp"
 #include "metrics/impl/metrics_impl.hpp"
 #include "types/aggregated_attestations.hpp"
+#include "types/attestation.hpp"
 #include "types/fork_choice_api_json.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 #include "utils/ceil_div.hpp"
 #include "utils/lru_cache.hpp"
 #include "utils/retain_if.hpp"
@@ -397,9 +398,8 @@ namespace lean {
     };
   }
 
-  outcome::result<SignedBlockWithAttestation>
-  ForkChoiceStore::produceBlockWithSignatures(Slot slot,
-                                              ValidatorIndex proposer_index) {
+  outcome::result<SignedBlock> ForkChoiceStore::produceBlockWithSignatures(
+      Slot slot, ValidatorIndex proposer_index) {
     // Get parent block and state to build upon
     auto head_root = head_.root;
     OUTCOME_TRY(head_state, getState(head_root));
@@ -507,27 +507,23 @@ namespace lean {
                                                    block.parent_root);
 
     // Sign proposer attestation
-    auto payload = attestationPayload(proposer_attestation.data);
+    auto payload = sszHash(block);
     crypto::xmss::XmssSignature proposer_signature = xmss_provider_->sign(
         validator_keys_manifest_->currentNodeXmssKeypair().private_key,
         slot,
         payload);
     metrics_->lean_pq_sig_attestation_signatures_total()->inc();
-    SignedBlockWithAttestation signed_block_with_attestation{
-        .message =
-            {
-                .block = block,
-                .proposer_attestation = proposer_attestation,
-            },
+    SignedBlock signed_block{
+        .block = block,
         .signature =
             {
                 .attestation_signatures = aggregated.second,
                 .proposer_signature = proposer_signature,
             },
     };
-    BOOST_OUTCOME_TRY(onBlock(signed_block_with_attestation));
+    BOOST_OUTCOME_TRY(onBlock(signed_block));
 
-    return signed_block_with_attestation;
+    return signed_block;
   }
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
@@ -615,7 +611,7 @@ namespace lean {
     }
     auto payload = attestationPayload(signed_attestation.data);
     auto signature_valid = xmss_provider_->verify(
-        state->validators[signed_attestation.validator_id].pubkey,
+        state->validators[signed_attestation.validator_id].attestation_pubkey,
         payload,
         signed_attestation.data.slot,
         signed_attestation.signature);
@@ -788,10 +784,9 @@ namespace lean {
   }
 
   bool ForkChoiceStore::validateBlockSignatures(
-      const SignedBlockWithAttestation &signed_block) const {
+      const SignedBlock &signed_block) const {
     // Unpack the signed block components
-    const auto &message = signed_block.message;
-    const auto &block = message.block;
+    const auto &block = signed_block.block;
     const auto &signatures = signed_block.signature;
 
     // Combine all attestations that need verification
@@ -844,19 +839,19 @@ namespace lean {
         return false;
       }
     }
-    auto payload = attestationPayload(message.proposer_attestation.data);
+    auto payload = sszHash(block);
 
     bool verify_result = xmss_provider_->verify(
-        validators.data().at(message.proposer_attestation.validator_id).pubkey,
+        validators.data().at(block.proposer_index).proposal_pubkey,
         payload,
-        message.proposer_attestation.data.slot,
+        block.slot,
         signed_block.signature.proposer_signature);
     updateMetricAttestationSignature(verify_result);
 
     if (not verify_result) {
       SL_WARN(logger_,
-              "Attestation signature verification failed for validator {}",
-              message.proposer_attestation.validator_id);
+              "Proposer signature verification failed for validator {}",
+              block.proposer_index);
       return false;
     }
     SL_TRACE(
@@ -874,7 +869,8 @@ namespace lean {
         SL_WARN(logger_, "Validator index {} out of range", validator_id);
         return false;
       }
-      public_keys.emplace_back(state.validators.data().at(validator_id).pubkey);
+      public_keys.emplace_back(
+          state.validators.data().at(validator_id).attestation_pubkey);
     }
     auto message = attestationPayload(attestation);
     Epoch epoch = attestation.slot;
@@ -889,9 +885,8 @@ namespace lean {
     return true;
   }
 
-  outcome::result<void> ForkChoiceStore::onBlock(
-      SignedBlockWithAttestation signed_block_with_attestation) {
-    auto &block = signed_block_with_attestation.message.block;
+  outcome::result<void> ForkChoiceStore::onBlock(SignedBlock signed_block) {
+    auto &block = signed_block.block;
     block.setHash();
     auto block_hash = block.hash();
 
@@ -900,9 +895,7 @@ namespace lean {
       return outcome::success();
     }
 
-    auto &proposer_attestation =
-        signed_block_with_attestation.message.proposer_attestation;
-    auto &signatures = signed_block_with_attestation.signature;
+    auto &signatures = signed_block.signature;
 
     auto timer = metrics_->fc_block_processing_time()->timer();
 
@@ -916,8 +909,7 @@ namespace lean {
     // at this point parent state should be available so node should sync
     // parent-chain if not available before adding block to forkchoice
 
-    auto valid_signatures =
-        validateBlockSignatures(signed_block_with_attestation);
+    auto valid_signatures = validateBlockSignatures(signed_block);
     if (not valid_signatures) {
       SL_WARN(logger_, "Invalid signatures for block {}", block.index());
       return Error::INVALID_ATTESTATION;
@@ -929,7 +921,7 @@ namespace lean {
 
     // Add block
     SL_TRACE(logger_, "Adding block {} into block tree", block.index());
-    OUTCOME_TRY(block_tree_->addBlock(signed_block_with_attestation));
+    OUTCOME_TRY(block_tree_->addBlock(signed_block));
 
     // Store state
     SL_TRACE(logger_, "Adding post-state for block {}", block.index());
@@ -965,10 +957,9 @@ namespace lean {
     states_.put(block_hash, post_state);
 
     // Process block body attestations
-    auto &aggregated_attestations =
-        signed_block_with_attestation.message.block.body.attestations;
+    auto &aggregated_attestations = signed_block.block.body.attestations;
     auto &attestation_signatures =
-        signed_block_with_attestation.signature.attestation_signatures;
+        signed_block.signature.attestation_signatures;
     if (attestation_signatures.size() != aggregated_attestations.size()) {
       return Error::SIGNATURE_COUNT_MISMATCH;
     }
@@ -984,19 +975,6 @@ namespace lean {
     // IMPORTANT: This must happen BEFORE processing proposer attestation
     // to prevent the proposer from gaining circular weight advantage.
     OUTCOME_TRY(updateHead());
-
-    // Process proposer attestation as if received via gossip
-
-    // The proposer casts their attestation in interval 1, after a block
-    // proposal. This attestation should:
-    // 1. NOT affect this block's fork choice position (processed as "new")
-    // 2. Be available for inclusion in future blocks
-    // 3. Influence fork choice only after interval 3 (end of slot)
-    // We also store the proposer's signature for potential future block
-    // building.
-    OUTCOME_TRY(onGossipAttestation(SignedAttestation::from(
-        proposer_attestation,
-        signed_block_with_attestation.signature.proposer_signature)));
 
     return outcome::success();
   }
@@ -1064,9 +1042,9 @@ namespace lean {
 
           SL_TRACE(logger_,
                    "👷 Produced block {} with parent {} and state {}",
-                   produced_block.message.block.index(),
-                   produced_block.message.block.parent_root,
-                   produced_block.message.block.state_root);
+                   produced_block.block.index(),
+                   produced_block.block.parent_root,
+                   produced_block.block.state_root);
           result.emplace_back(std::move(produced_block));
 
 
@@ -1114,9 +1092,6 @@ namespace lean {
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
           if (dont_propose_) {
-            continue;
-          }
-          if (isProposer(validator_index, current_slot, validator_count)) {
             continue;
           }
           auto attestation = produceAttestation(current_slot,
@@ -1474,7 +1449,7 @@ namespace lean {
       for (auto &[validator_id, signature] :
            signatures_to_aggregate.signatures) {
         public_keys.emplace_back(
-            state.validators.data().at(validator_id).pubkey);
+            state.validators.data().at(validator_id).attestation_pubkey);
         signatures.emplace_back(signature);
         participants.add(validator_id);
       }

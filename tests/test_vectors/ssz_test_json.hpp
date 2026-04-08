@@ -20,12 +20,11 @@
 #include "types/block_body.hpp"
 #include "types/block_header.hpp"
 #include "types/block_signatures.hpp"
-#include "types/block_with_attestation.hpp"
 #include "types/checkpoint.hpp"
 #include "types/config.hpp"
 #include "types/signature.hpp"
 #include "types/signed_attestation.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 #include "types/state.hpp"
 #include "types/validator.hpp"
 
@@ -56,13 +55,12 @@ namespace lean {
                  SszTestJsonT<BlockHeader>,
                  SszTestJsonT<BlockRequest>,
                  SszTestJsonT<BlockSignatures>,
-                 SszTestJsonT<BlockWithAttestation>,
                  SszTestJsonT<Checkpoint>,
                  SszTestJsonT<Config>,
                  SszTestJsonT<PublicKey>,
                  SszTestJsonT<Signature>,
                  SszTestJsonT<SignedAttestation>,
-                 SszTestJsonT<SignedBlockWithAttestation>,
+                 SszTestJsonT<SignedBlock>,
                  SszTestJsonT<State>,
                  SszTestJsonT<StatusMessage>,
                  SszTestJsonT<Validator>>
@@ -78,13 +76,12 @@ namespace lean {
                        "BlockHeader",
                        "BlocksByRootRequest",
                        "BlockSignatures",
-                       "BlockWithAttestation",
                        "Checkpoint",
                        "Config",
                        "PublicKey",
                        "Signature",
                        "SignedAttestation",
-                       "SignedBlockWithAttestation",
+                       "SignedBlock",
                        "State",
                        "Status",
                        "Validator");

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "serde/json_fwd.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 
 namespace lean {
   struct StatusMessage : ssz::ssz_container {
@@ -23,5 +23,5 @@ namespace lean {
     SSZ_AND_JSON_FIELDS(roots);
   };
 
-  using BlockResponse = SignedBlockWithAttestation;
+  using BlockResponse = SignedBlock;
 }  // namespace lean

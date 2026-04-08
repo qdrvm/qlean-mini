@@ -8,7 +8,6 @@
 
 #include "serde/json_fwd.hpp"
 #include "types/block.hpp"
-#include "types/block_with_attestation.hpp"
 #include "types/signed_attestation.hpp"
 #include "types/state.hpp"
 
@@ -85,7 +84,7 @@ namespace lean {
   };
 
   struct BlockStep : BaseForkChoiceStep {
-    BlockWithAttestation block;
+    Block block;
 
     JSON_FIELDS(valid, checks, block);
   };

@@ -47,15 +47,32 @@ namespace lean {
         return ConfigYamlError::INVALID;
       }
     }
-    std::vector<crypto::xmss::XmssPublicKey> validators;
-    for (auto &&yaml_validator : yaml_genesis_validators) {
-      if (not yaml_validator.IsScalar()) {
+    std::vector<Validator> validators;
+    for (auto &&[i, yaml_validator] :
+         std::views::zip(std::views::iota(yaml_genesis_validators.size()),
+                         yaml_genesis_validators)) {
+      if (not yaml_validator.IsMap()) {
         return ConfigYamlError::INVALID;
       }
-      auto validator_str = yaml_validator.as<std::string>();
-      BOOST_OUTCOME_TRY(auto validator,
-                        crypto::xmss::XmssPublicKey::fromHex(validator_str));
-      validators.emplace_back(validator);
+      auto yaml_attestation_pubkey = yaml_validator["attestation_pubkey"];
+      if (not yaml_attestation_pubkey.IsScalar()) {
+        return ConfigYamlError::INVALID;
+      }
+      BOOST_OUTCOME_TRY(auto attestation_pubkey,
+                        crypto::xmss::XmssPublicKey::fromHex(
+                            yaml_attestation_pubkey.as<std::string>()));
+      auto yaml_proposal_pubkey = yaml_validator["proposal_pubkey"];
+      if (not yaml_proposal_pubkey.IsScalar()) {
+        return ConfigYamlError::INVALID;
+      }
+      BOOST_OUTCOME_TRY(auto proposal_pubkey,
+                        crypto::xmss::XmssPublicKey::fromHex(
+                            yaml_proposal_pubkey.as<std::string>()));
+      validators.emplace_back(Validator{
+          .attestation_pubkey = attestation_pubkey,
+          .proposal_pubkey = proposal_pubkey,
+          .index = i,
+      });
     }
     Config config{
         .genesis_time = yaml_genesis_time.as<uint64_t>(),

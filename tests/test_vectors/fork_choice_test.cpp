@@ -114,8 +114,8 @@ TEST_P(ForkChoiceTest, ForkChoice) {
     return children[hash];
   });
   EXPECT_CALL(*block_tree, addBlock(_))
-      .WillRepeatedly([&](lean::SignedBlockWithAttestation block) {
-        auto header = block.message.block.getHeader();
+      .WillRepeatedly([&](lean::SignedBlock block) {
+        auto header = block.block.getHeader();
         header.updateHash();
         blocks.emplace(header.hash(), header);
         children[header.parent_root].emplace_back(header.hash());
@@ -217,28 +217,27 @@ TEST_P(ForkChoiceTest, ForkChoice) {
         return outcome::success();
       });
     } else if (auto *block_step = std::get_if<lean::BlockStep>(&step.v)) {
-      std::println("STEP BLOCK {}", block_step->block.block.slot);
+      std::println("STEP BLOCK {}", block_step->block.slot);
       check(*block_step, [&] {
-        auto &block_with_attestation = block_step->block;
-        auto &block = block_with_attestation.block;
-        lean::SignedBlockWithAttestation signed_block_with_attestation{
-            .message = block_with_attestation,
+        auto &block = block_step->block;
+        lean::SignedBlock signed_block{
+            .block = block,
             .signature = {},
         };
-        signed_block_with_attestation.signature.attestation_signatures.data()
-            .resize(block.body.attestations.size());
+        signed_block.signature.attestation_signatures.data().resize(
+            block.body.attestations.size());
         auto block_time = std::chrono::seconds{store.getConfig().genesis_time}
                         + block.slot * lean::SLOT_DURATION_MS;
         store.onTick(block_time);
-        return store.onBlock(signed_block_with_attestation);
+        return store.onBlock(signed_block);
       });
       if (auto &checks = block_step->checks) {
         if (checks->block_attestation_count) {
-          EXPECT_EQ(block_step->block.block.body.attestations.size(),
+          EXPECT_EQ(block_step->block.body.attestations.size(),
                     *checks->block_attestation_count);
         }
         if (checks->block_attestations) {
-          auto &attestations = block_step->block.block.body.attestations.data();
+          auto &attestations = block_step->block.body.attestations.data();
           for (auto &check : *checks->block_attestations) {
             lean::AggregationBits participants;
             for (auto &validator : check.participants) {

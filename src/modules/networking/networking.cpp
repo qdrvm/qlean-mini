@@ -541,18 +541,17 @@ namespace lean::modules {
     ping_->start();
     identify_->start();
 
-    gossip_blocks_topic_ = gossipSubscribe<SignedBlockWithAttestation>(
+    gossip_blocks_topic_ = gossipSubscribe<SignedBlock>(
         "block",
         [weak_self{weak_from_this()}](
-            SignedBlockWithAttestation &&signed_block_with_attestation,
+            SignedBlock &&signed_block,
             std::optional<libp2p::PeerId> received_from) {
           auto self = weak_self.lock();
           if (not self) {
             return;
           }
-          signed_block_with_attestation.message.block.setHash();
-          self->receiveBlock(received_from,
-                             std::move(signed_block_with_attestation));
+          signed_block.block.setHash();
+          self->receiveBlock(received_from, std::move(signed_block));
         });
     gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
         std::format("attestation_{}", subnet_id),
@@ -669,7 +668,7 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
-      auto slot_hash = message->notification.message.block.index();
+      auto slot_hash = message->notification.block.index();
       SL_DEBUG(self->logger_,
                "📣 Gossiped block in slot {} hash={:0xx} 🔗",
                slot_hash.slot,
@@ -755,7 +754,7 @@ namespace lean::modules {
       if (block_it == block_cache_.end()) {
         break;
       }
-      auto &block = block_it->second.block.message.block;
+      auto &block = block_it->second.block.block;
       // ignore finalized fork
       if (block.slot <= finalized.slot) {
         return;
@@ -793,8 +792,8 @@ namespace lean::modules {
                      "request block {} from {} success, slot {}",
                      block_hash,
                      peer_name,
-                     block.message.block.slot);
-            block.message.block.setHash();
+                     block.block.slot);
+            block.block.setHash();
             self->receiveBlock(peer_id, std::move(block));
           } else {
             SL_WARN(self->logger_,
@@ -806,16 +805,15 @@ namespace lean::modules {
         });
   }
 
-  void NetworkingImpl::receiveBlock(
-      std::optional<libp2p::PeerId> from_peer,
-      SignedBlockWithAttestation &&signed_block_with_attestation) {
-    auto block_index = signed_block_with_attestation.message.block.index();
-    auto &parent_hash = signed_block_with_attestation.message.block.parent_root;
+  void NetworkingImpl::receiveBlock(std::optional<libp2p::PeerId> from_peer,
+                                    SignedBlock &&signed_block) {
+    auto block_index = signed_block.block.index();
+    auto &parent_hash = signed_block.block.parent_root;
 
     SL_DEBUG(logger_,
              "Received block {} parent={:0xx} from peer={}",
              block_index,
-             signed_block_with_attestation.message.block.parent_root,
+             signed_block.block.parent_root,
              from_peer.has_value() ? from_peer->toBase58() : "unknown");
 
     // Ignore cached block
@@ -858,7 +856,7 @@ namespace lean::modules {
     block_cache_.emplace(block_index.hash,
                          BlockCacheItem{
                              .child_it = child_it,
-                             .block = std::move(signed_block_with_attestation),
+                             .block = std::move(signed_block),
                          });
 
     if (from_peer) {
@@ -871,7 +869,7 @@ namespace lean::modules {
     }
 
     auto consume = [&](bool good,
-                       SignedBlockWithAttestation block,
+                       SignedBlock block,
                        std::vector<SignedAttestation> attestations,
                        std::vector<SignedAggregatedAttestation>
                            aggregated_attestations) {
@@ -879,11 +877,11 @@ namespace lean::modules {
       if (not block_res.has_value()) {
         SL_WARN(logger_,
                 "❌ Error importing block={}: {}",
-                block.message.block.index(),
+                block.block.index(),
                 block_res.error());
         return false;
       }
-      SL_INFO(logger_, "✅ Imported block {}", block.message.block.index());
+      SL_INFO(logger_, "✅ Imported block {}", block.block.index());
 
       for (auto &attestation : attestations) {
         SL_INFO(logger_,
@@ -1081,7 +1079,7 @@ namespace lean::modules {
     auto finalized = block_tree_->lastFinalized();
     std::erase_if(block_cache_,
                   [&](const decltype(block_cache_)::value_type &p) {
-                    if (p.second.block.message.block.slot <= finalized.slot) {
+                    if (p.second.block.block.slot <= finalized.slot) {
                       block_children_.erase(p.second.child_it);
                       return true;
                     }

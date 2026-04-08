@@ -23,13 +23,14 @@
 #include "types/hash.hpp"
 #include "types/signed_aggregated_attestation.hpp"
 #include "types/signed_attestation.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
 #include "utils/lru_cache.hpp"
 #include "utils/tuple_hash.hpp"
 
 namespace lean {
+  struct Attestation;
   struct ForkChoiceApiJson;
   struct GenesisConfig;
   class ValidatorRegistry;
@@ -274,7 +275,7 @@ namespace lean {
      * Produce a block and attestation signatures for the target slot.
      *
      *  The proposer returns the block and a naive signature list so it can
-     *  later craft its `SignedBlockWithAttestation` with minimal extra work.
+     *  later craft its `SignedBlock` with minimal extra work.
      *
      *  Algorithm Overview:
      *  1. Validate proposer authorization for the target slot
@@ -293,7 +294,7 @@ namespace lean {
      *  Returns:
      *      Complete block with maximal attestation set and valid state root
      */
-    outcome::result<SignedBlockWithAttestation> produceBlockWithSignatures(
+    outcome::result<SignedBlock> produceBlockWithSignatures(
         Slot slot, ValidatorIndex validator_index);
 
 
@@ -418,12 +419,10 @@ namespace lean {
 
 
     // Processes a new block, updates the store, and triggers a head update.
-    outcome::result<void> onBlock(
-        SignedBlockWithAttestation signed_block_with_attestation);
+    outcome::result<void> onBlock(SignedBlock signed_block);
 
-    using OnTickAction = std::variant<SignedAttestation,
-                                      SignedAggregatedAttestation,
-                                      SignedBlockWithAttestation>;
+    using OnTickAction = std::
+        variant<SignedAttestation, SignedAggregatedAttestation, SignedBlock>;
 
     // Advance forkchoice store time to given timestamp.
     // Ticks store forward interval by interval, performing appropriate
@@ -453,8 +452,7 @@ namespace lean {
     //
     // Returns:
     //     True if all signatures are cryptographically valid.
-    bool validateBlockSignatures(
-        const SignedBlockWithAttestation &signed_block) const;
+    bool validateBlockSignatures(const SignedBlock &signed_block) const;
 
    private:
     using ValidatorAttestationKey = std::tuple<ValidatorIndex, BlockHash>;

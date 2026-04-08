@@ -21,6 +21,7 @@
 #include "mock/metrics_mock.hpp"
 #include "qtils/test/outcome.hpp"
 #include "testutil/prepare_loggers.hpp"
+#include "types/attestation.hpp"
 
 using lean::Attestation;
 using lean::Block;
@@ -33,7 +34,7 @@ using lean::ForkChoiceStore;
 using lean::Interval;
 using lean::INTERVALS_PER_SLOT;
 using lean::SignedAttestation;
-using lean::SignedBlockWithAttestation;
+using lean::SignedBlock;
 using lean::Slot;
 using lean::State;
 using lean::ValidatorIndex;
@@ -83,7 +84,7 @@ auto createTestStore(
     Checkpoint head = {},
     Checkpoint safe_target = {},
     Checkpoint latest_finalized = {},
-    std::unordered_map<BlockHash, SignedBlockWithAttestation> blocks = {},
+    std::unordered_map<BlockHash, SignedBlock> blocks = {},
     std::unordered_map<BlockHash, State> states = {},
     ForkChoiceStore::AttestationDataByValidator latest_known_attestations = {},
     ForkChoiceStore::AttestationDataByValidator latest_new_attestations = {},
@@ -110,9 +111,9 @@ auto createTestStore(
 
   for (auto &[hash, block] : blocks) {
     ON_CALL(*block_tree, getSlotByHash(hash))
-        .WillByDefault(testing::Return(block.message.block.slot));
+        .WillByDefault(testing::Return(block.block.slot));
     ON_CALL(*block_tree, getBlockHeader(hash))
-        .WillByDefault(testing::Return(block.message.block.getHeader()));
+        .WillByDefault(testing::Return(block.block.getHeader()));
   }
   ON_CALL(*block_tree, has(testing::_))
       .WillByDefault(
@@ -122,7 +123,7 @@ auto createTestStore(
                          -> outcome::result<std::optional<BlockHeader>> {
         auto it = blocks.find(hash);
         if (it != blocks.end()) {
-          return it->second.message.block.getHeader();
+          return it->second.block.getHeader();
         }
         return std::nullopt;
       });
@@ -131,7 +132,7 @@ auto createTestStore(
                          -> outcome::result<std::vector<BlockHash>> {
         std::vector<BlockHash> children;
         for (auto &[h, block] : blocks) {
-          if (block.message.block.parent_root == hash) {
+          if (block.block.parent_root == hash) {
             children.push_back(h);
           }
         }
@@ -169,11 +170,10 @@ auto createTestStore(
 }
 
 auto makeBlockMap(const std::vector<Block> &blocks) {
-  std::unordered_map<BlockHash, SignedBlockWithAttestation> map;
+  std::unordered_map<BlockHash, SignedBlock> map;
   for (const auto &block : blocks) {
     block.setHash();
-    map.emplace(block.hash(),
-                SignedBlockWithAttestation{.message = {.block = block}});
+    map.emplace(block.hash(), SignedBlock{.block = block});
   }
   return map;
 }

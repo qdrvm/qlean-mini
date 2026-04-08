@@ -13,7 +13,7 @@
 #include "types/block_hash.hpp"
 #include "types/signed_aggregated_attestation.hpp"
 #include "types/signed_attestation.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 
 namespace lean {
   class ForkChoiceStore;
@@ -37,12 +37,10 @@ namespace lean {
         const SignedAttestation &signed_attestation);
     outcome::result<void> onGossipAggregatedAttestation(
         const SignedAggregatedAttestation &signed_aggregated_attestation);
-    outcome::result<void> onBlock(
-        SignedBlockWithAttestation signed_block_with_attestation);
+    outcome::result<void> onBlock(SignedBlock signed_block);
 
-    using OnTickAction = std::variant<SignedAttestation,
-                                      SignedAggregatedAttestation,
-                                      SignedBlockWithAttestation>;
+    using OnTickAction = std::
+        variant<SignedAttestation, SignedAggregatedAttestation, SignedBlock>;
     std::vector<OnTickAction> onTick(std::chrono::milliseconds now);
     outcome::result<ForkChoiceApiJson> apiForkChoice() const;
 

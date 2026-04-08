@@ -10,7 +10,7 @@
 
 #include "blockchain/block_tree.hpp"
 #include "types/block_body.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 
 namespace lean::blockchain {
 
@@ -53,10 +53,7 @@ namespace lean::blockchain {
                 (const BlockHash &block_hash, const BlockHeader &block_header),
                 (override));
 
-    MOCK_METHOD(outcome::result<void>,
-                addBlock,
-                (SignedBlockWithAttestation signed_block_with_attestation),
-                (override));
+    MOCK_METHOD(outcome::result<void>, addBlock, (SignedBlock), (override));
 
     MOCK_METHOD(outcome::result<void>,
                 removeLeaf,
@@ -105,7 +102,7 @@ namespace lean::blockchain {
     MOCK_METHOD(BlockIndex, lastFinalized, (), (const, override));
     MOCK_METHOD(Checkpoint, getLatestJustified, (), (const, override));
 
-    MOCK_METHOD(outcome::result<std::optional<SignedBlockWithAttestation>>,
+    MOCK_METHOD(outcome::result<std::optional<SignedBlock>>,
                 tryGetSignedBlock,
                 (const BlockHash block_hash),
                 (const, override));

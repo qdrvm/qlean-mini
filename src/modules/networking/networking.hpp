@@ -120,8 +120,8 @@ namespace lean::modules {
    *
    * Protocols:
    * - Status handshake protocol (best and finalized block info).
-   * - Block request protocol (`SignedBlockWithAttestation` by hash).
-   * - `SignedBlockWithAttestation` and `SignedAttestation` gossip protocol.
+   * - Block request protocol (`SignedBlock` by hash).
+   * - `SignedBlock` and `SignedAttestation` gossip protocol.
    */
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
     NetworkingImpl(NetworkingLoader &loader,
@@ -156,7 +156,7 @@ namespace lean::modules {
 
     struct BlockCacheItem {
       BlockChildren::iterator child_it;
-      SignedBlockWithAttestation block;
+      SignedBlock block;
     };
 
     template <typename T>
@@ -166,7 +166,7 @@ namespace lean::modules {
     void receiveStatus(const messages::StatusMessageReceived &message);
     void requestBlock(const libp2p::PeerId &peer_id, BlockHash block_hash);
     void receiveBlock(std::optional<libp2p::PeerId> peer_id,
-                      SignedBlockWithAttestation &&block);
+                      SignedBlock &&block);
     bool statusFinalizedIsGood(const BlockIndex &slot_hash);
     /**
      * Called periodically to connect to more peers if there are not enough
@@ -178,7 +178,7 @@ namespace lean::modules {
 
     using BlockConsumer =
         std::function<bool(bool,
-                           SignedBlockWithAttestation,
+                           SignedBlock,
                            std::vector<SignedAttestation>,
                            std::vector<SignedAggregatedAttestation>)>;
     void consumeBlockTree(bool init_good,

@@ -19,7 +19,7 @@
 #include "se/subscription_fwd.hpp"
 #include "types/block.hpp"
 #include "types/block_header.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 
 namespace lean::blockchain {
   BlockTreeImpl::SafeBlockTreeData::SafeBlockTreeData(BlockTreeData data)
@@ -117,9 +117,8 @@ namespace lean::blockchain {
         });
   }
 
-  outcome::result<void> BlockTreeImpl::addBlock(
-      SignedBlockWithAttestation signed_block_with_attestation) {
-    auto &block = signed_block_with_attestation.message.block;
+  outcome::result<void> BlockTreeImpl::addBlock(SignedBlock signed_block) {
+    auto &block = signed_block.block;
 
     return block_tree_data_.exclusiveAccess(
         [&](BlockTreeData &p) -> outcome::result<void> {
@@ -139,12 +138,8 @@ namespace lean::blockchain {
           block_data.hash = header.hash();
           block_data.header.emplace(header);
 
-          // Attestations
-          block_data.attestation.emplace(
-              signed_block_with_attestation.message.proposer_attestation);
-
           // Signatures
-          block_data.signature.emplace(signed_block_with_attestation.signature);
+          block_data.signature.emplace(signed_block.signature);
 
           // Body
           block_data.body.emplace(block.body);
@@ -766,12 +761,12 @@ namespace lean::blockchain {
     });
   }
 
-  outcome::result<std::optional<SignedBlockWithAttestation>>
-  BlockTreeImpl::tryGetSignedBlock(const BlockHash block_hash) const {
+  outcome::result<std::optional<SignedBlock>> BlockTreeImpl::tryGetSignedBlock(
+      const BlockHash block_hash) const {
     return block_tree_data_.sharedAccess(
         [&](const BlockTreeData &p)
-            -> outcome::result<std::optional<SignedBlockWithAttestation>> {
-          auto res = p.storage_->getSignedBlockWithAttestation(block_hash);
+            -> outcome::result<std::optional<SignedBlock>> {
+          auto res = p.storage_->getSignedBlock(block_hash);
           if (res.has_error()) {
             if (res.error() == BlockTreeError::HEADER_NOT_FOUND) {
               return std::nullopt;
