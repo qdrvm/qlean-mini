@@ -17,6 +17,7 @@
 #include "metrics/metrics.hpp"
 
 namespace lean::crypto::xmss {
+  constexpr size_t LOG_INV_RATE_PROD = 2;
 
   XmssProviderImpl::XmssProviderImpl(qtils::SharedRef<metrics::Metrics> metrics)
       : use_metrics_(true), metrics_(std::move(metrics)) {}
@@ -129,6 +130,7 @@ namespace lean::crypto::xmss {
       std::span<const XmssSignature> signatures,
       uint32_t epoch,
       const XmssMessage &message) const {
+    pq_setup_prover();
     std::optional<metrics::HistogramTimer> timer{};
     if (use_metrics_) {
       timer.emplace(
@@ -143,11 +145,15 @@ namespace lean::crypto::xmss {
     }
     auto public_keys_raw = manyToRaw(public_keys);
     auto signatures_raw = manyToRaw(signatures);
-    auto ffi_bytevec = pq_aggregate_signatures(public_keys.size(),
+    std::vector<PQChildProof> ffi_children;
+    auto ffi_bytevec = pq_aggregate_signatures(ffi_children.data(),
+                                               ffi_children.size(),
+                                               public_keys.size(),
                                                public_keys_raw.data(),
                                                signatures_raw.data(),
                                                epoch,
-                                               message.data());
+                                               message.data(),
+                                               LOG_INV_RATE_PROD);
     XmssAggregatedSignature aggregated_signature{std::span{
         ffi_bytevec.ptr,
         ffi_bytevec.size,
@@ -169,6 +175,7 @@ namespace lean::crypto::xmss {
       uint32_t epoch,
       const XmssMessage &message,
       XmssAggregatedSignatureIn aggregated_signature) const {
+    pq_setup_verifier();
     std::optional<metrics::HistogramTimer> timer{};
     if (use_metrics_) {
       timer.emplace(
