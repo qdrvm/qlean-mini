@@ -991,12 +991,12 @@ namespace lean {
     while (time_.interval <= now_interval->interval) {
       Slot current_slot = time_.slot();
       metrics_->fc_current_slot()->set(current_slot);
-      [[unlikely]] if (current_slot == 0) {
-        // Skip actions for slot zero, which is the genesis slot
-        time_.interval += 1;
-        continue;
-      }
       if (time_.phase() == 0) {
+        [[unlikely]] if (current_slot == 0) {
+          // Skip propose for slot zero, which is the genesis slot
+          time_.interval += 1;
+          continue;
+        }
         // Slot start
         SL_DEBUG(logger_, "Slot {} started", current_slot);
         auto producer_index = current_slot % validator_count;
