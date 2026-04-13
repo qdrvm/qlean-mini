@@ -36,6 +36,8 @@ namespace lean::crypto::xmss {
                 uint32_t,
                 const XmssSignature &) override;
     XmssAggregatedSignature aggregateSignatures(
+        std::span<const std::vector<XmssPublicKey>> child_public_keys,
+        std::span<const XmssAggregatedSignature> child_proofs,
         std::span<const XmssPublicKey> public_keys,
         std::span<const XmssSignature> signatures,
         uint32_t epoch,

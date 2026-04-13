@@ -409,81 +409,8 @@ namespace lean {
       return Error::INVALID_PROPOSER;
     }
 
-    // Initialize empty attestation set for iterative collection
-    AggregatedAttestations aggregated_attestations;
-    std::unordered_map<BlockHash, size_t> aggregated_attestation_indices;
-
-    // Iteratively collect valid attestations using fixed-point algorithm
-    // Continue until no new attestations can be added to the block
-    while (true) {
-      // Create candidate block with current attestation set
-      Block candidate_block{
-          .slot = slot,
-          .proposer_index = proposer_index,
-          .parent_root = head_root,
-          // Temporary; updated after state computation
-          .state_root = {},
-          .body = {.attestations = aggregated_attestations},
-      };
-
-      // Apply state transition to get the post-block state
-      // First advance state to target-slot, then process the block
-      auto post_state = *head_state;
-      BOOST_OUTCOME_TRY(stf_.processSlots(post_state, slot));
-      BOOST_OUTCOME_TRY(stf_.processBlock(post_state, candidate_block));
-
-      // Find new valid attestations matching post-state justification
-      auto new_attestations = false;
-      for (auto &[validator_id, data] : latest_known_attestations_) {
-        // Skip if the target block is unknown in our store
-        if (not block_tree_->has(data.head.root)) {
-          continue;
-        }
-
-        // Skip if attestation's source does not match post-state's latest
-        // justified
-        if (data.source != post_state.latest_justified) {
-          continue;
-        }
-
-        auto key = validatorAttestationKey(validator_id, data);
-        if (not aggregated_payloads_.contains(key)) {
-          continue;
-        }
-
-        auto attestation_hash = attestationPayload(data);
-        auto attestation_index_it =
-            aggregated_attestation_indices.find(attestation_hash);
-        if (attestation_index_it == aggregated_attestation_indices.end()) {
-          attestation_index_it =
-              aggregated_attestation_indices
-                  .emplace(attestation_hash, aggregated_attestations.size())
-                  .first;
-          aggregated_attestations.data().emplace_back(
-              AggregatedAttestation{.data = data});
-        }
-        auto attestation_index = attestation_index_it->second;
-        auto &aggregated_attestation =
-            aggregated_attestations.data().at(attestation_index);
-
-        if (not aggregated_attestation.aggregation_bits.contains(
-                validator_id)) {
-          new_attestations = true;
-          aggregated_attestation.aggregation_bits.add(validator_id);
-        }
-      }
-
-      // Fixed point reached: no new attestations found
-      if (not new_attestations) {
-        break;
-      }
-    }
-
-    // Compute the aggregated signatures for the attestations.
-    // If the attestations cannot be aggregated, split it in a greedy way.
-    auto aggregated =
-        computeAggregatedSignatures(*head_state, aggregated_attestations);
-    aggregated_attestations = aggregated.first;
+    BOOST_OUTCOME_TRY(auto aggregated,
+                      getProposalAttestations(slot, proposer_index, head_root));
 
     // Create the final block with all collected attestations
     Block block{
@@ -492,7 +419,7 @@ namespace lean {
         .parent_root = head_root,
         // Will be updated with computed hash
         .state_root = {},
-        .body = {.attestations = aggregated_attestations},
+        .body = {.attestations = aggregated.first},
     };
     // Apply state transition to get final post-state and compute state root
     BOOST_OUTCOME_TRY(auto state,
@@ -524,6 +451,74 @@ namespace lean {
     BOOST_OUTCOME_TRY(onBlock(signed_block));
 
     return signed_block;
+  }
+
+  outcome::result<std::pair<AggregatedAttestations, AttestationSignatures>>
+  ForkChoiceStore::getProposalAttestations(Slot slot,
+                                           ValidatorIndex proposer_index,
+                                           BlockHash parent_root) {
+    OUTCOME_TRY(head_state, getState(parent_root));
+    struct SourceThenTarget {
+      static auto tie(const AttestationData &v) {
+        return std::tie(v.source.slot,
+                        v.source.root,
+                        v.target.slot,
+                        v.target.root,
+                        v.head.slot,
+                        v.head.root,
+                        v.slot);
+      }
+      bool operator()(const AttestationData &l,
+                      const AttestationData &r) const {
+        return tie(l) < tie(r);
+      }
+    };
+    std::set<AttestationData, SourceThenTarget> sorted_data;
+    for (auto &data : latest_known_attestations_ | std::views::values) {
+      if (not block_tree_->has(data.head.root)) {
+        continue;
+      }
+      sorted_data.emplace(data);
+    }
+    AggregatedAttestations aggregated_attestations;
+    AttestationSignatures aggregated_proofs;
+    auto expected_source = head_state->latest_justified;
+    for (auto &data : sorted_data) {
+      if (data.source != expected_source) {
+        continue;
+      }
+      auto attestations_it = attestations_by_data_.find(sszHash(data));
+      if (attestations_it == attestations_by_data_.end()) {
+        break;
+      }
+      auto &attestations = attestations_it->second;
+      // TODO(zeam): producer may aggregate
+      if (attestations.proofs.empty()) {
+        break;
+      }
+
+      for (auto &proof : attestations.proofs) {
+        aggregated_attestations.push_back({
+            .aggregation_bits = proof.participants,
+            .data = data,
+        });
+        aggregated_proofs.push_back(proof);
+      }
+
+      auto post_state = *head_state;
+      BOOST_OUTCOME_TRY(stf_.processSlots(post_state, slot));
+      BOOST_OUTCOME_TRY(stf_.processBlock(
+          post_state,
+          {
+              .slot = slot,
+              .proposer_index = proposer_index,
+              .parent_root = parent_root,
+              .state_root = {},
+              .body = {.attestations = aggregated_attestations},
+          }));
+      expected_source = post_state.latest_justified;
+    }
+    return std::make_pair(aggregated_attestations, aggregated_proofs);
   }
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
@@ -650,8 +645,6 @@ namespace lean {
   outcome::result<void> ForkChoiceStore::onAggregatedAttestation(
       const SignedAggregatedAttestation &signed_aggregated_attestation,
       bool is_from_block) {
-    auto shared_signed_aggregated_payload =
-        qtils::toSharedPtr(signed_aggregated_attestation);
     for (auto &&validator_id :
          signed_aggregated_attestation.proof.participants.iter()) {
       // Store the aggregated signature payload against (validator_id,
@@ -659,10 +652,7 @@ namespace lean {
       // appear in multiple aggregated attestations, especially when we have
       // aggregator roles. This list can be recursively aggregated by the
       // block proposer.
-      aggregated_payloads_[validatorAttestationKey(
-                               validator_id,
-                               signed_aggregated_attestation.data)]
-          .emplace_back(shared_signed_aggregated_payload);
+      addProofToAggregate(signed_aggregated_attestation);
 
       // Import the attestation data into forkchoice for latest votes
       BOOST_OUTCOME_TRY(onAttestation(
@@ -1315,116 +1305,67 @@ namespace lean {
   void ForkChoiceStore::addSignatureToAggregate(const AttestationData &data,
                                                 ValidatorIndex validator_index,
                                                 const Signature &signature) {
-    auto key = attestationPayload(data);
-    auto it = signatures_to_aggregate_.find(key);
-    if (it == signatures_to_aggregate_.end()) {
-      it = signatures_to_aggregate_
-               .emplace(key, SignaturesToAggregate{.data = data})
-               .first;
+    if (data.target.slot < getLatestFinalized().slot) {
+      return;
     }
-    it->second.signatures[validator_index] = signature;
-    it->second.aggregated = false;
+    auto &attestations = attestationsByData(data);
+    for (auto &proof : attestations.proofs) {
+      if (proof.participants.contains(validator_index)) {
+        return;
+      }
+    }
+    attestations.signatures[validator_index] = signature;
     updateMetricGossipSignatures();
   }
 
-  ForkChoiceStore::ValidatorAttestationKey
-  ForkChoiceStore::validatorAttestationKey(
-      ValidatorIndex validator_index, const AttestationData &attestation_data) {
-    return {
-        validator_index,
-        sszHash(attestation_data),
-    };
-  }
-
-  std::pair<AggregatedAttestations, AttestationSignatures>
-  ForkChoiceStore::computeAggregatedSignatures(
-      const State &state,
-      const AggregatedAttestations &completely_aggregated_attestations) {
-    AggregatedAttestations aggregated_attestations;
-    AttestationSignatures aggregated_signatures;
-    // Group individual attestations by data
-    // Multiple validators may attest to the same data (slot, head, target,
-    // source). We aggregate them into groups so each group can share a single
-    // proof.
-    for (auto &aggregated_attestation : completely_aggregated_attestations) {
-      // Track validators we couldn't find signatures for.
-      // These will need to be covered by Phase 2 (existing proofs).
-      std::set<ValidatorIndex> remaining_validators;
-      for (auto &&validator_id :
-           aggregated_attestation.aggregation_bits.iter()) {
-        remaining_validators.emplace(validator_id);
-      }
-      // Phase 2: Fallback to existing proofs
-      // Some validators may not have broadcast their signatures over gossip,
-      // but we might have seen proofs for them in previously-received blocks.
-      // Example scenario:
-      //   - We need signatures from validators {0, 1, 2, 3, 4}.
-      //   - Gossip gave us signatures for {0, 1}.
-      //   - Remaining: {2, 3, 4}.
-      //   - From old blocks, we have:
-      //       • Proof A covering {2, 3}
-      //       • Proof B covering {3, 4}
-      //       • Proof C covering {4}
-      // We want to cover {2, 3, 4} with as few proofs as possible.
-      // A greedy approach: always pick the proof with the largest overlap.
-      //   - Iteration 1: Proof A covers {2, 3} (2 validators). Pick it.
-      //                  Remaining: {4}.
-      //   - Iteration 2: Proof B covers {4} (1 validator). Pick it.
-      //                  Remaining: {} → done.
-      // Result: 2 proofs instead of 3.
-      while (not remaining_validators.empty()) {
-        auto first_validator = *remaining_validators.begin();
-        auto key = validatorAttestationKey(first_validator,
-                                           aggregated_attestation.data);
-        auto aggregated_payload_it = aggregated_payloads_.find(key);
-        if (aggregated_payload_it == aggregated_payloads_.end()) {
-          // No proofs found for this validator: search for next validator.
-          remaining_validators.erase(first_validator);
-          continue;
-        }
-        // Step 2: Pick the proof covering the most remaining validators.
-        // At each step, we select the single proof that eliminates the highest
-        // number of *currently missing* validators from our list.
-        // The 'score' of a candidate proof is defined as the size of the
-        // intersection between:
-        //   A. The validators inside the proof (`p.participants`)
-        //   B. The validators we still need (`remaining`)
-        // Example:
-        //   Remaining needed : {Alice, Bob, Charlie}
-        //   Proof 1 covers   : {Alice, Dave}         -> Score: 1 (Only Alice
-        //   counts) Proof 2 covers   : {Bob, Charlie, Eve}   -> Score: 2 (Bob &
-        //   Charlie count)
-        //   -> Result: We pick Proof 2 because it has the highest score.
-        size_t best_overlap = 0;
-        std::shared_ptr<SignedAggregatedAttestation> best_payload;
-        for (auto &payload : aggregated_payload_it->second) {
-          size_t overlap = 0;
-          for (auto &&validator_index : payload->proof.participants.iter()) {
-            if (remaining_validators.contains(validator_index)) {
-              ++overlap;
-            }
-          }
-          if (overlap <= best_overlap) {
-            continue;
-          }
-          best_overlap = overlap;
-          best_payload = payload;
-        }
-        BOOST_ASSERT(best_payload != nullptr);
-        // Step 3: Record the proof and remove covered validators.
-        // In the future, we should be able to aggregate the proofs into a
-        // single proof.
-        for (auto &&validator_index : best_payload->proof.participants.iter()) {
-          remaining_validators.erase(validator_index);
-        }
-        aggregated_attestations.push_back({
-            .aggregation_bits = best_payload->proof.participants,
-            .data = best_payload->data,
-        });
-        aggregated_signatures.push_back(best_payload->proof);
+  void ForkChoiceStore::addProofToAggregate(
+      const SignedAggregatedAttestation &signed_aggregated_attestation) {
+    auto &data = signed_aggregated_attestation.data;
+    if (data.target.slot < getLatestFinalized().slot) {
+      return;
+    }
+    auto &attestations = attestationsByData(data);
+    retain_if(attestations.proofs, [&](const AggregatedSignatureProof &proof) {
+      return std::ranges::any_of(
+                 proof.participants.iter(),
+                 [&](ValidatorIndex i) {
+                   return not signed_aggregated_attestation.proof.participants
+                                  .contains(i);
+                 })
+          or std::ranges::all_of(
+                 signed_aggregated_attestation.proof.participants.iter(),
+                 [&](ValidatorIndex i) {
+                   return proof.participants.contains(i);
+                 });
+    });
+    AggregationBits existing_bits;
+    for (auto &proof : attestations.proofs) {
+      for (auto &&i : proof.participants.iter()) {
+        existing_bits.add(i);
       }
     }
-    return std::make_pair(aggregated_attestations, aggregated_signatures);
+    if (std::ranges::all_of(
+            signed_aggregated_attestation.proof.participants.iter(),
+            [&](ValidatorIndex i) { return existing_bits.contains(i); })) {
+      return;
+    }
+    attestations.proofs.emplace_back(signed_aggregated_attestation.proof);
+    for (auto &&validator_index :
+         signed_aggregated_attestation.proof.participants.iter()) {
+      attestations.signatures.erase(validator_index);
+    }
+    updateMetricGossipSignatures();
+  }
+
+  ForkChoiceStore::AttestationsByData &ForkChoiceStore::attestationsByData(
+      const AttestationData &data) {
+    auto key = sszHash(data);
+    auto it = attestations_by_data_.find(key);
+    if (it == attestations_by_data_.end()) {
+      it = attestations_by_data_.emplace(key, AttestationsByData{.data = data})
+               .first;
+    }
+    return it->second;
   }
 
   std::vector<SignedAggregatedAttestation>
@@ -1433,38 +1374,55 @@ namespace lean {
         metrics_->lean_committee_signatures_aggregation_time_seconds()->timer();
 
     std::vector<SignedAggregatedAttestation> aggregated_attestations;
-    for (auto &signatures_to_aggregate :
-         signatures_to_aggregate_ | std::views::values) {
-      if (signatures_to_aggregate.aggregated) {
+    for (auto &attestations : attestations_by_data_ | std::views::values) {
+      if (attestations.signatures.empty() and attestations.proofs.size() <= 1) {
         continue;
       }
-      auto state_res = getState(signatures_to_aggregate.data.target.root);
+      auto state_res = getState(attestations.data.target.root);
       if (not state_res.has_value()) {
         continue;
       }
       auto &state = *state_res.value();
+      std::vector<std::vector<crypto::xmss::XmssPublicKey>> child_public_keys;
+      std::vector<crypto::xmss::XmssAggregatedSignature> child_proofs;
       std::vector<crypto::xmss::XmssPublicKey> public_keys;
       std::vector<Signature> signatures;
       AggregationBits participants;
-      for (auto &[validator_id, signature] :
-           signatures_to_aggregate.signatures) {
+      for (auto &[validator_id, signature] : attestations.signatures) {
         public_keys.emplace_back(
             state.validators.data().at(validator_id).attestation_pubkey);
         signatures.emplace_back(signature);
         participants.add(validator_id);
       }
-      auto payload = attestationPayload(signatures_to_aggregate.data);
-      auto aggregated_signature = xmss_provider_->aggregateSignatures(
-          public_keys, signatures, signatures_to_aggregate.data.slot, payload);
+      for (auto &proof : attestations.proofs) {
+        std::vector<crypto::xmss::XmssPublicKey> public_keys;
+        for (auto &&validator_id : proof.participants.iter()) {
+          public_keys.emplace_back(
+              state.validators.data().at(validator_id).attestation_pubkey);
+          participants.add(validator_id);
+        }
+        child_public_keys.emplace_back(std::move(public_keys));
+        child_proofs.emplace_back(proof.proof_data);
+      }
+      auto payload = attestationPayload(attestations.data);
+      auto aggregated_signature =
+          xmss_provider_->aggregateSignatures(child_public_keys,
+                                              child_proofs,
+                                              public_keys,
+                                              signatures,
+                                              attestations.data.slot,
+                                              payload);
+      AggregatedSignatureProof proof{
+          .participants = participants,
+          .proof_data = aggregated_signature,
+      };
       aggregated_attestations.emplace_back(SignedAggregatedAttestation{
-          .data = signatures_to_aggregate.data,
-          .proof =
-              {
-                  .participants = participants,
-                  .proof_data = aggregated_signature,
-              },
+          .data = attestations.data,
+          .proof = proof,
       });
-      signatures_to_aggregate.aggregated = true;
+      attestations.signatures.clear();
+      attestations.proofs.clear();
+      attestations.proofs.emplace_back(proof);
     }
     return aggregated_attestations;
   }
@@ -1473,20 +1431,16 @@ namespace lean {
     auto should_retain = [&](const AttestationData &data) {
       return data.target.slot > finalized_slot;
     };
-    retain_if(signatures_to_aggregate_,
-              [&](const decltype(signatures_to_aggregate_)::value_type &p) {
+    retain_if(attestations_by_data_,
+              [&](const decltype(attestations_by_data_)::value_type &p) {
                 return should_retain(p.second.data);
               });
     updateMetricGossipSignatures();
-    retain_if(aggregated_payloads_,
-              [&](const decltype(aggregated_payloads_)::value_type &p) {
-                return should_retain(p.second.at(0)->data);
-              });
   }
 
   void ForkChoiceStore::updateMetricGossipSignatures() {
     size_t metric_signatures = 0;
-    for (auto &batch : signatures_to_aggregate_ | std::views::values) {
+    for (auto &batch : attestations_by_data_ | std::views::values) {
       metric_signatures += batch.signatures.size();
     }
     metrics_->lean_gossip_signatures()->set(metric_signatures);

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <ranges>
 #include <stdexcept>
 
 #include <c_hash_sig/c_hash_sig.h>
@@ -126,6 +127,8 @@ namespace lean::crypto::xmss {
   }
 
   XmssAggregatedSignature XmssProviderImpl::aggregateSignatures(
+      std::span<const std::vector<XmssPublicKey>> child_public_keys,
+      std::span<const XmssAggregatedSignature> child_proofs,
       std::span<const XmssPublicKey> public_keys,
       std::span<const XmssSignature> signatures,
       uint32_t epoch,
@@ -138,6 +141,11 @@ namespace lean::crypto::xmss {
               ->timer());
     }
 
+    if (child_public_keys.size() != child_proofs.size()) {
+      throw std::logic_error{
+          "XmssProviderImpl::aggregateSignatures child public key and proof "
+          "count mismatch"};
+    }
     if (public_keys.size() != signatures.size()) {
       throw std::logic_error{
           "XmssProviderImpl::aggregateSignatures public key and signature "
@@ -145,7 +153,26 @@ namespace lean::crypto::xmss {
     }
     auto public_keys_raw = manyToRaw(public_keys);
     auto signatures_raw = manyToRaw(signatures);
+    std::vector<std::vector<const uint8_t *>> ffi_public_keys;
+    ffi_public_keys.reserve(child_proofs.size());
+    for (auto &keys : child_public_keys) {
+      auto &ffi_keys = ffi_public_keys.emplace_back();
+      ffi_keys.reserve(keys.size());
+      for (auto &key : keys) {
+        ffi_keys.emplace_back(key.data());
+      }
+    }
     std::vector<PQChildProof> ffi_children;
+    ffi_children.reserve(child_proofs.size());
+    for (auto &&[public_keys, proof] :
+         std::views::zip(ffi_public_keys, child_proofs)) {
+      ffi_children.emplace_back(PQChildProof{
+          .proof_ptr = proof.data(),
+          .proof_size = proof.size(),
+          .public_keys_bytes_ptr = public_keys.data(),
+          .public_keys_count = public_keys.size(),
+      });
+    }
     auto ffi_bytevec = pq_aggregate_signatures(ffi_children.data(),
                                                ffi_children.size(),
                                                public_keys.size(),

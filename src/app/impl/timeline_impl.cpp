@@ -139,7 +139,7 @@ namespace lean::app {
     SL_INFO(logger_,
             "⚡ Slot {} phase {} started",
             interval.slot(),
-            interval.slot());
+            interval.phase());
   }
 
   void TimelineImpl::on_slot_interval_started(
