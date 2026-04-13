@@ -51,13 +51,18 @@ namespace lean::app {
       }
       auto index_node = entry["index"];
       auto pubkey_node = entry["pubkey_hex"];
-      if (!index_node || !pubkey_node) {
+      // TODO: two keys
+      auto yaml_attester_key_pubkey_hex = entry["attester_key_pubkey_hex"];
+      if (!index_node
+          || (not pubkey_node and not yaml_attester_key_pubkey_hex)) {
         throw std::runtime_error(
             "Validator entry must contain 'index' and 'pubkey_hex'");
       }
 
       ValidatorIndex index = index_node.as<ValidatorIndex>();
-      std::string pubkey_hex = pubkey_node.as<std::string>();
+      std::string pubkey_hex =
+          (pubkey_node ? pubkey_node : yaml_attester_key_pubkey_hex)
+              .as<std::string>();
       qtils::ByteVec pubkey_vec;
       auto result = qtils::unhex0x(pubkey_vec, pubkey_hex, true);
       if (not result.has_value()) {
