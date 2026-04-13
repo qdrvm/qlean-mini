@@ -48,9 +48,9 @@ namespace lean {
       }
     }
     std::vector<Validator> validators;
-    for (auto &&[i, yaml_validator] :
-         std::views::zip(std::views::iota(yaml_genesis_validators.size()),
-                         yaml_genesis_validators)) {
+    for (auto &&[i, yaml_validator] : std::views::zip(
+             std::views::iota(size_t{0}, yaml_genesis_validators.size()),
+             yaml_genesis_validators)) {
       if (not yaml_validator.IsMap()) {
         return ConfigYamlError::INVALID;
       }
