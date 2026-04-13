@@ -27,7 +27,9 @@ namespace lean::crypto::xmss {
                 (override));
     MOCK_METHOD(XmssAggregatedSignature,
                 aggregateSignatures,
-                (std::span<const XmssPublicKey>,
+                (std::span<const std::vector<XmssPublicKey>>,
+                 std::span<const XmssAggregatedSignature>,
+                 std::span<const XmssPublicKey>,
                  std::span<const XmssSignature>,
                  uint32_t,
                  const XmssMessage &),

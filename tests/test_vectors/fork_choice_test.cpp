@@ -78,7 +78,7 @@ TEST_P(ForkChoiceTest, ForkChoice) {
   EXPECT_CALL(*xmss, sign(_, _, _)).Times(testing::AnyNumber());
   EXPECT_CALL(*xmss, verifyAggregatedSignatures(_, _, _, _))
       .WillRepeatedly(testing::Return(true));
-  EXPECT_CALL(*xmss, aggregateSignatures(_, _, _, _))
+  EXPECT_CALL(*xmss, aggregateSignatures(_, _, _, _, _, _))
       .Times(testing::AnyNumber());
 
   auto block_tree = std::make_shared<lean::blockchain::BlockTreeMock>();
