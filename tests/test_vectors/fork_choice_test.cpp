@@ -70,8 +70,9 @@ TEST_P(ForkChoiceTest, ForkChoice) {
       std::make_shared<lean::app::ValidatorKeysManifestMock>();
   EXPECT_CALL(*validator_key_manifest, getAllXmssPubkeys())
       .Times(testing::AnyNumber());
-  EXPECT_CALL(*validator_key_manifest, currentNodeXmssKeypair())
-      .Times(testing::AnyNumber());
+  EXPECT_CALL(*validator_key_manifest, getKeypair(_))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(std::nullopt));
 
   auto xmss = std::make_shared<lean::crypto::xmss::XmssProviderMock>();
   EXPECT_CALL(*xmss, verify(_, _, _, _)).WillRepeatedly(testing::Return(true));
