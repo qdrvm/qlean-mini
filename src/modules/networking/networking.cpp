@@ -38,6 +38,7 @@
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/validator_registry.hpp"
 #include "blockchain/validator_subnet.hpp"
+#include "lean_interop_test.hpp"
 #include "metrics/metrics.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
@@ -667,6 +668,10 @@ namespace lean::modules {
 
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
+    SL_INFO(logger_,
+            leanInteropTestLog("PUBLISH-BLOCK",
+                               leanInteropTest(message->notification.block)));
+
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       auto slot_hash = message->notification.block.index();
       SL_DEBUG(self->logger_,
@@ -680,6 +685,10 @@ namespace lean::modules {
 
   void NetworkingImpl::onSendSignedVote(
       std::shared_ptr<const messages::SendSignedVote> message) {
+    SL_INFO(logger_,
+            leanInteropTestLog("PUBLISH-ATTESTATION",
+                               leanInteropTest(message->notification)));
+
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       SL_DEBUG(self->logger_,
                "📣 Gossiped vote for target={} 🗳️",
@@ -692,6 +701,10 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedAggregatedAttestation(
       std::shared_ptr<const messages::SendSignedAggregatedAttestation>
           message) {
+    SL_INFO(logger_,
+            leanInteropTestLog("PUBLISH-AGGREGATION",
+                               leanInteropTest(message->notification)));
+
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       SL_DEBUG(self->logger_,
                "📣 Gossiped aggregated attestation for target={} 🗳️",

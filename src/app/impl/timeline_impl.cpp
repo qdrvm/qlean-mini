@@ -14,6 +14,7 @@
 #include "blockchain/block_tree.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "clock/clock.hpp"
+#include "lean_interop_test.hpp"
 #include "log/logger.hpp"
 #include "modules/shared/networking_types.tmp.hpp"
 #include "modules/shared/prodution_types.tmp.hpp"
@@ -144,6 +145,15 @@ namespace lean::app {
 
   void TimelineImpl::on_slot_interval_started(
       std::shared_ptr<const messages::SlotIntervalStarted> msg) {
+    SL_INFO(logger_,
+            "{}",
+            leanInteropTestLog(
+                "TIME",
+                fmt::format("{{\"interval\": {}, \"slot\": {}, \"phase\": {}}}",
+                            msg->interval.interval,
+                            msg->interval.slot(),
+                            msg->interval.phase())));
+
     if (msg->interval.phase() == 1) {
       printSlot(msg->interval);
     }
