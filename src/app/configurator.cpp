@@ -135,22 +135,14 @@ namespace lean::app {
         ("base-path", po::value<std::string>(), "Set base path. All relative paths will be resolved based on this path.")
         ("data-dir", po::value<std::string>(), "Alias for \"--base-path\".")
         ("config,c", po::value<std::string>(),  "Optional. Filepath to load configuration from. Overrides default configuration values.")
-        ("genesis", po::value<std::string>(), "Set path to genesis config yaml file (genesis/config.yaml).")
+        ("genesis-dir", po::value<std::string>(), "Quickstart genesis directory path")
         ("listen-addr", po::value<std::string>(), "Set libp2p listen multiaddress.")
         ("modules-dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to yaml file containing boot node ENRs (genesis/nodes.yaml).")
         ("checkpoint-sync-url", po::value<std::string>(),  "Optional. URL for pre-syncing the state at startup if any")
-        ("validator-registry-path",
-         po::value<std::string>(),
-         "Set path to yaml file containing validator registry (genesis/validators.yaml).")
         ("name,n", po::value<std::string>(), "Set name of node.")
         ("node-id", po::value<std::string>(), "Node id from validator registry (genesis/validators.yaml).")
         ("node-key", po::value<std::string>(), "Set secp256k1 node key as hex string (with or without 0x prefix).")
-        ("xmss-pk", po::value<std::string>(), "Path to XMSS public key JSON file (required).")
-        ("xmss-sk", po::value<std::string>(), "Path to XMSS secret key JSON file (required).")
-        ("validator-keys-manifest",
-         po::value<std::string>(),
-         "Set path to yaml file containing validator keys manifest (required).")
         ("is-aggregator", po::bool_switch())
         ("attestation-committee-count", po::value<uint64_t>())
         ("max-bootnodes", po::value<size_t>(), "Max bootnodes count to connect to.")
@@ -368,16 +360,6 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
-          auto genesis = section["genesis"];
-          if (genesis.IsDefined()) {
-            if (genesis.IsScalar()) {
-              auto value = genesis.as<std::string>();
-              config_->genesis_config_path_ = value;
-            } else {
-              file_errors_ << "E: Value 'general.genesis' must be scalar\n";
-              file_has_error_ = true;
-            }
-          }
           auto modules_dir = section["modules-dir"];
           if (modules_dir.IsDefined()) {
             if (modules_dir.IsScalar()) {
@@ -414,48 +396,6 @@ namespace lean::app {
               config_->bootnodes_file_ = value;
             } else {
               file_errors_ << "E: Value 'general.bootnodes' must be scalar\n";
-              file_has_error_ = true;
-            }
-          }
-          auto validator_registry_path = section["validator-registry-path"];
-          if (validator_registry_path.IsDefined()) {
-            if (validator_registry_path.IsScalar()) {
-              auto value = validator_registry_path.as<std::string>();
-              config_->validator_registry_path_ = value;
-            } else {
-              file_errors_ << "E: Value 'general.validator_registry_path' must "
-                              "be scalar\n";
-              file_has_error_ = true;
-            }
-          }
-          auto xmss_pk = section["xmss-pk"];
-          if (xmss_pk.IsDefined()) {
-            if (xmss_pk.IsScalar()) {
-              auto value = xmss_pk.as<std::string>();
-              config_->xmss_public_key_path_ = value;
-            } else {
-              file_errors_ << "E: Value 'general.xmss-pk' must be scalar\n";
-              file_has_error_ = true;
-            }
-          }
-          auto xmss_sk = section["xmss-sk"];
-          if (xmss_sk.IsDefined()) {
-            if (xmss_sk.IsScalar()) {
-              auto value = xmss_sk.as<std::string>();
-              config_->xmss_secret_key_path_ = value;
-            } else {
-              file_errors_ << "E: Value 'general.xmss-sk' must be scalar\n";
-              file_has_error_ = true;
-            }
-          }
-          auto validator_keys_manifest = section["validator-keys-manifest"];
-          if (validator_keys_manifest.IsDefined()) {
-            if (validator_keys_manifest.IsScalar()) {
-              auto value = validator_keys_manifest.as<std::string>();
-              config_->validator_keys_manifest_path_ = value;
-            } else {
-              file_errors_ << "E: Value 'general.validator-keys-manifest' must "
-                              "be scalar\n";
               file_has_error_ = true;
             }
           }
@@ -533,36 +473,22 @@ namespace lean::app {
             fail = true;
           }
         });
-    find_argument<std::string>(
-        cli_values_map_, "genesis", [&](const std::string &value) {
-          config_->genesis_config_path_ = value;
-        });
-    find_argument<std::string>(
-        cli_values_map_, "bootnodes", [&](const std::string &value) {
-          config_->bootnodes_file_ = value;
-        });
+    if (auto value =
+            find_argument<std::string>(cli_values_map_, "genesis-dir")) {
+      config_->genesis_dir_ = *value;
+    } else {
+      SL_FATAL(logger_, "'--genesis-dir' is required");
+    }
+    if (auto value = find_argument<std::string>(cli_values_map_, "bootnodes")) {
+      config_->bootnodes_file_ = *value;
+    } else {
+      config_->bootnodes_file_ = config_->genesis_dir_ / "nodes.yaml";
+    }
+
     find_argument<std::string>(
         cli_values_map_, "checkpoint-sync-url", [&](const std::string &value) {
           config_->state_sync_url_.emplace(value);
         });
-    find_argument<std::string>(cli_values_map_,
-                               "validator-registry-path",
-                               [&](const std::string &value) {
-                                 config_->validator_registry_path_ = value;
-                               });
-    find_argument<std::string>(
-        cli_values_map_, "xmss-pk", [&](const std::string &value) {
-          config_->xmss_public_key_path_ = value;
-        });
-    find_argument<std::string>(
-        cli_values_map_, "xmss-sk", [&](const std::string &value) {
-          config_->xmss_secret_key_path_ = value;
-        });
-    find_argument<std::string>(cli_values_map_,
-                               "validator-keys-manifest",
-                               [&](const std::string &value) {
-                                 config_->validator_keys_manifest_path_ = value;
-                               });
     if (find_argument(cli_values_map_, "is-aggregator")) {
       config_->cli_is_aggregator_ = true;
     }
@@ -691,32 +617,6 @@ namespace lean::app {
       }
     }
 
-    if (not config_->validator_registry_path_.empty()) {
-      config_->validator_registry_path_ = resolve_relative(
-          config_->validator_registry_path_, "validator-registry-path");
-      if (not is_regular_file(config_->validator_registry_path_)) {
-        SL_ERROR(
-            logger_,
-            "The 'validator_registry_path' does not exist or is not a file: {}",
-            config_->validator_registry_path_);
-        return Error::InvalidValue;
-      }
-    }
-
-    if (config_->genesis_config_path_.empty()) {
-      SL_ERROR(logger_, "The 'genesis' path must be provided");
-      return Error::InvalidValue;
-    }
-
-    config_->genesis_config_path_ =
-        resolve_relative(config_->genesis_config_path_, "genesis");
-    if (not is_regular_file(config_->genesis_config_path_)) {
-      SL_ERROR(logger_,
-               "The 'genesis' file does not exist or is not a file: {}",
-               config_->genesis_config_path_);
-      return Error::InvalidValue;
-    }
-
     if constexpr (QLEAN_ENABLE_SHADOW) {
       if (auto value = find_argument<double>(
               cli_values_map_, "shadow-xmss-aggregate-signatures-rate")) {
@@ -727,64 +627,6 @@ namespace lean::app {
               "shadow-xmss-verify-aggregated-signatures-rate")) {
         config_->fake_xmss_verify_aggregated_signatures_rate_ = value.value();
       }
-      config_->xmss_keypair_ = crypto::xmss::XmssProviderFake::loadKeypair(
-          config_->xmss_secret_key_path_.string());
-    } else {
-      // Validate and load XMSS keys (mandatory)
-      if (config_->xmss_public_key_path_.empty()) {
-        SL_ERROR(logger_,
-                 "The '--xmss-pk' (XMSS public key) path must be provided");
-        return Error::InvalidValue;
-      }
-      if (config_->xmss_secret_key_path_.empty()) {
-        SL_ERROR(logger_,
-                 "The '--xmss-sk' (XMSS secret key) path must be provided");
-        return Error::InvalidValue;
-      }
-
-      config_->xmss_public_key_path_ =
-          resolve_relative(config_->xmss_public_key_path_, "xmss-pk");
-      if (not is_regular_file(config_->xmss_public_key_path_)) {
-        SL_ERROR(logger_,
-                 "The 'xmss-pk' file does not exist or is not a file: {}",
-                 config_->xmss_public_key_path_);
-        return Error::InvalidValue;
-      }
-
-      config_->xmss_secret_key_path_ =
-          resolve_relative(config_->xmss_secret_key_path_, "xmss-sk");
-      if (not is_regular_file(config_->xmss_secret_key_path_)) {
-        SL_ERROR(logger_,
-                 "The 'xmss-sk' file does not exist or is not a file: {}",
-                 config_->xmss_secret_key_path_);
-        return Error::InvalidValue;
-      }
-
-      // Load XMSS keypair from JSON files
-      OUTCOME_TRY(keypair,
-                  crypto::xmss::loadKeypair(config_->xmss_secret_key_path_,
-                                            config_->xmss_public_key_path_));
-      config_->xmss_keypair_ = std::move(keypair);
-      SL_INFO(logger_, "Loaded XMSS keypair from:");
-      SL_INFO(logger_, "  Public key: {}", config_->xmss_public_key_path_);
-      SL_INFO(logger_, "  Secret key: {}", config_->xmss_secret_key_path_);
-    }
-
-    // Load validator keys manifest (mandatory)
-    if (config_->validator_keys_manifest_path_.empty()) {
-      SL_ERROR(logger_,
-               "The '--validator-keys-manifest' path must be provided");
-      return Error::InvalidValue;
-    }
-
-    config_->validator_keys_manifest_path_ = resolve_relative(
-        config_->validator_keys_manifest_path_, "validator-keys-manifest");
-    if (not is_regular_file(config_->validator_keys_manifest_path_)) {
-      SL_ERROR(logger_,
-               "The 'validator-keys-manifest' file does not exist or is not a "
-               "file: {}",
-               config_->validator_keys_manifest_path_);
-      return Error::InvalidValue;
     }
 
     return outcome::success();

@@ -14,10 +14,6 @@
 
 #include "blockchain/validator_registry.hpp"
 
-namespace YAML {
-  class Node;
-}  // namespace YAML
-
 namespace lean::app {
   class Configuration;
 }  // namespace lean::app
@@ -25,6 +21,10 @@ namespace lean::app {
 namespace lean::metrics {
   class Metrics;
 }  // namespace lean::metrics
+
+namespace lean::yaml {
+  struct Node;
+}  // namespace lean::yaml
 
 namespace lean {
   /**
@@ -46,10 +46,6 @@ namespace lean {
     BOOST_DI_INJECT_TRAITS(qtils::SharedRef<lean::log::LoggingSystem>,
                            qtils::SharedRef<lean::metrics::Metrics>,
                            const lean::app::Configuration &);
-    ValidatorRegistryImpl(qtils::SharedRef<log::LoggingSystem> logging_system,
-                          qtils::SharedRef<metrics::Metrics> metrics,
-                          std::string yaml,
-                          std::string current_node_id);
 
     // ValidatorRegistry
     [[nodiscard]] const ValidatorIndices &currentValidatorIndices()
@@ -66,7 +62,7 @@ namespace lean {
    private:
     ValidatorRegistryImpl(qtils::SharedRef<log::LoggingSystem> logging_system,
                           qtils::SharedRef<metrics::Metrics> metrics,
-                          YAML::Node root,
+                          yaml::Node yaml,
                           std::string current_node_id);
 
     log::Logger logger_;

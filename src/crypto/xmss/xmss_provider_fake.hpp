@@ -48,7 +48,8 @@ namespace lean::crypto::xmss {
         const XmssMessage &message,
         XmssAggregatedSignatureIn aggregated_signature) const override;
 
-    static XmssKeypair loadKeypair(std::string_view private_key_path);
+    static XmssKeypair loadKeypair(const XmssPublicKey &public_key,
+                                   std::string_view private_key_path);
 
    private:
     qtils::SharedRef<app::Configuration> app_config_;

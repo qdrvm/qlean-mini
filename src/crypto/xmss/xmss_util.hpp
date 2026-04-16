@@ -31,6 +31,9 @@ namespace lean::crypto::xmss {
   outcome::result<XmssKeypair> loadKeypair(
       const std::filesystem::path &secret_key_path,
       const std::filesystem::path &public_key_path);
+  outcome::result<XmssKeypair> loadKeypair(
+      const XmssPublicKey &public_key,
+      const std::filesystem::path &secret_key_path);
 
   std::string toJson(const XmssPrivateKey &sk);
   std::string toJson(const XmssPublicKey &pk_bytes);

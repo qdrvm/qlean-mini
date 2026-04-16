@@ -155,5 +155,6 @@ lean_add_library_shared(validator_keys_manifest
 target_link_libraries(validator_keys_manifest
     app_configuration
     qtils::qtils
+    xmss_provider
     yaml-cpp::yaml-cpp
 )

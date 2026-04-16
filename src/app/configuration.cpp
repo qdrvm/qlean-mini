@@ -51,12 +51,8 @@ namespace lean::app {
     return state_sync_url_;
   }
 
-  const std::filesystem::path &Configuration::validatorRegistryPath() const {
-    return validator_registry_path_;
-  }
-
-  const std::filesystem::path &Configuration::genesisConfigPath() const {
-    return genesis_config_path_;
+  const std::filesystem::path &Configuration::genesisDir() const {
+    return genesis_dir_;
   }
 
   const std::optional<libp2p::Multiaddress> &Configuration::listenMultiaddr()
@@ -68,18 +64,8 @@ namespace lean::app {
     return node_key_.value();
   }
 
-  const crypto::xmss::XmssKeypair &Configuration::xmssKeypair() const {
-    return xmss_keypair_.value();
-  }
-
-
   const std::optional<size_t> &Configuration::maxBootnodes() const {
     return max_bootnodes_;
-  }
-
-  const std::filesystem::path &Configuration::validatorKeysManifestPath()
-      const {
-    return validator_keys_manifest_path_;
   }
 
   bool Configuration::cliIsAggregator() const {
