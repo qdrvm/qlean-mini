@@ -669,6 +669,7 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
     SL_INFO(logger_,
+            "{}",
             leanInteropTestLog("PUBLISH-BLOCK",
                                leanInteropTest(message->notification.block)));
 
@@ -686,6 +687,7 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedVote(
       std::shared_ptr<const messages::SendSignedVote> message) {
     SL_INFO(logger_,
+            "{}",
             leanInteropTestLog("PUBLISH-ATTESTATION",
                                leanInteropTest(message->notification)));
 
@@ -702,6 +704,7 @@ namespace lean::modules {
       std::shared_ptr<const messages::SendSignedAggregatedAttestation>
           message) {
     SL_INFO(logger_,
+            "{}",
             leanInteropTestLog("PUBLISH-AGGREGATION",
                                leanInteropTest(message->notification)));
 
