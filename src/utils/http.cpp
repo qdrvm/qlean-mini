@@ -31,6 +31,8 @@ namespace lean::http {
     }
     auto &&request = parser.release();
     auto response = config.on_request(std::move(request));
+    response.content_length(response.body().size());
+    response.set(boost::beast::http::field::connection, "close");
     auto write_res =
         libp2p::coroOutcome(co_await boost::beast::http::async_write(
             stream, response, libp2p::useCoroOutcome));
