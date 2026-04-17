@@ -67,7 +67,7 @@ namespace lean::modules {
   }
 
   inline auto gossipTopic(std::string_view type) {
-    return std::format("/leanconsensus/devnet0/{}/ssz_snappy", type);
+    return std::format("/leanconsensus/12345678/{}/ssz_snappy", type);
   }
 
   libp2p::protocol::gossip::MessageId gossipMessageId(
