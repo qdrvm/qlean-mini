@@ -544,6 +544,7 @@ namespace lean::modules {
 
     gossip_blocks_topic_ = gossipSubscribe<SignedBlock>(
         "block",
+        metrics_->lean_gossip_block_size_bytes(),
         [weak_self{weak_from_this()}](
             SignedBlock &&signed_block,
             std::optional<libp2p::PeerId> received_from) {
@@ -556,6 +557,7 @@ namespace lean::modules {
         });
     gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
         std::format("attestation_{}", subnet_id),
+        metrics_->lean_gossip_attestation_size_bytes(),
         [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation,
                                       std::optional<libp2p::PeerId> peer_id) {
           auto self = weak_self.lock();
@@ -599,6 +601,7 @@ namespace lean::modules {
     gossip_signed_aggregated_attestation_topic_ =
         gossipSubscribe<SignedAggregatedAttestation>(
             "aggregation",
+            metrics_->lean_gossip_aggregation_size_bytes(),
             [weak_self{weak_from_this()}](
                 SignedAggregatedAttestation &&signed_aggregated_attestation,
                 std::optional<libp2p::PeerId> peer_id) {
@@ -719,15 +722,19 @@ namespace lean::modules {
 
   template <typename T>
   std::shared_ptr<libp2p::protocol::gossip::Topic>
-  NetworkingImpl::gossipSubscribe(std::string_view type, auto f) {
+  NetworkingImpl::gossipSubscribe(std::string_view type,
+                                  metrics::Histogram *metric,
+                                  auto f) {
     auto topic = gossip_->subscribe(gossipTopic(type));
     libp2p::coroSpawn(
         *io_context_,
-        [this, type, topic, f{std::move(f)}]() -> libp2p::Coro<void> {
+        [this, type, metric, f{std::move(f)}, topic]() -> libp2p::Coro<void> {
           while (auto raw_result = co_await topic->receiveMessage()) {
             auto &raw = raw_result.value();
             if (auto r = decodeSszSnappy<T>(raw.data)) {
-              f(std::move(r.value()), raw.received_from);
+              auto &[decoded, size] = r.value();
+              metric->observe(size);
+              f(std::move(decoded), raw.received_from);
             } else {
               SL_WARN(this->logger_,
                       "❌ Error decoding Gossip message for type {}: {}",

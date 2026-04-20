@@ -395,6 +395,8 @@ namespace lean {
 
   outcome::result<SignedBlock> ForkChoiceStore::produceBlockWithSignatures(
       Slot slot, ValidatorIndex proposer_index) {
+    auto metric_time = metrics_->lean_block_building_time_seconds()->timer();
+
     // Get parent block and state to build upon
     auto head_root = head_.root;
     OUTCOME_TRY(head_state, getState(head_root));
@@ -428,12 +430,6 @@ namespace lean {
     block.state_root = sszHash(state);
     block.setHash();
 
-    auto proposer_attestation = produceAttestation(slot,
-                                                   proposer_index,
-                                                   state.latest_justified,
-                                                   Checkpoint::from(block),
-                                                   block.parent_root);
-
     // Sign proposer attestation
     auto payload = sszHash(block);
     crypto::xmss::XmssSignature proposer_signature =
@@ -449,6 +445,9 @@ namespace lean {
     };
     BOOST_OUTCOME_TRY(onBlock(signed_block));
 
+    metrics_->lean_block_aggregated_payloads()->observe(
+        signed_block.block.body.attestations.size());
+
     return signed_block;
   }
 
@@ -456,6 +455,10 @@ namespace lean {
   ForkChoiceStore::getProposalAttestations(Slot slot,
                                            ValidatorIndex proposer_index,
                                            BlockHash parent_root) {
+    auto metric_time =
+        metrics_->lean_block_building_payload_aggregation_time_seconds()
+            ->timer();
+
     OUTCOME_TRY(head_state, getState(parent_root));
     struct SourceThenTarget {
       static auto tie(const AttestationData &v) {
@@ -1030,6 +1033,9 @@ namespace lean {
                    current_slot,
                    producer_index);
           auto res = produceBlockWithSignatures(current_slot, producer_index);
+          (res.has_value() ? metrics_->lean_block_building_success_total()
+                           : metrics_->lean_block_building_failures_total())
+              ->inc();
           if (!res.has_value()) {
             SL_ERROR(logger_,
                      "Failed to produce block for slot {}: {}",
@@ -1087,6 +1093,9 @@ namespace lean {
           continue;
         }
 
+        auto metric_time =
+            metrics_->lean_attestations_production_time_seconds()->timer();
+        std::optional<Attestation> attestation;
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
           if (dont_propose_) {
@@ -1099,18 +1108,20 @@ namespace lean {
           if (not keypair.has_value()) {
             continue;
           }
-          auto attestation = produceAttestation(current_slot,
-                                                validator_index,
-                                                getLatestJustified(),
-                                                head_,
-                                                std::nullopt);
+          if (not attestation.has_value()) {
+            attestation = produceAttestation(current_slot,
+                                             validator_index,
+                                             getLatestJustified(),
+                                             head_,
+                                             std::nullopt);
+          }
           // sign attestation
-          auto payload = attestationPayload(attestation.data);
+          auto payload = attestationPayload(attestation->data);
           crypto::xmss::XmssSignature signature =
               xmss_provider_->sign(keypair->private_key, current_slot, payload);
           metrics_->lean_pq_sig_attestation_signatures_total()->inc();
           auto signed_attestation =
-              SignedAttestation::from(attestation, signature);
+              SignedAttestation::from(*attestation, signature);
 
           // Dispatching send signed vote-only broadcasts to other peers.
           // Current peer should process attestation directly

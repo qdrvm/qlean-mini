@@ -55,6 +55,7 @@ namespace lean::blockchain {
 }  // namespace lean::blockchain
 
 namespace lean::metrics {
+  class Histogram;
   class Metrics;
 }  // namespace lean::metrics
 
@@ -161,7 +162,7 @@ namespace lean::modules {
 
     template <typename T>
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossipSubscribe(
-        std::string_view type, auto f);
+        std::string_view type, metrics::Histogram *metric, auto f);
 
     void receiveStatus(const messages::StatusMessageReceived &message);
     void requestBlock(const libp2p::PeerId &peer_id, BlockHash block_hash);

@@ -35,3 +35,19 @@ METRIC_GAUGE(lean_attestation_committee_subnet,
 METRIC_GAUGE(lean_attestation_committee_count,
              "lean_attestation_committee_count",
              "Number of attestation committees (ATTESTATION_COMMITTEE_COUNT)")
+
+METRIC_HISTOGRAM(
+    lean_gossip_block_size_bytes,
+    "lean_gossip_block_size_bytes",
+    "Bytes size of a gossip block message",
+    (10000, 50000, 100000, 250000, 500000, 1000000, 2000000, 5000000));
+
+METRIC_HISTOGRAM(lean_gossip_attestation_size_bytes,
+                 "lean_gossip_attestation_size_bytes",
+                 "Bytes size of a gossip attestation message",
+                 (512, 1024, 2048, 4096, 8192, 16384));
+
+METRIC_HISTOGRAM(lean_gossip_aggregation_size_bytes,
+                 "lean_gossip_aggregation_size_bytes",
+                 "Bytes size of a gossip aggregated attestation message",
+                 (1024, 4096, 16384, 65536, 131072, 262144, 524288, 1048576));
