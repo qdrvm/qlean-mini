@@ -16,6 +16,7 @@
 #include <libp2p/peer/identity_manager.hpp>
 #include <libp2p/peer/peer_id.hpp>
 
+#include "metrics/metrics.hpp"
 #include "modules/networking/read_nodes_yaml.hpp"
 #include "serde/enr.hpp"
 
@@ -37,13 +38,29 @@ OUTCOME_CPP_DEFINE_CATEGORY(lean::app, ChainSpecImpl::Error, e) {
 namespace lean::app {
 
   ChainSpecImpl::ChainSpecImpl(qtils::SharedRef<log::LoggingSystem> logsys,
+                               qtils::SharedRef<metrics::Metrics> metrics,
                                qtils::SharedRef<Configuration> app_config)
       : log_(logsys->getLogger("ChainSpec", "application")),
+        metrics_{std::move(metrics)},
         app_config_(std::move(app_config)) {
     if (auto res = load(); res.has_error()) {
       SL_CRITICAL(log_, "Can't init chain spec: {}", res.error());
       qtils::raise(res.error());
     }
+  }
+
+  const app::Bootnodes &ChainSpecImpl::getBootnodes() const {
+    return bootnodes_;
+  }
+
+  bool ChainSpecImpl::isAggregator() const {
+    return is_aggregator_;
+  }
+
+  bool ChainSpecImpl::setIsAggregator(bool is_aggregator) {
+    auto previous = is_aggregator_.exchange(is_aggregator);
+    updateMetricIsAggregator();
+    return previous;
   }
 
   outcome::result<void> ChainSpecImpl::load() {
@@ -59,13 +76,14 @@ namespace lean::app {
       if (info.peer_id != peer_id) {
         continue;
       }
-      is_aggregator_ = info.is_aggregator;
+      setIsAggregator(info.is_aggregator);
       break;
     }
 
     if (app_config_->cliIsAggregator()) {
-      is_aggregator_ = true;
+      setIsAggregator(true);
     }
+    updateMetricIsAggregator();
 
     return outcome::success();
   }
@@ -127,4 +145,7 @@ namespace lean::app {
     return outcome::success();
   }
 
+  void ChainSpecImpl::updateMetricIsAggregator() {
+    metrics_->lean_is_aggregator()->set(is_aggregator_ ? 1 : 0);
+  }
 }  // namespace lean::app

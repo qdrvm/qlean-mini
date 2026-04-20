@@ -567,7 +567,7 @@ namespace lean {
      * Index of the validator running this store instance.
      */
     ValidatorIndex validator_id_;
-    bool is_aggregator_;
+    std::function<bool()> is_aggregator_;
     uint64_t subnet_count_;
     bool dont_propose_ = false;
     std::unordered_map<BlockHash, Slot> anchor_block_slots_;

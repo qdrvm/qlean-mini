@@ -67,9 +67,8 @@ namespace lean {
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)),
         validator_id_{getValidatorId(logger_, *validator_registry_)},
-        is_aggregator_{chain_spec->isAggregator()},
+        is_aggregator_{[chain_spec] { return chain_spec->isAggregator(); }},
         subnet_count_{app_config->cliSubnetCount()} {
-    metrics_->lean_is_aggregator()->set(is_aggregator_ ? 1 : 0);
     metrics_->stf_latest_justified_slot()->set(
         block_tree_->getLatestJustified().slot);
     metrics_->stf_latest_finalized_slot()->set(
@@ -161,7 +160,7 @@ namespace lean {
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)),
         validator_id_{getValidatorId(logger_, *validator_registry_)},
-        is_aggregator_{is_aggregator},
+        is_aggregator_{[is_aggregator] { return is_aggregator; }},
         subnet_count_{subnet_count} {}
 
   void ForkChoiceStore::dontPropose() {
@@ -622,7 +621,7 @@ namespace lean {
     if (not signature_valid) {
       return Error::INVALID_ATTESTATION;
     }
-    if (is_aggregator_
+    if (is_aggregator_()
         and validatorSubnet(signed_attestation.validator_id, subnet_count_)
                 == validatorSubnet(validator_id_, subnet_count_)) {
       addSignatureToAggregate(signed_attestation.data,
@@ -1131,7 +1130,7 @@ namespace lean {
 
       } else if (time_.phase() == 2) {
         SL_TRACE(logger_, "Interval 2 of slot {}: aggregate", current_slot);
-        if (is_aggregator_) {
+        if (is_aggregator_()) {
           auto aggregated_attestations = aggregateSignatures();
           for (auto &aggregated_attestation : aggregated_attestations) {
             auto res = onGossipAggregatedAttestation(aggregated_attestation);

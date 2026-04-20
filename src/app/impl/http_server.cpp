@@ -11,6 +11,7 @@
 #include <qtils/bytestr.hpp>
 #include <qtils/option_take.hpp>
 
+#include "app/chain_spec.hpp"
 #include "app/configuration.hpp"
 #include "app/state_manager.hpp"
 #include "blockchain/fork_choice_mutex.hpp"
@@ -24,15 +25,23 @@
 namespace lean::app {
   constexpr auto *kContentTypeJson = "application/json; charset=utf-8";
 
+  struct Enabled {
+    bool enabled;
+
+    JSON_FIELDS(enabled);
+  };
+
   HttpServer::HttpServer(
       qtils::SharedRef<log::LoggingSystem> logsys,
       qtils::SharedRef<StateManager> state_manager,
       qtils::SharedRef<Configuration> app_config,
       qtils::SharedRef<metrics::Handler> metrics_handler,
+      qtils::SharedRef<app::ChainSpec> chain_spec,
       qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store)
       : log_{logsys->getLogger("HttpServer", "http")},
         app_config_{std::move(app_config)},
         metrics_handler_{std::move(metrics_handler)},
+        chain_spec_{std::move(chain_spec)},
         fork_choice_store_{std::move(fork_choice_store)} {
     state_manager->takeControl(*this);
   }
@@ -125,6 +134,35 @@ namespace lean::app {
                       boost::beast::http::status::internal_server_error);
                 }
                 return response;
+              }
+              if (url == "/lean/v0/admin/aggregator") {
+                if (request.method() == boost::beast::http::verb::get) {
+                  auto is_aggregator = self->chain_spec_->isAggregator();
+                  response.set(boost::beast::http::field::content_type,
+                               kContentTypeJson);
+                  response.body() =
+                      std::format(R"({{"is_aggregator":{}}})", is_aggregator);
+                  return response;
+                }
+                if (request.method() == boost::beast::http::verb::post) {
+                  Enabled body;
+                  try {
+                    json::decode(json::NameCase::SNAKE, body, request.body());
+                  } catch (std::exception &e) {
+                    response.result(boost::beast::http::status::bad_request);
+                    response.body() = e.what();
+                    return response;
+                  }
+                  auto enabled = body.enabled;
+                  auto previous = self->chain_spec_->setIsAggregator(enabled);
+                  response.set(boost::beast::http::field::content_type,
+                               kContentTypeJson);
+                  response.body() =
+                      std::format(R"({{"is_aggregator":{},"previous":{}}})",
+                                  enabled,
+                                  previous);
+                  return response;
+                }
               }
               response.result(boost::beast::http::status::not_found);
               return response;
