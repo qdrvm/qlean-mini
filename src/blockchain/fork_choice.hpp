@@ -86,6 +86,7 @@ namespace lean {
       INVALID_PROPOSER,
       STATE_NOT_FOUND,
       SIGNATURE_COUNT_MISMATCH,
+      TOO_MANY_ATTESTATIONS,
       NO_KEYPAIR,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
@@ -105,6 +106,8 @@ namespace lean {
           return "Parent state not found";
         case E::SIGNATURE_COUNT_MISMATCH:
           return "Signature count must match attestation count";
+        case E::TOO_MANY_ATTESTATIONS:
+          return "Too many attestations in block";
         case E::NO_KEYPAIR:
           return "No keypair";
       }

@@ -30,12 +30,17 @@ FIXTURE_INSTANTIATE(ForkChoiceTest, "fork_choice");
 TEST_P(ForkChoiceTest, ForkChoice) {
   auto &[name, fixture] = GetParam();
   std::println("RUN {}", name);
-  // in last proposer attestation, target < source
-  if (name == "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_on_newly_justified_slot[fork_Devnet][fork_devnet-fork_choice_test]"
-    or name == "tests/consensus/devnet/fc/test_signature_aggregation.py::test_all_validators_attest_in_single_aggregation[fork_Devnet][fork_devnet-fork_choice_test]"
-    or name == "tests/consensus/devnet/fc/test_signature_aggregation.py::test_multiple_specs_same_target_merge_into_one[fork_Devnet][fork_devnet-fork_choice_test]"
-    or name == "tests/consensus/devnet/fc/test_finalization_mid_processing.py::test_finalization_advances_mid_attestation_processing[fork_Devnet][fork_devnet-fork_choice_test]"
-  ) {
+  static std::unordered_set<std::string> disabled{
+      // in last proposer attestation, target < source
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_on_newly_justified_slot[fork_Devnet][fork_devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_signature_aggregation.py::test_all_validators_attest_in_single_aggregation[fork_Devnet][fork_devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_signature_aggregation.py::test_multiple_specs_same_target_merge_into_one[fork_Devnet][fork_devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_finalization_mid_processing.py::test_finalization_advances_mid_attestation_processing[fork_Devnet][fork_devnet-fork_choice_test]",
+
+      // block signatures are missing
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_gossip_attestation_with_invalid_signature[fork_Devnet][fork_Devnet-fork_choice_test]",
+  };
+  if (disabled.contains(name)) {
     std::println("  DISABLED");
     return;
   }
@@ -195,7 +200,9 @@ TEST_P(ForkChoiceTest, ForkChoice) {
                   ? store.getLatestNewAttestations()
                   : store.getLatestKnownAttestations();
           auto &data = attestations.at(check.validator);
-          ASSERT_EQ(data.slot, check.attestation_slot);
+          if (check.attestation_slot) {
+            ASSERT_EQ(data.slot, check.attestation_slot);
+          }
           if (check.head_slot) {
             ASSERT_EQ(data.head.slot, *check.head_slot);
           }
@@ -212,9 +219,18 @@ TEST_P(ForkChoiceTest, ForkChoice) {
   for (auto &step : fixture.steps) {
     std::println("");
     if (auto *tick_step = std::get_if<lean::TickStep>(&step.v)) {
-      std::println("STEP TICK {}", tick_step->time);
+      std::chrono::milliseconds time;
+      if (tick_step->interval.has_value()) {
+        time = fixture.anchor_state.config.genesisTimeMs()
+             + *tick_step->interval * lean::INTERVAL_DURATION_MS;
+      } else if (tick_step->time.has_value()) {
+        time = std::chrono::seconds{*tick_step->time};
+      } else {
+        throw std::runtime_error{"TickStep no interval or time"};
+      }
+      std::println("STEP TICK {}ms", time.count());
       check(*tick_step, [&]() -> outcome::result<void> {
-        store.onTick(std::chrono::seconds{tick_step->time});
+        store.onTick(time);
         return outcome::success();
       });
     } else if (auto *block_step = std::get_if<lean::BlockStep>(&step.v)) {
@@ -225,8 +241,10 @@ TEST_P(ForkChoiceTest, ForkChoice) {
             .block = block,
             .signature = {},
         };
-        signed_block.signature.attestation_signatures.data().resize(
-            block.body.attestations.size());
+        for (auto &attestation : block.body.attestations) {
+          signed_block.signature.attestation_signatures.push_back(
+              {.participants = attestation.aggregation_bits});
+        }
         auto block_time = std::chrono::seconds{store.getConfig().genesis_time}
                         + block.slot * lean::SLOT_DURATION_MS;
         store.onTick(block_time);

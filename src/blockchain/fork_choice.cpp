@@ -557,6 +557,14 @@ namespace lean {
                data.target);
       return Error::INVALID_ATTESTATION;
     }
+    if (data.head.slot < data.target.slot) {
+      SL_TRACE(
+          logger_,
+          "Head checkpoint must not be older than target, head {} < target {}",
+          data.head,
+          data.target);
+      return Error::INVALID_ATTESTATION;
+    }
 
     // Consistency Check
 
@@ -953,6 +961,9 @@ namespace lean {
     if (attestation_signatures.size() != aggregated_attestations.size()) {
       return Error::SIGNATURE_COUNT_MISMATCH;
     }
+    if (aggregated_attestations.size() > MAX_ATTESTATIONS_DATA) {
+      return Error::TOO_MANY_ATTESTATIONS;
+    }
     for (auto &&[aggregated_attestation, aggregated_signature] :
          std::views::zip(aggregated_attestations, attestation_signatures)) {
       BOOST_OUTCOME_TRY(onAggregatedAttestation(
@@ -988,13 +999,13 @@ namespace lean {
     auto validator_count = head_state->validatorCount();
 
     std::vector<OnTickAction> result{};
-    while (time_.interval <= now_interval->interval) {
+    while (time_.interval < now_interval->interval) {
+      ++time_.interval;
       Slot current_slot = time_.slot();
       metrics_->fc_current_slot()->set(current_slot);
       if (time_.phase() == 0) {
         [[unlikely]] if (current_slot == 0) {
           // Skip propose for slot zero, which is the genesis slot
-          time_.interval += 1;
           continue;
         }
         // Slot start
@@ -1025,7 +1036,6 @@ namespace lean {
                      "Failed to produce block for slot {}: {}",
                      current_slot,
                      res.error());
-            time_.interval += 1;
             continue;
           }
           auto &produced_block = res.value();
@@ -1075,7 +1085,6 @@ namespace lean {
                   "Attestation source slot {} is not less than target slot {}",
                   source.slot,
                   target.slot);
-          time_.interval += 1;
           continue;
         }
 
@@ -1156,7 +1165,6 @@ namespace lean {
                   ana_res.error());
         }
       }
-      time_.interval += 1;
     }
     return result;
   }

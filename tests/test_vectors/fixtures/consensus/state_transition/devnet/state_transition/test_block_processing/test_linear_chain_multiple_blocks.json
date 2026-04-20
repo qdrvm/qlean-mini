@@ -1,5 +1,5 @@
 {
-    "tests/consensus/devnet/state_transition/test_block_processing.py::test_linear_chain_multiple_blocks[fork_Devnet][fork_devnet-state_transition_test]": {
+    "tests/consensus/devnet/state_transition/test_block_processing.py::test_linear_chain_multiple_blocks[fork_Devnet][fork_Devnet-state_transition_test]": {
         "network": "Devnet",
         "leanEnv": "prod",
         "pre": {
@@ -31,19 +31,23 @@
             "validators": {
                 "data": [
                     {
-                        "pubkey": "0x0f46274ecd8e276e43c6e243b34d843dadf82b5d2905b53440b29004fc33dd562382bc7d37b7106d8a552d0925b2d17b22fea300",
+                        "attestationPubkey": "0x1865a50c6478a3173882ff01f2b7904a2b96b64a8ad63d04ea53b34a539bfd672ffffd40f2e93c2900311f068cf9641b81fd364d",
+                        "proposalPubkey": "0xef30711e272be66f8850f13c393f5c7dc302f6112d3d04672b715b0caef8b823cccac138b5ab9644845cc6262dd8076f49bacf3d",
                         "index": 0
                     },
                     {
-                        "pubkey": "0x79ac5f47737a783fce3d9b467109513d41dd483fdfe3e51431d5bc5e2d26a056a08350537c613a36914456131cdbff6d3cba7916",
+                        "attestationPubkey": "0xce45954436b2b4038330ba17071d9c482f56e43cfd3c21414a0f326635cc6132523b995e346e4e2df535e6742a5bb506e0c91365",
+                        "proposalPubkey": "0x2fdc4e5caacbdf3117a6687b09e7f46a132bd54f0e9b8730d3e57c655a60557a488ae4078e248244fadeab6d506a79355b563142",
                         "index": 1
                     },
                     {
-                        "pubkey": "0x1c2b9c1a568711044d6bcc074361f41aae528a62db2f5c025deb2108c6eb6e5c857d2452b130eb602ae36e37ab1f4c0882437470",
+                        "attestationPubkey": "0xa6cece462ea48c5e5a31d1576d6d7c7367fdf851a94dd738442c93570f88556ca04991462fedb17191054f65eeb9eb3777a8d27c",
+                        "proposalPubkey": "0xcfe9915524913f40da7ad5649bf69f450d72b952d2296627072e50524f7e8b775c61c17c36283b210521db7517ef097ca996de10",
                         "index": 2
                     },
                     {
-                        "pubkey": "0xf568004c2b1acd10ba05f95a1d1c4016f0bedf5e3fdb8c41b193785f8e70c90680c2f626da0176096a923d725a688c6183b1c57d",
+                        "attestationPubkey": "0xa9536c0b365edf64b9f2a50b7e0c84157697d444bcfeaa72f966070ca539090b00ac6d5e154aa3279c5f624bfa96fd025b66ba09",
+                        "proposalPubkey": "0x951ee23a3065d322d64174463ac89b4fa863ed648a44c02e331e7511da875b4c4fb27c3c2689272634fed634d67b256868f3be59",
                         "index": 3
                     }
                 ]
@@ -59,8 +63,8 @@
             {
                 "slot": 1,
                 "proposerIndex": 1,
-                "parentRoot": "0x1210030f69c4c69dbe89bed55117e3813863e7ca853bc4fe004e096c860d299e",
-                "stateRoot": "0xb3853ccfb905fefd7f68aaccd4386cf5e539069236a99abecdfa0432489c0aa0",
+                "parentRoot": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                "stateRoot": "0xf9adceb604bbff70c983cb92794e97000925712faa73c1fd33818d3ad6488b7b",
                 "body": {
                     "attestations": {
                         "data": []
@@ -70,8 +74,8 @@
             {
                 "slot": 2,
                 "proposerIndex": 2,
-                "parentRoot": "0x1a5a61cf807fad97d6f97117c6c6c44ba5f1a5a7e45a2195838b6490a6482bfc",
-                "stateRoot": "0x92b6fb4d7d292bb875819af3302de2bcd18199871103df2c2ff53a321d10cacc",
+                "parentRoot": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                "stateRoot": "0x326030ed14199de4db3fcc7d9daae64fbbd00deb176d7dee3ea13ddab89f8ffd",
                 "body": {
                     "attestations": {
                         "data": []
@@ -81,8 +85,8 @@
             {
                 "slot": 3,
                 "proposerIndex": 3,
-                "parentRoot": "0x7f7f08b2ced19c6369dd5376355424de324068bcd04fee9617bf6798633a91a9",
-                "stateRoot": "0x4d60af675f9efa00ea31b01c1e409fe6d25d689f3626e1960f4670797a2ac092",
+                "parentRoot": "0x6b7c8df5d3628c2425caf72e487418f09c4b34b2693dcccddcba29e28219d5ab",
+                "stateRoot": "0x933d754121aa8e8e34f0eddbfc2d6fc152126b5d6483c5c10746888d4ef09fe1",
                 "body": {
                     "attestations": {
                         "data": []
@@ -92,8 +96,8 @@
             {
                 "slot": 4,
                 "proposerIndex": 0,
-                "parentRoot": "0x215a672649ca5986bdc461cb48f97d60197acf30e6cd948e863588a92561fd74",
-                "stateRoot": "0x25b5d657ca781c26a5c68920d01d64869414e9151bfcf4c065d05a68c87e479e",
+                "parentRoot": "0x58fed81517132bb2c1eacd474215d3e01298e12d6022946e516e3585cbc20104",
+                "stateRoot": "0xca43a9a749855be4a0efbd2aacaaf2a30eecc0244a2399db5cea685538a43aa7",
                 "body": {
                     "attestations": {
                         "data": []
@@ -103,8 +107,8 @@
             {
                 "slot": 5,
                 "proposerIndex": 1,
-                "parentRoot": "0x9db2d5aa77060facc73f40fbc59540bf5cddcba598439a5a83acc9eadca31d8a",
-                "stateRoot": "0x8acb7b9bff2b7de49ba18f2df7cf0e5d6aa04d78daac6d65fd3a571bbe76dbb6",
+                "parentRoot": "0x807ac72b883d201702dd1b1b5e5b8037e6168e872fec98479b578bb85030b3a7",
+                "stateRoot": "0x644b4381cf15f028a5330324a9a6ed16e90ccd06c6de9a14c57913bc14289366",
                 "body": {
                     "attestations": {
                         "data": []
@@ -116,7 +120,7 @@
             "slot": 5
         },
         "_info": {
-            "hash": "0x01624200987c97bc46ead1ce49a48091fc68b1a2b3ec7ef65b46021dcaf4eca3",
+            "hash": "0x67163a024618105e1ce3d99a43838f303a05999db34ef94d4b6d3ebb929d224d",
             "comment": "`leanSpec` generated test",
             "testId": "tests/consensus/devnet/state_transition/test_block_processing.py::test_linear_chain_multiple_blocks[fork_Devnet]",
             "description": "Test building a linear chain of multiple blocks.\n\nScenario\n--------\nBuild a 5-block linear chain:\ngenesis \u2192 block1 \u2192 block2 \u2192 block3 \u2192 block4 \u2192 block5\n\nExpected Behavior\n-----------------\n1. Each block processes in sequence\n2. Parent linkage maintained throughout\n3. State advances monotonically\n4. Historical roots accumulate\n5. Final state at slot 5",

@@ -20,7 +20,7 @@
 #include "serde/json_fwd.hpp"
 
 #define JSON_ASSERT(c) \
-  if (not(c)) throw std::runtime_error{"json"}
+  if (not(c)) json.error()
 
 namespace lean::json {
   struct JsonOut {
@@ -41,11 +41,18 @@ namespace lean::json {
     JsonIn(NameCase name_case, const rapidjson::Value &v)
         : name_case{name_case}, v{v} {}
 
-    JsonIn(const JsonIn &json, const rapidjson::Value &v)
-        : name_case{json.name_case}, v{v} {}
+    JsonIn(const JsonIn &json, std::string key, const rapidjson::Value &v)
+        : name_case{json.name_case}, v{v}, keys{json.keys} {
+      keys.emplace_back(key);
+    }
+
+    [[noreturn]] void error() {
+      throw std::runtime_error{fmt::format("json: {}", fmt::join(keys, ""))};
+    }
 
     NameCase name_case;
     const rapidjson::Value &v;
+    std::vector<std::string> keys;
   };
 
   std::string encode(NameCase name_case, const auto &v) {
@@ -119,17 +126,24 @@ namespace lean::json {
     decode(JsonIn{name_case, document}, v);
   }
 
+  template <typename T>
+  T overflow(JsonIn json, auto v) {
+    JSON_ASSERT(v >= std::numeric_limits<T>::min());
+    JSON_ASSERT(v <= std::numeric_limits<T>::max());
+    return v;
+  };
+
   template <std::integral T>
   void decode(JsonIn json, T &v) {
     if constexpr (std::is_same_v<T, bool>) {
       JSON_ASSERT(json.v.IsBool());
       v = json.v.GetBool();
     } else if constexpr (std::is_unsigned_v<T>) {
-      JSON_ASSERT(json.v.IsUint());
-      v = json.v.GetUint();
+      JSON_ASSERT(json.v.IsUint64());
+      v = overflow<T>(json, json.v.GetUint64());
     } else {
-      JSON_ASSERT(json.v.IsInt());
-      v = json.v.GetInt();
+      JSON_ASSERT(json.v.IsInt64());
+      v = overflow<T>(json, json.v.GetInt64());
     }
   }
 
@@ -155,9 +169,10 @@ namespace lean::json {
   void decode(JsonIn json, std::vector<T> &v) {
     v.clear();
     JSON_ASSERT(json.v.IsArray());
-    for (auto it = json.v.Begin(); it != json.v.End(); ++it) {
+    size_t i = 0;
+    for (auto it = json.v.Begin(); it != json.v.End(); ++it, ++i) {
       T value;
-      decode(JsonIn{json, *it}, value);
+      decode(JsonIn{json, fmt::format("[{}]", i), *it}, value);
       v.emplace_back(std::move(value));
     }
   }
@@ -178,9 +193,9 @@ namespace lean::json {
     JSON_ASSERT(json.v.IsObject());
     for (auto it = json.v.MemberBegin(); it != json.v.MemberEnd(); ++it) {
       std::string key;
-      decode(JsonIn{json, it->name}, key);
+      decode(JsonIn{json, "(key)", it->name}, key);
       T value;
-      decode(JsonIn{json, it->value}, value);
+      decode(JsonIn{json, fmt::format("[\"{}\"]", key), it->value}, value);
       v.emplace(std::move(key), std::move(value));
     }
   }
@@ -198,7 +213,9 @@ namespace lean::json {
     auto &field_name = field_names.at(I)[json.name_case];
     auto it = json.v.FindMember(field_name.c_str());
     static const rapidjson::Value json_null;
-    decode(JsonIn{json, it != json.v.MemberEnd() ? it->value : json_null},
+    decode(JsonIn{json,
+                  fmt::format("[\"{}\"]", field_name),
+                  it != json.v.MemberEnd() ? it->value : json_null},
            field);
     if constexpr (I + 1 < std::tuple_size_v<T>) {
       decodeFields<I + 1>(json, fields, field_names);

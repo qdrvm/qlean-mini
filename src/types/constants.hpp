@@ -29,6 +29,7 @@ namespace lean {
   static constexpr uint64_t HISTORICAL_ROOTS_LIMIT =
       1 << 18;  // 262'144 roots,	12.1 days
   static constexpr uint64_t VALIDATOR_REGISTRY_LIMIT = 1 << 12;  // 4'096 val
+  static constexpr size_t MAX_ATTESTATIONS_DATA = 16;
 
   // Networking
 

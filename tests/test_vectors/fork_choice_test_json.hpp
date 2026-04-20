@@ -30,7 +30,7 @@ namespace lean {
 
   struct AttestationCheck {
     ValidatorIndex validator;
-    Slot attestation_slot;
+    std::optional<Slot> attestation_slot;
     std::optional<Slot> head_slot;
     std::optional<Slot> source_slot;
     std::optional<Slot> target_slot;
@@ -78,9 +78,10 @@ namespace lean {
   };
 
   struct TickStep : BaseForkChoiceStep {
-    TimestampSeconds time;
+    std::optional<TimestampSeconds> time;
+    std::optional<uint64_t> interval;
 
-    JSON_FIELDS(valid, checks, time);
+    JSON_FIELDS(valid, checks, time, interval);
   };
 
   struct BlockStep : BaseForkChoiceStep {
@@ -95,10 +96,24 @@ namespace lean {
     JSON_FIELDS(valid, checks, attestation);
   };
 
-  struct ForkChoiceStep {
-    std::variant<TickStep, BlockStep, AttestationStep> v;
+  struct GossipAggregatedAttestationStep : BaseForkChoiceStep {
+    SignedAggregatedAttestation attestation;
 
-    JSON_DISCRIMINATOR(step_type, "tick", "block", "attestation");
+    JSON_FIELDS(valid, checks, attestation);
+  };
+
+  struct ForkChoiceStep {
+    std::variant<TickStep,
+                 BlockStep,
+                 AttestationStep,
+                 GossipAggregatedAttestationStep>
+        v;
+
+    JSON_DISCRIMINATOR(step_type,
+                       "tick",
+                       "block",
+                       "attestation",
+                       "gossipAggregatedAttestation");
   };
 
   struct ForkChoiceTestJson {

@@ -28,7 +28,7 @@ namespace lean::yaml {
           .keys = keys,
           .yaml = yaml[key],
       };
-      node.keys.emplace_back(key);
+      node.keys.emplace_back(fmt::format("[\"{}\"]", key));
       return node;
     }
 
