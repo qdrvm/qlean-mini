@@ -4,46 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-execute_process(
-    COMMAND git symbolic-ref -q HEAD
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    OUTPUT_VARIABLE GIT_REF
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-
-if(GIT_REF)
-  set(GIT_REF_FILE "${CMAKE_SOURCE_DIR}/.git/${GIT_REF}")
-else()
-  set(GIT_REF_FILE "${CMAKE_SOURCE_DIR}/.git/HEAD")
-endif()
-
 set(BUILD_VERSION_CPP "${CMAKE_BINARY_DIR}/generated/app/build_version.cpp")
-set(GET_VERSION_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/get_version.sh")
+set(BUILD_VERSION_CPP_SH "${CMAKE_SOURCE_DIR}/scripts/build_version_cpp.sh")
+set(REBUILD_BUILD_VERSION_CPP "${CMAKE_BINARY_DIR}/rebuild_build_version_cpp")
+add_custom_target(rebuild_build_version_cpp COMMAND cmake -E echo rebuild_build_version_cpp COMMAND cmake -E touch REBUILD_BUILD_VERSION_CPP)
 add_custom_command(
     OUTPUT ${BUILD_VERSION_CPP}
-
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<SHELL_PATH:${CMAKE_BINARY_DIR}/generated/app>"
-
-    COMMAND ${CMAKE_COMMAND} -E echo "// Auto-generated file" > "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "#include <string>" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "namespace lean {" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "  const std::string &buildVersion() {" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E env sh -c "printf '%s' '    static const std::string buildVersion(\"' >> \"${BUILD_VERSION_CPP}\""
-
-    COMMAND ${CMAKE_COMMAND} -E env sh -c "\"${GET_VERSION_SCRIPT}\" >> \"${BUILD_VERSION_CPP}\""
-
-    COMMAND ${CMAKE_COMMAND} -E echo "\");" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "    return buildVersion;" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "  }" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "}  // namespace lean" >> "${BUILD_VERSION_CPP}"
-
+    COMMAND ${BUILD_VERSION_CPP_SH} ${BUILD_VERSION_CPP}
     COMMENT "Generate build_version.cpp"
     DEPENDS
-      "${GET_VERSION_SCRIPT}"
-      "${GIT_REF_FILE}"
-    VERBATIM
+        ${REBUILD_BUILD_VERSION_CPP}
 )
 add_library(build_version
     "${BUILD_VERSION_CPP}"
