@@ -7,7 +7,7 @@
 set(BUILD_VERSION_CPP "${CMAKE_BINARY_DIR}/generated/app/build_version.cpp")
 set(BUILD_VERSION_CPP_SH "${CMAKE_SOURCE_DIR}/scripts/build_version_cpp.sh")
 set(REBUILD_BUILD_VERSION_CPP "${CMAKE_BINARY_DIR}/rebuild_build_version_cpp")
-add_custom_target(rebuild_build_version_cpp COMMAND cmake -E echo rebuild_build_version_cpp COMMAND cmake -E touch REBUILD_BUILD_VERSION_CPP)
+add_custom_target(rebuild_build_version_cpp COMMAND ${CMAKE_COMMAND} -E touch REBUILD_BUILD_VERSION_CPP)
 add_custom_command(
     OUTPUT ${BUILD_VERSION_CPP}
     COMMAND ${BUILD_VERSION_CPP_SH} ${BUILD_VERSION_CPP}
