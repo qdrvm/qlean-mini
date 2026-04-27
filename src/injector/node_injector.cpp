@@ -149,26 +149,25 @@ namespace lean::injector {
         .template create<std::shared_ptr<app::Application>>();
   }
 
-  std::unique_ptr<loaders::Loader> NodeInjector::register_loader(
-      std::shared_ptr<modules::Module> module) {
+  void NodeInjector::register_loader(std::shared_ptr<modules::Module> module) {
     auto logsys = pimpl_->injector_
                       .template create<std::shared_ptr<log::LoggingSystem>>();
     auto logger = logsys->getLogger("Modules", "lean");
 
-    std::unique_ptr<loaders::Loader> loader{};
+    std::shared_ptr<loaders::Loader> loader{};
 
     if ("NetworkingLoader" == module->get_loader_id()) {
       loader = pimpl_->injector_
-                   .create<std::unique_ptr<loaders::NetworkingLoader>>();
+                   .create<std::shared_ptr<loaders::NetworkingLoader>>();
     } else if ("ProductionLoader" == module->get_loader_id()) {
       loader = pimpl_->injector_
-                   .create<std::unique_ptr<loaders::ProductionLoader>>();
+                   .create<std::shared_ptr<loaders::ProductionLoader>>();
     } else {
       SL_CRITICAL(logger,
                   "> No loader found for: {} [{}]",
                   module->get_loader_id(),
                   module->get_path());
-      return {};
+      return;
     }
 
     loader->start(module);
@@ -181,6 +180,5 @@ namespace lean::injector {
                module->get_loader_id(),
                module->get_path());
     }
-    return std::unique_ptr<loaders::Loader>(loader.release());
   }
 }  // namespace lean::injector

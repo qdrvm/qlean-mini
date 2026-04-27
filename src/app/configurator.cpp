@@ -137,7 +137,6 @@ namespace lean::app {
         ("config,c", po::value<std::string>(),  "Optional. Filepath to load configuration from. Overrides default configuration values.")
         ("genesis-dir", po::value<std::string>(), "Quickstart genesis directory path")
         ("listen-addr", po::value<std::string>(), "Set libp2p listen multiaddress.")
-        ("modules-dir", po::value<std::string>(), "Set path to directory containing modules.")
         ("bootnodes", po::value<std::string>(), "Set path to yaml file containing boot node ENRs (genesis/nodes.yaml).")
         ("checkpoint-sync-url", po::value<std::string>(),  "Optional. URL for pre-syncing the state at startup if any")
         ("name,n", po::value<std::string>(), "Set name of node.")
@@ -360,16 +359,6 @@ namespace lean::app {
               file_has_error_ = true;
             }
           }
-          auto modules_dir = section["modules-dir"];
-          if (modules_dir.IsDefined()) {
-            if (modules_dir.IsScalar()) {
-              auto value = modules_dir.as<std::string>();
-              config_->modules_dir_ = value;
-            } else {
-              file_errors_ << "E: Value 'general.modules_dir' must be scalar\n";
-              file_has_error_ = true;
-            }
-          }
           auto listen_addr = section["listen-addr"];
           if (listen_addr.IsDefined()) {
             if (listen_addr.IsScalar()) {
@@ -456,10 +445,6 @@ namespace lean::app {
     find_argument<std::string>(
         cli_values_map_, "data-dir", [&](const std::string &value) {
           config_->base_path_ = value;
-        });
-    find_argument<std::string>(
-        cli_values_map_, "modules-dir", [&](const std::string &value) {
-          config_->modules_dir_ = value;
         });
     find_argument<std::string>(
         cli_values_map_, "listen-addr", [&](std::string value) {
@@ -594,17 +579,6 @@ namespace lean::app {
       // Fallback: current working directory
       return weakly_canonical(std::filesystem::current_path() / path);
     };
-
-    if (not config_->modules_dir_.empty()) {
-      config_->modules_dir_ =
-          resolve_relative(config_->modules_dir_, "modules-dir");
-      if (not is_directory(config_->modules_dir_)) {
-        SL_ERROR(logger_,
-                 "The 'modules_dir' does not exist or is not a directory: {}",
-                 config_->modules_dir_);
-        return Error::InvalidValue;
-      }
-    }
 
     if (not config_->bootnodes_file_.empty()) {
       config_->bootnodes_file_ =
