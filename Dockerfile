@@ -53,18 +53,11 @@ RUN --mount=type=cache,target=/qlean-mini/.vcpkg,id=vcpkg-full \
   make configure; \
   make build; \
   # Collect artifacts
-  mkdir -p /opt/artifacts/vcpkg; \
-  # Copy executable, libraries and modules
-  cp -r -v ${BUILD}/out/. /opt/artifacts/out; \
-  # Copy vcpkg installed libraries
-  if [ -d "${BUILD}/vcpkg_installed" ]; then \
-  cp -R ${BUILD}/vcpkg_installed /opt/artifacts/vcpkg/installed; \
-  fi; \
+  # Copy statically linked executable
+  cp -r -v ${BUILD}/out/bin/qlean /opt/artifacts/out/bin/qlean; \
   # List collected artifacts
   echo "=== Collected artifacts ==="; \
-  ls -lh /opt/artifacts/out/bin/; \
-  ls -lh /opt/artifacts/out/modules/ || true; \
-  ls -lh /opt/artifacts/out/lib/ || true
+  ls -lh /opt/artifacts/out/bin/qlean
 
 # ==================== Stage 2: Runtime ====================
 FROM ${BASE_IMAGE} AS runtime
@@ -82,22 +75,14 @@ RUN apt-get update && \
   ca-certificates && \
   rm -rf /var/lib/apt/lists/*
 
-# Environment variables for runtime
-ENV LD_LIBRARY_PATH=/opt/qlean/lib:/opt/qlean/vcpkg/installed/x64-linux/lib:/opt/qlean/vcpkg/installed/x64-linux-dynamic/lib:/opt/qlean/vcpkg/installed/lib:/usr/local/lib
-
 WORKDIR /work
 
 # Copy artifacts from builder
-COPY --from=builder /opt/artifacts/out/ /opt/qlean/
-COPY --from=builder /opt/artifacts/vcpkg/installed/ /opt/qlean/vcpkg/installed/
+COPY --from=builder /opt/artifacts/out/bin/qlean /opt/qlean/bin/qlean
 
 # Verify artifacts
 RUN echo "=== Runtime image contents ===" && \
-  ls -lh /opt/qlean/bin/qlean && \
-  echo "=== Project libraries ===" && \
-  ls -lh /opt/qlean/lib/ || true && \
-  echo "=== Modules ===" && \
-  ls -lh /opt/qlean/modules/ || true
+  ls -lh /opt/qlean/bin/qlean
 
 # OCI Image Spec annotations
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md
