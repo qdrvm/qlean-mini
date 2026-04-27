@@ -88,14 +88,8 @@ target_link_libraries(modules
 
 # -------------- Modules --------------
 
-# Example module
-add_subdirectory(example)
-
 # Networking module
 add_subdirectory(networking)
 
 # Block-production module
 add_subdirectory(production)
-
-# Blockchain synchronizer module
-add_subdirectory(synchronizer)
