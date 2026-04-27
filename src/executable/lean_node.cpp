@@ -48,7 +48,14 @@ namespace {
 
     // Load modules
     std::deque<std::unique_ptr<lean::loaders::Loader>> loaders;
-    {
+    if (true) {
+      auto load = [&](std::string loader) {
+        loaders.emplace_back(injector->register_loader(
+            lean::modules::Module::create({}, {}, {nullptr, nullptr}, loader)));
+      };
+      load("NetworkingLoader");
+      load("ProductionLoader");
+    } else {
       auto logger = logsys->getLogger("Modules", "lean");
       const std::string path(appcfg->modulesDir());
 
