@@ -13,7 +13,7 @@
 #include "types/block_body.hpp"
 #include "types/block_data.hpp"
 #include "types/block_header.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 #include "types/types.hpp"
 
 namespace lean {
@@ -196,11 +196,10 @@ namespace lean::blockchain {
      public:
       enum : uint8_t {
         HEADER = 1 << 0,
-        ATTESTATION = 1 << 1,
         SIGNATURES = 1 << 2,
         BODY = 1 << 3,
         STATE = 1 << 0,
-        ALL = HEADER | ATTESTATION | SIGNATURES | BODY | STATE
+        ALL = HEADER | SIGNATURES | BODY | STATE
       };
 
       BlockParts() = default;
@@ -227,8 +226,7 @@ namespace lean::blockchain {
 
     // -- special
 
-    [[nodiscard]] virtual outcome::result<SignedBlockWithAttestation>
-    getSignedBlockWithAttestation(
+    [[nodiscard]] virtual outcome::result<SignedBlock> getSignedBlock(
         const BlockHash &block_hash) const = 0;
   };
 

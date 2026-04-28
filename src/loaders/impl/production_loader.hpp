@@ -25,8 +25,10 @@ namespace lean::loaders {
         public modules::ProductionLoader {
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
     qtils::SharedRef<crypto::Hasher> hasher_;
-    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store_;
     qtils::SharedRef<clock::SystemClock> clock_;
+
+    std::shared_ptr<lean::modules::ProductionModuleImpl> module_internal_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
 
@@ -52,7 +54,7 @@ namespace lean::loaders {
                      qtils::SharedRef<Subscription> se_manager,
                      qtils::SharedRef<blockchain::BlockTree> block_tree,
                      qtils::SharedRef<crypto::Hasher> hasher,
-                     qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                     qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store,
                      qtils::SharedRef<clock::SystemClock> clock)
         : Loader(std::move(logsys), std::move(se_manager)),
           block_tree_(std::move(block_tree)),
@@ -67,42 +69,19 @@ namespace lean::loaders {
 
     void start(std::shared_ptr<modules::Module> module) override {
       set_module(module);
-      auto module_accessor =
-          get_module()
-              ->getFunctionFromLibrary<std::weak_ptr<modules::ProductionModule>,
-                                       modules::ProductionLoader &,
-                                       std::shared_ptr<log::LoggingSystem>,
-                                       std::shared_ptr<blockchain::BlockTree>,
-                                       qtils::SharedRef<ForkChoiceStore>,
-                                       std::shared_ptr<crypto::Hasher>,
-                                       std::shared_ptr<clock::SystemClock>>(
-                  "query_module_instance");
-
-      if (not module_accessor) {
-        return;
-      }
-
-      auto module_internal = (*module_accessor)(
+      module_internal_ = lean::modules::ProductionModuleImpl::create_shared(
           *this, logsys_, block_tree_, fork_choice_store_, hasher_, clock_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::create<
           EventTypes::ProductionIsLoaded>(
-          *se_manager_,
-          SubscriptionEngineHandlers::kTest,
-          [module_internal](auto &) {
-            if (auto m = module_internal.lock()) {
-              m->on_loaded_success();
-            }
+          *se_manager_, SubscriptionEngineHandlers::kTest, [this](auto &) {
+            module_internal_->on_loaded_success();
           });
 
       on_loading_finished_ = se::SubscriberCreator<qtils::Empty>::create<
           EventTypes::LoadingIsFinished>(
-          *se_manager_,
-          SubscriptionEngineHandlers::kTest,
-          [module_internal](auto &) {
-            if (auto m = module_internal.lock()) {
-              m->on_loading_is_finished();
-            }
+          *se_manager_, SubscriptionEngineHandlers::kTest, [this](auto &) {
+            module_internal_->on_loading_is_finished();
           });
 
       on_slot_interval_started_ = se::SubscriberCreator<
@@ -111,10 +90,8 @@ namespace lean::loaders {
           create<EventTypes::SlotIntervalStarted>(
               *se_manager_,
               SubscriptionEngineHandlers::kTest,
-              [module_internal](auto &, auto msg) {
-                if (auto m = module_internal.lock()) {
-                  m->on_slot_interval_started(std::move(msg));
-                }
+              [this](auto &, auto msg) {
+                module_internal_->on_slot_interval_started(std::move(msg));
               });
 
       on_leave_update_ =
@@ -123,10 +100,8 @@ namespace lean::loaders {
               create<EventTypes::BlockAdded>(
                   *se_manager_,
                   SubscriptionEngineHandlers::kTest,
-                  [module_internal](auto &, auto msg) {
-                    if (auto m = module_internal.lock()) {
-                      m->on_leave_update(std::move(msg));
-                    }
+                  [this](auto &, auto msg) {
+                    module_internal_->on_leave_update(std::move(msg));
                   });
 
       on_block_finalized_ =
@@ -135,10 +110,8 @@ namespace lean::loaders {
               create<EventTypes::BlockFinalized>(
                   *se_manager_,
                   SubscriptionEngineHandlers::kTest,
-                  [module_internal](auto &, auto msg) {
-                    if (auto m = module_internal.lock()) {
-                      m->on_block_finalized(std::move(msg));
-                    }
+                  [this](auto &, auto msg) {
+                    module_internal_->on_block_finalized(std::move(msg));
                   });
 
       se_manager_->notify(EventTypes::ProductionIsLoaded);

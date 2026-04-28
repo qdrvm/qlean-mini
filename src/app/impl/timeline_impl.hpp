@@ -12,6 +12,7 @@
 #include <qtils/shared_ref.hpp>
 
 #include "app/timeline.hpp"
+#include "modules/shared/prodution_types.tmp.hpp"
 #include "se/subscription_fwd.hpp"
 
 namespace lean::messages {
@@ -54,7 +55,11 @@ namespace lean::app {
     void stop();
 
    private:
-    void on_slot_started(std::shared_ptr<const messages::SlotStarted> msg);
+    void waitNextInterval(std::chrono::milliseconds now,
+                          std::optional<Interval> interval);
+    void printSlot(Interval interval);
+    void on_slot_interval_started(
+        std::shared_ptr<const messages::SlotIntervalStarted> msg);
 
     qtils::SharedRef<soralog::Logger> logger_;
     qtils::SharedRef<soralog::Logger> digest_;
@@ -70,8 +75,8 @@ namespace lean::app {
 
     std::shared_ptr<
         BaseSubscriber<qtils::Empty,
-                       std::shared_ptr<const messages::SlotStarted>>>
-        on_slot_started_;
+                       std::shared_ptr<const messages::SlotIntervalStarted>>>
+        on_slot_interval_started_;
     std::shared_ptr<
         BaseSubscriber<qtils::Empty,
                        std::shared_ptr<const messages::PeerCountsMessage>>>

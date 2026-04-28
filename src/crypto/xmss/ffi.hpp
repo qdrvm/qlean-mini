@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include <span>
 
 #include <c_hash_sig/c_hash_sig.h>
 #include <qtils/enum_error_code.hpp>
@@ -39,4 +40,22 @@ namespace lean::crypto::xmss::ffi {
   using SecretKey = FfiPtr<PQSecretKey, pq_secret_key_free>;
   using PublicKey = FfiPtr<PQPublicKey, pq_public_key_free>;
   using Signature = FfiPtr<PQSignature, pq_signature_free>;
+
+  class ByteVec {
+   public:
+    ByteVec(PQByteVec &&inner) : inner_{std::exchange(inner, {})} {}
+
+    ByteVec(const ByteVec &) = delete;
+
+    std::span<const uint8_t> bytes() const {
+      return {inner_.ptr, inner_.size};
+    }
+
+    ~ByteVec() {
+      PQByteVec_drop(inner_);
+    }
+
+   private:
+    PQByteVec inner_;
+  };
 }  // namespace lean::crypto::xmss::ffi

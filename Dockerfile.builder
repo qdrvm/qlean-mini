@@ -70,23 +70,11 @@ RUN set -eux; \
     -B ${BUILD} \
     ${PROJECT}; \
     cmake --build ${BUILD} --parallel; \
-    mkdir -p /opt/artifacts/bin /opt/artifacts/modules /opt/artifacts/lib /opt/artifacts/vcpkg; \
-    cp -v ${BUILD}/src/executable/qlean /opt/artifacts/bin/; \
-    strip /opt/artifacts/bin/qlean; \
-    find ${BUILD}/src/modules -type f -name "*_module.so" -exec cp -v {} /opt/artifacts/modules/ \; || true; \
-    find /opt/artifacts/modules/ -name "*.so" -exec strip {} \; || true; \
-    find ${BUILD}/src -type f -name "*.so" ! -name "*_module.so" -exec cp -v {} /opt/artifacts/lib/ \; || true; \
-    find /opt/artifacts/lib/ -name "*.so" -exec strip {} \; || true; \
-    if [ -d "${BUILD}/vcpkg_installed" ]; then \
-    echo "Collecting only runtime .so libraries from vcpkg..."; \
-    find ${BUILD}/vcpkg_installed -name "*.so*" -type f -exec cp -v {} /opt/artifacts/vcpkg/ \; 2>/dev/null || true; \
-    find /opt/artifacts/vcpkg/ -name "*.so*" -exec strip {} \; 2>/dev/null || true; \
-    fi; \
+    mkdir -p /opt/artifacts/out/bin; \
+    cp -r -v ${BUILD}/out/bin/qlean /opt/artifacts/out/bin/qlean; \
+    strip /opt/artifacts/out/bin/qlean; \
     echo "=== Artifacts ==="; \
-    ls -lh /opt/artifacts/bin/; \
-    ls -lh /opt/artifacts/modules/ || true; \
-    ls -lh /opt/artifacts/lib/ || true; \
-    echo "Vcpkg libraries: $(find /opt/artifacts/vcpkg/ -name '*.so*' | wc -l) files"
+    ls -lh /opt/artifacts/out/bin/qlean
 
 # OCI Image Spec annotations
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md

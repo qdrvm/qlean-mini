@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_library(fd_limit SHARED
+add_library(fd_limit
     fd_limit.cpp
 )
 target_link_libraries(fd_limit
@@ -12,7 +12,7 @@ target_link_libraries(fd_limit
     logger
 )
 
-add_library(http SHARED
+add_library(http
     http.cpp
 )
 target_link_libraries(http

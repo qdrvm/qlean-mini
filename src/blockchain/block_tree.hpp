@@ -11,7 +11,7 @@
 namespace lean {
   struct Block;
   struct BlockBody;
-  struct SignedBlockWithAttestation;
+  struct SignedBlock;
   struct StatusMessage;
   struct Checkpoint;
 }  // namespace lean
@@ -76,8 +76,7 @@ namespace lean::blockchain {
      * peer for the parent block and try to insert it; this operation is to be
      * repeated until a successful insertion happens
      */
-    virtual outcome::result<void> addBlock(
-        SignedBlockWithAttestation signed_block_with_attestation) = 0;
+    virtual outcome::result<void> addBlock(SignedBlock signed_block) = 0;
 
     /**
      * Remove leaf
@@ -166,11 +165,11 @@ namespace lean::blockchain {
     [[nodiscard]] virtual Checkpoint getLatestJustified() const = 0;
 
     /**
-     * Get `SignedBlockWithAttestation` for
+     * Get `SignedBlock` for
      * "/leanconsensus/req/blocks_by_root/1/ssz_snappy" protocol.
      */
-    virtual outcome::result<std::optional<SignedBlockWithAttestation>>
-    tryGetSignedBlock(const BlockHash block_hash) const = 0;
+    virtual outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
+        const BlockHash block_hash) const = 0;
   };
 
 }  // namespace lean::blockchain

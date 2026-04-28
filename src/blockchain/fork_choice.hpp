@@ -23,13 +23,14 @@
 #include "types/hash.hpp"
 #include "types/signed_aggregated_attestation.hpp"
 #include "types/signed_attestation.hpp"
-#include "types/signed_block_with_attestation.hpp"
+#include "types/signed_block.hpp"
 #include "types/state.hpp"
 #include "types/validator_index.hpp"
 #include "utils/lru_cache.hpp"
 #include "utils/tuple_hash.hpp"
 
 namespace lean {
+  struct Attestation;
   struct ForkChoiceApiJson;
   struct GenesisConfig;
   class ValidatorRegistry;
@@ -85,6 +86,8 @@ namespace lean {
       INVALID_PROPOSER,
       STATE_NOT_FOUND,
       SIGNATURE_COUNT_MISMATCH,
+      TOO_MANY_ATTESTATIONS,
+      NO_KEYPAIR,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
@@ -103,6 +106,10 @@ namespace lean {
           return "Parent state not found";
         case E::SIGNATURE_COUNT_MISMATCH:
           return "Signature count must match attestation count";
+        case E::TOO_MANY_ATTESTATIONS:
+          return "Too many attestations in block";
+        case E::NO_KEYPAIR:
+          return "No keypair";
       }
       abort();
     }
@@ -152,6 +159,8 @@ namespace lean {
         qtils::SharedRef<blockchain::BlockStorage> block_storage,
         bool is_aggregator,
         uint64_t subnet_count);
+
+    void dontPropose();
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -263,23 +272,16 @@ namespace lean {
      *  Returns:
      *      Target checkpoint for attestation.
      */
-    Checkpoint getAttestationTarget() const;
-
-    /**
-     * Produce the attestation data for a validator at the given slot.
-     *
-     * This helper constructs the attestation data payload that describes the
-     * validator's view of the chain (head, target, source) for the requested
-     * slot. The caller can reuse the result to sign or broadcast an
-     * attestation.
-     */
-    AttestationData produceAttestationData(Slot slot) const;
+    Checkpoint getAttestationTarget(
+        const Checkpoint &justified,
+        const Checkpoint &head,
+        std::optional<BlockHash> head_parent_hash) const;
 
     /**
      * Produce a block and attestation signatures for the target slot.
      *
      *  The proposer returns the block and a naive signature list so it can
-     *  later craft its `SignedBlockWithAttestation` with minimal extra work.
+     *  later craft its `SignedBlock` with minimal extra work.
      *
      *  Algorithm Overview:
      *  1. Validate proposer authorization for the target slot
@@ -298,9 +300,12 @@ namespace lean {
      *  Returns:
      *      Complete block with maximal attestation set and valid state root
      */
-    outcome::result<SignedBlockWithAttestation> produceBlockWithSignatures(
+    outcome::result<SignedBlock> produceBlockWithSignatures(
         Slot slot, ValidatorIndex validator_index);
-
+    outcome::result<std::pair<AggregatedAttestations, AttestationSignatures>>
+    getProposalAttestations(Slot slot,
+                            ValidatorIndex proposer_index,
+                            BlockHash parent_root);
 
     /**
      * Produce an attestation for the given slot and validator.
@@ -325,8 +330,12 @@ namespace lean {
      *     A fully constructed Attestation object ready for signing and
      * broadcast.
      */
-    Attestation produceAttestation(Slot slot,
-                                   ValidatorIndex validator_index) const;
+    Attestation produceAttestation(
+        Slot slot,
+        ValidatorIndex validator_index,
+        const Checkpoint &justified,
+        const Checkpoint &head,
+        std::optional<BlockHash> head_parent_hash) const;
 
     /**
      * Validate incoming attestation before processing.
@@ -419,12 +428,10 @@ namespace lean {
 
 
     // Processes a new block, updates the store, and triggers a head update.
-    outcome::result<void> onBlock(
-        SignedBlockWithAttestation signed_block_with_attestation);
+    outcome::result<void> onBlock(SignedBlock signed_block);
 
-    using OnTickAction = std::variant<SignedAttestation,
-                                      SignedAggregatedAttestation,
-                                      SignedBlockWithAttestation>;
+    using OnTickAction = std::
+        variant<SignedAttestation, SignedAggregatedAttestation, SignedBlock>;
 
     // Advance forkchoice store time to given timestamp.
     // Ticks store forward interval by interval, performing appropriate
@@ -438,27 +445,6 @@ namespace lean {
     }
 
     outcome::result<ForkChoiceApiJson> apiForkChoice() const;
-
-   private:
-    using ValidatorAttestationKey = std::tuple<ValidatorIndex, BlockHash>;
-
-    struct SignaturesToAggregate {
-      AttestationData data;
-      // signatures and public keys must follow bitset order
-      std::map<ValidatorIndex, Signature> signatures;
-      bool aggregated = false;
-    };
-
-    void addSignatureToAggregate(const AttestationData &data,
-                                 ValidatorIndex validator_index,
-                                 const Signature &signature);
-
-    /**
-     * Compute map key for validator index and attestation data.
-     */
-    static ValidatorAttestationKey validatorAttestationKey(
-        ValidatorIndex validator_index,
-        const AttestationData &attestation_data);
 
     // Verify all XMSS signatures in a signed block.
     //
@@ -475,28 +461,29 @@ namespace lean {
     //
     // Returns:
     //     True if all signatures are cryptographically valid.
-    bool validateBlockSignatures(
-        const SignedBlockWithAttestation &signed_block) const;
+    bool validateBlockSignatures(const SignedBlock &signed_block) const;
+
+   private:
+    struct AttestationsByData {
+      AttestationData data;
+      // signatures and public keys must follow bitset order
+      std::map<ValidatorIndex, Signature> signatures;
+      std::vector<AggregatedSignatureProof> proofs;
+    };
+
+    void addSignatureToAggregate(const AttestationData &data,
+                                 ValidatorIndex validator_index,
+                                 const Signature &signature);
+
+    void addProofToAggregate(
+        const SignedAggregatedAttestation &signed_aggregated_attestation);
+
+    AttestationsByData &attestationsByData(const AttestationData &data);
+
     bool validateAggregatedSignature(
         const State &state,
         const AttestationData &attestation,
         const AggregatedSignatureProof &signature) const;
-
-    // Compute aggregated signatures for a set of attestations.
-    // This method implements a two-phase signature collection strategy:
-    // 1. **Gossip Phase**: For each attestation group, first attempt to collect
-    //     individual XMSS signatures from the gossip network. These are fresh
-    //     signatures that validators broadcast when they attest.
-    // 2. **Fallback Phase**: For any validators not covered by gossip, fall
-    // back
-    //     to previously-seen aggregated proofs from blocks. This uses a greedy
-    //     set-cover approach to minimize the number of proofs needed.
-    // The result is a list of (attestation, proof) pairs ready for block
-    // inclusion.
-    std::pair<AggregatedAttestations, AttestationSignatures>
-    computeAggregatedSignatures(
-        const State &state,
-        const AggregatedAttestations &completely_aggregated_attestations);
 
     std::vector<SignedAggregatedAttestation> aggregateSignatures();
 
@@ -567,30 +554,22 @@ namespace lean {
      */
     AttestationDataByValidator latest_new_attestations_;
     /**
-     * Accumulates signatures to be aggregated in slot interval 2.
+     * Stores aggregated proofs to be included in proposed block in slot
+     * interval 0.
+     * Accumulates signatures and aggregated proofs to be aggregated
+     * in slot interval 2.
      * Grouped by attestation data.
      */
-    std::unordered_map<Hash, SignaturesToAggregate> signatures_to_aggregate_;
-    /**
-     * Aggregated signature payloads for attestations from blocks.
-     * - Keyed by (validator_id, attestation_data_root).
-     * - Values are lists because same (validator_id, data) can appear in
-     * multiple aggregations.
-     * - Used for recursive signature aggregation when building blocks.
-     * - Populated by on_block.
-     */
-    std::unordered_map<
-        ValidatorAttestationKey,
-        std::vector<std::shared_ptr<SignedAggregatedAttestation>>>
-        aggregated_payloads_;
+    std::unordered_map<Hash, AttestationsByData> attestations_by_data_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
     /**
      * Index of the validator running this store instance.
      */
     ValidatorIndex validator_id_;
-    bool is_aggregator_;
+    std::function<bool()> is_aggregator_;
     uint64_t subnet_count_;
+    bool dont_propose_ = false;
     std::unordered_map<BlockHash, Slot> anchor_block_slots_;
   };
 

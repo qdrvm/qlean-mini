@@ -1,0 +1,910 @@
+{
+    "tests/consensus/devnet/fc/test_attestation_target_selection.py::test_attestation_target_with_extended_chain[fork_Devnet][fork_Devnet-fork_choice_test]": {
+        "network": "Devnet",
+        "leanEnv": "prod",
+        "anchorState": {
+            "config": {
+                "genesisTime": 0
+            },
+            "slot": 0,
+            "latestBlockHeader": {
+                "slot": 0,
+                "proposerIndex": 0,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "bodyRoot": "0xdba9671bac9513c9482f1416a53aabd2c6ce90d5a5f865ce5a55c775325c9136"
+            },
+            "latestJustified": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "latestFinalized": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "historicalBlockHashes": {
+                "data": []
+            },
+            "justifiedSlots": {
+                "data": []
+            },
+            "validators": {
+                "data": [
+                    {
+                        "attestationPubkey": "0x1865a50c6478a3173882ff01f2b7904a2b96b64a8ad63d04ea53b34a539bfd672ffffd40f2e93c2900311f068cf9641b81fd364d",
+                        "proposalPubkey": "0xef30711e272be66f8850f13c393f5c7dc302f6112d3d04672b715b0caef8b823cccac138b5ab9644845cc6262dd8076f49bacf3d",
+                        "index": 0
+                    },
+                    {
+                        "attestationPubkey": "0xce45954436b2b4038330ba17071d9c482f56e43cfd3c21414a0f326635cc6132523b995e346e4e2df535e6742a5bb506e0c91365",
+                        "proposalPubkey": "0x2fdc4e5caacbdf3117a6687b09e7f46a132bd54f0e9b8730d3e57c655a60557a488ae4078e248244fadeab6d506a79355b563142",
+                        "index": 1
+                    },
+                    {
+                        "attestationPubkey": "0xa6cece462ea48c5e5a31d1576d6d7c7367fdf851a94dd738442c93570f88556ca04991462fedb17191054f65eeb9eb3777a8d27c",
+                        "proposalPubkey": "0xcfe9915524913f40da7ad5649bf69f450d72b952d2296627072e50524f7e8b775c61c17c36283b210521db7517ef097ca996de10",
+                        "index": 2
+                    },
+                    {
+                        "attestationPubkey": "0xa9536c0b365edf64b9f2a50b7e0c84157697d444bcfeaa72f966070ca539090b00ac6d5e154aa3279c5f624bfa96fd025b66ba09",
+                        "proposalPubkey": "0x951ee23a3065d322d64174463ac89b4fa863ed648a44c02e331e7511da875b4c4fb27c3c2689272634fed634d67b256868f3be59",
+                        "index": 3
+                    }
+                ]
+            },
+            "justificationsRoots": {
+                "data": []
+            },
+            "justificationsValidators": {
+                "data": []
+            }
+        },
+        "anchorBlock": {
+            "slot": 0,
+            "proposerIndex": 0,
+            "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "stateRoot": "0xde06920f4007f9d3925ba77bfdc1e0fa970537181be1d99a96e7c3880c7d4c3f",
+            "body": {
+                "attestations": {
+                    "data": []
+                }
+            }
+        },
+        "steps": [
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 1,
+                    "attestationTargetSlot": 0
+                },
+                "stepType": "block",
+                "block": {
+                    "slot": 1,
+                    "proposerIndex": 1,
+                    "parentRoot": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                    "stateRoot": "0xf9adceb604bbff70c983cb92794e97000925712faa73c1fd33818d3ad6488b7b",
+                    "body": {
+                        "attestations": {
+                            "data": []
+                        }
+                    },
+                    "blockRootLabel": "block_1"
+                }
+            },
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 2,
+                    "attestationTargetSlot": 0
+                },
+                "stepType": "block",
+                "block": {
+                    "slot": 2,
+                    "proposerIndex": 2,
+                    "parentRoot": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                    "stateRoot": "0xc46661c1128778d82a0d81773964bf90d93beb330715146df706ed09f35acbe9",
+                    "body": {
+                        "attestations": {
+                            "data": [
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 1,
+                                        "head": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "target": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "blockRootLabel": "block_2"
+                }
+            },
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 3,
+                    "attestationTargetSlot": 0
+                },
+                "stepType": "block",
+                "block": {
+                    "slot": 3,
+                    "proposerIndex": 3,
+                    "parentRoot": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                    "stateRoot": "0xbbcfb7015379cf1ac8c458439e16203aef21dc4cec44144eea2470517fd80950",
+                    "body": {
+                        "attestations": {
+                            "data": [
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 1,
+                                        "head": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "target": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 2,
+                                        "head": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "target": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "blockRootLabel": "block_3"
+                }
+            },
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 4,
+                    "attestationTargetSlot": 1
+                },
+                "stepType": "block",
+                "block": {
+                    "slot": 4,
+                    "proposerIndex": 0,
+                    "parentRoot": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                    "stateRoot": "0x7f6bcb6c755cf62c42a01cfe08853cb2dda83c2adc6eafdd3a320bcd31c54f87",
+                    "body": {
+                        "attestations": {
+                            "data": [
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 1,
+                                        "head": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "target": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 2,
+                                        "head": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "target": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 3,
+                                        "head": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "target": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "blockRootLabel": "block_4"
+                }
+            },
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 5,
+                    "attestationTargetSlot": 2
+                },
+                "stepType": "block",
+                "block": {
+                    "slot": 5,
+                    "proposerIndex": 1,
+                    "parentRoot": "0xea77335e4d885929944d6f97b748ca5ef18c14ff1bc16d7f65c56e368fa5e1b8",
+                    "stateRoot": "0xdfb30ae5cec1184b3a62554c47924bc308c06f65ba271b0bda0462611c9e231b",
+                    "body": {
+                        "attestations": {
+                            "data": [
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 1,
+                                        "head": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "target": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 2,
+                                        "head": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "target": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 3,
+                                        "head": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "target": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 4,
+                                        "head": {
+                                            "root": "0xea77335e4d885929944d6f97b748ca5ef18c14ff1bc16d7f65c56e368fa5e1b8",
+                                            "slot": 4
+                                        },
+                                        "target": {
+                                            "root": "0xea77335e4d885929944d6f97b748ca5ef18c14ff1bc16d7f65c56e368fa5e1b8",
+                                            "slot": 4
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "blockRootLabel": "block_5"
+                }
+            },
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 6,
+                    "attestationTargetSlot": 3
+                },
+                "stepType": "block",
+                "block": {
+                    "slot": 6,
+                    "proposerIndex": 2,
+                    "parentRoot": "0x28f7c6b25f9c7c80c77cf7e34d285394ac6b31a59f2f51574a97e3715244c0e3",
+                    "stateRoot": "0xe046be46e81d2f996e911b161e320186d48bd2653a9871397c0b05d97a3ea58b",
+                    "body": {
+                        "attestations": {
+                            "data": [
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 1,
+                                        "head": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "target": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 2,
+                                        "head": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "target": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 3,
+                                        "head": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "target": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 4,
+                                        "head": {
+                                            "root": "0xea77335e4d885929944d6f97b748ca5ef18c14ff1bc16d7f65c56e368fa5e1b8",
+                                            "slot": 4
+                                        },
+                                        "target": {
+                                            "root": "0xea77335e4d885929944d6f97b748ca5ef18c14ff1bc16d7f65c56e368fa5e1b8",
+                                            "slot": 4
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 5,
+                                        "head": {
+                                            "root": "0x28f7c6b25f9c7c80c77cf7e34d285394ac6b31a59f2f51574a97e3715244c0e3",
+                                            "slot": 5
+                                        },
+                                        "target": {
+                                            "root": "0x28f7c6b25f9c7c80c77cf7e34d285394ac6b31a59f2f51574a97e3715244c0e3",
+                                            "slot": 5
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "blockRootLabel": "block_6"
+                }
+            },
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 7,
+                    "attestationTargetSlot": 4
+                },
+                "stepType": "block",
+                "block": {
+                    "slot": 7,
+                    "proposerIndex": 3,
+                    "parentRoot": "0xf1bd0819dda50ef0923367e1133323938df3b2effed273082f84932d9a3e131f",
+                    "stateRoot": "0xa7db943fe2112cf57d8972b187ce44dd9f14a29a4cb1a242ef47f401e1d6e2bd",
+                    "body": {
+                        "attestations": {
+                            "data": [
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 1,
+                                        "head": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "target": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 2,
+                                        "head": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "target": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 3,
+                                        "head": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "target": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 4,
+                                        "head": {
+                                            "root": "0xea77335e4d885929944d6f97b748ca5ef18c14ff1bc16d7f65c56e368fa5e1b8",
+                                            "slot": 4
+                                        },
+                                        "target": {
+                                            "root": "0xea77335e4d885929944d6f97b748ca5ef18c14ff1bc16d7f65c56e368fa5e1b8",
+                                            "slot": 4
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 5,
+                                        "head": {
+                                            "root": "0x28f7c6b25f9c7c80c77cf7e34d285394ac6b31a59f2f51574a97e3715244c0e3",
+                                            "slot": 5
+                                        },
+                                        "target": {
+                                            "root": "0x28f7c6b25f9c7c80c77cf7e34d285394ac6b31a59f2f51574a97e3715244c0e3",
+                                            "slot": 5
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 6,
+                                        "head": {
+                                            "root": "0xf1bd0819dda50ef0923367e1133323938df3b2effed273082f84932d9a3e131f",
+                                            "slot": 6
+                                        },
+                                        "target": {
+                                            "root": "0xf1bd0819dda50ef0923367e1133323938df3b2effed273082f84932d9a3e131f",
+                                            "slot": 6
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "blockRootLabel": "block_7"
+                }
+            },
+            {
+                "valid": true,
+                "checks": {
+                    "headSlot": 8,
+                    "attestationTargetSlot": 5
+                },
+                "stepType": "block",
+                "block": {
+                    "slot": 8,
+                    "proposerIndex": 0,
+                    "parentRoot": "0x9df9754d1e2282cd622c0cd16bc491a4b24f0c5d1b3a10eff941eed73199fbbf",
+                    "stateRoot": "0x7f2e1b7248f24fb01928428a05c096f61a5528d7ae6b3c535b2a8a7266d846f3",
+                    "body": {
+                        "attestations": {
+                            "data": [
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 1,
+                                        "head": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "target": {
+                                            "root": "0x6214b969cc3f585a85432ed9dcd3884d4842fb561a3b303a35a771475d58aa88",
+                                            "slot": 1
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 2,
+                                        "head": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "target": {
+                                            "root": "0x374dbd94a2fee68aa44b05bc0be3b232518429776f91832a6eb581eb5be2599e",
+                                            "slot": 2
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 3,
+                                        "head": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "target": {
+                                            "root": "0xebc051688aa44221687a84977b8a3115cf79e6d308c5b8ab22109b6077d6dbdf",
+                                            "slot": 3
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 4,
+                                        "head": {
+                                            "root": "0xea77335e4d885929944d6f97b748ca5ef18c14ff1bc16d7f65c56e368fa5e1b8",
+                                            "slot": 4
+                                        },
+                                        "target": {
+                                            "root": "0xea77335e4d885929944d6f97b748ca5ef18c14ff1bc16d7f65c56e368fa5e1b8",
+                                            "slot": 4
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 5,
+                                        "head": {
+                                            "root": "0x28f7c6b25f9c7c80c77cf7e34d285394ac6b31a59f2f51574a97e3715244c0e3",
+                                            "slot": 5
+                                        },
+                                        "target": {
+                                            "root": "0x28f7c6b25f9c7c80c77cf7e34d285394ac6b31a59f2f51574a97e3715244c0e3",
+                                            "slot": 5
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 6,
+                                        "head": {
+                                            "root": "0xf1bd0819dda50ef0923367e1133323938df3b2effed273082f84932d9a3e131f",
+                                            "slot": 6
+                                        },
+                                        "target": {
+                                            "root": "0xf1bd0819dda50ef0923367e1133323938df3b2effed273082f84932d9a3e131f",
+                                            "slot": 6
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                },
+                                {
+                                    "aggregationBits": {
+                                        "data": [
+                                            false,
+                                            false,
+                                            false,
+                                            true
+                                        ]
+                                    },
+                                    "data": {
+                                        "slot": 7,
+                                        "head": {
+                                            "root": "0x9df9754d1e2282cd622c0cd16bc491a4b24f0c5d1b3a10eff941eed73199fbbf",
+                                            "slot": 7
+                                        },
+                                        "target": {
+                                            "root": "0x9df9754d1e2282cd622c0cd16bc491a4b24f0c5d1b3a10eff941eed73199fbbf",
+                                            "slot": 7
+                                        },
+                                        "source": {
+                                            "root": "0xd123d3d19ba32a08df9b3bf9e55e4447d1a3a3b4f905583d013b8f05c77d585e",
+                                            "slot": 0
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        ],
+        "maxSlot": 8,
+        "_info": {
+            "hash": "0x88f4f0c8069416a5c5df573768d188637ef82a29d921dca610e628b47d964eb1",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/fc/test_attestation_target_selection.py::test_attestation_target_with_extended_chain[fork_Devnet]",
+            "description": "Attestation target advances progressively over extended chain.\n\nScenario\n--------\nBuild a longer chain (slots 1-8) observing target advancement pattern.\n\nExpected:\n    - Initial slots: target at genesis (conservative)\n    - Middle slots: target advances to slot 1\n    - Target advances gradually, not jumping to head\n\nWhy This Matters\n----------------\nOver extended chains, the target selection should show smooth,\ngradual advancement as attestation weight accumulates.\n\nThe target lags behind the head, providing a stable reference point that\nadvances only when sufficient consensus has formed. This prevents validators\nfrom attesting too far ahead without adequate safety guarantees.",
+            "fixtureFormat": "fork_choice_test"
+        }
+    }
+}

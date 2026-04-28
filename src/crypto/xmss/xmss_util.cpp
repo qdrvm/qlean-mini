@@ -36,13 +36,17 @@ namespace lean::crypto::xmss {
 
   namespace {
     // Parse public key from JSON file
-    outcome::result<XmssPublicKey> parsePublicKeyFromJson(
+    outcome::result<XmssPublicKey> loadPublicKey(
         const std::filesystem::path &path) {
-      BOOST_OUTCOME_TRY(auto json, qtils::readBytes(path));
+      BOOST_OUTCOME_TRY(auto bytes, qtils::readBytes(path));
+
+      if (path.extension() != ".json") {
+        return XmssPublicKey::fromSpan(bytes);
+      }
 
       PQPublicKey *public_key_raw = nullptr;
-      BOOST_OUTCOME_TRY(ffi::asOutcome(
-          pq_public_key_from_json(json.data(), json.size(), &public_key_raw)));
+      BOOST_OUTCOME_TRY(ffi::asOutcome(pq_public_key_from_json(
+          bytes.data(), bytes.size(), &public_key_raw)));
 
       ffi::PublicKey public_key{public_key_raw};
 
@@ -53,13 +57,19 @@ namespace lean::crypto::xmss {
     }
 
     // Parse secret key from JSON file
-    outcome::result<XmssPrivateKey> parseSecretKeyFromJson(
+    outcome::result<XmssPrivateKey> loadSecretKey(
         const std::filesystem::path &path) {
-      BOOST_OUTCOME_TRY(auto json, qtils::readBytes(path));
+      BOOST_OUTCOME_TRY(auto bytes, qtils::readBytes(path));
 
       PQSecretKey *secret_key_raw = nullptr;
-      BOOST_OUTCOME_TRY(ffi::asOutcome(
-          pq_secret_key_from_json(json.data(), json.size(), &secret_key_raw)));
+
+      if (path.extension() != ".json") {
+        BOOST_OUTCOME_TRY(ffi::asOutcome(pq_secret_key_from_bytes(
+            bytes.data(), bytes.size(), &secret_key_raw)));
+      } else {
+        BOOST_OUTCOME_TRY(ffi::asOutcome(pq_secret_key_from_json(
+            bytes.data(), bytes.size(), &secret_key_raw)));
+      }
 
       ffi::SecretKey secret_key{secret_key_raw};
 
@@ -67,25 +77,25 @@ namespace lean::crypto::xmss {
     }
   }  // namespace
 
-  outcome::result<XmssKeypair> loadKeypairFromJson(
+  outcome::result<XmssKeypair> loadKeypair(
       const std::filesystem::path &secret_key_path,
       const std::filesystem::path &public_key_path) {
+    BOOST_OUTCOME_TRY(auto public_key, loadPublicKey(public_key_path));
+    return loadKeypair(public_key, secret_key_path);
+  }
+
+  outcome::result<XmssKeypair> loadKeypair(
+      const XmssPublicKey &public_key,
+      const std::filesystem::path &secret_key_path) {
     XmssKeypair keypair;
-
-    BOOST_OUTCOME_TRY(auto public_key, parsePublicKeyFromJson(public_key_path));
-    keypair.public_key = std::move(public_key);
-
-    BOOST_OUTCOME_TRY(auto secret_key, parseSecretKeyFromJson(secret_key_path));
-    keypair.private_key = std::move(secret_key);
-
+    keypair.public_key = public_key;
+    BOOST_OUTCOME_TRY(keypair.private_key, loadSecretKey(secret_key_path));
     return keypair;
   }
 
   std::string toJson(const XmssPrivateKey &secret_key) {
-    auto ffi_bytevec = pq_secret_key_to_json(secret_key.get());
-    std::string json{qtils::byte2str({ffi_bytevec.ptr, ffi_bytevec.size})};
-    PQByteVec_drop(ffi_bytevec);
-    return json;
+    ffi::ByteVec bytes = pq_secret_key_to_json(secret_key.get());
+    return std::string{qtils::byte2str(bytes.bytes())};
   }
 
   std::string toJson(const XmssPublicKey &public_key_bytes) {
@@ -94,9 +104,12 @@ namespace lean::crypto::xmss {
         pq_public_key_from_bytes(public_key_bytes.data(), &public_key_raw))
         .value();
     ffi::PublicKey public_key{public_key_raw};
-    auto ffi_bytevec = pq_public_key_to_json(public_key.get());
-    std::string json{qtils::byte2str({ffi_bytevec.ptr, ffi_bytevec.size})};
-    PQByteVec_drop(ffi_bytevec);
-    return json;
+    ffi::ByteVec bytes = pq_public_key_to_json(public_key.get());
+    return std::string{qtils::byte2str(bytes.bytes())};
+  }
+
+  qtils::ByteVec toBytes(const XmssPrivateKey &secret_key) {
+    ffi::ByteVec bytes = pq_secret_key_to_bytes(secret_key.get());
+    return bytes.bytes();
   }
 }  // namespace lean::crypto::xmss

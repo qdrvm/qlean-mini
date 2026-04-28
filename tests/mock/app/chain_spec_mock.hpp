@@ -17,6 +17,7 @@ namespace lean::app {
    public:
     MOCK_METHOD(const app::Bootnodes &, getBootnodes, (), (const, override));
     MOCK_METHOD(bool, isAggregator, (), (const, override));
+    MOCK_METHOD(bool, setIsAggregator, (bool), (override));
   };
 
 }  // namespace lean::app

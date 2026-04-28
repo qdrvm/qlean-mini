@@ -86,8 +86,8 @@ namespace lean::blockchain {
 
     // -- special
 
-    outcome::result<SignedBlockWithAttestation>
-    getSignedBlockWithAttestation(const BlockHash &block_hash) const override;
+    outcome::result<SignedBlock> getSignedBlock(
+        const BlockHash &block_hash) const override;
 
    private:
     outcome::result<std::optional<BlockHeader>> fetchBlockHeader(

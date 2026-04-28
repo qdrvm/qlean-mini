@@ -8,6 +8,7 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/attestation_data.hpp"
 #include "types/validator_index.hpp"
 
@@ -16,7 +17,7 @@ namespace lean {
     ValidatorIndex validator_id;
     AttestationData data;
 
-    SSZ_CONT(validator_id, data);
+    SSZ_AND_JSON_FIELDS(validator_id, data);
     bool operator==(const Attestation &) const = default;
   };
 }  // namespace lean

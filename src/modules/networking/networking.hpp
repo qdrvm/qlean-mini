@@ -39,7 +39,7 @@ namespace libp2p::protocol::gossip {
 namespace lean {
   struct AsioSslContext;
   class StateSyncClient;
-  class ForkChoiceStore;
+  class ForkChoiceStoreMutex;
   struct GenesisConfig;
   class ValidatorRegistry;
 }  // namespace lean
@@ -55,6 +55,7 @@ namespace lean::blockchain {
 }  // namespace lean::blockchain
 
 namespace lean::metrics {
+  class Histogram;
   class Metrics;
 }  // namespace lean::metrics
 
@@ -120,8 +121,8 @@ namespace lean::modules {
    *
    * Protocols:
    * - Status handshake protocol (best and finalized block info).
-   * - Block request protocol (`SignedBlockWithAttestation` by hash).
-   * - `SignedBlockWithAttestation` and `SignedAttestation` gossip protocol.
+   * - Block request protocol (`SignedBlock` by hash).
+   * - `SignedBlock` and `SignedAttestation` gossip protocol.
    */
   class NetworkingImpl final : public Singleton<Networking>, public Networking {
     NetworkingImpl(NetworkingLoader &loader,
@@ -129,7 +130,7 @@ namespace lean::modules {
                    qtils::SharedRef<metrics::Metrics> metrics,
                    qtils::SharedRef<app::StateManager> app_state_manager,
                    qtils::SharedRef<blockchain::BlockTree> block_tree,
-                   qtils::SharedRef<ForkChoiceStore> fork_choice_store,
+                   qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store,
                    qtils::SharedRef<ValidatorRegistry> validator_registry,
                    qtils::SharedRef<GenesisConfig> genesis_config,
                    qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -156,17 +157,17 @@ namespace lean::modules {
 
     struct BlockCacheItem {
       BlockChildren::iterator child_it;
-      SignedBlockWithAttestation block;
+      SignedBlock block;
     };
 
     template <typename T>
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossipSubscribe(
-        std::string_view type, auto f);
+        std::string_view type, metrics::Histogram *metric, auto f);
 
     void receiveStatus(const messages::StatusMessageReceived &message);
     void requestBlock(const libp2p::PeerId &peer_id, BlockHash block_hash);
     void receiveBlock(std::optional<libp2p::PeerId> peer_id,
-                      SignedBlockWithAttestation &&block);
+                      SignedBlock &&block);
     bool statusFinalizedIsGood(const BlockIndex &slot_hash);
     /**
      * Called periodically to connect to more peers if there are not enough
@@ -178,7 +179,7 @@ namespace lean::modules {
 
     using BlockConsumer =
         std::function<bool(bool,
-                           SignedBlockWithAttestation,
+                           SignedBlock,
                            std::vector<SignedAttestation>,
                            std::vector<SignedAggregatedAttestation>)>;
     void consumeBlockTree(bool init_good,
@@ -190,7 +191,7 @@ namespace lean::modules {
     qtils::SharedRef<metrics::Metrics> metrics_;
     qtils::SharedRef<app::StateManager> app_state_manager_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
-    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<GenesisConfig> genesis_config_;
     qtils::SharedRef<app::ChainSpec> chain_spec_;

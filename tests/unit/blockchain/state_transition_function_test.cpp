@@ -26,10 +26,10 @@ TEST(STF, Test) {
       .genesis_time = 0,
   };
 
-  std::vector<lean::crypto::xmss::XmssPublicKey> validators_pubkeys;
-  validators_pubkeys.resize(2);
+  std::vector<lean::Validator> validators;
+  validators.resize(2);
 
-  auto state0 = lean::STF::generateGenesisState(config, validators_pubkeys);
+  auto state0 = lean::STF::generateGenesisState(config, validators);
   auto block0 = lean::blockchain::AnchorBlockImpl{
       lean::blockchain::AnchorStateImpl{state0}};
 

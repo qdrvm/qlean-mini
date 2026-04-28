@@ -16,10 +16,8 @@
 
 #include <boost/di.hpp>
 #include <boost/di/extension/scopes/shared.hpp>
-#include <loaders/impl/example_loader.hpp>
 #include <loaders/impl/networking_loader.hpp>
 #include <loaders/impl/production_loader.hpp>
-#include <loaders/impl/synchronizer_loader.hpp>
 
 #include "app/configuration.hpp"
 #include "app/impl/application_impl.hpp"
@@ -29,6 +27,8 @@
 #include "app/impl/timeline_impl.hpp"
 #include "app/impl/validator_keys_manifest_impl.hpp"
 #include "app/impl/watchdog.hpp"
+#include "blockchain/fork_choice.hpp"
+#include "blockchain/fork_choice_mutex.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/impl/anchor_block_impl.hpp"
 #include "blockchain/impl/anchor_state_impl.hpp"
@@ -149,32 +149,25 @@ namespace lean::injector {
         .template create<std::shared_ptr<app::Application>>();
   }
 
-  std::unique_ptr<loaders::Loader> NodeInjector::register_loader(
-      std::shared_ptr<modules::Module> module) {
+  void NodeInjector::register_loader(std::shared_ptr<modules::Module> module) {
     auto logsys = pimpl_->injector_
                       .template create<std::shared_ptr<log::LoggingSystem>>();
     auto logger = logsys->getLogger("Modules", "lean");
 
-    std::unique_ptr<loaders::Loader> loader{};
+    std::shared_ptr<loaders::Loader> loader{};
 
-    if ("ExampleLoader" == module->get_loader_id()) {
-      loader =
-          pimpl_->injector_.create<std::unique_ptr<loaders::ExampleLoader>>();
-    } else if ("NetworkingLoader" == module->get_loader_id()) {
+    if ("NetworkingLoader" == module->get_loader_id()) {
       loader = pimpl_->injector_
-                   .create<std::unique_ptr<loaders::NetworkingLoader>>();
+                   .create<std::shared_ptr<loaders::NetworkingLoader>>();
     } else if ("ProductionLoader" == module->get_loader_id()) {
       loader = pimpl_->injector_
-                   .create<std::unique_ptr<loaders::ProductionLoader>>();
-    } else if ("SynchronizerLoader" == module->get_loader_id()) {
-      loader = pimpl_->injector_
-                   .create<std::unique_ptr<loaders::SynchronizerLoader>>();
+                   .create<std::shared_ptr<loaders::ProductionLoader>>();
     } else {
       SL_CRITICAL(logger,
                   "> No loader found for: {} [{}]",
                   module->get_loader_id(),
                   module->get_path());
-      return {};
+      return;
     }
 
     loader->start(module);
@@ -187,6 +180,5 @@ namespace lean::injector {
                module->get_loader_id(),
                module->get_path());
     }
-    return std::unique_ptr<loaders::Loader>(loader.release());
   }
 }  // namespace lean::injector

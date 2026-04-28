@@ -1,0 +1,19 @@
+#
+# Copyright Quadrivium LLC
+# All Rights Reserved
+# SPDX-License-Identifier: Apache-2.0
+#
+
+addtest(test_vectors_test
+    fork_choice_test.cpp
+    ssz_test.cpp
+    state_transition_test.cpp
+    verify_signatures_test.cpp
+)
+target_link_libraries(test_vectors_test
+    blockchain
+    xmss_provider
+)
+target_compile_definitions(test_vectors_test PRIVATE
+    PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+)
