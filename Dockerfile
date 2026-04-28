@@ -54,7 +54,7 @@ RUN --mount=type=cache,target=/qlean-mini/.vcpkg,id=vcpkg-full \
   make build; \
   # Collect artifacts
   # Copy statically linked executable
-  mkdir -p /opt/artifacts/out/bin \
+  mkdir -p /opt/artifacts/out/bin; \
   cp -r -v ${BUILD}/out/bin/qlean /opt/artifacts/out/bin/qlean; \
   # List collected artifacts
   echo "=== Collected artifacts ==="; \
