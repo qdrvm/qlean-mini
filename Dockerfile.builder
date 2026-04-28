@@ -70,6 +70,7 @@ RUN set -eux; \
     -B ${BUILD} \
     ${PROJECT}; \
     cmake --build ${BUILD} --parallel; \
+    mkdir -p /opt/artifacts/out/bin \
     cp -r -v ${BUILD}/out/bin/qlean /opt/artifacts/out/bin/qlean; \
     strip /opt/artifacts/out/bin/qlean; \
     echo "=== Artifacts ==="; \
