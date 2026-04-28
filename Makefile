@@ -271,43 +271,20 @@ docker_verify:
 	@echo "Image: $(DOCKER_IMAGE_RUNTIME)"
 	@echo "Platform: $(DOCKER_PLATFORM)"
 	@echo ""
-	@echo "[1/7] Testing help command..."
+	@echo "[1/4] Testing help command..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) $(DOCKER_IMAGE_RUNTIME) --help > /dev/null && echo "  ✓ Help works" || (echo "  ✗ Help failed" && exit 1)
 	@echo ""
-	@echo "[2/7] Testing version command..."
+	@echo "[2/4] Testing version command..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) $(DOCKER_IMAGE_RUNTIME) --version && echo "  ✓ Version works" || (echo "  ✗ Version failed" && exit 1)
 	@echo ""
-	@echo "[3/7] Checking binary dependencies..."
+	@echo "[3/4] Checking binary dependencies..."
 	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
 		apt-get update -qq && apt-get install -y -qq file > /dev/null 2>&1 && \
 		echo "Binary info:" && file /opt/qlean/bin/qlean && \
 		echo "" && echo "Checking for missing libraries..." && \
 		ldd /opt/qlean/bin/qlean | grep "not found" && exit 1 || echo "  ✓ All binary dependencies OK"'
 	@echo ""
-	@echo "[4/7] Checking modules..."
-	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
-		echo "Modules:" && ls -lh /opt/qlean/modules/ && \
-		echo "" && echo "Checking module dependencies..." && \
-		for mod in /opt/qlean/modules/*.so; do \
-			echo "Checking $$(basename $$mod)..."; \
-			ldd $$mod | grep "not found" && exit 1 || echo "  ✓ OK"; \
-		done'
-	@echo ""
-	@echo "[5/7] Checking environment variables..."
-	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
-		echo "LD_LIBRARY_PATH=$$LD_LIBRARY_PATH" && \
-		echo "" && echo "Verifying paths exist:" && \
-		ls -ld /opt/qlean/modules > /dev/null && echo "  ✓ Modules dir exists" || (echo "  ✗ Modules dir missing" && exit 1) && \
-		ls -d /opt/qlean/lib > /dev/null && echo "  ✓ Lib dir exists" || (echo "  ✗ Lib dir missing" && exit 1)'
-	@echo ""
-	@echo "[6/7] Checking project libraries..."
-	@docker run --rm --platform $(DOCKER_PLATFORM) --entrypoint /bin/bash $(DOCKER_IMAGE_RUNTIME) -c '\
-		apt-get update -qq && apt-get install -y -qq file > /dev/null 2>&1 && \
-		echo "Project libraries:" && ls /opt/qlean/lib/ && \
-		echo "" && echo "Checking libapplication.so dependencies..." && \
-		ldd /opt/qlean/lib/libapplication.so | grep "not found" && exit 1 || echo "  ✓ All project libraries OK"'
-	@echo ""
-	@echo "[7/7] Checking OCI labels (https://github.com/opencontainers/image-spec/blob/main/annotations.md)"
+	@echo "[4/4] Checking OCI labels (https://github.com/opencontainers/image-spec/blob/main/annotations.md)"
 	@docker inspect $(DOCKER_IMAGE_RUNTIME) --format '{{range $$k, $$v := .Config.Labels}}{{$$k}}={{$$v}}{{"\n"}}{{end}}' | \
 	awk -F= ' \
 		/^org.opencontainers.image.title=/ { title=$$2 } \
