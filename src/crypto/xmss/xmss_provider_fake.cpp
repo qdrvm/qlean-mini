@@ -81,7 +81,8 @@ namespace lean::crypto::xmss {
     return true;
   }
 
-  XmssKeypair XmssProviderFake::loadKeypair(std::string_view private_key_path) {
+  XmssKeypair XmssProviderFake::loadKeypair(const XmssPublicKey &public_key,
+                                            std::string_view private_key_path) {
     size_t key_index = std::hash<std::string_view>{}(private_key_path);
     return XmssKeypair{
         .private_key =
@@ -90,6 +91,7 @@ namespace lean::crypto::xmss {
                 reinterpret_cast<PQSecretKey *>(key_index),
                 [](PQSecretKey *) {},
             },
+        .public_key = public_key,
     };
   }
 }  // namespace lean::crypto::xmss

@@ -13,14 +13,9 @@
 namespace lean::app {
   class ValidatorKeysManifestMock : public ValidatorKeysManifest {
    public:
-    MOCK_METHOD(std::optional<crypto::xmss::XmssPublicKey>,
-                getXmssPubkeyByIndex,
-                (ValidatorIndex),
-                (const, override));
-
-    MOCK_METHOD(crypto::xmss::XmssKeypair,
-                currentNodeXmssKeypair,
-                (),
+    MOCK_METHOD(std::optional<crypto::xmss::XmssKeypair>,
+                getKeypair,
+                (const crypto::xmss::XmssPublicKey &),
                 (const, override));
 
     MOCK_METHOD(std::vector<crypto::xmss::XmssPublicKey>,

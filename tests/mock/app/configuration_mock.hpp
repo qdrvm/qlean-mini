@@ -20,10 +20,8 @@ namespace lean::app {
     MOCK_METHOD(const std::string&, nodeName, (), (const, override));
     MOCK_METHOD(const std::string&, nodeId, (), (const, override));
     MOCK_METHOD(const std::filesystem::path&, basePath, (), (const, override));
-    MOCK_METHOD(const std::filesystem::path&, modulesDir, (), (const, override));
     MOCK_METHOD(const std::filesystem::path&, bootnodesFile, (), (const, override));
     MOCK_METHOD(const std::optional<std::string>&, stateSyncUrl, (), (const, override));
-    MOCK_METHOD(const std::filesystem::path&, validatorRegistryPath, (), (const, override));
     MOCK_METHOD(bool, cliIsAggregator, (), (const, override));
     MOCK_METHOD(uint64_t, cliSubnetCount, (), (const, override));
 

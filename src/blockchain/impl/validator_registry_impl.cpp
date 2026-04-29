@@ -45,10 +45,11 @@ namespace lean {
       qtils::SharedRef<log::LoggingSystem> logging_system,
       qtils::SharedRef<metrics::Metrics> metrics,
       const app::Configuration &config)
-      : ValidatorRegistryImpl{std::move(logging_system),
-                              std::move(metrics),
-                              YAML::LoadFile(config.validatorRegistryPath()),
-                              config.nodeId()} {}
+      : ValidatorRegistryImpl{
+            std::move(logging_system),
+            std::move(metrics),
+            YAML::LoadFile(config.genesisDir() / "validators.yaml"),
+            config.nodeId()} {}
 
   ValidatorRegistryImpl::ValidatorRegistryImpl(
       qtils::SharedRef<log::LoggingSystem> logging_system,

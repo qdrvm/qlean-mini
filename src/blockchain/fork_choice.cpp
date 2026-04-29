@@ -79,10 +79,6 @@ namespace lean {
     for (auto xmss_pubkey : validator_keys_manifest_->getAllXmssPubkeys()) {
       SL_INFO(logger_, "Validator pubkey: {}", xmss_pubkey.toHex());
     }
-    SL_INFO(
-        logger_,
-        "Our pubkey: {}",
-        validator_keys_manifest_->currentNodeXmssKeypair().public_key.toHex());
 
     BOOST_ASSERT(anchor_block->state_root == sszHash(*anchor_state));
     SL_TRACE(logger_, "Anchor block: {}", anchor_block->index());
@@ -409,6 +405,12 @@ namespace lean {
       return Error::INVALID_PROPOSER;
     }
 
+    auto keypair = validator_keys_manifest_->getKeypair(
+        head_state->validators.data().at(proposer_index).pubkey);
+    if (not keypair.has_value()) {
+      return Error::NO_KEYPAIR;
+    }
+
     // Initialize empty attestation set for iterative collection
     AggregatedAttestations aggregated_attestations;
     std::unordered_map<BlockHash, size_t> aggregated_attestation_indices;
@@ -508,10 +510,8 @@ namespace lean {
 
     // Sign proposer attestation
     auto payload = attestationPayload(proposer_attestation.data);
-    crypto::xmss::XmssSignature proposer_signature = xmss_provider_->sign(
-        validator_keys_manifest_->currentNodeXmssKeypair().private_key,
-        slot,
-        payload);
+    crypto::xmss::XmssSignature proposer_signature =
+        xmss_provider_->sign(keypair->private_key, slot, payload);
     metrics_->lean_pq_sig_attestation_signatures_total()->inc();
     SignedBlockWithAttestation signed_block_with_attestation{
         .message =
@@ -1119,6 +1119,11 @@ namespace lean {
           if (isProposer(validator_index, current_slot, validator_count)) {
             continue;
           }
+          auto keypair = validator_keys_manifest_->getKeypair(
+              head_state->validators.data().at(validator_index).pubkey);
+          if (not keypair.has_value()) {
+            continue;
+          }
           auto attestation = produceAttestation(current_slot,
                                                 validator_index,
                                                 getLatestJustified(),
@@ -1126,10 +1131,8 @@ namespace lean {
                                                 std::nullopt);
           // sign attestation
           auto payload = attestationPayload(attestation.data);
-          crypto::xmss::XmssKeypair keypair =
-              validator_keys_manifest_->currentNodeXmssKeypair();
           crypto::xmss::XmssSignature signature =
-              xmss_provider_->sign(keypair.private_key, current_slot, payload);
+              xmss_provider_->sign(keypair->private_key, current_slot, payload);
           metrics_->lean_pq_sig_attestation_signatures_total()->inc();
           auto signed_attestation =
               SignedAttestation::from(attestation, signature);

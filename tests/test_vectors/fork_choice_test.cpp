@@ -31,11 +31,14 @@ TEST_P(ForkChoiceTest, ForkChoice) {
   auto &[name, fixture] = GetParam();
   std::println("RUN {}", name);
   // in last proposer attestation, target < source
-  if (name == "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_on_newly_justified_slot[fork_Devnet][fork_devnet-fork_choice_test]"
-    or name == "tests/consensus/devnet/fc/test_signature_aggregation.py::test_all_validators_attest_in_single_aggregation[fork_Devnet][fork_devnet-fork_choice_test]"
-    or name == "tests/consensus/devnet/fc/test_signature_aggregation.py::test_multiple_specs_same_target_merge_into_one[fork_Devnet][fork_devnet-fork_choice_test]"
-    or name == "tests/consensus/devnet/fc/test_finalization_mid_processing.py::test_finalization_advances_mid_attestation_processing[fork_Devnet][fork_devnet-fork_choice_test]"
-  ) {
+  if (name
+          == "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_on_newly_justified_slot[fork_Devnet][fork_devnet-fork_choice_test]"
+      or name
+             == "tests/consensus/devnet/fc/test_signature_aggregation.py::test_all_validators_attest_in_single_aggregation[fork_Devnet][fork_devnet-fork_choice_test]"
+      or name
+             == "tests/consensus/devnet/fc/test_signature_aggregation.py::test_multiple_specs_same_target_merge_into_one[fork_Devnet][fork_devnet-fork_choice_test]"
+      or name
+             == "tests/consensus/devnet/fc/test_finalization_mid_processing.py::test_finalization_advances_mid_attestation_processing[fork_Devnet][fork_devnet-fork_choice_test]") {
     std::println("  DISABLED");
     return;
   }
@@ -70,8 +73,9 @@ TEST_P(ForkChoiceTest, ForkChoice) {
       std::make_shared<lean::app::ValidatorKeysManifestMock>();
   EXPECT_CALL(*validator_key_manifest, getAllXmssPubkeys())
       .Times(testing::AnyNumber());
-  EXPECT_CALL(*validator_key_manifest, currentNodeXmssKeypair())
-      .Times(testing::AnyNumber());
+  EXPECT_CALL(*validator_key_manifest, getKeypair(_))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(std::nullopt));
 
   auto xmss = std::make_shared<lean::crypto::xmss::XmssProviderMock>();
   EXPECT_CALL(*xmss, verify(_, _, _, _)).WillRepeatedly(testing::Return(true));

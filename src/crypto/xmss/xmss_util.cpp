@@ -80,14 +80,16 @@ namespace lean::crypto::xmss {
   outcome::result<XmssKeypair> loadKeypair(
       const std::filesystem::path &secret_key_path,
       const std::filesystem::path &public_key_path) {
-    XmssKeypair keypair;
-
     BOOST_OUTCOME_TRY(auto public_key, loadPublicKey(public_key_path));
-    keypair.public_key = std::move(public_key);
+    return loadKeypair(public_key, secret_key_path);
+  }
 
-    BOOST_OUTCOME_TRY(auto secret_key, loadSecretKey(secret_key_path));
-    keypair.private_key = std::move(secret_key);
-
+  outcome::result<XmssKeypair> loadKeypair(
+      const XmssPublicKey &public_key,
+      const std::filesystem::path &secret_key_path) {
+    XmssKeypair keypair;
+    keypair.public_key = public_key;
+    BOOST_OUTCOME_TRY(keypair.private_key, loadSecretKey(secret_key_path));
     return keypair;
   }
 
