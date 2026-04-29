@@ -20,21 +20,14 @@ RUN apt-get update && \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-ENV LD_LIBRARY_PATH=/opt/qlean/lib:/opt/qlean/vcpkg:/usr/local/lib
-
 WORKDIR /work
 
 # Copy artifacts from builder (binaries are already stripped)
-COPY --from=builder /opt/artifacts/out/ /opt/qlean/
-COPY --from=builder /opt/artifacts/vcpkg/ /opt/qlean/vcpkg/
+COPY --from=builder /opt/artifacts/out/bin/qlean /opt/qlean/bin/qlean
 
 # Verify runtime image
 RUN echo "=== Runtime image contents ===" && \
-    echo "Binary:" && ls -lh /opt/qlean/bin/qlean && \
-    echo "" && echo "Project libraries:" && ls -lh /opt/qlean/lib/ 2>/dev/null || echo "  (none)" && \
-    echo "" && echo "Modules:" && ls -lh /opt/qlean/modules/ 2>/dev/null || echo "  (none)" && \
-    echo "" && echo "Vcpkg libraries:" && ls /opt/qlean/vcpkg/ | wc -l && echo " files" && \
-    echo "" && echo "Total image libraries:" && find /opt/qlean -name "*.so*" | wc -l && echo " .so files"
+    echo "Binary:" && ls -lh /opt/qlean/bin/qlean
 
 # OCI Image Spec annotations
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md

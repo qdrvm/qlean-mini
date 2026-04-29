@@ -47,6 +47,8 @@ namespace lean::loaders {
     qtils::SharedRef<app::ChainSpec> chain_spec_;
     qtils::SharedRef<app::Configuration> app_config_;
 
+    std::shared_ptr<lean::modules::NetworkingImpl> module_internal_;
+
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_init_complete_;
 
     std::shared_ptr<BaseSubscriber<qtils::Empty>> on_loading_finished_;
@@ -93,63 +95,37 @@ namespace lean::loaders {
 
     void start(std::shared_ptr<modules::Module> module) override {
       set_module(module);
-      auto module_accessor =
-          get_module()
-              ->getFunctionFromLibrary<std::weak_ptr<modules::Networking>,
-                                       modules::NetworkingLoader &,
-                                       qtils::SharedRef<log::LoggingSystem>,
-                                       qtils::SharedRef<metrics::Metrics>,
-                                       qtils::SharedRef<app::StateManager>,
-                                       qtils::SharedRef<blockchain::BlockTree>,
-                                       qtils::SharedRef<ForkChoiceStoreMutex>,
-                                       qtils::SharedRef<ValidatorRegistry>,
-                                       qtils::SharedRef<GenesisConfig>,
-                                       qtils::SharedRef<app::ChainSpec>,
-                                       qtils::SharedRef<app::Configuration>>(
-                  "query_module_instance");
-
-      if (not module_accessor) {
-        return;
-      }
-
-      auto module_internal = (*module_accessor)(*this,
-                                                logsys_,
-                                                metrics_,
-                                                app_state_manager_,
-                                                block_tree_,
-                                                fork_choice_store_,
-                                                validator_registry_,
-                                                genesis_config_,
-                                                chain_spec_,
-                                                app_config_);
+      module_internal_ =
+          lean::modules::NetworkingImpl::create_shared(*this,
+                                                       logsys_,
+                                                       metrics_,
+                                                       app_state_manager_,
+                                                       block_tree_,
+                                                       fork_choice_store_,
+                                                       validator_registry_,
+                                                       genesis_config_,
+                                                       chain_spec_,
+                                                       app_config_);
 
       on_init_complete_ = se::SubscriberCreator<qtils::Empty>::template create<
           EventTypes::NetworkingIsLoaded>(
-          *se_manager_,
-          SubscriptionEngineHandlers::kTest,
-          [module_internal, this](auto &) {
-            if (auto m = module_internal.lock()) {
-              SL_TRACE(logger_, "Handle NetworkingIsLoaded");
-              m->on_loaded_success();
-            }
+          *se_manager_, SubscriptionEngineHandlers::kTest, [this](auto &) {
+            SL_TRACE(logger_, "Handle NetworkingIsLoaded");
+            module_internal_->on_loaded_success();
           });
 
       on_loading_finished_ =
           se::SubscriberCreator<qtils::Empty>::template create<
               EventTypes::LoadingIsFinished>(
-              *se_manager_,
-              SubscriptionEngineHandlers::kTest,
-              [module_internal, this](auto &) {
-                if (auto m = module_internal.lock()) {
-                  SL_TRACE(logger_, "Handle LoadingIsFinished");
-                  m->on_loading_is_finished();
-                }
+              *se_manager_, SubscriptionEngineHandlers::kTest, [this](auto &) {
+                SL_TRACE(logger_, "Handle LoadingIsFinished");
+                module_internal_->on_loading_is_finished();
               });
 
-      subscription_send_signed_block_.subscribe(*se_manager_, module_internal);
-      subscription_send_signed_vote_.subscribe(*se_manager_, module_internal);
+      subscription_send_signed_block_.subscribe(*se_manager_, module_internal_);
+      subscription_send_signed_vote_.subscribe(*se_manager_, module_internal_);
       subscription_send_signed_aggregated_attestation_.subscribe(
-          *se_manager_, module_internal);
+          *se_manager_, module_internal_);
 
       se_manager_->notify(lean::EventTypes::NetworkingIsLoaded);
     }

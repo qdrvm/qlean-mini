@@ -34,14 +34,11 @@ function(add_lean_module NAME)
     message(FATAL_ERROR "Not found `${MODULE_NAME}.hpp` nor `${MODULE_NAME}.cpp` file (class of module)")
   endif ()
 
-  # Create a shared module library
-  add_library(${MODULE} MODULE # or SHARED
+  add_library(${MODULE}
       module.cpp
       ${MODULE_NAME}.cpp
       ${MODULE_SOURCE}
   )
-
-  set_target_properties(${MODULE} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/modules)
 
   # Set exported symbols visibility
   set_target_properties(${MODULE} PROPERTIES
@@ -91,14 +88,8 @@ target_link_libraries(modules
 
 # -------------- Modules --------------
 
-# Example module
-add_subdirectory(example)
-
 # Networking module
 add_subdirectory(networking)
 
 # Block-production module
 add_subdirectory(production)
-
-# Blockchain synchronizer module
-add_subdirectory(synchronizer)
