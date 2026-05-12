@@ -96,7 +96,7 @@ namespace lean::app {
                 response.set(boost::beast::http::field::content_type,
                              kContentTypeJson);
                 response.body() =
-                    R"({"status":"healthy","service":"qlean-api"})";
+                    R"({"status":"healthy","service":"lean-rpc-api"})";
                 return response;
               }
               if (url == "/lean/v0/states/finalized") {
