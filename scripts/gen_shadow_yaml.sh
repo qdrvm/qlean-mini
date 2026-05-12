@@ -10,8 +10,7 @@
 #   -u UDP_BASE              Base UDP port for --listen-addr (default: 9000)
 #   -p PROM_BASE             Base Prometheus port (default: 9100)
 #   -i IP_BASE_LAST_OCTET    Base last octet for IPs starting at 10.0.0.X (default: 10)
-#   -x QLEAN_PATH            Path to qlean executable (default: <repo_root>/build/src/executable/qlean)
-#   -m MODULES_DIR           Path to modules dir (default: <repo_root>/build/src/modules)
+#   -x QLEAN_PATH            Path to qlean executable (default: <repo_root>/build/out/qlean)
 #   -r PROJECT_ROOT          Project root to use for defaults (default: parent dir of this script)
 #   -G GRAPH_FILE            Path to GML graph file (default: atlas_v201801.shadow_v2.gml.xz)
 #   -b MAX_BOOTNODES         Max bootnodes to pass to each node (short for --max-bootnodes)
@@ -39,10 +38,8 @@ IP_BASE_LAST_OCTET=10
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT_DEFAULT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_ROOT="$PROJECT_ROOT_DEFAULT"
-QLEAN_PATH_DEFAULT="$PROJECT_ROOT/build/src/executable/qlean"
-MODULES_DIR_DEFAULT="$PROJECT_ROOT/build/src/modules"
+QLEAN_PATH_DEFAULT="$PROJECT_ROOT/build/out/qlean"
 QLEAN_PATH="$QLEAN_PATH_DEFAULT"
-MODULES_DIR="$MODULES_DIR_DEFAULT"
 GENESIS_DIR=""
 GRAPH_FILE="atlas_v201801.shadow_v2.gml.xz"
 USE_INLINE_GRAPH=false
@@ -63,8 +60,7 @@ while getopts ":g:o:t:u:p:i:x:m:r:G:b:h-:" opt; do
     p) PROM_BASE="$OPTARG" ;;
     i) IP_BASE_LAST_OCTET="$OPTARG" ;;
     x) QLEAN_PATH="$OPTARG" ;;
-    m) MODULES_DIR="$OPTARG" ;;
-    r) PROJECT_ROOT="$OPTARG" ; QLEAN_PATH_DEFAULT="$PROJECT_ROOT/build/src/executable/qlean"; MODULES_DIR_DEFAULT="$PROJECT_ROOT/build/src/modules" ;;
+    r) PROJECT_ROOT="$OPTARG" ; QLEAN_PATH_DEFAULT="$PROJECT_ROOT/build/out/qlean" ;;
     G) GRAPH_FILE="$OPTARG" ;;
     b) MAX_BOOTNODES="$OPTARG" ;;
     h) print_usage; exit 0 ;;
@@ -89,9 +85,6 @@ if [[ "$QLEAN_PATH" == "$QLEAN_PATH_DEFAULT" && ! -x "$QLEAN_PATH_DEFAULT" ]]; t
   # Keep default even if not built yet; just warn
   echo "Warning: qlean not found at $QLEAN_PATH_DEFAULT; ensure you build it or pass -x" >&2
 fi
-if [[ "$MODULES_DIR" == "$MODULES_DIR_DEFAULT" && ! -d "$MODULES_DIR_DEFAULT" ]]; then
-  echo "Warning: modules dir not found at $MODULES_DIR_DEFAULT; ensure you build modules or pass -m" >&2
-fi
 
 # Validate genesis dir
 if [[ -z "$GENESIS_DIR" ]]; then
@@ -115,7 +108,6 @@ PY
 GENESIS_DIR_ABS="$(py_abspath "$GENESIS_DIR")"
 PROJECT_ROOT_ABS="$(py_abspath "$PROJECT_ROOT")"
 QLEAN_PATH_ABS="$(py_abspath "$QLEAN_PATH")"
-MODULES_DIR_ABS="$(py_abspath "$MODULES_DIR")"
 OUTPUT_YAML_ABS="$(py_abspath "$(dirname "$OUTPUT_YAML")")/$(basename "$OUTPUT_YAML")"
 GRAPH_FILE_ABS="$(py_abspath "$GRAPH_FILE")"
 
@@ -312,7 +304,6 @@ mkdir -p "$(dirname "$OUTPUT_YAML_ABS")"
     # Build args string
     args_str=(
       "--base-path" "$PROJECT_ROOT_ABS/data/node_${i}"
-      "--modules-dir" "$MODULES_DIR_ABS"
       "--bootnodes" "$NODES_YAML"
       "--genesis" "$CONFIG_YAML"
       "--validator-registry-path" "$VALIDATORS_YAML"

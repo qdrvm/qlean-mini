@@ -245,13 +245,13 @@ See [.github/workflows/README.md](.github/workflows/README.md) for CI/CD documen
 
 This will:
 - Configure the project into `./build/`
-- Build the main node executable at `./build/src/executable/qlean`
+- Build the main node executable at `./build/out/qlean`
 
 ### 3) Ensure build was successful
 Print help:
 
 ```bash
-./build/src/executable/qlean --help
+./build/out/qlean --help
 ```
 
 ## Run the node
@@ -264,7 +264,7 @@ For step-by-step instructions to run a local single-node devnet, see `example/0-
 The binary includes a helper subcommand to generate a node key and corresponding PeerId:
 
 ```bash
-./build/src/executable/qlean key generate-node-key
+./build/out/qlean key generate-node-key
 ```
 
 This prints two lines:

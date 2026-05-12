@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "serde/json_fwd.hpp"
 #include "types/block_header.hpp"
 #include "types/checkpoint.hpp"
 #include "types/config.hpp"
@@ -16,7 +17,7 @@
 namespace lean {
   struct State : ssz::ssz_variable_size_container {
     State() = default;
-    State(const State&) = default;
+    State(const State &) = default;
 
     Config config;
     Slot slot;
@@ -36,16 +37,16 @@ namespace lean {
     ssz::list<bool, HISTORICAL_ROOTS_LIMIT * VALIDATOR_REGISTRY_LIMIT>
         justifications_validators;
 
-    SSZ_CONT(config,
-             slot,
-             latest_block_header,
-             latest_justified,
-             latest_finalized,
-             historical_block_hashes,
-             justified_slots,
-             validators,
-             justifications_roots,
-             justifications_validators);
+    SSZ_AND_JSON_FIELDS(config,
+                        slot,
+                        latest_block_header,
+                        latest_justified,
+                        latest_finalized,
+                        historical_block_hashes,
+                        justified_slots,
+                        validators,
+                        justifications_roots,
+                        justifications_validators);
     bool operator==(const State &) const = default;
 
     ValidatorIndex validatorCount() const {

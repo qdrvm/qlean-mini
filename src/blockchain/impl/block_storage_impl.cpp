@@ -199,14 +199,6 @@ namespace lean::blockchain {
       // insert provided block's parts into the database
       OUTCOME_TRY(block_hash, putBlockHeader(*block.header));
 
-      if (block.attestation.has_value()) {
-        OUTCOME_TRY(encoded_attestation, encode(*block.attestation));
-        OUTCOME_TRY(putToSpace(*storage_,
-                               storage::Space::Attestation,
-                               block_hash,
-                               std::move(encoded_attestation)));
-      }
-
       if (block.signature.has_value()) {
         OUTCOME_TRY(encoded_attestation, encode(*block.signature));
         OUTCOME_TRY(putToSpace(*storage_,
@@ -263,20 +255,6 @@ namespace lean::blockchain {
       }
     }
 
-    // Block attestation
-    if (parts & BlockParts::ATTESTATION) {
-      OUTCOME_TRY(
-          encoded_attestation_opt,
-          getFromSpace(*storage_, storage::Space::Attestation, block_hash));
-      if (encoded_attestation_opt.has_value()) {
-        OUTCOME_TRY(attestation,
-                    decode<Attestation>(encoded_attestation_opt.value()));
-        data.attestation.emplace(std::move(attestation));
-      } else {
-        return BlockStorageError::ATTESTATION_NOT_FOUND;
-      }
-    }
-
     // Block body
     if (parts & BlockParts::BODY) {
       OUTCOME_TRY(encoded_body_opt,
@@ -292,27 +270,23 @@ namespace lean::blockchain {
     return data;
   }
 
-  outcome::result<SignedBlockWithAttestation>
-  BlockStorageImpl::getSignedBlockWithAttestation(
+  outcome::result<SignedBlock> BlockStorageImpl::getSignedBlock(
       const BlockHash &block_hash) const {
     OUTCOME_TRY(data, getBlock(block_hash, BlockParts::ALL));
 
-    SignedBlockWithAttestation block;
+    SignedBlock block;
 
     // Block header
-    block.message.block.parent_root = data.header->parent_root;
-    block.message.block.slot = data.header->slot;
-    block.message.block.proposer_index = data.header->proposer_index;
-    block.message.block.state_root = data.header->state_root;
+    block.block.parent_root = data.header->parent_root;
+    block.block.slot = data.header->slot;
+    block.block.proposer_index = data.header->proposer_index;
+    block.block.state_root = data.header->state_root;
 
     // Block signature
     block.signature = std::move(*data.signature);
 
-    // Block attestation
-    block.message.proposer_attestation = *data.attestation;
-
     // Block body
-    block.message.block.body = std::move(*data.body);
+    block.block.body = std::move(*data.body);
 
     return block;
   }

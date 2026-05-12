@@ -43,21 +43,14 @@ namespace lean::app {
     [[nodiscard]] virtual const std::string &nodeName() const;
     [[nodiscard]] virtual const std::string &nodeId() const;
     [[nodiscard]] virtual const std::filesystem::path &basePath() const;
-    [[nodiscard]] virtual const std::filesystem::path &modulesDir() const;
     [[nodiscard]] virtual const std::filesystem::path &bootnodesFile() const;
     [[nodiscard]] virtual const std::optional<std::string> &stateSyncUrl()
         const;
-    [[nodiscard]] virtual const std::filesystem::path &validatorRegistryPath()
-        const;
-    [[nodiscard]] virtual const std::filesystem::path &genesisConfigPath()
-        const;
+    [[nodiscard]] virtual const std::filesystem::path &genesisDir() const;
     [[nodiscard]] virtual const std::optional<libp2p::Multiaddress> &
     listenMultiaddr() const;
     [[nodiscard]] virtual const libp2p::crypto::KeyPair &nodeKey() const;
-    [[nodiscard]] virtual const crypto::xmss::XmssKeypair &xmssKeypair() const;
     [[nodiscard]] virtual const std::optional<size_t> &maxBootnodes() const;
-    [[nodiscard]] virtual const std::filesystem::path &
-    validatorKeysManifestPath() const;
     [[nodiscard]] virtual bool cliIsAggregator() const;
     [[nodiscard]] virtual uint64_t cliSubnetCount() const;
 
@@ -76,20 +69,13 @@ namespace lean::app {
     std::string name_;
     std::string node_id_;
     std::filesystem::path base_path_;
-    std::filesystem::path modules_dir_;
     std::filesystem::path bootnodes_file_;
-    std::filesystem::path validator_registry_path_;
-    std::filesystem::path genesis_config_path_;
+    std::filesystem::path genesis_dir_;
     std::optional<libp2p::Multiaddress> listen_multiaddr_;
     std::optional<libp2p::crypto::KeyPair> node_key_;
     std::optional<size_t> max_bootnodes_;
     std::optional<std::string> state_sync_url_;
 
-    std::filesystem::path xmss_public_key_path_;
-    std::filesystem::path xmss_secret_key_path_;
-    std::optional<crypto::xmss::XmssKeypair> xmss_keypair_;
-
-    std::filesystem::path validator_keys_manifest_path_;
     bool cli_is_aggregator_ = false;
     uint64_t cli_subnet_count_ = 1;
 

@@ -344,7 +344,7 @@ make docker_build
 
 **Library not found in runtime**
 ```bash
-docker run --rm qlean-mini:latest ldd /usr/local/bin/qlean
+docker run --rm qlean-mini:latest ldd /opt/qlean/bin/qlean
 ```
 
 **Check image sizes**

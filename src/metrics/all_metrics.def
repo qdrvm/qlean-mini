@@ -33,6 +33,7 @@
  */
 
 #include "app/application_metrics.def"
+#include "blockchain/block_production_metrics.def"
 #include "blockchain/fork_choice_metrics.def"
 #include "blockchain/state_transition_metrics.def"
 #include "blockchain/validator_metrics.def"

@@ -1,0 +1,27 @@
+{
+    "tests/consensus/devnet/ssz/test_consensus_containers.py::test_block_empty_body[fork_Devnet][fork_Devnet-ssz]": {
+        "network": "Devnet",
+        "leanEnv": "prod",
+        "typeName": "Block",
+        "value": {
+            "slot": 0,
+            "proposerIndex": 0,
+            "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "body": {
+                "attestations": {
+                    "data": []
+                }
+            }
+        },
+        "serialized": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005400000004000000",
+        "root": "0xed01b1825c7b112c8b9c6e0f41c4d49e400fc120425582e533c332a6ac46082e",
+        "_info": {
+            "hash": "0xb798abd6043a40cde0e511763170bb68462d8d8973f4103d46ce4963f409a049",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/ssz/test_consensus_containers.py::test_block_empty_body[fork_Devnet]",
+            "description": "SSZ roundtrip for Block with empty body.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

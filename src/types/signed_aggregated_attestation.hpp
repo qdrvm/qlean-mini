@@ -8,6 +8,7 @@
 
 #include <sszpp/container.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/aggregated_signature_proof.hpp"
 #include "types/attestation_data.hpp"
 
@@ -20,7 +21,7 @@ namespace lean {
     AttestationData data;
     AggregatedSignatureProof proof;
 
-    SSZ_CONT(data, proof);
+    SSZ_AND_JSON_FIELDS(data, proof);
     bool operator==(const SignedAggregatedAttestation &) const = default;
   };
 }  // namespace lean

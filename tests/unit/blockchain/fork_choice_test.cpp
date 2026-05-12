@@ -21,6 +21,7 @@
 #include "mock/metrics_mock.hpp"
 #include "qtils/test/outcome.hpp"
 #include "testutil/prepare_loggers.hpp"
+#include "types/attestation.hpp"
 
 using lean::Attestation;
 using lean::Block;
@@ -33,7 +34,7 @@ using lean::ForkChoiceStore;
 using lean::Interval;
 using lean::INTERVALS_PER_SLOT;
 using lean::SignedAttestation;
-using lean::SignedBlockWithAttestation;
+using lean::SignedBlock;
 using lean::Slot;
 using lean::State;
 using lean::ValidatorIndex;
@@ -67,6 +68,11 @@ std::optional<Checkpoint> getAttestation(
   return it->second.target;
 }
 
+auto getAttestationTarget(const ForkChoiceStore &store) {
+  return store.getAttestationTarget(
+      store.getLatestJustified(), store.getHead(), std::nullopt);
+}
+
 Config config{
     .genesis_time = 1,
 };
@@ -78,7 +84,7 @@ auto createTestStore(
     Checkpoint head = {},
     Checkpoint safe_target = {},
     Checkpoint latest_finalized = {},
-    std::unordered_map<BlockHash, SignedBlockWithAttestation> blocks = {},
+    std::unordered_map<BlockHash, SignedBlock> blocks = {},
     std::unordered_map<BlockHash, State> states = {},
     ForkChoiceStore::AttestationDataByValidator latest_known_attestations = {},
     ForkChoiceStore::AttestationDataByValidator latest_new_attestations = {},
@@ -105,9 +111,9 @@ auto createTestStore(
 
   for (auto &[hash, block] : blocks) {
     ON_CALL(*block_tree, getSlotByHash(hash))
-        .WillByDefault(testing::Return(block.message.block.slot));
+        .WillByDefault(testing::Return(block.block.slot));
     ON_CALL(*block_tree, getBlockHeader(hash))
-        .WillByDefault(testing::Return(block.message.block.getHeader()));
+        .WillByDefault(testing::Return(block.block.getHeader()));
   }
   ON_CALL(*block_tree, has(testing::_))
       .WillByDefault(
@@ -117,7 +123,7 @@ auto createTestStore(
                          -> outcome::result<std::optional<BlockHeader>> {
         auto it = blocks.find(hash);
         if (it != blocks.end()) {
-          return it->second.message.block.getHeader();
+          return it->second.block.getHeader();
         }
         return std::nullopt;
       });
@@ -126,7 +132,7 @@ auto createTestStore(
                          -> outcome::result<std::vector<BlockHash>> {
         std::vector<BlockHash> children;
         for (auto &[h, block] : blocks) {
-          if (block.message.block.parent_root == hash) {
+          if (block.block.parent_root == hash) {
             children.push_back(h);
           }
         }
@@ -164,11 +170,10 @@ auto createTestStore(
 }
 
 auto makeBlockMap(const std::vector<Block> &blocks) {
-  std::unordered_map<BlockHash, SignedBlockWithAttestation> map;
+  std::unordered_map<BlockHash, SignedBlock> map;
   for (const auto &block : blocks) {
     block.setHash();
-    map.emplace(block.hash(),
-                SignedBlockWithAttestation{.message = {.block = block}});
+    map.emplace(block.hash(), SignedBlock{.block = block});
   }
   return map;
 }
@@ -230,7 +235,7 @@ TEST(TestVoteTargetCalculation, test_get_vote_target_basic) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should target the head block since finalization is recent
   EXPECT_EQ(target.root, block_1.hash());
@@ -254,7 +259,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_with_old_finalized) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should return a valid checkpoint
   EXPECT_TRUE(store.hasBlock(target.root));
@@ -277,7 +282,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_walks_back_from_head) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should walk back towards safe target
   EXPECT_TRUE(store.hasBlock(target.root));
@@ -301,7 +306,7 @@ TEST(TestVoteTargetCalculation, test_vote_target_justifiable_slot_constraint) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should return a justifiable slot
   EXPECT_TRUE(store.hasBlock(target.root));
@@ -326,7 +331,7 @@ TEST(TestVoteTargetCalculation,
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   // Should target the head (which is also safe_target)
   EXPECT_EQ(target.root, head.hash());
@@ -455,7 +460,7 @@ TEST(TestEdgeCases, test_vote_target_single_block) {
                                finalized,
                                makeBlockMap(blocks));
 
-  auto target = store.getAttestationTarget();
+  auto target = getAttestationTarget(store);
 
   EXPECT_EQ(target.root, genesis.hash());
   EXPECT_EQ(target.slot, genesis.slot);

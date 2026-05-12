@@ -11,6 +11,7 @@
 #include <sszpp/lists.hpp>
 #include <sszpp/wrapper.hpp>
 
+#include "serde/json_fwd.hpp"
 #include "types/constants.hpp"
 #include "types/validator_index.hpp"
 
@@ -36,7 +37,7 @@ namespace lean {
 
     ssz::list<bool, VALIDATOR_REGISTRY_LIMIT> bits;
 
-    SSZ_WRAPPER(bits);
+    SSZ_AND_JSON_WRAPPER(bits);
     bool operator==(const AggregationBits &) const = default;
   };
 }  // namespace lean

@@ -34,10 +34,11 @@
 #include "app/chain_spec.hpp"
 #include "app/configuration.hpp"
 #include "blockchain/block_tree.hpp"
-#include "blockchain/fork_choice.hpp"
+#include "blockchain/fork_choice_mutex.hpp"
 #include "blockchain/genesis_config.hpp"
 #include "blockchain/validator_registry.hpp"
 #include "blockchain/validator_subnet.hpp"
+#include "lean_interop_test.hpp"
 #include "metrics/metrics.hpp"
 #include "modules/networking/block_request_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
@@ -66,7 +67,7 @@ namespace lean::modules {
   }
 
   inline auto gossipTopic(std::string_view type) {
-    return std::format("/leanconsensus/devnet0/{}/ssz_snappy", type);
+    return std::format("/leanconsensus/12345678/{}/ssz_snappy", type);
   }
 
   libp2p::protocol::gossip::MessageId gossipMessageId(
@@ -101,7 +102,7 @@ namespace lean::modules {
       qtils::SharedRef<metrics::Metrics> metrics,
       qtils::SharedRef<app::StateManager> app_state_manager,
       qtils::SharedRef<blockchain::BlockTree> block_tree,
-      qtils::SharedRef<lean::ForkChoiceStore> fork_choice_store,
+      qtils::SharedRef<lean::ForkChoiceStoreMutex> fork_choice_store,
       qtils::SharedRef<ValidatorRegistry> validator_registry,
       qtils::SharedRef<GenesisConfig> genesis_config,
       qtils::SharedRef<app::ChainSpec> chain_spec,
@@ -541,21 +542,22 @@ namespace lean::modules {
     ping_->start();
     identify_->start();
 
-    gossip_blocks_topic_ = gossipSubscribe<SignedBlockWithAttestation>(
+    gossip_blocks_topic_ = gossipSubscribe<SignedBlock>(
         "block",
+        metrics_->lean_gossip_block_size_bytes(),
         [weak_self{weak_from_this()}](
-            SignedBlockWithAttestation &&signed_block_with_attestation,
+            SignedBlock &&signed_block,
             std::optional<libp2p::PeerId> received_from) {
           auto self = weak_self.lock();
           if (not self) {
             return;
           }
-          signed_block_with_attestation.message.block.setHash();
-          self->receiveBlock(received_from,
-                             std::move(signed_block_with_attestation));
+          signed_block.block.setHash();
+          self->receiveBlock(received_from, std::move(signed_block));
         });
     gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
         std::format("attestation_{}", subnet_id),
+        metrics_->lean_gossip_attestation_size_bytes(),
         [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation,
                                       std::optional<libp2p::PeerId> peer_id) {
           auto self = weak_self.lock();
@@ -566,11 +568,11 @@ namespace lean::modules {
           SL_DEBUG(self->logger_,
                    "Received vote for target={} 🗳️ from peer={} 👤 "
                    "validator_id={} ✅",
-                   signed_attestation.message.target,
+                   signed_attestation.data.target,
                    peer_id.has_value() ? peer_id->toBase58() : "unknown",
                    signed_attestation.validator_id);
 
-          auto &head = signed_attestation.message.head;
+          auto &head = signed_attestation.data.head;
           if (not self->block_tree_->has(head.root)) {
             if (head.slot <= self->block_tree_->lastFinalized().slot) {
               SL_WARN(self->logger_, "Pending attestation for finalized fork");
@@ -591,7 +593,7 @@ namespace lean::modules {
           if (not res.has_value()) {
             SL_WARN(self->logger_,
                     "Error processing vote for target={}: {}",
-                    signed_attestation.message.target,
+                    signed_attestation.data.target,
                     res.error());
             return;
           }
@@ -599,6 +601,7 @@ namespace lean::modules {
     gossip_signed_aggregated_attestation_topic_ =
         gossipSubscribe<SignedAggregatedAttestation>(
             "aggregation",
+            metrics_->lean_gossip_aggregation_size_bytes(),
             [weak_self{weak_from_this()}](
                 SignedAggregatedAttestation &&signed_aggregated_attestation,
                 std::optional<libp2p::PeerId> peer_id) {
@@ -668,8 +671,13 @@ namespace lean::modules {
 
   void NetworkingImpl::onSendSignedBlock(
       std::shared_ptr<const messages::SendSignedBlock> message) {
+    SL_INFO(logger_,
+            "{}",
+            leanInteropTestLog("PUBLISH-BLOCK",
+                               leanInteropTest(message->notification.block)));
+
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
-      auto slot_hash = message->notification.message.block.index();
+      auto slot_hash = message->notification.block.index();
       SL_DEBUG(self->logger_,
                "📣 Gossiped block in slot {} hash={:0xx} 🔗",
                slot_hash.slot,
@@ -681,10 +689,15 @@ namespace lean::modules {
 
   void NetworkingImpl::onSendSignedVote(
       std::shared_ptr<const messages::SendSignedVote> message) {
+    SL_INFO(logger_,
+            "{}",
+            leanInteropTestLog("PUBLISH-ATTESTATION",
+                               leanInteropTest(message->notification)));
+
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       SL_DEBUG(self->logger_,
                "📣 Gossiped vote for target={} 🗳️",
-               message->notification.message.target);
+               message->notification.data.target);
       self->gossip_votes_topic_->publish(
           encodeSszSnappy(message->notification));
     });
@@ -693,6 +706,11 @@ namespace lean::modules {
   void NetworkingImpl::onSendSignedAggregatedAttestation(
       std::shared_ptr<const messages::SendSignedAggregatedAttestation>
           message) {
+    SL_INFO(logger_,
+            "{}",
+            leanInteropTestLog("PUBLISH-AGGREGATION",
+                               leanInteropTest(message->notification)));
+
     boost::asio::post(*io_context_, [self{shared_from_this()}, message] {
       SL_DEBUG(self->logger_,
                "📣 Gossiped aggregated attestation for target={} 🗳️",
@@ -704,15 +722,19 @@ namespace lean::modules {
 
   template <typename T>
   std::shared_ptr<libp2p::protocol::gossip::Topic>
-  NetworkingImpl::gossipSubscribe(std::string_view type, auto f) {
+  NetworkingImpl::gossipSubscribe(std::string_view type,
+                                  metrics::Histogram *metric,
+                                  auto f) {
     auto topic = gossip_->subscribe(gossipTopic(type));
     libp2p::coroSpawn(
         *io_context_,
-        [this, type, topic, f{std::move(f)}]() -> libp2p::Coro<void> {
+        [this, type, metric, f{std::move(f)}, topic]() -> libp2p::Coro<void> {
           while (auto raw_result = co_await topic->receiveMessage()) {
             auto &raw = raw_result.value();
             if (auto r = decodeSszSnappy<T>(raw.data)) {
-              f(std::move(r.value()), raw.received_from);
+              auto &[decoded, size] = r.value();
+              metric->observe(size);
+              f(std::move(decoded), raw.received_from);
             } else {
               SL_WARN(this->logger_,
                       "❌ Error decoding Gossip message for type {}: {}",
@@ -755,7 +777,7 @@ namespace lean::modules {
       if (block_it == block_cache_.end()) {
         break;
       }
-      auto &block = block_it->second.block.message.block;
+      auto &block = block_it->second.block.block;
       // ignore finalized fork
       if (block.slot <= finalized.slot) {
         return;
@@ -785,7 +807,7 @@ namespace lean::modules {
         [self{shared_from_this()}, peer_id, block_hash, peer_name]()
             -> libp2p::Coro<void> {
           auto response_res = co_await self->block_request_protocol_->request(
-              peer_id, {.blocks = {{block_hash}}});
+              peer_id, {.roots = {{block_hash}}});
           self->block_requested_at_.erase(block_hash);
           if (response_res.has_value()) {
             auto &block = response_res.value();
@@ -793,8 +815,8 @@ namespace lean::modules {
                      "request block {} from {} success, slot {}",
                      block_hash,
                      peer_name,
-                     block.message.block.slot);
-            block.message.block.setHash();
+                     block.block.slot);
+            block.block.setHash();
             self->receiveBlock(peer_id, std::move(block));
           } else {
             SL_WARN(self->logger_,
@@ -806,16 +828,15 @@ namespace lean::modules {
         });
   }
 
-  void NetworkingImpl::receiveBlock(
-      std::optional<libp2p::PeerId> from_peer,
-      SignedBlockWithAttestation &&signed_block_with_attestation) {
-    auto block_index = signed_block_with_attestation.message.block.index();
-    auto &parent_hash = signed_block_with_attestation.message.block.parent_root;
+  void NetworkingImpl::receiveBlock(std::optional<libp2p::PeerId> from_peer,
+                                    SignedBlock &&signed_block) {
+    auto block_index = signed_block.block.index();
+    auto &parent_hash = signed_block.block.parent_root;
 
     SL_DEBUG(logger_,
              "Received block {} parent={:0xx} from peer={}",
              block_index,
-             signed_block_with_attestation.message.block.parent_root,
+             signed_block.block.parent_root,
              from_peer.has_value() ? from_peer->toBase58() : "unknown");
 
     // Ignore cached block
@@ -858,7 +879,7 @@ namespace lean::modules {
     block_cache_.emplace(block_index.hash,
                          BlockCacheItem{
                              .child_it = child_it,
-                             .block = std::move(signed_block_with_attestation),
+                             .block = std::move(signed_block),
                          });
 
     if (from_peer) {
@@ -871,7 +892,7 @@ namespace lean::modules {
     }
 
     auto consume = [&](bool good,
-                       SignedBlockWithAttestation block,
+                       SignedBlock block,
                        std::vector<SignedAttestation> attestations,
                        std::vector<SignedAggregatedAttestation>
                            aggregated_attestations) {
@@ -879,11 +900,11 @@ namespace lean::modules {
       if (not block_res.has_value()) {
         SL_WARN(logger_,
                 "❌ Error importing block={}: {}",
-                block.message.block.index(),
+                block.block.index(),
                 block_res.error());
         return false;
       }
-      SL_INFO(logger_, "✅ Imported block {}", block.message.block.index());
+      SL_INFO(logger_, "✅ Imported block {}", block.block.index());
 
       for (auto &attestation : attestations) {
         SL_INFO(logger_,
@@ -1081,7 +1102,7 @@ namespace lean::modules {
     auto finalized = block_tree_->lastFinalized();
     std::erase_if(block_cache_,
                   [&](const decltype(block_cache_)::value_type &p) {
-                    if (p.second.block.message.block.slot <= finalized.slot) {
+                    if (p.second.block.block.slot <= finalized.slot) {
                       block_children_.erase(p.second.child_it);
                       return true;
                     }
@@ -1089,7 +1110,7 @@ namespace lean::modules {
                   });
     std::erase_if(attestation_cache_,
                   [&](const decltype(attestation_cache_)::value_type &p) {
-                    return p.second.message.head.slot <= finalized.slot;
+                    return p.second.data.head.slot <= finalized.slot;
                   });
     std::erase_if(
         aggregated_attestation_cache_,

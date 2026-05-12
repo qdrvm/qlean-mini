@@ -17,8 +17,12 @@ namespace boost::asio {
 }  // namespace boost::asio
 
 namespace lean {
-  class ForkChoiceStore;
+  class ForkChoiceStoreMutex;
 }  // namespace lean
+
+namespace lean::app {
+  class ChainSpec;
+}  // namespace lean::app
 
 namespace lean::metrics {
   class Handler;
@@ -34,7 +38,8 @@ namespace lean::app {
                qtils::SharedRef<StateManager> state_manager,
                qtils::SharedRef<Configuration> app_config,
                qtils::SharedRef<metrics::Handler> metrics_handler,
-               qtils::SharedRef<ForkChoiceStore> fork_choice_store);
+               qtils::SharedRef<app::ChainSpec> chain_spec,
+               qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store);
     ~HttpServer();
 
     void start();
@@ -44,7 +49,8 @@ namespace lean::app {
     log::Logger log_;
     qtils::SharedRef<Configuration> app_config_;
     qtils::SharedRef<metrics::Handler> metrics_handler_;
-    qtils::SharedRef<ForkChoiceStore> fork_choice_store_;
+    qtils::SharedRef<app::ChainSpec> chain_spec_;
+    qtils::SharedRef<ForkChoiceStoreMutex> fork_choice_store_;
     std::shared_ptr<boost::asio::io_context> io_context_;
     std::optional<std::thread> io_thread_;
   };

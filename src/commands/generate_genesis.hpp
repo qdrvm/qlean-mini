@@ -30,14 +30,15 @@ inline int cmdGenerateGenesis(auto &&getArg) {
       file.close();
     };
     auto xmss_public_key_name = [](lean::ValidatorIndex index) {
-      return std::format("validator_{}_pk.json", index);
+      return std::format("validator_{}_pk.ssz", index);
     };
     auto xmss_private_key_name = [](lean::ValidatorIndex index) {
-      return std::format("validator_{}_sk.json", index);
+      return std::format("validator_{}_sk.ssz", index);
     };
-    auto write_json = [](const std::filesystem::path &path, const auto &key) {
-      auto json = lean::crypto::xmss::toJson(key);
-      std::ofstream{path}.write(json.data(), json.size()).flush();
+    auto write = [](const std::filesystem::path &path, qtils::BytesIn bytes) {
+      std::ofstream{path}
+          .write(qtils::byte2str(bytes.data()), bytes.size())
+          .flush();
     };
 
     if (subnet_count > validator_count) {
@@ -72,7 +73,7 @@ inline int cmdGenerateGenesis(auto &&getArg) {
             hashsig_directory / xmss_private_key_name(index);
         if (std::filesystem::exists(xmss_public_key_path)
             and std::filesystem::exists(xmss_private_key_path)) {
-          auto keypair_result = lean::crypto::xmss::loadKeypairFromJson(
+          auto keypair_result = lean::crypto::xmss::loadKeypair(
               xmss_private_key_path, xmss_public_key_path);
           if (not keypair_result) {
             fmt::println(std::cerr,
@@ -89,8 +90,9 @@ inline int cmdGenerateGenesis(auto &&getArg) {
               std::cerr, "Generating XMSS keypair for validator {}", index);
           auto keypair = lean::crypto::xmss::XmssProviderImpl{}.generateKeypair(
               xmss_activation_epoch, xmss_active_epoch);
-          write_json(xmss_private_key_path, keypair.private_key);
-          write_json(xmss_public_key_path, keypair.public_key);
+          write(xmss_private_key_path,
+                lean::crypto::xmss::toBytes(keypair.private_key));
+          write(xmss_public_key_path, keypair.public_key);
           xmss_public_keys.emplace_back(keypair.public_key);
         }
       }

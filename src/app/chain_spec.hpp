@@ -22,6 +22,7 @@ namespace lean::app {
     [[nodiscard]] virtual const app::Bootnodes &getBootnodes() const = 0;
 
     [[nodiscard]] virtual bool isAggregator() const = 0;
+    [[nodiscard]] virtual bool setIsAggregator(bool is_aggregator) = 0;
   };
 
 }  // namespace lean::app

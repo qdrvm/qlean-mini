@@ -28,8 +28,7 @@ Open four terminals (or run in background) and launch each node with its own key
 Node 0:
 
 ```bash
-./build/src/executable/qlean \
-  --modules-dir ./build/src/modules \
+./build/out/qlean \
   --base-path data/node_0 \
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
@@ -47,8 +46,7 @@ Node 0:
 Node 1:
 
 ```bash
-./build/src/executable/qlean \
-  --modules-dir ./build/src/modules \
+./build/out/qlean \
   --base-path data/node_1 \
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
@@ -65,8 +63,7 @@ Node 1:
 Node 2:
 
 ```bash
-./build/src/executable/qlean \
-  --modules-dir ./build/src/modules \
+./build/out/qlean \
   --base-path data/node_2 \
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \
@@ -83,8 +80,7 @@ Node 2:
 Node 3:
 
 ```bash
-./build/src/executable/qlean \
-  --modules-dir ./build/src/modules \
+./build/out/qlean \
   --base-path data/node_3 \
   --bootnodes example/1-network/genesis/nodes.yaml \
   --genesis example/1-network/genesis/config.yaml \

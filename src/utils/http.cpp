@@ -31,6 +31,8 @@ namespace lean::http {
     }
     auto &&request = parser.release();
     auto response = config.on_request(std::move(request));
+    response.content_length(response.body().size());
+    response.set(boost::beast::http::field::connection, "close");
     auto write_res =
         libp2p::coroOutcome(co_await boost::beast::http::async_write(
             stream, response, libp2p::useCoroOutcome));
@@ -45,6 +47,11 @@ namespace lean::http {
     boost::asio::ip::tcp::acceptor acceptor{io_context};
     boost::system::error_code ec;
     acceptor.open(config.endpoint.protocol(), ec);
+    if (ec) {
+      return ec;
+    }
+    // Prevents EADDRINUSE "Address already in use" after restart.
+    acceptor.set_option(boost::asio::socket_base::reuse_address{true}, ec);
     if (ec) {
       return ec;
     }

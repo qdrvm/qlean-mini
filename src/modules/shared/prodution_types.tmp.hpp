@@ -13,14 +13,10 @@ namespace lean::messages {
 
   struct SlotStarted {
     Slot slot;
-    Epoch epoch;
-    bool epoch_change;
   };
 
   struct SlotIntervalStarted {
     Interval interval;
-    Slot slot;
-    Epoch epoch;
   };
 
   struct NewLeaf {

@@ -19,7 +19,9 @@ target_link_libraries(node_injector
     logger
     metrics
     modules
+    networking_module
     p2p::libp2p
+    production_module
     se_async
     storage
     timeline

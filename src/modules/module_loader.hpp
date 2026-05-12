@@ -19,11 +19,10 @@
 
 #include "modules/module.hpp"
 
-namespace fs = std::filesystem;
-template <typename T>
-using Result = outcome::result<T>;
-
 namespace lean::modules {
+  namespace fs = std::filesystem;
+  template <typename T>
+  using Result = outcome::result<T>;
 
   class ModuleLoader {
    public:
@@ -38,11 +37,7 @@ namespace lean::modules {
 
     explicit ModuleLoader(const std::string &dir_path) : dir_path_(dir_path) {}
 
-    Result<std::deque<std::shared_ptr<Module>>> get_modules() {
-      std::deque<std::shared_ptr<Module>> modules;
-      OUTCOME_TRY(recursive_search(fs::path(dir_path_), modules));
-      return modules;
-    }
+    Result<std::deque<std::shared_ptr<Module>>> get_modules();
 
    private:
     std::string dir_path_;

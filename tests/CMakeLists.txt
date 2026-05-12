@@ -44,5 +44,6 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/tests
 )
 
+add_subdirectory(test_vectors)
 add_subdirectory(testutil)
 add_subdirectory(unit)

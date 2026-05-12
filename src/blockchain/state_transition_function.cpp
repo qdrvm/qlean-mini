@@ -111,9 +111,8 @@ namespace lean {
     }
   }
 
-  State STF::generateGenesisState(
-      const Config &config,
-      std::span<const crypto::xmss::XmssPublicKey> validators_pubkeys) {
+  State STF::generateGenesisState(const Config &config,
+                                  std::vector<Validator> validators) {
     BlockHeader header;
     header.slot = 0;
     header.proposer_index = 0;
@@ -127,15 +126,8 @@ namespace lean {
     result.latest_block_header = header;
     result.latest_justified = Checkpoint{.root = kZeroHash, .slot = 0};
     result.latest_finalized = Checkpoint{.root = kZeroHash, .slot = 0};
+    result.validators = std::move(validators);
 
-    ValidatorIndex validator_index = 0;
-    for (auto &validator_pubkey : validators_pubkeys) {
-      result.validators.push_back(Validator{
-          .pubkey = validator_pubkey,
-          .index = validator_index,
-      });
-      ++validator_index;
-    }
     // result.historical_block_hashes;
     // result.justified_slots;
     // result.justifications_roots;

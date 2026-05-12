@@ -15,9 +15,11 @@ namespace lean {
   }
 
   template <typename T>
-  outcome::result<T> decodeSszSnappy(qtils::BytesIn compressed) {
+  outcome::result<std::pair<T, size_t>> decodeSszSnappy(
+      qtils::BytesIn compressed) {
     BOOST_OUTCOME_TRY(auto uncompressed, snappy::uncompress(compressed));
-    return decode<T>(uncompressed);
+    BOOST_OUTCOME_TRY(auto decoded, decode<T>(uncompressed));
+    return std::make_pair(std::move(decoded), uncompressed.size());
   }
 
   auto encodeSszSnappyFramed(const auto &t) {

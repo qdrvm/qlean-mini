@@ -28,12 +28,16 @@ namespace lean::crypto::xmss {
    * @param public_key_path Path to public key JSON file (validator_X_pk.json)
    * @return Loaded XMSS keypair or error
    */
-  outcome::result<XmssKeypair> loadKeypairFromJson(
+  outcome::result<XmssKeypair> loadKeypair(
       const std::filesystem::path &secret_key_path,
       const std::filesystem::path &public_key_path);
+  outcome::result<XmssKeypair> loadKeypair(
+      const XmssPublicKey &public_key,
+      const std::filesystem::path &secret_key_path);
 
   std::string toJson(const XmssPrivateKey &sk);
   std::string toJson(const XmssPublicKey &pk_bytes);
+  qtils::ByteVec toBytes(const XmssPrivateKey &sk);
 }  // namespace lean::crypto::xmss
 
 OUTCOME_HPP_DECLARE_ERROR(lean::crypto::xmss, XmssUtilError);

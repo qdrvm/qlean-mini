@@ -6,6 +6,8 @@
 
 #include "modules/module_loader.hpp"
 
+#include "utils/get_exe_path.hpp"
+
 #define COMPONENT_NAME "ModuleLoader"
 
 OUTCOME_CPP_DEFINE_CATEGORY(lean::modules, ModuleLoader::Error, e) {
@@ -28,6 +30,16 @@ OUTCOME_CPP_DEFINE_CATEGORY(lean::modules, ModuleLoader::Error, e) {
 }
 
 namespace lean::modules {
+
+  Result<std::deque<std::shared_ptr<Module>>> ModuleLoader::get_modules() {
+    std::deque<std::shared_ptr<Module>> modules;
+    auto exe_dir = exePath().parent_path().parent_path() / "modules";
+    OUTCOME_TRY(recursive_search(exe_dir, modules));
+    if (not dir_path_.empty()) {
+      OUTCOME_TRY(recursive_search(fs::path(dir_path_), modules));
+    }
+    return modules;
+  }
 
   Result<void> ModuleLoader::recursive_search(
       const fs::path &dir_path, std::deque<std::shared_ptr<Module>> &modules) {

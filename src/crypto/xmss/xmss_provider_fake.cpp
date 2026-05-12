@@ -53,11 +53,15 @@ namespace lean::crypto::xmss {
   }
 
   XmssAggregatedSignature XmssProviderFake::aggregateSignatures(
+      std::span<const std::vector<XmssPublicKey>> child_public_keys,
+      std::span<const XmssAggregatedSignature> child_proofs,
       std::span<const XmssPublicKey> public_keys,
       std::span<const XmssSignature> signatures,
       uint32_t epoch,
       const XmssMessage &message) const {
     size_t seed = 0;
+    boost::hash_combine(seed, child_public_keys);
+    boost::hash_combine(seed, child_proofs);
     boost::hash_combine(seed, public_keys);
     boost::hash_combine(seed, signatures);
     boost::hash_combine(seed, epoch);
@@ -81,7 +85,8 @@ namespace lean::crypto::xmss {
     return true;
   }
 
-  XmssKeypair XmssProviderFake::loadKeypair(std::string_view private_key_path) {
+  XmssKeypair XmssProviderFake::loadKeypair(const XmssPublicKey &public_key,
+                                            std::string_view private_key_path) {
     size_t key_index = std::hash<std::string_view>{}(private_key_path);
     return XmssKeypair{
         .private_key =
@@ -90,6 +95,7 @@ namespace lean::crypto::xmss {
                 reinterpret_cast<PQSecretKey *>(key_index),
                 [](PQSecretKey *) {},
             },
+        .public_key = public_key,
     };
   }
 }  // namespace lean::crypto::xmss

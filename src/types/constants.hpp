@@ -18,6 +18,8 @@ namespace lean {
 
   static constexpr uint64_t INTERVALS_PER_SLOT = 5;
   static constexpr std::chrono::milliseconds INTERVAL_DURATION_MS{800};
+  static constexpr std::chrono::milliseconds SLOT_DURATION_MS{
+      INTERVALS_PER_SLOT * INTERVAL_DURATION_MS};
 
   // The number of slots to lookback for justification.
   static constexpr uint64_t JUSTIFICATION_LOOKBACK_SLOTS = 3;
@@ -27,6 +29,7 @@ namespace lean {
   static constexpr uint64_t HISTORICAL_ROOTS_LIMIT =
       1 << 18;  // 262'144 roots,	12.1 days
   static constexpr uint64_t VALIDATOR_REGISTRY_LIMIT = 1 << 12;  // 4'096 val
+  static constexpr size_t MAX_ATTESTATIONS_DATA = 16;
 
   // Networking
 

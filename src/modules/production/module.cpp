@@ -23,12 +23,13 @@ static std::shared_ptr<lean::modules::ProductionModule> module_instance;
 #pragma GCC diagnostic ignored "-Wreturn-type-c-linkage"
 
 MODULE_C_API std::weak_ptr<lean::modules::ProductionModule>
-query_module_instance(lean::modules::ProductionLoader &loader,
-                      std::shared_ptr<lean::log::LoggingSystem> logger,
-                      std::shared_ptr<lean::blockchain::BlockTree> block_tree,
-                      std::shared_ptr<lean::ForkChoiceStore> fork_choice_store,
-                      qtils::SharedRef<lean::crypto::Hasher> hasher,
-                      qtils::SharedRef<lean::clock::SystemClock> clock) {
+query_module_instance(
+    lean::modules::ProductionLoader &loader,
+    std::shared_ptr<lean::log::LoggingSystem> logger,
+    std::shared_ptr<lean::blockchain::BlockTree> block_tree,
+    std::shared_ptr<lean::ForkChoiceStoreMutex> fork_choice_store,
+    qtils::SharedRef<lean::crypto::Hasher> hasher,
+    qtils::SharedRef<lean::clock::SystemClock> clock) {
   if (!module_instance) {
     module_instance = lean::modules::ProductionModuleImpl::create_shared(
         loader,

@@ -1,0 +1,123 @@
+{
+    "tests/consensus/devnet/verify_signatures/test_invalid_signatures.py::test_invalid_aggregated_attestation_signature[fork_Devnet][fork_Devnet-verify_signatures_test]": {
+        "network": "Devnet",
+        "leanEnv": "prod",
+        "expectException": "AssertionError",
+        "anchorState": {
+            "config": {
+                "genesisTime": 0
+            },
+            "slot": 0,
+            "latestBlockHeader": {
+                "slot": 0,
+                "proposerIndex": 0,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "bodyRoot": "0xdba9671bac9513c9482f1416a53aabd2c6ce90d5a5f865ce5a55c775325c9136"
+            },
+            "latestJustified": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "latestFinalized": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "historicalBlockHashes": {
+                "data": []
+            },
+            "justifiedSlots": {
+                "data": []
+            },
+            "validators": {
+                "data": [
+                    {
+                        "attestationPubkey": "0x1865a50c6478a3173882ff01f2b7904a2b96b64a8ad63d04ea53b34a539bfd672ffffd40f2e93c2900311f068cf9641b81fd364d",
+                        "proposalPubkey": "0xef30711e272be66f8850f13c393f5c7dc302f6112d3d04672b715b0caef8b823cccac138b5ab9644845cc6262dd8076f49bacf3d",
+                        "index": 0
+                    },
+                    {
+                        "attestationPubkey": "0xce45954436b2b4038330ba17071d9c482f56e43cfd3c21414a0f326635cc6132523b995e346e4e2df535e6742a5bb506e0c91365",
+                        "proposalPubkey": "0x2fdc4e5caacbdf3117a6687b09e7f46a132bd54f0e9b8730d3e57c655a60557a488ae4078e248244fadeab6d506a79355b563142",
+                        "index": 1
+                    },
+                    {
+                        "attestationPubkey": "0xa6cece462ea48c5e5a31d1576d6d7c7367fdf851a94dd738442c93570f88556ca04991462fedb17191054f65eeb9eb3777a8d27c",
+                        "proposalPubkey": "0xcfe9915524913f40da7ad5649bf69f450d72b952d2296627072e50524f7e8b775c61c17c36283b210521db7517ef097ca996de10",
+                        "index": 2
+                    }
+                ]
+            },
+            "justificationsRoots": {
+                "data": []
+            },
+            "justificationsValidators": {
+                "data": []
+            }
+        },
+        "signedBlock": {
+            "block": {
+                "slot": 2,
+                "proposerIndex": 2,
+                "parentRoot": "0x6b0fb167abb2a66287d2da52b2bc17e75848162e1838b3d1ec5680545f37f3f9",
+                "stateRoot": "0x1ad678fc1d022939e06bdace6e9d10a841e5838a9f2c05b3baab4757606c2ddd",
+                "body": {
+                    "attestations": {
+                        "data": [
+                            {
+                                "aggregationBits": {
+                                    "data": [
+                                        false,
+                                        false,
+                                        true
+                                    ]
+                                },
+                                "data": {
+                                    "slot": 1,
+                                    "head": {
+                                        "root": "0x6b0fb167abb2a66287d2da52b2bc17e75848162e1838b3d1ec5680545f37f3f9",
+                                        "slot": 0
+                                    },
+                                    "target": {
+                                        "root": "0x6b0fb167abb2a66287d2da52b2bc17e75848162e1838b3d1ec5680545f37f3f9",
+                                        "slot": 0
+                                    },
+                                    "source": {
+                                        "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                                        "slot": 0
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            "signature": {
+                "attestationSignatures": {
+                    "data": [
+                        {
+                            "participants": {
+                                "data": [
+                                    false,
+                                    false,
+                                    true
+                                ]
+                            },
+                            "proofData": {
+                                "data": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                            }
+                        }
+                    ]
+                },
+                "proposerSignature": "0x240000002bedcc75c4fbd8370c176d002c9ee06b3f971b7149e133438be5a2722804000004000000542313429acf4e2a9a5e5a6dd64c4c5c4da6126308e1a148b38c18576b19037c9275ed015c3993591ccd0f3ec5de9a258bee5e410cdcc0657bb99b771a69a2566b75e94909534e35961c2d58e97bca34b720b84b18f49168e895c03f634d064eed78c81ea337fe2efb939b1e620ef77e8a761944aca92d4fd34911028b6f9d5c6d710406be6f072c2f8bb27db7e48c69efdeef7e8f605434796023666b31593f9039811f547b30527d7b35336aceb0619f9fd15cb52afe062288841261bd0a6f96874e4d30b35e67a177865a631e567bd683435899002c0e92e3480c58c7fb07bd4e422d95b0ae6f40b30e5922369112064eb3545895ad5d716c737de7bb1e07f3c938676743014aa211126c56fa71388c669b677b78e657d14f6d262ace516efb37715009d9775ec121fc4757dd4c41920f3529925fe3225f0b7624beb34758045b3e2e5e04917b6574a93edcc7c12510efea106a19505979a2b22ee0f0e5197de9c4131d3c9007ad43d66bac3dcd2c1923fe53385e7333742f9924742caa2e9262d533b0db7022da20a122e59eb62a83c75a4a0901c704b404ad6e5503eb7dbd580c14a527b23a4b8c4137db4fd25648bb8057c91e194e2854e126b78b3f1b4d2f270315c6765be334a3364fccae1c4b69215629ea470e5b3f222101ada43bc3f4c3754b9e0c04181b3212c091e01689db9364139f247ecc224a217a20c3395933c26393e31f1eab6fcb4b5b76d07b66da125d0223d7099270f00fab1f840ac27f7f32f322674fdf00da4fe0a86d2628f53a6316db4d561895c8369e2bd3269b7ccb28f3b1f66ee6cf80768feef86d8382dd5fca125b3a6d6bc1402e361243e8860b60177c26563f086038d2b7dc720169a96461eea621b400367b5b4cbc322146cd467948ac59b4d22857b14e1838e3ca6a5933591e5d7023cd41068f7922386c366407ac040c675eab2458d37a4f9bb91034e521900140337a68b2bf91635bfedc24fc71627b5721871acd726363ef6ae046998c175f1ea9170d8aa69c14fce28d2de4c5ba04b24cd543a8af2d6b14c10f18814f8e78e0f3e6788cab79371b7ae96776a284131eb1be0a774f456ddd54ad2ff59d57028ceb0b4f692c48116b4076081c00c51c1f965c4f66c7b645e78497295501fa4f74ce047629cd5621066ab83f08e5bc018c4ad82b870dc85d8eb6c07c2ecf72563738535812648209a9bad330dd562c2c74abc01a5c30886b3b160e590e06b83da1e9402e7ba09131d8179d294c3aa448ba96bc3af650722363e1bf57ef0aa72f0eb0363f172f332d2c4ed01899aca821774aee6a093e981f609a38127993b444a6bb0c45b4e13646ec98dc06667e4540cbe398362f0d3b781e9f01235b186e70aabacf69a1d26c36f7bb07416aa6bf0fce1fda72580f3f6d41699007f46c9b5b7657900bc3aa43352e1b006fbc22ce36636cfa43ab808f1051ac4f25822734098e47e25a33e2a56f2ec6b1131d8a162c8d8eff2d53f27f3772c0c329a7aaac042ced12004a46f80cd670fe0670fdf7066b5c8041ad77e37955d4f10e08922a26a1f03b76e361b75f19a8a459cf54bb4a81cfc9011518bd14d09f312b72a0211773564d1e1719175472f0da6dd792361a8c028719ef784354e2875c7e694c292b06c6837283a18055ad73b42356393b7a595bc474aa70235a4ebbcf2cba82e07133c41f036d8d331cea1b1c79c1417506d5a8da25ab1dd212f2e2d341172b1748afcd3d56678c5227bfc98471b6132317aa80ef416bd291532b05f1596781de18d7e94c7d69cc85013ccc000422eb006babec92488fdf09059686eb626233026e7fb22d4cf0661c42346757445e9ac36cb479f860caa475227acd075fc982a60950decb3d1e5b1c092e181b7646bfa3425fe7b141a667c83af25000458d595c2abc1c4f515ead85744598b52231d4834c018b2813880be112714b355ea183c10c979dd95a82cc4b23dd8206602b2bc415627c586e56fd4e5e1f1d543bf597341c17b9317601875a30420b7a62bd0695086f0bfb4996e114423fe1ab4a7fe3d915fc4d1f3a76376a785a6ba7433efcd26a6c34c40bfaa654390d30774f13a6471bbadbd66b2beabb00669d1f40c4663b1a6ec42d48ebd3332595ad6475bf532a3bf960bb62a687fc34a578953edfc41d4409cc140fdff25b5958dd2b4dbaac726cb4276f74f971237a0a9f7f2c1290c9142ea5405bbb3f631ceacffd6c2e6b744f34844043ff49724fa9ff192b7353677b5a1a237613b423106085cd4263694b3b32d6ad38ddec254ad33b301875b5705faa543d2c7bc548695375834bf04de55d982d95722bf784191749f655abdb56266f021b009fee574076c6eb2a8fd8405f9c94c32c5fa4c55dcc01ed1196d6224ed03fdf45d854fc121e192d66701a032403053926d4384b5bdf9ed83b8cac514f1dd8af7b3424c43cec6a2e7b187f3c59aa7a404299edd47470fbb96303036a38c6fbfc0f07dc0d2dc5571055f8713178aa62fd614e81c1673a5760177942c16b90b1da21ee09dc076ba98b2b467a6f5039df4f50adde1a2a74d19b5c59eb5728d703845181b1b81a9059e8017f85844f03344d30a8d8c42c7fb1080cdb0b3c31db71e23dd672dd029315c7216085d05e5cbaa23761ae93519ec03447e27f192a3f40f25de852c6401cc3b2582290c21a13602e5f16005908d2cd8d175813976d5bcb8154394de17d51f3603189d40b5fe346c50cba57ed0741208d3368b47b49ee93714f7eafa9528b71eb5ec03b3f29ab99e343fec36176db6e1531485912799bb6b724affaf8478b824b6fc282813cac656836d8d55a618fe5b92448531061503187299f19b737cf473f1fef51d400a10f0a7c014fb811834852244991121f54b6d340b7ff337487effe6d24ab436a1c0985599a717b2f943b453644cdb72f60f1f44416dfe81d32f63164bbe13e5dc6477511116d9b0d24dfca35911cd464f7d9ae3a87109b436efa3d375a94d745e1dd2210cf01704358353f1a3810da35e300352aa05ca707beeda5384858900b4dc045750a41985188c8d979a489de79d2c7d46150d0103129be4e30d130d14f0fe8ad7af8352b37ea98d609221093767feaeb2f0c8d2b26bdc86a6231eb136fe60a4002fc40de670219d1766ffd1070fa4fad358ab6b540f9beae2458fea6344dcb124e6650172f2a72634cb5b6a1290e36941a2f50641bb9c4a67056081d05abc14e3970f0ea0a7eedd770c0a1506b3f3a5b5ee294a54a6bae684b222aaa29ee28754d4d3dd936ba6a967bc057c530dbf80a032a3db25c69704b035bf649019d8dcb564455b83cd05e631e2d062e69ac8ff677a5feb94c60205e1650bd793d7497431f585f966a397a14650bb6d75103c43d5c4ce1c338ef17e80a409f7e4f120d976ffcd2fe4671cf70219ec79f107b152d27f0557177e0cd5a1c836e6c07d3a757364cee7108ed3f707c0d6fbc4fca757128db79613d77c05b215ba74640c983453e3027ac40"
+            }
+        },
+        "_info": {
+            "hash": "0xf28de0fc300a27e09384c364764929c9192552ae1565d6575f100ab3942e865d",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/devnet/verify_signatures/test_invalid_signatures.py::test_invalid_aggregated_attestation_signature[fork_Devnet]",
+            "description": "Test that invalid aggregated attestation signatures are properly rejected.\n\nScenario\n--------\n- Single block at slot 1\n- Proposer attestation from validator 1 (valid)\n- Two aggregated attestations with different data:\n  - One from validator 0 with valid signature\n  - One from validator 2 with invalid signature\n\nExpected Behavior\n-----------------\n1. The SignedBlock is rejected due to invalid aggregated signature\n\nWhy This Matters\n----------------\nThis test verifies that aggregated signature verification:\n- Properly validates leanVM aggregated proofs for each attestation group\n- Rejects blocks containing any invalid aggregated attestation signature\n- Works correctly even when some attestations have valid signatures",
+            "fixtureFormat": "verify_signatures_test"
+        }
+    }
+}

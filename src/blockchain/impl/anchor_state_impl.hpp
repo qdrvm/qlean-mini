@@ -25,10 +25,8 @@ namespace lean::blockchain {
 
   class AnchorStateImpl final : public AnchorState, Singleton<AnchorState> {
    public:
-    template <typename StateT>
-      requires std::same_as<std::remove_cvref_t<StateT>, State>
-    explicit AnchorStateImpl(StateT &&state) {
-      static_cast<State &>(*this) = std::forward<State>(state);
+    explicit AnchorStateImpl(State state) {
+      State::operator=(std::move(state));
     };
 
     AnchorStateImpl(qtils::SharedRef<log::LoggingSystem> logsys,

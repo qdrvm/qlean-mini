@@ -47,47 +47,12 @@ namespace {
     auto injector = std::make_unique<NodeInjector>(logsys, appcfg);
 
     // Load modules
-    std::deque<std::unique_ptr<lean::loaders::Loader>> loaders;
-    {
-      auto logger = logsys->getLogger("Modules", "lean");
-      const std::string path(appcfg->modulesDir());
-
-      lean::modules::ModuleLoader module_loader(path);
-      auto modules_res = module_loader.get_modules();
-      if (modules_res.has_error()) {
-        SL_CRITICAL(logger, "Failed to load modules from path: {}", path);
-        return EXIT_FAILURE;
-      }
-      auto &modules = modules_res.value();
-
-      for (const auto &module : modules) {
-        SL_INFO(logger,
-                "Found module '{}', path: {}",
-                module->get_module_info(),
-                module->get_path());
-
-        auto loader = injector->register_loader(module);
-
-        // Skip unsupported
-        if (not loader) {
-          SL_WARN(logger,
-                  "Module '{}' has unsupported loader '{}'; Skipped",
-                  module->get_module_info(),
-                  module->get_loader_id());
-          continue;
-        }
-
-        // Init module
-        SL_INFO(logger,
-                "Module '{}' loaded by '{}'",
-                module->get_module_info(),
-                module->get_loader_id());
-        loaders.emplace_back(std::move(loader));
-      }
-
-      // Notify about all modules are loaded
-      // se_manager->notify(lean::EventTypes::LoadingIsFinished);
-    }
+    auto load = [&](std::string loader) {
+      injector->register_loader(
+          lean::modules::Module::create({}, {}, {nullptr, nullptr}, loader));
+    };
+    load("NetworkingLoader");
+    load("ProductionLoader");
 
     auto logger = logsys->getLogger("Main", lean::log::defaultGroupName);
     auto app = injector->injectApplication();

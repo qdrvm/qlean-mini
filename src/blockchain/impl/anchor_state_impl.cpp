@@ -58,8 +58,8 @@ namespace lean::blockchain {
       }
     }
 
-    static_cast<State &>(*this) =
-        qtils::valueOrRaise(readConfigYaml(app_config->genesisConfigPath()));
+    static_cast<State &>(*this) = qtils::valueOrRaise(
+        readConfigYaml(app_config->genesisDir() / "config.yaml"));
   }
 
 }  // namespace lean::blockchain

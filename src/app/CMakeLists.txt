@@ -4,46 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-execute_process(
-    COMMAND git symbolic-ref -q HEAD
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    OUTPUT_VARIABLE GIT_REF
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-
-if(GIT_REF)
-  set(GIT_REF_FILE "${CMAKE_SOURCE_DIR}/.git/${GIT_REF}")
-else()
-  set(GIT_REF_FILE "${CMAKE_SOURCE_DIR}/.git/HEAD")
-endif()
-
 set(BUILD_VERSION_CPP "${CMAKE_BINARY_DIR}/generated/app/build_version.cpp")
-set(GET_VERSION_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/get_version.sh")
+set(BUILD_VERSION_CPP_SH "${CMAKE_SOURCE_DIR}/scripts/build_version_cpp.sh")
+set(REBUILD_BUILD_VERSION_CPP "${CMAKE_BINARY_DIR}/rebuild_build_version_cpp")
+add_custom_target(rebuild_build_version_cpp COMMAND ${CMAKE_COMMAND} -E touch REBUILD_BUILD_VERSION_CPP)
 add_custom_command(
     OUTPUT ${BUILD_VERSION_CPP}
-
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<SHELL_PATH:${CMAKE_BINARY_DIR}/generated/app>"
-
-    COMMAND ${CMAKE_COMMAND} -E echo "// Auto-generated file" > "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "#include <string>" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "namespace lean {" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "  const std::string &buildVersion() {" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E env sh -c "printf '%s' '    static const std::string buildVersion(\"' >> \"${BUILD_VERSION_CPP}\""
-
-    COMMAND ${CMAKE_COMMAND} -E env sh -c "\"${GET_VERSION_SCRIPT}\" >> \"${BUILD_VERSION_CPP}\""
-
-    COMMAND ${CMAKE_COMMAND} -E echo "\");" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "    return buildVersion;" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "  }" >> "${BUILD_VERSION_CPP}"
-    COMMAND ${CMAKE_COMMAND} -E echo "}  // namespace lean" >> "${BUILD_VERSION_CPP}"
-
+    COMMAND ${BUILD_VERSION_CPP_SH} ${BUILD_VERSION_CPP}
     COMMENT "Generate build_version.cpp"
     DEPENDS
-      "${GET_VERSION_SCRIPT}"
-      "${GIT_REF_FILE}"
-    VERBATIM
+        ${REBUILD_BUILD_VERSION_CPP}
 )
 add_library(build_version
     "${BUILD_VERSION_CPP}"
@@ -76,7 +46,7 @@ add_custom_command(
     VERBATIM
 )
 
-add_library(app_configuration SHARED
+add_library(app_configuration
     configuration.cpp
     "${DEFAULT_CONFIG_CPP}"
 )
@@ -85,7 +55,7 @@ target_link_libraries(app_configuration
     fmt::fmt
 )
 
-add_library(app_configurator SHARED
+add_library(app_configurator
     configurator.cpp
 )
 target_link_libraries(app_configurator
@@ -97,7 +67,7 @@ target_link_libraries(app_configurator
     yaml-cpp::yaml-cpp
 )
 
-add_library(app_state_manager SHARED
+add_library(app_state_manager
     impl/state_manager_impl.cpp
 )
 target_link_libraries(app_state_manager
@@ -105,14 +75,14 @@ target_link_libraries(app_state_manager
     logger
 )
 
-add_library(bootnodes SHARED
+add_library(bootnodes
     bootnodes.cpp
 )
 target_link_libraries(bootnodes
     p2p::libp2p
 )
 
-add_library(chain_spec SHARED
+add_library(chain_spec
     impl/chain_spec_impl.cpp
 )
 target_link_libraries(chain_spec
@@ -126,7 +96,7 @@ target_link_libraries(chain_spec
     yaml-cpp::yaml-cpp
 )
 
-add_library(application SHARED
+add_library(application
     impl/application_impl.cpp
     impl/http_server.cpp
 )
@@ -138,7 +108,7 @@ target_link_libraries(application
     metrics
 )
 
-add_library(timeline SHARED
+add_library(timeline
     impl/timeline_impl.cpp
 )
 target_link_libraries(timeline
@@ -149,11 +119,12 @@ target_link_libraries(timeline
 #    metrics
 )
 
-add_library(validator_keys_manifest SHARED
+add_library(validator_keys_manifest
     impl/validator_keys_manifest_impl.cpp
 )
 target_link_libraries(validator_keys_manifest
     app_configuration
     qtils::qtils
+    xmss_provider
     yaml-cpp::yaml-cpp
 )

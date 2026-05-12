@@ -95,8 +95,8 @@ TEST_F(XmssProviderTest, AggregateSignatures) {
       provider_->sign(keypair.private_key, epoch, message),
       provider_->sign(keypair2.private_key, epoch, message),
   };
-  auto aggregated_signature =
-      provider_->aggregateSignatures(public_keys, signatures, epoch, message);
+  auto aggregated_signature = provider_->aggregateSignatures(
+      {}, {}, public_keys, signatures, epoch, message);
   EXPECT_TRUE(provider_->verifyAggregatedSignatures(
       public_keys, epoch, message, aggregated_signature));
   EXPECT_FALSE(provider_->verifyAggregatedSignatures(

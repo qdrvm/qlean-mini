@@ -9,7 +9,6 @@
 #include <sszpp/basic_types.hpp>
 #include <sszpp/lists.hpp>
 
-#include "types/attestation.hpp"
 #include "types/block_body.hpp"
 #include "types/block_header.hpp"
 #include "types/block_signatures.hpp"
@@ -71,9 +70,8 @@ namespace lean {
     BlockHash hash;
     ssz_maybe<BlockHeader> header;
     ssz_maybe<BlockBody> body;
-    ssz_maybe<Attestation> attestation;
     ssz_maybe<BlockSignatures> signature;
 
-    SSZ_CONT(hash, header, body, attestation, signature);
+    SSZ_CONT(hash, header, body, signature);
   };
 }  // namespace lean

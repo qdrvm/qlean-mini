@@ -71,18 +71,18 @@ namespace lean {
                  qtils::SharedRef<blockchain::BlockTree> block_tree,
                  qtils::SharedRef<metrics::Metrics> metrics);
 
-    static State generateGenesisState(
-        const Config &config,
-        std::span<const crypto::xmss::XmssPublicKey> validators_pubkeys);
+    static State generateGenesisState(const Config &config,
+                                      std::vector<Validator> validators);
     static Block genesisBlock(const State &state);
 
     /**
      * Apply block to parent state.
      * @returns new state
      */
-    [[nodiscard]] outcome::result<State> stateTransition(const Block &block,
-                                           const State &parent_state,
-                                           bool check_state_root) const;
+    [[nodiscard]] outcome::result<State> stateTransition(
+        const Block &block,
+        const State &parent_state,
+        bool check_state_root) const;
 
     outcome::result<void> processSlots(State &state, Slot slot) const;
     outcome::result<void> processBlock(State &state, const Block &block) const;
@@ -94,7 +94,8 @@ namespace lean {
                                             const BlockBody &body) const;
     outcome::result<void> processAttestations(
         State &state, const AggregatedAttestations &attestations) const;
-    [[nodiscard]] bool validateProposerIndex(const State &state, const Block &block) const;
+    [[nodiscard]] bool validateProposerIndex(const State &state,
+                                             const Block &block) const;
 
     log::Logger logger_;
     qtils::SharedRef<blockchain::BlockTree> block_tree_;
