@@ -368,6 +368,9 @@ namespace lean::enr {
     BOOST_OUTCOME_TRY(rlp, rlp.list());
     Enr enr;
     BOOST_OUTCOME_TRY(enr.signature, rlp.bytes_n<Secp256k1Signature>());
+    qtils::ByteVec signable;
+    signable.put(rlp::EncodeList{rlp.input_.size()});
+    signable.put(rlp.input_);
     BOOST_OUTCOME_TRY(enr.sequence, rlp.uint<Sequence>());
     BOOST_OUTCOME_TRY(auto kv, rlp.keyValue());
 
@@ -406,9 +409,8 @@ namespace lean::enr {
     libp2p::crypto::secp256k1::Secp256k1ProviderImpl secp256k1{nullptr};
     BOOST_OUTCOME_TRY(
         auto valid_signature,
-        secp256k1.verifyCompact(libp2p::Keccak::hash(enr.signable()),
-                                enr.signature,
-                                enr.public_key));
+        secp256k1.verifyCompact(
+            libp2p::Keccak::hash(signable), enr.signature, enr.public_key));
     if (not valid_signature) {
       return Error::SIGNATURE_VERIFICATION_FAILED;
     }
