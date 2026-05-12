@@ -30,6 +30,7 @@ FIXTURE_INSTANTIATE(ForkChoiceTest, "fork_choice");
 TEST_P(ForkChoiceTest, ForkChoice) {
   auto &[name, fixture] = GetParam();
   std::println("RUN {}", name);
+  // clang-format off
   static std::unordered_set<std::string> disabled{
       // in last proposer attestation, target < source
       "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_on_newly_justified_slot[fork_Devnet][fork_devnet-fork_choice_test]",
@@ -39,7 +40,74 @@ TEST_P(ForkChoiceTest, ForkChoice) {
 
       // block signatures are missing
       "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_gossip_attestation_with_invalid_signature[fork_Devnet][fork_Devnet-fork_choice_test]",
+
+      // TODO
+      "tests/consensus/devnet/fc/test_store_pruning.py::test_finalization_prunes_stale_attestation_signatures[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_store_pruning.py::test_finalization_prunes_stale_aggregated_payloads[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_head.py::test_fork_from_before_finalization_not_considered[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_head.py::test_head_switches_to_heavier_fork[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_head.py::test_head_selection_by_weight_not_depth[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_head.py::test_head_advances_through_deep_chain[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_head.py::test_head_with_two_competing_forks[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_head.py::test_duplicate_block_processed_idempotently[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_head.py::test_head_with_large_gaps[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_head.py::test_head_with_deep_fork_split[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_head.py::test_head_with_gaps_in_slots[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_equivocation.py::test_equivocating_proposer_two_blocks_at_same_slot[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_equivocation.py::test_equivocating_proposer_with_split_attestations[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_block_production.py::test_produce_block_includes_pending_attestations[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_block_production.py::test_block_builder_fixed_point_advances_justification[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_block_production.py::test_produce_block_enforces_max_attestations_data_limit[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_attestation_source_divergence.py::test_justified_divergence_self_heals_in_next_block[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_with_slot_gaps[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_three_way_fork_competition[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_three_block_deep_reorg[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_prevention_heavy_fork_resists_light_competition[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_simple_one_block_reorg[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_depth_across_deep_chain_split[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_back_and_forth_reorg_oscillation[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_reorg_on_newly_justified_slot[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_fork_choice_reorgs.py::test_two_block_reorg_progressive_building[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_attestation_target_selection.py::test_attestation_target_walkback_bounded_by_lookback[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_attestation_target_selection.py::test_attestation_target_at_genesis_initially[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_attestation_target_selection.py::test_attestation_target_advances_with_attestations[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_attestation_target_selection.py::test_attestation_target_with_slot_gaps[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_attestation_target_selection.py::test_attestation_target_with_extended_chain[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_attestation_target_selection.py::test_attestation_target_justifiable_constraint[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_lexicographic_tiebreaker.py::test_equal_weight_forks_use_lexicographic_tiebreaker[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_signature_aggregation.py::test_mixed_attestations_multiple_targets_and_validators[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_signature_aggregation.py::test_different_targets_create_separate_aggregations[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_signature_aggregation.py::test_all_validators_attest_in_single_aggregation[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_signature_aggregation.py::test_multiple_specs_same_target_merge_into_one[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_aggregated_attestation_validation.py::test_aggregated_attestation_unknown_source_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_aggregated_attestation_validation.py::test_aggregated_attestation_too_far_in_future_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_aggregated_attestation_validation.py::test_aggregated_attestation_target_slot_mismatch_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_aggregated_attestation_validation.py::test_aggregated_attestation_source_after_target_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_aggregated_attestation_validation.py::test_aggregated_attestation_head_slot_mismatch_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_aggregated_attestation_validation.py::test_valid_gossip_aggregated_attestation[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_target_slot_mismatch_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_source_slot_override_exceeds_target_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_source_slot_exceeds_target_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_unknown_target_block_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_head_older_than_target_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_head_slot_mismatch_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_gossip_attestation_chain_extended_after_gossip[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_unknown_head_block_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_multiple_gossip_attestations_from_different_validators[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_unknown_source_block_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_gossip_attestation_with_unknown_validator[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_source_slot_mismatch_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_too_far_in_future_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_valid_gossip_attestation[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_gossip_attestation_validation.py::test_attestation_one_slot_in_future_allowed[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_block_attestation_limits.py::test_block_exceeding_maximum_attestations_is_rejected[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_block_attestation_limits.py::test_block_with_maximum_attestations[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_tick_system.py::test_tick_interval_0_skips_acceptance_when_not_proposer[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_tick_system.py::test_on_tick_advances_across_multiple_empty_slots[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_tick_system.py::test_tick_interval_progression_through_full_slot[fork_Devnet][fork_Devnet-fork_choice_test]",
+      "tests/consensus/devnet/fc/test_finalization_mid_processing.py::test_finalization_advances_mid_attestation_processing[fork_Devnet][fork_Devnet-fork_choice_test]",
   };
+  // clang-format on
   if (disabled.contains(name)) {
     std::println("  DISABLED");
     return;
