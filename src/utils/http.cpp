@@ -84,4 +84,12 @@ namespace lean::http {
         });
     return outcome::success();
   }
+
+  Response respondJson(std::string_view json) {
+    Response response;
+    response.set(boost::beast::http::field::content_type,
+                 "application/json; charset=utf-8");
+    response.body() = json;
+    return response;
+  }
 }  // namespace lean::http

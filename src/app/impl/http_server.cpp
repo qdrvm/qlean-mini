@@ -23,8 +23,6 @@
 #include "utils/http.hpp"
 
 namespace lean::app {
-  constexpr auto *kContentTypeJson = "application/json; charset=utf-8";
-
   struct Enabled {
     bool enabled;
 
@@ -93,11 +91,8 @@ namespace lean::app {
                       std::string_view{request.method_string()},
                       url);
               if (url == "/lean/v0/health") {
-                response.set(boost::beast::http::field::content_type,
-                             kContentTypeJson);
-                response.body() =
-                    R"({"status":"healthy","service":"lean-rpc-api"})";
-                return response;
+                return http::respondJson(
+                    R"({"status":"healthy","service":"lean-rpc-api"})");
               }
               if (url == "/lean/v0/states/finalized") {
                 auto finalized = self->fork_choice_store_->getLatestFinalized();
@@ -115,34 +110,27 @@ namespace lean::app {
               }
               if (url == "/lean/v0/checkpoints/justified") {
                 auto justified = self->fork_choice_store_->getLatestJustified();
-                response.set(boost::beast::http::field::content_type,
-                             kContentTypeJson);
-                response.body() = std::format(R"({{"root":"0x{}","slot":{}}})",
-                                              justified.root.toHex(),
-                                              justified.slot);
-                return response;
+                return http::respondJson(
+                    std::format(R"({{"root":"0x{}","slot":{}}})",
+                                justified.root.toHex(),
+                                justified.slot));
               }
               if (url == "/lean/v0/fork_choice") {
                 if (auto result_res =
                         self->fork_choice_store_->apiForkChoice()) {
                   auto &result = result_res.value();
-                  response.set(boost::beast::http::field::content_type,
-                               kContentTypeJson);
-                  response.body() = json::encode(json::NameCase::SNAKE, result);
-                } else {
-                  response.result(
-                      boost::beast::http::status::internal_server_error);
+                  return http::respondJson(
+                      json::encode(json::NameCase::SNAKE, result));
                 }
+                response.result(
+                    boost::beast::http::status::internal_server_error);
                 return response;
               }
               if (url == "/lean/v0/admin/aggregator") {
                 if (request.method() == boost::beast::http::verb::get) {
                   auto is_aggregator = self->chain_spec_->isAggregator();
-                  response.set(boost::beast::http::field::content_type,
-                               kContentTypeJson);
-                  response.body() =
-                      std::format(R"({{"is_aggregator":{}}})", is_aggregator);
-                  return response;
+                  return http::respondJson(
+                      std::format(R"({{"is_aggregator":{}}})", is_aggregator));
                 }
                 if (request.method() == boost::beast::http::verb::post) {
                   Enabled body;
@@ -155,13 +143,10 @@ namespace lean::app {
                   }
                   auto enabled = body.enabled;
                   auto previous = self->chain_spec_->setIsAggregator(enabled);
-                  response.set(boost::beast::http::field::content_type,
-                               kContentTypeJson);
-                  response.body() =
+                  return http::respondJson(
                       std::format(R"({{"is_aggregator":{},"previous":{}}})",
                                   enabled,
-                                  previous);
-                  return response;
+                                  previous));
                 }
               }
               response.result(boost::beast::http::status::not_found);

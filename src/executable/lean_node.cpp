@@ -20,6 +20,7 @@
 #include "app/configurator.hpp"
 #include "commands/generate_genesis.hpp"
 #include "commands/key_generate_node_key.hpp"
+#include "commands/test_driver.hpp"
 #include "injector/node_injector.hpp"
 #include "loaders/loader.hpp"
 #include "log/logger.hpp"
@@ -93,12 +94,6 @@ int main(int argc, const char **argv, const char **env) {
     return EXIT_FAILURE;
   }
 
-  if (argc == 1) {
-    // Run without arguments
-    wrong_usage();
-    return EXIT_FAILURE;
-  }
-
   if (getArg(1) == "key" and getArg(2) == "generate-node-key") {
     cmdKeyGenerateNodeKey();
     return EXIT_SUCCESS;
@@ -155,6 +150,11 @@ int main(int argc, const char **argv, const char **env) {
     if (tune_result.has_error) {
       return EXIT_FAILURE;
     }
+  }
+
+  if (auto *s = getenv("HIVE_LEAN_TEST_DRIVER");
+      s != nullptr and std::string_view{s} == "1") {
+    return cmdTestDriver(logging_system, app_configurator->apiEndpoint());
   }
 
   // Parse remaining args

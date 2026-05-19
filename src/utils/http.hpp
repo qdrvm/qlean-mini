@@ -39,4 +39,6 @@ namespace lean::http {
   outcome::result<void> serve(log::Logger log,
                               boost::asio::io_context &io_context,
                               ServerConfig config);
+
+  Response respondJson(std::string_view json);
 }  // namespace lean::http

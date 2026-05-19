@@ -89,6 +89,15 @@ namespace lean::json {
     }
   }
 
+  template <typename T>
+  void encode(JsonOut json, const std::optional<T> &v) {
+    if (v.has_value()) {
+      encode(json, *v);
+    } else {
+      json.v.SetNull();
+    }
+  }
+
   template <size_t N>
   void encode(JsonOut json, const qtils::ByteArr<N> &v) {
     encode(json, fmt::format("{:0xx}", qtils::Hex{v}));
