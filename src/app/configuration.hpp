@@ -13,13 +13,12 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <libp2p/crypto/key.hpp>
 #include <libp2p/multi/multiaddress.hpp>
-#include <utils/ctor_limiters.hpp>
 
 #include "app/validator_keys_manifest.hpp"
 #include "crypto/xmss/xmss_provider.hpp"
 
 namespace lean::app {
-  class Configuration : Singleton<Configuration> {
+  class Configuration {
    public:
     using Endpoint = boost::asio::ip::tcp::endpoint;
 
