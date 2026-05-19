@@ -159,6 +159,18 @@ inline int cmdGenerateGenesis(auto &&getArg) {
       }
     });
 
+    build_yaml(genesis_directory / "annotated_validators.yaml",
+               [&](YAML::Node &yaml) {
+                 for (auto &peer : peers) {
+                   YAML::Node entry;
+                   entry["index"] = peer.index;
+                   entry["pubkey_hex"] =
+                       "0x" + xmss_public_keys.at(peer.index).toHex();
+                   entry["privkey_file"] = xmss_private_key_name(peer.index);
+                   yaml[node_id(peer.index)].push_back(entry);
+                 }
+               });
+
     build_yaml(genesis_directory / "validator-config.yaml",
                [&](YAML::Node &yaml) {
                  yaml["shuffle"] = "roundrobin";

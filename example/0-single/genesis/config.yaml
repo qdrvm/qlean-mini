@@ -1,8 +1,8 @@
 # Genesis Settings
 
 # Replace with desired genesis Unix timestamp (seconds since epoch), e.g., current time plus 20 seconds:
-# future_time=$(( $(date +%s) + 20 )) && sed -i '' "s/GENESIS_TIME: .*/GENESIS_TIME: $future_time/" config.yaml
-GENESIS_TIME: 1767225600
+# future_time=$(( $(date +%s) + 20 )) && sed -i '' "s/GENESIS_TIME: 1779112987
+GENESIS_TIME: 1779112987
 
 # Key Settings
 ACTIVE_EPOCH: 18

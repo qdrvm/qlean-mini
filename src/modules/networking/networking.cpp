@@ -572,6 +572,11 @@ namespace lean::modules {
                    peer_id.has_value() ? peer_id->toBase58() : "unknown",
                    signed_attestation.validator_id);
 
+          SL_INFO(self->logger_,
+                  "{}",
+                  leanInteropTestLog("RECEIVE-ATTESTATION",
+                                     leanInteropTest(signed_attestation)));
+
           auto &head = signed_attestation.data.head;
           if (not self->block_tree_->has(head.root)) {
             if (head.slot <= self->block_tree_->lastFinalized().slot) {
