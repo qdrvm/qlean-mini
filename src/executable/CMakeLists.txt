@@ -48,10 +48,6 @@ endif ()
 set_target_properties(lean_node PROPERTIES OUTPUT_NAME qlean)
 add_dependencies(lean_node all_modules)
 
-find_package(GTest CONFIG REQUIRED)
-target_include_directories(lean_node PRIVATE ${PROJECT_SOURCE_DIR}/tests)
-target_link_libraries(lean_node GTest::gmock)
-
 #if (BACKWARD)
 #  add_backward(lean_node)
 #endif ()
