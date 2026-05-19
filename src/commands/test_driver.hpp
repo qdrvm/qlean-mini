@@ -112,7 +112,6 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                     };
                   });
             }
-            request.body().size();
             response.result(boost::beast::http::status::not_found);
             return response;
           },
