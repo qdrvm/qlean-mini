@@ -38,6 +38,33 @@ struct VerifySignaturesResponse {
   JSON_FIELDS(succeeded, error);
 };
 
+struct StateTransitionRequest {
+  lean::State pre;
+  std::vector<lean::Block> blocks;
+
+  JSON_FIELDS(pre, blocks);
+};
+
+struct StateTransitionPost {
+  lean::Slot slot;
+  lean::Slot latest_block_header_slot;
+  lean::BlockHash latest_block_header_state_root;
+  size_t historical_block_hashes_count;
+
+  JSON_FIELDS(slot,
+              latest_block_header_slot,
+              latest_block_header_state_root,
+              historical_block_hashes_count);
+};
+
+struct StateTransitionResponse {
+  bool succeeded;
+  std::optional<std::string> error;
+  std::optional<StateTransitionPost> post;
+
+  JSON_FIELDS(succeeded, error, post);
+};
+
 template <typename RequestJson>
 lean::http::Response httpJson(const lean::http::Request &request, auto &&f) {
   lean::http::Response response;
@@ -109,6 +136,51 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                     return VerifySignaturesResponse{
                         .succeeded =
                             store.validateBlockSignatures(request.signed_block),
+                    };
+                  });
+            }
+            if (url == "/lean/v0/test_driver/state_transition/run") {
+              return httpJson<StateTransitionRequest>(
+                  request, [&](StateTransitionRequest request) {
+                    auto block_tree =
+                        std::make_shared<lean::blockchain::BlockTreeMock>();
+                    EXPECT_CALL(*block_tree, getLatestJustified())
+                        .Times(testing::AnyNumber());
+                    EXPECT_CALL(*block_tree, lastFinalized())
+                        .Times(testing::AnyNumber());
+                    lean::STF stf{
+                        logsys,
+                        block_tree,
+                        std::make_shared<lean::metrics::MetricsMock>(),
+                    };
+                    auto stf_many = [&]() -> outcome::result<lean::State> {
+                      auto state = request.pre;
+                      for (auto &block : request.blocks) {
+                        BOOST_OUTCOME_TRY(
+                            state, stf.stateTransition(block, state, true));
+                      }
+                      return state;
+                    };
+                    auto state_result = stf_many();
+                    if (not state_result.has_value()) {
+                      return StateTransitionResponse{
+                          .succeeded = false,
+                          .error = state_result.error().message(),
+                      };
+                    }
+                    auto &state = state_result.value();
+                    return StateTransitionResponse{
+                        .succeeded = true,
+                        .post =
+                            StateTransitionPost{
+                                .slot = state.slot,
+                                .latest_block_header_slot =
+                                    state.latest_block_header.slot,
+                                .latest_block_header_state_root =
+                                    state.latest_block_header.hash(),
+                                .historical_block_hashes_count =
+                                    state.historical_block_hashes.size(),
+                            },
                     };
                   });
             }
