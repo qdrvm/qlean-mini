@@ -831,6 +831,10 @@ namespace lean {
     auto &parent_state = *parent_state_res.value();
     const auto &validators = parent_state.validators;
 
+    if (block.proposer_index >= validators.size()) {
+      return false;
+    }
+
     for (auto &&[aggregated_attestation, aggregated_signature] :
          std::views::zip(aggregated_attestations, attestation_signatures)) {
       if (not validateAggregatedSignature(parent_state,
