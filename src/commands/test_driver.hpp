@@ -11,25 +11,235 @@
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/string_body.hpp>
 
+#include "app/chain_spec.hpp"
+#include "blockchain/block_storage.hpp"
 #include "blockchain/fork_choice.hpp"
 #include "blockchain/impl/anchor_block_impl.hpp"
 #include "blockchain/impl/anchor_state_impl.hpp"
+#include "blockchain/validator_registry.hpp"
+#include "clock/manual_clock.hpp"
 #include "crypto/xmss/xmss_provider_impl.hpp"
 #include "log/logger.hpp"
-#include "mock/app/chain_spec_mock.hpp"
-#include "mock/app/configuration_mock.hpp"
-#include "mock/app/validator_keys_manifest_mock.hpp"
-#include "mock/blockchain/block_storage_mock.hpp"
-#include "mock/blockchain/block_tree_mock.hpp"
-#include "mock/blockchain/validator_registry_mock.hpp"
-#include "mock/clock/manual_clock.hpp"
-#include "mock/crypto/xmss_provider_mock.hpp"
-#include "mock/metrics_mock.hpp"
+#include "metrics/metrics_mock.hpp"
 #include "serde/json.hpp"
 #include "types/fork_choice_test_json.hpp"
 #include "types/signed_block.hpp"
 #include "types/state.hpp"
 #include "utils/http.hpp"
+
+#define USING_(ns, name) using name = ns::name
+
+#define MOCK_UNUSED                                                   \
+  override {                                                          \
+    throw std::logic_error{                                           \
+        fmt::format("unused mock function {}", __PRETTY_FUNCTION__)}; \
+  }
+
+struct ValidatorRegistryMock : lean::ValidatorRegistry {
+  const ValidatorIndices &currentValidatorIndices() const override {
+    return current_validator_indices_;
+  }
+  ValidatorIndices allValidatorsIndices() const MOCK_UNUSED;
+  std::optional<std::string> nodeIdByIndex(
+      lean::ValidatorIndex index) const override {
+    return std::format("node_{}", index);
+  }
+  std::optional<ValidatorIndices> validatorIndicesForNodeId(
+      std::string_view node_id) const MOCK_UNUSED;
+
+  ValidatorIndices current_validator_indices_{1};
+};
+
+struct ChainSpecMock : lean::app::ChainSpec {
+  const lean::app::Bootnodes &getBootnodes() const MOCK_UNUSED;
+  bool isAggregator() const override {
+    return true;
+  }
+  bool setIsAggregator(bool is_aggregator) MOCK_UNUSED;
+};
+
+struct ConfigurationMock : lean::app::Configuration {
+  uint64_t cliSubnetCount() const override {
+    return 1;
+  }
+};
+
+struct ValidatorKeysManifestMock : lean::app::ValidatorKeysManifest {
+  std::optional<lean::crypto::xmss::XmssKeypair> getKeypair(
+      const lean::crypto::xmss::XmssPublicKey &public_key) const override {
+    return {};
+  }
+  std::vector<lean::crypto::xmss::XmssPublicKey> getAllXmssPubkeys()
+      const override {
+    return {};
+  }
+};
+
+struct XmssProviderMock : lean::crypto::xmss::XmssProvider {
+  lean::crypto::xmss::XmssKeypair generateKeypair(
+      uint64_t activation_epoch, uint64_t num_active_epochs) MOCK_UNUSED;
+  lean::crypto::xmss::XmssSignature sign(
+      lean::crypto::xmss::XmssPrivateKey xmss_private_key,
+      uint32_t epoch,
+      const lean::crypto::xmss::XmssMessage &message) override {
+    return {};
+  }
+  bool verify(
+      const lean::crypto::xmss::XmssPublicKey &xmss_public_key,
+      const lean::crypto::xmss::XmssMessage &message,
+      uint32_t epoch,
+      const lean::crypto::xmss::XmssSignature &xmss_signature) override {
+    return true;
+  }
+  lean::crypto::xmss::XmssAggregatedSignature aggregateSignatures(
+      std::span<const std::vector<lean::crypto::xmss::XmssPublicKey>>
+          child_public_keys,
+      std::span<const lean::crypto::xmss::XmssAggregatedSignature> child_proofs,
+      std::span<const lean::crypto::xmss::XmssPublicKey> public_keys,
+      std::span<const lean::crypto::xmss::XmssSignature> signatures,
+      uint32_t epoch,
+      const lean::crypto::xmss::XmssMessage &message) const override {
+    return {};
+  }
+  bool verifyAggregatedSignatures(
+      std::span<const lean::crypto::xmss::XmssPublicKey> public_keys,
+      uint32_t epoch,
+      const lean::crypto::xmss::XmssMessage &message,
+      lean::crypto::xmss::XmssAggregatedSignatureIn aggregated_signature)
+      const override {
+    return true;
+  }
+};
+
+struct BlockTreeMock : lean::blockchain::BlockTree {
+  USING_(lean, BlockHash);
+  USING_(lean, BlockHeader);
+  USING_(lean, BlockIndex);
+  USING_(lean, BlockBody);
+  USING_(lean, SignedBlock);
+  USING_(lean, Checkpoint);
+
+  // BlockHeaderRepository
+  outcome::result<lean::Slot> getSlotByHash(
+      const BlockHash &block_hash) const override {
+    return blocks_.at(block_hash).slot;
+  }
+  outcome::result<BlockHeader> getBlockHeader(
+      const BlockHash &block_hash) const override {
+    return blocks_.at(block_hash);
+  }
+  outcome::result<std::optional<BlockHeader>> tryGetBlockHeader(
+      const BlockHash &block_hash) const override {
+    return blocks_.at(block_hash);
+  }
+
+  // BlockTree
+  const BlockHash &getGenesisBlockHash() const MOCK_UNUSED;
+  bool has(const BlockHash &hash) const override {
+    return blocks_.contains(hash);
+  }
+  outcome::result<BlockBody> getBlockBody(const BlockHash &) const MOCK_UNUSED;
+  outcome::result<void> addBlockHeader(const BlockHeader &) MOCK_UNUSED;
+  outcome::result<void> addBlockBody(const BlockHash &,
+                                     const BlockBody &) MOCK_UNUSED;
+  outcome::result<void> addExistingBlock(const BlockHash &,
+                                         const BlockHeader &) MOCK_UNUSED;
+  outcome::result<void> addBlock(SignedBlock block) override {
+    auto header = block.block.getHeader();
+    header.updateHash();
+    blocks_.emplace(header.hash(), header);
+    children_[header.parent_root].emplace_back(header.hash());
+    return outcome::success();
+  }
+  outcome::result<void> removeLeaf(const BlockHash &) MOCK_UNUSED;
+  outcome::result<void> finalize(const BlockHash &hash) override {
+    last_finalized_ = blocks_.at(hash).index();
+    return outcome::success();
+  }
+  outcome::result<void> setJustified(const BlockHash &hash) override {
+    last_justified_ = blocks_.at(hash).index();
+    return outcome::success();
+  }
+  outcome::result<std::vector<BlockHash>> getBestChainFromBlock(
+      const BlockHash &, uint64_t) const MOCK_UNUSED;
+  outcome::result<std::vector<BlockHash>> getDescendingChainToBlock(
+      const BlockHash &, uint64_t) const MOCK_UNUSED;
+  bool isFinalized(const BlockIndex &) const MOCK_UNUSED;
+  BlockIndex bestBlock() const MOCK_UNUSED;
+  outcome::result<BlockIndex> getBestContaining(const BlockHash &) const
+      MOCK_UNUSED;
+  std::vector<BlockHash> getLeaves() const MOCK_UNUSED;
+  outcome::result<std::vector<BlockHash>> getChildren(
+      const BlockHash &hash) const override {
+    std::vector<BlockHash> children;
+    if (auto it = children_.find(hash); it != children_.end()) {
+      children = it->second;
+    }
+    return children;
+  }
+  BlockIndex lastFinalized() const override {
+    return last_finalized_;
+  }
+  Checkpoint getLatestJustified() const override {
+    return last_justified_;
+  }
+  outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
+      const BlockHash &) const MOCK_UNUSED;
+
+  lean::BlockIndex last_finalized_;
+  lean::BlockIndex last_justified_;
+  std::unordered_map<BlockHash, BlockHeader> blocks_;
+  std::unordered_map<BlockHash, std::vector<BlockHash>> children_;
+};
+
+struct BlockStorageMock : lean::blockchain::BlockStorage {
+  USING_(lean, BlockHash);
+  USING_(lean, BlockHeader);
+  USING_(lean, BlockBody);
+  USING_(lean, BlockData);
+  USING_(lean, BlockIndex);
+  USING_(lean, Slot);
+  USING_(lean, SignedBlock);
+  USING_(lean, State);
+
+  // BlockStorage
+  outcome::result<void> setBlockTreeLeaves(std::vector<BlockHash>) MOCK_UNUSED;
+  outcome::result<std::vector<BlockHash>> getBlockTreeLeaves() const
+      MOCK_UNUSED;
+  outcome::result<void> assignHashToSlot(const BlockIndex &) MOCK_UNUSED;
+  outcome::result<void> deassignHashToSlot(const BlockIndex &) MOCK_UNUSED;
+  outcome::result<std::vector<BlockHash>> getBlockHash(Slot) const MOCK_UNUSED;
+  outcome::result<SlotIterator> seekLastSlot() const MOCK_UNUSED;
+  outcome::result<bool> hasBlockHeader(const BlockHash &) const MOCK_UNUSED;
+  outcome::result<BlockHash> putBlockHeader(const BlockHeader &) MOCK_UNUSED;
+  outcome::result<BlockHeader> getBlockHeader(const BlockHash &) const
+      MOCK_UNUSED;
+  outcome::result<std::optional<BlockHeader>> tryGetBlockHeader(
+      const BlockHash &) const MOCK_UNUSED;
+  outcome::result<void> putBlockBody(const BlockHash &,
+                                     const BlockBody &) MOCK_UNUSED;
+  outcome::result<std::optional<BlockBody>> getBlockBody(
+      const BlockHash &) const MOCK_UNUSED;
+  outcome::result<void> removeBlockBody(const BlockHash &) MOCK_UNUSED;
+  outcome::result<BlockHash> putBlock(const BlockData &) MOCK_UNUSED;
+  outcome::result<void> putState(const BlockHash &block_hash,
+                                 const State &state) override {
+    states_.emplace(block_hash, state);
+    return outcome::success();
+  }
+  outcome::result<std::optional<State>> getState(
+      const BlockHash &block_hash) const override {
+    return states_.at(block_hash);
+  }
+  outcome::result<void> removeState(const BlockHash &block_hash) MOCK_UNUSED;
+  outcome::result<BlockData> getBlock(const BlockHash &,
+                                      BlockParts) const MOCK_UNUSED;
+  outcome::result<void> removeBlock(const BlockHash &) MOCK_UNUSED;
+  outcome::result<SignedBlock> getSignedBlock(const BlockHash &) const
+      MOCK_UNUSED;
+
+  std::unordered_map<BlockHash, State> states_;
+};
 
 struct VerifySignaturesRequest {
   lean::State anchor_state;
@@ -132,120 +342,37 @@ struct ForkChoiceDriver {
 
   ForkChoiceDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                    lean::State init_state) {
-    using testing::_;
-
     anchor_state_ =
         std::make_shared<lean::blockchain::AnchorStateImpl>(init_state);
     anchor_block_ =
         std::make_shared<lean::blockchain::AnchorBlockImpl>(*anchor_state_);
 
-    auto app_config = std::make_shared<lean::app::ConfigurationMock>();
-    EXPECT_CALL(*app_config, cliSubnetCount())
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(testing::Return(1));
+    auto block_tree = std::make_shared<BlockTreeMock>();
+    block_tree->last_finalized_ = anchor_block_->index();
+    block_tree->last_justified_ = block_tree->last_finalized_;
+    block_tree->blocks_.emplace(anchor_block_->hash(), *anchor_block_);
 
-    auto validator_registry = std::make_shared<lean::ValidatorRegistryMock>();
-    EXPECT_CALL(*validator_registry, currentValidatorIndices())
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(testing::ReturnRef(validator_indices_));
-    EXPECT_CALL(*validator_registry, nodeIdByIndex(_))
-        .WillRepeatedly(
-            [](lean::ValidatorIndex i) { return std::format("node_{}", i); });
-
-    auto chain_spec = std::make_shared<lean::app::ChainSpecMock>();
-    EXPECT_CALL(*chain_spec, isAggregator())
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(testing::Return(true));
-
-    auto validator_key_manifest =
-        std::make_shared<lean::app::ValidatorKeysManifestMock>();
-    EXPECT_CALL(*validator_key_manifest, getAllXmssPubkeys())
-        .Times(testing::AnyNumber());
-    EXPECT_CALL(*validator_key_manifest, getKeypair(_))
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(testing::Return(std::nullopt));
-
-    auto xmss = std::make_shared<lean::crypto::xmss::XmssProviderMock>();
-    EXPECT_CALL(*xmss, verify(_, _, _, _))
-        .WillRepeatedly(testing::Return(true));
-    EXPECT_CALL(*xmss, sign(_, _, _)).Times(testing::AnyNumber());
-    EXPECT_CALL(*xmss, verifyAggregatedSignatures(_, _, _, _))
-        .WillRepeatedly(testing::Return(true));
-    EXPECT_CALL(*xmss, aggregateSignatures(_, _, _, _, _, _))
-        .Times(testing::AnyNumber());
-
-    auto block_tree = std::make_shared<lean::blockchain::BlockTreeMock>();
-    last_finalized_ = anchor_block_->index();
-    last_justified_ = last_finalized_;
-    blocks_.emplace(anchor_block_->hash(), *anchor_block_);
-    EXPECT_CALL(*block_tree, lastFinalized()).WillRepeatedly([&] {
-      return last_finalized_;
-    });
-    EXPECT_CALL(*block_tree, finalize(_)).WillRepeatedly([&](BlockHash hash) {
-      last_finalized_ = blocks_.at(hash).index();
-      return outcome::success();
-    });
-    EXPECT_CALL(*block_tree, getLatestJustified()).WillRepeatedly([&] {
-      return last_justified_;
-    });
-    EXPECT_CALL(*block_tree, setJustified(_))
-        .WillRepeatedly([&](BlockHash hash) {
-          last_justified_ = blocks_.at(hash).index();
-          return outcome::success();
-        });
-    EXPECT_CALL(*block_tree, has(_)).WillRepeatedly([&](BlockHash hash) {
-      return blocks_.contains(hash);
-    });
-    EXPECT_CALL(*block_tree, getSlotByHash(_))
-        .WillRepeatedly([&](BlockHash hash) { return blocks_.at(hash).slot; });
-    EXPECT_CALL(*block_tree, getBlockHeader(_))
-        .WillRepeatedly([&](BlockHash hash) { return blocks_.at(hash); });
-    EXPECT_CALL(*block_tree, tryGetBlockHeader(_))
-        .WillRepeatedly([&](BlockHash hash) { return blocks_.at(hash); });
-    EXPECT_CALL(*block_tree, getChildren(_))
-        .WillRepeatedly([&](BlockHash hash) { return children_[hash]; });
-    EXPECT_CALL(*block_tree, addBlock(_))
-        .WillRepeatedly([&](lean::SignedBlock block) {
-          auto header = block.block.getHeader();
-          header.updateHash();
-          blocks_.emplace(header.hash(), header);
-          children_[header.parent_root].emplace_back(header.hash());
-          return outcome::success();
-        });
-
-    auto block_storage = std::make_shared<lean::blockchain::BlockStorageMock>();
-    states_.emplace(anchor_block_->hash(), *anchor_state_);
-    EXPECT_CALL(*block_storage, getState(_))
-        .WillRepeatedly([&](BlockHash hash) { return states_.at(hash); });
-    EXPECT_CALL(*block_storage, putState(_, _))
-        .WillRepeatedly([&](BlockHash hash, lean::State state) {
-          states_.emplace(hash, state);
-          return outcome::success();
-        });
+    auto block_storage = std::make_shared<BlockStorageMock>();
+    block_storage->states_.emplace(anchor_block_->hash(), *anchor_state_);
 
     store_.emplace(anchor_state_,
                    anchor_block_,
                    std::make_shared<lean::clock::ManualClock>(),
                    logsys,
                    std::make_shared<lean::metrics::MetricsMock>(),
-                   app_config,
-                   validator_registry,
-                   chain_spec,
-                   validator_key_manifest,
-                   xmss,
+                   std::make_shared<ConfigurationMock>(),
+                   std::make_shared<ValidatorRegistryMock>(),
+                   std::make_shared<ChainSpecMock>(),
+                   std::make_shared<ValidatorKeysManifestMock>(),
+                   std::make_shared<XmssProviderMock>(),
                    block_tree,
                    block_storage);
     store_->dontPropose();
   }
 
   lean::ValidatorRegistry::ValidatorIndices validator_indices_{0};
-  lean::BlockIndex last_finalized_;
-  lean::BlockIndex last_justified_;
   std::shared_ptr<lean::blockchain::AnchorStateImpl> anchor_state_;
   std::shared_ptr<lean::blockchain::AnchorBlockImpl> anchor_block_;
-  std::unordered_map<BlockHash, lean::BlockHeader> blocks_;
-  std::unordered_map<BlockHash, std::vector<BlockHash>> children_;
-  std::unordered_map<BlockHash, lean::State> states_;
   std::optional<lean::ForkChoiceStore> store_;
 };
 
@@ -270,17 +397,10 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                   request, [&](VerifySignaturesRequest request) {
                     lean::ValidatorRegistry::ValidatorIndices validator_indices{
                         0};
-                    auto validator_registry =
-                        std::make_shared<lean::ValidatorRegistryMock>();
-                    EXPECT_CALL(*validator_registry, currentValidatorIndices())
-                        .Times(testing::AnyNumber())
-                        .WillRepeatedly(testing::ReturnRef(validator_indices));
-                    auto block_storage =
-                        std::make_shared<lean::blockchain::BlockStorageMock>();
-                    EXPECT_CALL(
-                        *block_storage,
-                        getState(request.signed_block.block.parent_root))
-                        .WillOnce(testing::Return(request.anchor_state));
+                    auto block_storage = std::make_shared<BlockStorageMock>();
+                    block_storage->states_.emplace(
+                        request.signed_block.block.parent_root,
+                        request.anchor_state);
                     lean::ForkChoiceStore store{
                         {},
                         logsys,
@@ -291,12 +411,11 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                         {},
                         {},
                         0,
-                        validator_registry,
-                        std::make_shared<
-                            lean::app::ValidatorKeysManifestMock>(),
+                        std::make_shared<ValidatorRegistryMock>(),
+                        std::make_shared<ValidatorKeysManifestMock>(),
                         std::make_shared<
                             lean::crypto::xmss::XmssProviderImpl>(),
-                        std::make_shared<lean::blockchain::BlockTreeMock>(),
+                        std::make_shared<BlockTreeMock>(),
                         block_storage,
                         false,
                         1,
@@ -310,15 +429,9 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
             if (url == "/lean/v0/test_driver/state_transition/run") {
               return httpJson<StateTransitionRequest>(
                   request, [&](StateTransitionRequest request) {
-                    auto block_tree =
-                        std::make_shared<lean::blockchain::BlockTreeMock>();
-                    EXPECT_CALL(*block_tree, getLatestJustified())
-                        .Times(testing::AnyNumber());
-                    EXPECT_CALL(*block_tree, lastFinalized())
-                        .Times(testing::AnyNumber());
                     lean::STF stf{
                         logsys,
-                        block_tree,
+                        std::make_shared<BlockTreeMock>(),
                         std::make_shared<lean::metrics::MetricsMock>(),
                     };
                     auto stf_many = [&]() -> outcome::result<lean::State> {
@@ -406,39 +519,6 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                         store.onTick(block_time);
                         return store.onBlock(signed_block);
                       }();
-                      if (auto &checks = block_step->checks) {
-                        if (checks->block_attestation_count) {
-                          EXPECT_EQ(block_step->block.body.attestations.size(),
-                                    *checks->block_attestation_count);
-                        }
-                        if (checks->block_attestations) {
-                          auto &attestations =
-                              block_step->block.body.attestations.data();
-                          for (auto &check : *checks->block_attestations) {
-                            lean::AggregationBits participants;
-                            for (auto &validator : check.participants) {
-                              participants.add(validator);
-                            }
-                            auto attestation_it = std::ranges::find_if(
-                                attestations,
-                                [&](const lean::AggregatedAttestation
-                                        &attestation) {
-                                  return attestation.aggregation_bits
-                                      == participants;
-                                });
-                            EXPECT_NE(attestation_it, attestations.end());
-                            auto &attestation = *attestation_it;
-                            if (check.attestation_slot) {
-                              EXPECT_EQ(attestation.data.slot,
-                                        *check.attestation_slot);
-                            }
-                            if (check.target_slot) {
-                              EXPECT_EQ(attestation.data.target.slot,
-                                        *check.target_slot);
-                            }
-                          }
-                        }
-                      }
                     } else if (auto *attestation_step =
                                    std::get_if<lean::AttestationStep>(
                                        &request.v)) {
@@ -480,7 +560,7 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
             response.result(boost::beast::http::status::not_found);
             return response;
           },
-      .max_request_size = 1 << 20,
+      .max_request_size = 16 << 20,
   };
   boost::asio::io_context io_context;
   if (auto res = lean::http::serve(log, io_context, config_api);

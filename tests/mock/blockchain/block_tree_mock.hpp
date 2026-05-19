@@ -104,7 +104,7 @@ namespace lean::blockchain {
 
     MOCK_METHOD(outcome::result<std::optional<SignedBlock>>,
                 tryGetSignedBlock,
-                (const BlockHash block_hash),
+                (const BlockHash &),
                 (const, override));
   };
 

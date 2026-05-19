@@ -6,11 +6,11 @@
 
 #include "blockchain/fork_choice.hpp"
 #include "crypto/xmss/xmss_provider_impl.hpp"
+#include "metrics/metrics_mock.hpp"
 #include "mock/app/validator_keys_manifest_mock.hpp"
 #include "mock/blockchain/block_storage_mock.hpp"
 #include "mock/blockchain/block_tree_mock.hpp"
 #include "mock/blockchain/validator_registry_mock.hpp"
-#include "mock/metrics_mock.hpp"
 #include "test_vectors.hpp"
 #include "testutil/prepare_loggers.hpp"
 #include "verify_signatures_test_json.hpp"
