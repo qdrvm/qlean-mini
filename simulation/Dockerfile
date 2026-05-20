@@ -1,0 +1,92 @@
+# Build qlean with Shadow support and package with Shadow simulator
+# Prerequisites:
+#   make docker_build_dependencies   (one-time, builds vcpkg deps)
+# Build:
+#   docker build -f simulation/Dockerfile -t qlean-shadow .
+#
+# Build context must be the qlean-mini repo root.
+
+# Stage 0: pre-built vcpkg dependencies
+FROM qlean-mini-dependencies:latest AS dependencies
+
+# Stage 1: Build qlean for linux/arm64 with QLEAN_ENABLE_SHADOW=ON
+FROM ubuntu:24.04 AS builder
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
+ENV VCPKG_FORCE_SYSTEM_BINARIES=1
+
+ENV PROJECT=/qlean-mini
+ENV VENV=${PROJECT}/.venv
+ENV BUILD=${PROJECT}/.build
+ENV VCPKG_ROOT=${PROJECT}/.vcpkg
+ENV PATH=${VENV}/bin:/root/.cargo/bin:${PATH}
+ENV CARGO_HOME=/root/.cargo
+ENV RUSTUP_HOME=/root/.rustup
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    curl \
+    ca-certificates \
+    pkg-config \
+    python3 \
+    python3-venv \
+    libstdc++6 \
+    zip \
+    unzip && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR ${PROJECT}
+
+# Copy pre-built dependencies from deps image
+COPY --from=dependencies ${VENV} ${VENV}
+COPY --from=dependencies ${PROJECT}/.vcpkg ${PROJECT}/.vcpkg
+COPY --from=dependencies ${BUILD}/vcpkg_installed ${BUILD}/vcpkg_installed
+COPY --from=dependencies /root/.cargo /root/.cargo
+COPY --from=dependencies /root/.rustup /root/.rustup
+
+# Copy project source code
+COPY . ${PROJECT}
+
+# Configure with shadow support, using pre-built vcpkg deps
+RUN VCPKG_ROOT=${PROJECT}/.vcpkg cmake -G Ninja --preset default \
+    -DPython3_EXECUTABLE="${VENV}/bin/python3" \
+    -DQLEAN_ENABLE_SHADOW=ON \
+    -DTESTING=OFF \
+    -DVCPKG_INSTALLED_DIR=${BUILD}/vcpkg_installed \
+    -DVCPKG_MANIFEST_MODE=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+    -B ${BUILD} \
+    ${PROJECT}
+
+# Build only the qlean binary (deps already compiled)
+RUN cmake --build ${BUILD} --parallel $(nproc) && \
+    mkdir -p /opt/artifacts/out/bin && \
+    cp ${BUILD}/out/bin/qlean /opt/artifacts/out/bin/qlean && \
+    strip /opt/artifacts/out/bin/qlean
+
+# Stage 2: Combine with Shadow
+FROM kamilsa/shadow-arm:latest
+
+# Install python3 for bandwidth tier loading
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy qlean binary
+COPY --from=builder /opt/artifacts/out/bin/qlean /opt/qlean/bin/qlean
+
+# Copy entrypoint
+COPY simulation/entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Default directories
+RUN mkdir -p /genesis /data /output
+WORKDIR /output
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["/genesis"]
