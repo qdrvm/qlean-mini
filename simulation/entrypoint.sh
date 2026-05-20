@@ -177,6 +177,6 @@ rm -rf "${OUTPUT_DIR}/shadow.data"
 
 echo "==> Starting Shadow simulation..."
 cd "${OUTPUT_DIR}"
-shadow --progress ${SHADOW_FLAGS:-} "${SHADOW_YAML}"
+shadow --progress true ${SHADOW_FLAGS:-} "${SHADOW_YAML}"
 
 echo "==> Simulation complete. Data in ${OUTPUT_DIR}/shadow.data/"

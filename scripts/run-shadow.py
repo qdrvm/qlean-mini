@@ -82,12 +82,12 @@ def main() -> None:
     print(f"==> Topology:     {topology_dir}")
     print(f"==> Output:       {output_dir}")
 
-    # Clean previous output
-    if output_dir.exists():
-        print("==> Cleaning previous output...")
-        shutil.rmtree(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    data_dir.mkdir(parents=True, exist_ok=True)
+    # Clean previous run data (stale blocks break finalization)
+    for d in (output_dir, data_dir):
+        if d.exists():
+            print(f"==> Cleaning previous {d.name}...")
+            shutil.rmtree(d)
+        d.mkdir(parents=True, exist_ok=True)
 
     # Build image if needed
     if args.build or (not args.no_build and not docker_image_exists(IMAGE)):

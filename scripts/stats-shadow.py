@@ -57,7 +57,7 @@ def _parse_line(line: str) -> dict | None:
     return {
         "ts_ms": int(m.group(1)),
         "validator_id": int(m.group(2)),
-        "slot": int(parts[2]),
+        "slot": int(parts[3]),
         "block_hash": parts[4],
     }
 

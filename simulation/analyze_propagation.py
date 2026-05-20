@@ -48,12 +48,12 @@ def parse_attestation_event(line: str) -> dict | None:
     validator_id = int(m.group(2))
     inner = m.group(3).strip()
 
-    # Parse inner array: source_slot, target_slot, slot, committee_index, "block_hash"
+    # Parse inner array: source_slot, target_slot, head_slot, slot, "block_hash"
     parts = [p.strip().strip('"') for p in inner.split(',')]
     if len(parts) < 5:
         return None
 
-    slot = int(parts[2])  # The slot being attested to
+    slot = int(parts[3])  # The slot being attested to
     block_hash = parts[4]
 
     return {
