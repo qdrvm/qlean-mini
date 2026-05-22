@@ -53,3 +53,13 @@
 /.vcpkg
 /.build*
 /vcpkg_installed
+
+# Generated simulation genesis (run-real.py / run-shadow.py --generate-genesis)
+/simulation/genesis_real/
+/simulation/genesis_shadow/4/
+
+# Ad-hoc topology dirs not part of the standard set (64, 128, 256)
+/simulation/topology/4/
+/simulation/topology/16/
+/simulation/topology/32/
+/simulation/topology/48/

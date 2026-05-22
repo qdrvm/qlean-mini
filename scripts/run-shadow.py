@@ -2,12 +2,11 @@
 """Run a Shadow simulation for qlean with a single command.
 
 Usage:
-  uv run scripts/run-shadow.py             # default: 64 nodes, 180s
-  uv run scripts/run-shadow.py 4           # 4 nodes
-  uv run scripts/run-shadow.py 128 300     # 128 nodes, 300s stop time
-  uv run scripts/run-shadow.py 64 --no-build  # skip image check
-
-Defaults are fixed — genesis dir, topology dir, ports, max bootnodes.
+  uv run scripts/run-shadow.py                    # default: 64 nodes, 180s
+  uv run scripts/run-shadow.py 4                  # 4 nodes
+  uv run scripts/run-shadow.py 128 300            # 128 nodes, 300s stop time
+  uv run scripts/run-shadow.py 64 --no-build      # skip image check
+  uv run scripts/run-shadow.py 64 --generate-genesis --subnet-count 4
 """
 
 import argparse
@@ -15,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parent.parent
@@ -24,8 +24,8 @@ UDP_PORT_BASE = 10000
 METRICS_PORT_BASE = 9100
 SHM_SIZE = "4g"
 
-
 MAX_BOOTNODES = 50
+SUBNET_COUNT = 1
 
 
 def die(msg: str) -> None:
@@ -49,6 +49,28 @@ def build_image() -> None:
     )
 
 
+def generate_genesis(n: int, subnet_count: int, genesis_dir: Path) -> None:
+    """Generate a shadow genesis directory with the given subnet count."""
+    print(f"==> Generating shadow genesis for {n} nodes (subnet_count={subnet_count})...")
+
+    with tempfile.TemporaryDirectory(prefix="qlean-shadow-gen-") as tmp_dir_str:
+        tmp_dir = Path(tmp_dir_str)
+        subprocess.run([
+            "docker", "run", "--rm",
+            "--platform", "linux/arm64",
+            "--entrypoint", "/opt/qlean/bin/qlean",
+            "-v", f"{tmp_dir}:/genesis",
+            IMAGE,
+            "generate-genesis", "/genesis", str(n), str(subnet_count), "shadow",
+        ], check=True)
+
+        if genesis_dir.exists():
+            shutil.rmtree(genesis_dir)
+        shutil.copytree(tmp_dir, genesis_dir)
+
+    print(f"==> Genesis ready at {genesis_dir}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run qlean Shadow simulation")
     parser.add_argument("nodes", nargs="?", type=int, default=64,
@@ -59,28 +81,51 @@ def main() -> None:
                         help="Skip Docker image existence check and build")
     parser.add_argument("--build", action="store_true",
                         help="Force rebuild Docker image")
+    parser.add_argument("--generate-genesis", action="store_true",
+                        help="Generate genesis directory")
+    parser.add_argument("--genesis-dir", type=str, default=None,
+                        help="Path to genesis directory (default: simulation/genesis_shadow/<n>)")
+    parser.add_argument("--subnet-count", type=int, default=SUBNET_COUNT,
+                        help=f"Number of subnets/aggregators (default: {SUBNET_COUNT})")
     args = parser.parse_args()
 
     n = args.nodes
     stop_time = args.stop_time if args.stop_time.endswith("s") else f"{args.stop_time}s"
     max_bootnodes = MAX_BOOTNODES
+    subnet_count = args.subnet_count
 
-    genesis_dir = PROJECT / "simulation" / "genesis_shadow" / str(n)
+    # Determine genesis directory
+    if args.genesis_dir:
+        genesis_dir = Path(args.genesis_dir).resolve()
+    else:
+        genesis_dir = PROJECT / "simulation" / "genesis_shadow" / str(n)
+
     topology_dir = PROJECT / "simulation" / "topology" / str(n)
     output_dir = Path(f"/tmp/qlean-sim-{n}/output")
     data_dir = Path(f"/tmp/qlean-sim-{n}/data")
+
+    # Build image if needed
+    if args.build or (not args.no_build and not docker_image_exists(IMAGE)):
+        build_image()
+    else:
+        print(f"==> Using existing image: {IMAGE}")
+
+    # Generate genesis if requested
+    if args.generate_genesis:
+        generate_genesis(n, subnet_count, genesis_dir)
 
     if not genesis_dir.is_dir():
         die(f"Genesis directory not found: {genesis_dir}")
     if not topology_dir.is_dir():
         die(f"Topology directory not found: {topology_dir}")
 
-    print(f"==> Nodes:        {n}")
-    print(f"==> Stop time:    {stop_time}")
-    print(f"==> Max-bootnodes:{max_bootnodes}")
-    print(f"==> Genesis:      {genesis_dir}")
-    print(f"==> Topology:     {topology_dir}")
-    print(f"==> Output:       {output_dir}")
+    print(f"==> Nodes:         {n}")
+    print(f"==> Stop time:     {stop_time}")
+    print(f"==> Max-bootnodes: {max_bootnodes}")
+    print(f"==> Subnet count:  {subnet_count}")
+    print(f"==> Genesis:       {genesis_dir}")
+    print(f"==> Topology:      {topology_dir}")
+    print(f"==> Output:        {output_dir}")
 
     # Clean previous run data (stale blocks break finalization)
     for d in (output_dir, data_dir):
@@ -88,12 +133,6 @@ def main() -> None:
             print(f"==> Cleaning previous {d.name}...")
             shutil.rmtree(d)
         d.mkdir(parents=True, exist_ok=True)
-
-    # Build image if needed
-    if args.build or (not args.no_build and not docker_image_exists(IMAGE)):
-        build_image()
-    else:
-        print(f"==> Using existing image: {IMAGE}")
 
     # Run simulation
     cmd = [
