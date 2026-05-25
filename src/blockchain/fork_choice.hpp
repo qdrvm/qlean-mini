@@ -306,6 +306,11 @@ namespace lean {
     getProposalAttestations(Slot slot,
                             ValidatorIndex proposer_index,
                             BlockHash parent_root);
+    /**
+     * Aggregate duplicate attestations referencing same data.
+     * Groups aggregated attestations by data and recursively aggregates their
+     * proofs.
+     */
     std::pair<AggregatedAttestations, AttestationSignatures> aggregateDuplicate(
         const State &state,
         const AggregatedAttestations &attestations,
