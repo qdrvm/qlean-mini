@@ -491,12 +491,12 @@ namespace lean {
       }
       auto attestations_it = attestations_by_data_.find(sszHash(data));
       if (attestations_it == attestations_by_data_.end()) {
-        break;
+        continue;
       }
       auto &attestations = attestations_it->second;
       // TODO(zeam): producer may aggregate
       if (attestations.proofs.empty()) {
-        break;
+        continue;
       }
 
       for (auto &proof : attestations.proofs) {
