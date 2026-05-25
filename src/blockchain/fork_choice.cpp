@@ -485,7 +485,11 @@ namespace lean {
     AggregatedAttestations aggregated_attestations;
     AttestationSignatures aggregated_proofs;
     auto expected_source = head_state->latest_justified;
+    size_t processed_att_data = 0;
     for (auto &data : sorted_data) {
+      if (processed_att_data >= MAX_ATTESTATIONS_DATA) {
+        break;
+      }
       if (data.source != expected_source) {
         continue;
       }
@@ -499,6 +503,7 @@ namespace lean {
         continue;
       }
 
+      ++processed_att_data;
       for (auto &proof : attestations.proofs) {
         aggregated_attestations.push_back({
             .aggregation_bits = proof.participants,
