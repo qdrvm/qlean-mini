@@ -126,6 +126,8 @@ namespace lean::metrics {
      * @return HistogramTimer that records duration when it goes out of scope
      */
     HistogramTimer timer();
+
+    auto timerManual();
   };
 
   /**
@@ -276,4 +278,11 @@ namespace lean::metrics {
     return HistogramTimer(this);
   }
 
+  inline auto Histogram::timerManual() {
+    return [this, start_time{HistogramTimer::Clock::now()}] {
+      HistogramTimer::Duration elapsed =
+          HistogramTimer::Clock::now() - start_time;
+      observe(elapsed.count());
+    };
+  }
 }  // namespace lean::metrics

@@ -414,6 +414,13 @@ namespace lean {
 
     BOOST_OUTCOME_TRY(auto aggregated,
                       getProposalAttestations(slot, proposer_index, head_root));
+    metrics_->lean_block_proposal_attestation_builds_total()->inc();
+
+    aggregated =
+        aggregateDuplicate(*head_state, aggregated.first, aggregated.second);
+
+    metrics_->lean_block_proposal_aggregates_selected()->observe(
+        aggregated.second.size());
 
     // Create the final block with all collected attestations
     Block block{
@@ -487,6 +494,11 @@ namespace lean {
     auto expected_source = head_state->latest_justified;
     size_t processed_att_data = 0;
     for (auto &data : sorted_data) {
+      auto time_select =
+          metrics_
+              ->lean_block_proposal_attestation_build_phase_seconds(
+                  {{"phase", "select_payloads"}})
+              ->timerManual();
       if (processed_att_data >= MAX_ATTESTATIONS_DATA) {
         break;
       }
@@ -512,6 +524,11 @@ namespace lean {
         aggregated_proofs.push_back(proof);
       }
 
+      time_select();
+      auto time_stf = metrics_
+                          ->lean_block_proposal_attestation_build_phase_seconds(
+                              {{"phase", "stf_simulate"}})
+                          ->timer();
       auto post_state = *head_state;
       BOOST_OUTCOME_TRY(stf_.processSlots(post_state, slot));
       BOOST_OUTCOME_TRY(stf_.processBlock(
@@ -523,9 +540,54 @@ namespace lean {
               .state_root = {},
               .body = {.attestations = aggregated_attestations},
           }));
+      time_stf.stop();
       expected_source = post_state.latest_justified;
     }
+    metrics_->lean_block_proposal_attestation_data_selected()->observe(
+        processed_att_data);
+    metrics_->lean_block_proposal_child_payloads_consumed_total()->inc(
+        aggregated_attestations.size());
     return std::make_pair(aggregated_attestations, aggregated_proofs);
+  }
+
+  std::pair<AggregatedAttestations, AttestationSignatures>
+  ForkChoiceStore::aggregateDuplicate(
+      const State &state,
+      const AggregatedAttestations &attestations,
+      const AttestationSignatures &signatures) {
+    auto metric_time =
+        metrics_
+            ->lean_block_proposal_attestation_build_phase_seconds(
+                {{"phase", "compact"}})
+            ->timer();
+    using Group =
+        std::pair<AttestationData, std::vector<AggregatedSignatureProof>>;
+    std::unordered_map<Hash, Group> groups;
+    for (auto &&[attestation, proof] :
+         std::views::zip(attestations, signatures)) {
+      auto key = sszHash(attestation.data);
+      auto it = groups.find(key);
+      if (it == groups.end()) {
+        it = groups.emplace(key, Group{attestation.data, {}}).first;
+      }
+      it->second.second.emplace_back(proof);
+    }
+    AggregatedAttestations new_attestations;
+    AttestationSignatures new_signatures;
+    for (auto &[data, proofs] : groups | std::views::values) {
+      auto proof = proofs.at(0);
+      if (proofs.size() != 1) {
+        proof = aggregateSignatures(
+                    state, data, std::map<ValidatorIndex, Signature>{}, proofs)
+                    .proof;
+      }
+      new_attestations.push_back({
+          .aggregation_bits = proof.participants,
+          .data = data,
+      });
+      new_signatures.push_back(proof);
+    }
+    return std::make_pair(new_attestations, new_signatures);
   }
 
   outcome::result<void> ForkChoiceStore::validateAttestation(
@@ -1415,48 +1477,60 @@ namespace lean {
         continue;
       }
       auto &state = *state_res.value();
-      std::vector<std::vector<crypto::xmss::XmssPublicKey>> child_public_keys;
-      std::vector<crypto::xmss::XmssAggregatedSignature> child_proofs;
-      std::vector<crypto::xmss::XmssPublicKey> public_keys;
-      std::vector<Signature> signatures;
-      AggregationBits participants;
-      for (auto &[validator_id, signature] : attestations.signatures) {
-        public_keys.emplace_back(
-            state.validators.data().at(validator_id).attestation_pubkey);
-        signatures.emplace_back(signature);
-        participants.add(validator_id);
-      }
-      for (auto &proof : attestations.proofs) {
-        std::vector<crypto::xmss::XmssPublicKey> public_keys;
-        for (auto &&validator_id : proof.participants.iter()) {
-          public_keys.emplace_back(
-              state.validators.data().at(validator_id).attestation_pubkey);
-          participants.add(validator_id);
-        }
-        child_public_keys.emplace_back(std::move(public_keys));
-        child_proofs.emplace_back(proof.proof_data);
-      }
-      auto payload = attestationPayload(attestations.data);
-      auto aggregated_signature =
-          xmss_provider_->aggregateSignatures(child_public_keys,
-                                              child_proofs,
-                                              public_keys,
-                                              signatures,
-                                              attestations.data.slot,
-                                              payload);
-      AggregatedSignatureProof proof{
-          .participants = participants,
-          .proof_data = aggregated_signature,
-      };
-      aggregated_attestations.emplace_back(SignedAggregatedAttestation{
-          .data = attestations.data,
-          .proof = proof,
-      });
+      auto aggregated = aggregateSignatures(state,
+                                            attestations.data,
+                                            attestations.signatures,
+                                            attestations.proofs);
+      aggregated_attestations.emplace_back(aggregated);
       attestations.signatures.clear();
       attestations.proofs.clear();
-      attestations.proofs.emplace_back(proof);
+      attestations.proofs.emplace_back(aggregated.proof);
     }
     return aggregated_attestations;
+  }
+
+  SignedAggregatedAttestation ForkChoiceStore::aggregateSignatures(
+      const State &state,
+      const AttestationData &data,
+      const auto &signatures_in,
+      const auto &proofs_in) {
+    std::vector<std::vector<crypto::xmss::XmssPublicKey>> child_public_keys;
+    std::vector<crypto::xmss::XmssAggregatedSignature> child_proofs;
+    std::vector<crypto::xmss::XmssPublicKey> public_keys;
+    std::vector<Signature> signatures;
+    AggregationBits participants;
+    for (auto &[validator_id, signature] : signatures_in) {
+      public_keys.emplace_back(
+          state.validators.data().at(validator_id).attestation_pubkey);
+      signatures.emplace_back(signature);
+      participants.add(validator_id);
+    }
+    for (auto &proof : proofs_in) {
+      std::vector<crypto::xmss::XmssPublicKey> public_keys;
+      for (auto &&validator_id : proof.participants.iter()) {
+        public_keys.emplace_back(
+            state.validators.data().at(validator_id).attestation_pubkey);
+        participants.add(validator_id);
+      }
+      child_public_keys.emplace_back(std::move(public_keys));
+      child_proofs.emplace_back(proof.proof_data);
+    }
+    auto payload = attestationPayload(data);
+    auto aggregated_signature =
+        xmss_provider_->aggregateSignatures(child_public_keys,
+                                            child_proofs,
+                                            public_keys,
+                                            signatures,
+                                            data.slot,
+                                            payload);
+    return SignedAggregatedAttestation{
+        .data = data,
+        .proof =
+            {
+                .participants = participants,
+                .proof_data = aggregated_signature,
+            },
+    };
   }
 
   void ForkChoiceStore::prune(Slot finalized_slot) {
