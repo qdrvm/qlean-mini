@@ -762,7 +762,7 @@ namespace lean::blockchain {
   }
 
   outcome::result<std::optional<SignedBlock>> BlockTreeImpl::tryGetSignedBlock(
-      const BlockHash block_hash) const {
+      const BlockHash &block_hash) const {
     return block_tree_data_.sharedAccess(
         [&](const BlockTreeData &p)
             -> outcome::result<std::optional<SignedBlock>> {

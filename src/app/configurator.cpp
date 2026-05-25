@@ -121,7 +121,6 @@ namespace lean::app {
     config_->database_.directory = "db";
     config_->database_.cache_size = 512 << 20;  // 512MiB
 
-    config_->metrics_.endpoint = {boost::asio::ip::address_v4::any(), 9615};
     config_->metrics_.enabled = std::nullopt;
 
     namespace po = boost::program_options;
@@ -196,6 +195,8 @@ namespace lean::app {
         ("version,v", "show version")
         ("config,c", po::value<std::string>(), "config-file path")
         ("log,l", po::value<std::vector<std::string>>(), "Sets a custom logging filter")
+        ("api-host", po::value<std::string>(), "Set address for OpenMetrics over HTTP.")
+        ("api-port", po::value<uint16_t>(), "Set port for OpenMetrics over HTTP.")
         ;
 
     // clang-format on
@@ -250,6 +251,9 @@ namespace lean::app {
       logger_cli_args_ = vm["log"].as<std::vector<std::string>>();
     }
 
+    BOOST_OUTCOME_TRY(
+        parseEndpoint(config_->api_endpoint_, vm, "api-host", "api-port"));
+
     return false;
   }
 
@@ -292,6 +296,10 @@ namespace lean::app {
       return logging;
     }
     return load_default();
+  }
+
+  const boost::asio::ip::tcp::endpoint &Configurator::apiEndpoint() const {
+    return config_->apiEndpoint();
   }
 
   outcome::result<std::shared_ptr<Configuration>> Configurator::calculateConfig(
@@ -778,9 +786,6 @@ namespace lean::app {
     if (not config_->metrics_.enabled.has_value()) {
       config_->metrics_.enabled = false;
     }
-
-    BOOST_OUTCOME_TRY(parseEndpoint(
-        config_->api_endpoint_, cli_values_map_, "api-host", "api-port"));
 
     if (not config_->node_key_.has_value()) {
       config_->node_key_ = randomKeyPair();

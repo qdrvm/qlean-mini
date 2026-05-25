@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <boost/asio/ip/tcp.hpp>
 #include <boost/program_options.hpp>
 #include <log/logger.hpp>
 #include <qtils/enum_error_code.hpp>
@@ -53,6 +54,7 @@ namespace lean::app {
     std::vector<std::string> getLoggingCliArgs() {
       return logger_cli_args_;
     }
+    const boost::asio::ip::tcp::endpoint &apiEndpoint() const;
 
     outcome::result<std::shared_ptr<Configuration>> calculateConfig(
         qtils::SharedRef<soralog::Logger> logger);

@@ -10,8 +10,8 @@
 
 #include "blockchain/impl/anchor_block_impl.hpp"
 #include "blockchain/impl/anchor_state_impl.hpp"
+#include "metrics/metrics_mock.hpp"
 #include "mock/blockchain/block_tree_mock.hpp"
-#include "mock/metrics_mock.hpp"
 #include "testutil/prepare_loggers.hpp"
 #include "types/config.hpp"
 #include "types/state.hpp"

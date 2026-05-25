@@ -169,7 +169,7 @@ namespace lean::blockchain {
      * "/leanconsensus/req/blocks_by_root/1/ssz_snappy" protocol.
      */
     virtual outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
-        const BlockHash block_hash) const = 0;
+        const BlockHash &block_hash) const = 0;
   };
 
 }  // namespace lean::blockchain

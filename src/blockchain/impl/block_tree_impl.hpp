@@ -108,7 +108,7 @@ namespace lean::blockchain {
     Checkpoint getLatestJustified() const override;
 
     outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
-        const BlockHash block_hash) const override;
+        const BlockHash &block_hash) const override;
 
     // BlockHeaderRepository methods
 

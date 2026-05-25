@@ -25,3 +25,29 @@ METRIC_COUNTER(lean_block_building_success_total,
 METRIC_COUNTER(lean_block_building_failures_total,
                "lean_block_building_failures_total",
                "Failed block builds (exception in build_block)");
+
+// https://github.com/leanEthereum/leanSpec/pull/753
+// phase = "select_payloads" | "compact" | "stf_simulate"
+METRIC_HISTOGRAM_LABELS(
+    lean_block_proposal_attestation_build_phase_seconds,
+    "lean_block_proposal_attestation_build_phase_seconds",
+    "Phase-level time in block-proposal attestation selection: select_payloads (greedy child-payload pick), compact (recursive merge of proofs per AttestationData), stf_simulate (candidate block STF).",
+    (0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 4, 8),
+    ({"phase"}));
+METRIC_COUNTER(
+    lean_block_proposal_attestation_builds_total,
+    "lean_block_proposal_attestation_builds_total",
+    "Completed block-proposal attestation selection runs (one per proposal attempt).");
+METRIC_COUNTER(
+    lean_block_proposal_child_payloads_consumed_total,
+    "lean_block_proposal_child_payloads_consumed_total",
+    "Child aggregated payloads selected during greedy proof picking (before recursive compaction).");
+METRIC_HISTOGRAM(lean_block_proposal_attestation_data_selected,
+                 "lean_block_proposal_attestation_data_selected",
+                 "Distinct AttestationData entries in the proposal block body.",
+                 (0, 1, 2, 4, 8, 16, 32));
+METRIC_HISTOGRAM(
+    lean_block_proposal_aggregates_selected,
+    "lean_block_proposal_aggregates_selected",
+    "Aggregated signature proofs in the proposal result after compaction.",
+    (0, 1, 2, 4, 8, 16, 32, 64, 128));

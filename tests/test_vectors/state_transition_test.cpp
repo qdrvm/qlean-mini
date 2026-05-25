@@ -5,8 +5,8 @@
  */
 
 #include "blockchain/state_transition_function.hpp"
+#include "metrics/metrics_mock.hpp"
 #include "mock/blockchain/block_tree_mock.hpp"
-#include "mock/metrics_mock.hpp"
 #include "state_transition_test_json.hpp"
 #include "test_vectors.hpp"
 #include "testutil/prepare_loggers.hpp"
