@@ -458,7 +458,7 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                                 .latest_block_header_slot =
                                     state.latest_block_header.slot,
                                 .latest_block_header_state_root =
-                                    state.latest_block_header.hash(),
+                                    state.latest_block_header.state_root,
                                 .historical_block_hashes_count =
                                     state.historical_block_hashes.size(),
                             },
