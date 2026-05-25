@@ -44,7 +44,9 @@ def docker_image_exists(name: str) -> bool:
 def build_image() -> None:
     print("==> Building Docker image (this may take a few minutes)...")
     subprocess.run(
-        ["docker", "build", "-f", str(PROJECT / "simulation/Dockerfile"), "-t", IMAGE, str(PROJECT)],
+        ["docker", "build", "-f", str(PROJECT / "Dockerfile.shadow"),
+         "--build-arg", "QLEAN_ENABLE_SHADOW=ON",
+         "-t", IMAGE, str(PROJECT)],
         check=True
     )
 
@@ -83,8 +85,10 @@ def main() -> None:
                         help="Force rebuild Docker image")
     parser.add_argument("--generate-genesis", action="store_true",
                         help="Generate genesis directory")
+    parser.add_argument("--generate-topology", action="store_true",
+                        help="Generate GML topology with bandwidth and regions")
     parser.add_argument("--genesis-dir", type=str, default=None,
-                        help="Path to genesis directory (default: simulation/genesis_shadow/<n>)")
+                        help="Path to genesis directory (default: /tmp/qlean-simulations/<n>-fake)")
     parser.add_argument("--subnet-count", type=int, default=SUBNET_COUNT,
                         help=f"Number of subnets/aggregators (default: {SUBNET_COUNT})")
     args = parser.parse_args()
@@ -95,12 +99,13 @@ def main() -> None:
     subnet_count = args.subnet_count
 
     # Determine genesis directory
+    sim_dir = Path(f"/tmp/qlean-simulations/{n}-fake")
     if args.genesis_dir:
         genesis_dir = Path(args.genesis_dir).resolve()
     else:
-        genesis_dir = PROJECT / "simulation" / "genesis_shadow" / str(n)
+        genesis_dir = sim_dir
 
-    topology_dir = PROJECT / "simulation" / "topology" / str(n)
+    topology_dir = sim_dir
     output_dir = Path(f"/tmp/qlean-sim-{n}/output")
     data_dir = Path(f"/tmp/qlean-sim-{n}/data")
 
@@ -113,6 +118,17 @@ def main() -> None:
     # Generate genesis if requested
     if args.generate_genesis:
         generate_genesis(n, subnet_count, genesis_dir)
+
+    # Generate topology if requested
+    if args.generate_topology:
+        print(f"==> Generating topology for {n} nodes...")
+        topology_dir.mkdir(parents=True, exist_ok=True)
+        subprocess.run([
+            sys.executable,
+            str(PROJECT / "scripts" / "gen_topology.py"),
+            str(n),
+            str(topology_dir)
+        ], check=True)
 
     if not genesis_dir.is_dir():
         die(f"Genesis directory not found: {genesis_dir}")

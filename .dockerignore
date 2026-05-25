@@ -61,6 +61,5 @@ sszpp/
 zeam/
 db/
 simulation_run_64/
-simulation/genesis_shadow/
-simulation/output/
-simulation/data/
+output/
+data/

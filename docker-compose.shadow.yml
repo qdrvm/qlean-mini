@@ -2,7 +2,7 @@ services:
   qlean-shadow:
     build:
       context: ..
-      dockerfile: simulation/Dockerfile
+      dockerfile: Dockerfile.shadow
     platform: linux/arm64
     security_opt:
       - seccomp=unconfined
