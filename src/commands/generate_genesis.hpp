@@ -15,13 +15,72 @@
 
 #include "crypto/xmss/xmss_provider_impl.hpp"
 #include "crypto/xmss/xmss_util.cpp"
+#include "types/validator.hpp"
+#include "utils/getenv.hpp"
 #include "utils/sample_peer.hpp"
+
+inline outcome::result<lean::crypto::xmss::XmssPublicKey> generateXmss(
+    size_t index,
+    const std::filesystem::path &pk_path,
+    const std::filesystem::path &sk_path,
+    uint32_t xmss_activation_epoch,
+    uint32_t xmss_active_epoch) {
+  auto write = [](const std::filesystem::path &path, qtils::BytesIn bytes) {
+    std::ofstream{path}
+        .write(qtils::byte2str(bytes.data()), bytes.size())
+        .flush();
+  };
+  auto symlink = [](const std::filesystem::path &target,
+                    const std::filesystem::path &link) {
+    std::filesystem::remove(link);
+    std::filesystem::create_symlink(target, link);
+  };
+
+  auto pk_cache_path = pk_path;
+  auto sk_cache_path = sk_path;
+  std::optional<std::filesystem::path> cache_dir;
+  if (auto s = lean::getEnv("QLEAN_XMSS_CACHE")) {
+    cache_dir = std::filesystem::absolute(*s);
+  }
+  if (cache_dir.has_value()) {
+    std::filesystem::create_directories(*cache_dir);
+    pk_cache_path = *cache_dir / std::format("{}_pk.ssz", index);
+    sk_cache_path = *cache_dir / std::format("{}_sk.ssz", index);
+  }
+  lean::crypto::xmss::XmssKeypair keypair;
+  if (std::filesystem::exists(pk_cache_path)
+      and std::filesystem::exists(sk_cache_path)) {
+    auto keypair_result =
+        lean::crypto::xmss::loadKeypair(sk_cache_path, pk_cache_path);
+    if (not keypair_result) {
+      fmt::println(std::cerr,
+                   "Error loading XMSS keypair: {}",
+                   keypair_result.error().message());
+      fmt::println(std::cerr, "  {}", pk_path.string());
+      fmt::println(std::cerr, "  {}", sk_path.string());
+      return keypair_result.error();
+    }
+    keypair = keypair_result.value();
+  } else {
+    fmt::println(std::cerr, "Generating XMSS keypair {}", index);
+    auto keypair = lean::crypto::xmss::XmssProviderImpl{}.generateKeypair(
+        xmss_activation_epoch, xmss_active_epoch);
+    write(sk_cache_path, lean::crypto::xmss::toBytes(keypair.private_key));
+    write(pk_cache_path, keypair.public_key);
+  }
+  if (cache_dir.has_value()) {
+    symlink(pk_cache_path, pk_path);
+    symlink(sk_cache_path, sk_path);
+  }
+  return keypair.public_key;
+}
 
 inline int cmdGenerateGenesis(auto &&getArg) {
   auto cmd = [](std::filesystem::path genesis_directory,
                 size_t validator_count,
                 size_t subnet_count,
-                bool shadow) {
+                bool shadow,
+                bool fake_xmss) {
     auto build_yaml = [](std::filesystem::path path, auto &&build) {
       std::ofstream file{path};
       YAML::Node yaml;
@@ -29,16 +88,17 @@ inline int cmdGenerateGenesis(auto &&getArg) {
       file << yaml << "\n";
       file.close();
     };
-    auto xmss_public_key_name = [](lean::ValidatorIndex index) {
-      return std::format("validator_{}_pk.ssz", index);
+    auto pk_attester_name = [](lean::ValidatorIndex index) {
+      return std::format("validator_{}_attester_key_pk.ssz", index);
     };
-    auto xmss_private_key_name = [](lean::ValidatorIndex index) {
-      return std::format("validator_{}_sk.ssz", index);
+    auto sk_attester_name = [](lean::ValidatorIndex index) {
+      return std::format("validator_{}_attester_key_sk.ssz", index);
     };
-    auto write = [](const std::filesystem::path &path, qtils::BytesIn bytes) {
-      std::ofstream{path}
-          .write(qtils::byte2str(bytes.data()), bytes.size())
-          .flush();
+    auto pk_proposer_name = [](lean::ValidatorIndex index) {
+      return std::format("validator_{}_proposer_key_pk.ssz", index);
+    };
+    auto sk_proposer_name = [](lean::ValidatorIndex index) {
+      return std::format("validator_{}_proposer_key_sk.ssz", index);
     };
 
     if (subnet_count > validator_count) {
@@ -54,47 +114,36 @@ inline int cmdGenerateGenesis(auto &&getArg) {
 
     const auto xmss_activation_epoch = 0;
     const auto xmss_active_epoch_log = 18;
-    const auto xmss_active_epoch =
-        std::pow(std::uint64_t{2}, xmss_active_epoch_log);
+    const auto xmss_active_epoch = uint64_t{1} << xmss_active_epoch_log;
 
     std::filesystem::create_directories(genesis_directory);
 
     auto hashsig_directory = genesis_directory / "hash-sig-keys";
     std::filesystem::create_directories(hashsig_directory);
 
-    auto fake_xmss = shadow;
-
-    std::vector<lean::crypto::xmss::XmssPublicKey> xmss_public_keys;
+    std::vector<lean::Validator> xmss_public_keys;
     if (not fake_xmss) {
       for (size_t index = 0; index < validator_count; ++index) {
-        auto xmss_public_key_path =
-            hashsig_directory / xmss_public_key_name(index);
-        auto xmss_private_key_path =
-            hashsig_directory / xmss_private_key_name(index);
-        if (std::filesystem::exists(xmss_public_key_path)
-            and std::filesystem::exists(xmss_private_key_path)) {
-          auto keypair_result = lean::crypto::xmss::loadKeypair(
-              xmss_private_key_path, xmss_public_key_path);
-          if (not keypair_result) {
-            fmt::println(std::cerr,
-                         "Error loading XMSS keypair: {}",
-                         keypair_result.error().message());
-            fmt::println(std::cerr, "  {}", xmss_public_key_path.string());
-            fmt::println(std::cerr, "  {}", xmss_private_key_path.string());
-            return EXIT_FAILURE;
-          }
-          auto &keypair = keypair_result.value();
-          xmss_public_keys.emplace_back(keypair.public_key);
-        } else {
-          fmt::println(
-              std::cerr, "Generating XMSS keypair for validator {}", index);
-          auto keypair = lean::crypto::xmss::XmssProviderImpl{}.generateKeypair(
-              xmss_activation_epoch, xmss_active_epoch);
-          write(xmss_private_key_path,
-                lean::crypto::xmss::toBytes(keypair.private_key));
-          write(xmss_public_key_path, keypair.public_key);
-          xmss_public_keys.emplace_back(keypair.public_key);
+        auto pk_attester_result =
+            generateXmss(2 * index,
+                         hashsig_directory / pk_attester_name(index),
+                         hashsig_directory / sk_attester_name(index),
+                         xmss_activation_epoch,
+                         xmss_active_epoch);
+        auto pk_proposer_result =
+            generateXmss(2 * index + 1,
+                         hashsig_directory / pk_proposer_name(index),
+                         hashsig_directory / sk_proposer_name(index),
+                         xmss_activation_epoch,
+                         xmss_active_epoch);
+        if (not pk_attester_result.has_value()
+            or not pk_proposer_result.has_value()) {
+          return EXIT_FAILURE;
         }
+        xmss_public_keys.emplace_back(lean::Validator{
+            .attestation_pubkey = pk_attester_result.value(),
+            .proposal_pubkey = pk_proposer_result.value(),
+        });
       }
     } else {
       xmss_public_keys.resize(validator_count);
@@ -114,9 +163,14 @@ inline int cmdGenerateGenesis(auto &&getArg) {
           for (size_t index = 0; index < validator_count; ++index) {
             YAML::Node yaml_validator;
             yaml_validator["index"] = index;
-            yaml_validator["pubkey_hex"] =
-                "0x" + xmss_public_keys.at(index).toHex();
-            yaml_validator["privkey_file"] = xmss_private_key_name(index);
+            yaml_validator["attester_key_pubkey_hex"] =
+                "0x" + xmss_public_keys.at(index).attestation_pubkey.toHex();
+            yaml_validator["attester_key_privkey_file"] =
+                sk_attester_name(index);
+            yaml_validator["proposer_key_pubkey_hex"] =
+                "0x" + xmss_public_keys.at(index).proposal_pubkey.toHex();
+            yaml_validator["proposer_key_privkey_file"] =
+                sk_proposer_name(index);
             yaml_validators.push_back(yaml_validator);
           }
         });
@@ -126,7 +180,12 @@ inline int cmdGenerateGenesis(auto &&getArg) {
       yaml["VALIDATOR_COUNT"] = validator_count;
       auto &&yaml_validators = yaml["GENESIS_VALIDATORS"];
       for (auto &xmss_public_key : xmss_public_keys) {
-        yaml_validators.push_back(xmss_public_key.toHex());
+        YAML::Node yaml_validator;
+        yaml_validator["attestation_pubkey"] =
+            xmss_public_key.attestation_pubkey.toHex();
+        yaml_validator["proposal_pubkey"] =
+            xmss_public_key.proposal_pubkey.toHex();
+        yaml_validators.push_back(yaml_validator);
       }
     });
 
@@ -162,12 +221,16 @@ inline int cmdGenerateGenesis(auto &&getArg) {
     build_yaml(genesis_directory / "annotated_validators.yaml",
                [&](YAML::Node &yaml) {
                  for (auto &peer : peers) {
-                   YAML::Node entry;
-                   entry["index"] = peer.index;
-                   entry["pubkey_hex"] =
-                       "0x" + xmss_public_keys.at(peer.index).toHex();
-                   entry["privkey_file"] = xmss_private_key_name(peer.index);
-                   yaml[node_id(peer.index)].push_back(entry);
+                   auto add = [&](auto &pk, auto &sk_name) {
+                     YAML::Node entry;
+                     entry["index"] = peer.index;
+                     entry["pubkey_hex"] = "0x" + pk.toHex();
+                     entry["privkey_file"] = sk_name(peer.index);
+                     yaml[node_id(peer.index)].push_back(entry);
+                   };
+                   auto &pk = xmss_public_keys.at(peer.index);
+                   add(pk.attestation_pubkey, sk_attester_name);
+                   add(pk.proposal_pubkey, sk_proposer_name);
                  }
                });
 
@@ -195,10 +258,11 @@ inline int cmdGenerateGenesis(auto &&getArg) {
   };
   auto help =
       [exe{std::filesystem::path{getArg(0).value()}.filename().string()}] {
-        fmt::println(std::cerr,
-                     "Usage: {} generate-genesis (genesis_directory) "
-                     "(validator_count) (subnet_count) (shadow?)",
-                     exe);
+        fmt::println(
+            std::cerr,
+            "Usage: {} generate-genesis (genesis_directory) "
+            "(validator_count) (subnet_count) (shadow-ip?) (fake-xmss?)",
+            exe);
         return EXIT_FAILURE;
       };
   auto arg_2 = getArg(2);
@@ -222,10 +286,23 @@ inline int cmdGenerateGenesis(auto &&getArg) {
   if (subnet_count == 0) {
     return help();
   }
-  auto arg_5 = getArg(5);
-  auto shadow = arg_5 == "shadow";
-  if (arg_5.has_value() and not shadow) {
+  auto shadow = false;
+  auto fake_xmss = false;
+  for (auto i = 5;; ++i) {
+    auto arg = getArg(i);
+    if (not arg.has_value()) {
+      break;
+    }
+    if (arg == "shadow") {
+      shadow = true;
+      continue;
+    }
+    if (arg == "fake-xmss") {
+      fake_xmss = true;
+      continue;
+    }
     return help();
   }
-  return cmd(genesis_directory, validator_count, subnet_count, shadow);
+  return cmd(
+      genesis_directory, validator_count, subnet_count, shadow, fake_xmss);
 }

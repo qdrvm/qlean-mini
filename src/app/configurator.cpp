@@ -30,7 +30,6 @@
 #include "app/validator_keys_manifest.hpp"
 #include "crypto/xmss/xmss_provider_fake.hpp"
 #include "crypto/xmss/xmss_util.hpp"
-#include "executable/qlean_enable_shadow.hpp"
 #include "log/formatters/filepath.hpp"
 #include "modules/networking/get_node_key.hpp"
 #include "utils/parsers.hpp"
@@ -152,12 +151,11 @@ namespace lean::app {
           "Global log level can be set with: -l<level>.")
           ;
 
-    if constexpr (QLEAN_ENABLE_SHADOW) {
-      general_options.add_options()
-          ("shadow-xmss-aggregate-signatures-rate", "How many signatures can be aggregated per second (fake xmss provider)")
-          ("shadow-xmss-verify-aggregated-signatures-rate", "How many signatures inside aggregated signature can be verified per second (fake xmss provider)")
-          ;
-    }
+    general_options.add_options()
+        ("fake-xmss", po::bool_switch())
+        ("shadow-xmss-aggregate-signatures-rate", "How many signatures can be aggregated per second (fake xmss provider)")
+        ("shadow-xmss-verify-aggregated-signatures-rate", "How many signatures inside aggregated signature can be verified per second (fake xmss provider)")
+        ;
 
     po::options_description storage_options("Storage options");
     storage_options.add_options()
@@ -599,7 +597,10 @@ namespace lean::app {
       }
     }
 
-    if constexpr (QLEAN_ENABLE_SHADOW) {
+    if (find_argument(cli_values_map_, "fake-xmss")) {
+      config_->fake_xmss_ = true;
+    }
+    if (config_->fakeXmss()) {
       if (auto value = find_argument<double>(
               cli_values_map_, "shadow-xmss-aggregate-signatures-rate")) {
         config_->fake_xmss_aggregate_signatures_rate_ = value.value();

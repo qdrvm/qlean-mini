@@ -53,6 +53,7 @@ namespace lean::app {
     [[nodiscard]] virtual bool cliIsAggregator() const;
     [[nodiscard]] virtual uint64_t cliSubnetCount() const;
 
+    [[nodiscard]] virtual bool fakeXmss() const;
     [[nodiscard]] virtual double fakeXmssAggregateSignaturesRate() const;
     [[nodiscard]] virtual double fakeXmssVerifyAggregatedSignaturesRate() const;
 
@@ -78,6 +79,7 @@ namespace lean::app {
     bool cli_is_aggregator_ = false;
     uint64_t cli_subnet_count_ = 1;
 
+    bool fake_xmss_ = false;
     double fake_xmss_aggregate_signatures_rate_ = 22.704;
     double fake_xmss_verify_aggregated_signatures_rate_ = 3463.106;
 

@@ -39,7 +39,6 @@
 #include "crypto/hasher/hasher_impl.hpp"
 #include "crypto/xmss/xmss_provider_fake.hpp"
 #include "crypto/xmss/xmss_provider_impl.hpp"
-#include "executable/qlean_enable_shadow.hpp"
 #include "injector/bind_by_lambda.hpp"
 #include "loaders/loader.hpp"
 #include "log/logger.hpp"
@@ -77,10 +76,13 @@ namespace {
   auto makeApplicationInjector(std::shared_ptr<log::LoggingSystem> logsys,
                                std::shared_ptr<app::Configuration> app_config,
                                Ts &&...args) {
-    using InjectXmssProvider =
-        std::conditional_t<QLEAN_ENABLE_SHADOW,
-                           crypto::xmss::XmssProviderFake,
-                           crypto::xmss::XmssProviderImpl>;
+    std::shared_ptr<crypto::xmss::XmssProvider> xmss_provider;
+    if (app_config->fakeXmss()) {
+      xmss_provider =
+          std::make_shared<crypto::xmss::XmssProviderFake>(app_config);
+    } else {
+      xmss_provider = std::make_shared<crypto::xmss::XmssProviderImpl>();
+    }
 
     // clang-format off
     return di::make_injector(
@@ -107,7 +109,7 @@ namespace {
         di::bind<blockchain::BlockTree>.to<blockchain::BlockTreeImpl>(),
         di::bind<ValidatorRegistry>.to<ValidatorRegistryImpl>(),
         di::bind<app::ValidatorKeysManifest>.to<app::ValidatorKeysManifestImpl>(),
-        di::bind<crypto::xmss::XmssProvider>.to<InjectXmssProvider>(),
+        di::bind<crypto::xmss::XmssProvider>.to(std::move(xmss_provider)),
 
         // user-defined overrides...
         std::forward<decltype(args)>(args)...);

@@ -9,6 +9,7 @@ TOPOLOGY_DIR="${TOPOLOGY_DIR:-/topology}"
 UDP_PORT_BASE="${UDP_PORT_BASE:-10000}"
 METRICS_PORT_BASE="${METRICS_PORT_BASE:-9100}"
 MAX_BOOTNODES="${MAX_BOOTNODES:-25}"
+FAKE_XMSS="${FAKE_XMSS:-0}"
 
 echo "==> Qlean Shadow Simulation"
 echo "==> Genesis dir:  ${GENESIS_DIR}"
@@ -143,6 +144,10 @@ for ((i=0; i<NODE_COUNT; i++)); do
         if [ "${IS_AGG}" = "true" ]; then
             ARGS="${ARGS} --is-aggregator"
         fi
+    fi
+
+    if [ "${FAKE_XMSS}" == "1" ]; then
+        ARGS="${ARGS} --fake-xmss"
     fi
 
     # Escape for YAML double-quoted string

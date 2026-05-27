@@ -14,6 +14,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+# On macOS, /tmp is actually a symbolic link to /private/tmp
+TMP_DIR = Path("/tmp").resolve()
 
 def parse_events(data_dir: str):
     """Parse RECEIVE-ATTESTATION events from shadow stdout files."""
@@ -107,13 +109,16 @@ def main():
     parser = argparse.ArgumentParser(description="Print attestation propagation stats")
     parser.add_argument("nodes", nargs="?", type=int, default=64,
                         help="Number of nodes (default: 64)")
+    parser.add_argument("--fake-xmss", action="store_true",
+                        help="Fake xmss keys were used")
     parser.add_argument("slot", nargs="?", type=int, default=None,
                         help="Focus on a single slot (default: show summary)")
     parser.add_argument("--all", action="store_true",
                         help="Show all per-slot P99 values")
     args = parser.parse_args()
 
-    data_dir = f"/tmp/qlean-sim-{args.nodes}/output/shadow.data"
+    sim_dir = TMP_DIR / f"qlean-simulations/{args.nodes}-{"fake" if args.fake_xmss else "real"}"
+    data_dir = sim_dir / "output/shadow.data"
     node_events = parse_events(data_dir)
 
     # Estimate genesis time (round to nearest second)

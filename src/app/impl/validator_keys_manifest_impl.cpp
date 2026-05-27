@@ -15,7 +15,6 @@
 #include "app/configuration.hpp"
 #include "crypto/xmss/xmss_provider_fake.hpp"
 #include "crypto/xmss/xmss_util.hpp"
-#include "executable/qlean_enable_shadow.hpp"
 #include "serde/yaml.hpp"
 
 namespace lean::app {
@@ -24,15 +23,12 @@ namespace lean::app {
     auto yaml = yaml::read(config.genesisDir() / "annotated_validators.yaml");
     auto yaml_items = yaml.map(config.nodeId());
     for (auto &&yaml_item : yaml_items.list()) {
-      auto yaml_pubkey_hex = yaml_item.map("pubkey_hex").str();
-      if (yaml_pubkey_hex.starts_with("0x")) {
-        yaml_pubkey_hex = yaml_pubkey_hex.substr(2);
-      }
-      auto public_key =
-          crypto::xmss::XmssPublicKey::fromHex(yaml_pubkey_hex).value();
+      auto yaml_pubkey_hex = yaml_item.map("pubkey_hex");
+      crypto::xmss::XmssPublicKey public_key;
+      qtils::unhex0x(public_key, yaml_pubkey_hex.str(), true).value();
       auto privkey_file = yaml_item.map("privkey_file").str();
       crypto::xmss::XmssKeypair keypair;
-      if constexpr (QLEAN_ENABLE_SHADOW) {
+      if (config.fakeXmss()) {
         keypair = crypto::xmss::XmssProviderFake::loadKeypair(public_key,
                                                               privkey_file);
       } else {

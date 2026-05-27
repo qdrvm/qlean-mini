@@ -7,23 +7,13 @@
 # Build context must be the qlean-mini repo root.
 
 # Stage 0: pre-built vcpkg dependencies
-FROM qlean-mini-dependencies:latest AS dependencies
+FROM qdrvm/qlean-mini-dependencies:latest-arm64 AS dependencies
 
 # Stage 1: Build qlean for linux/arm64
 FROM ubuntu:24.04 AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG QLEAN_ENABLE_SHADOW=ON
 ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
-ENV VCPKG_FORCE_SYSTEM_BINARIES=1
-
-ENV PROJECT=/qlean-mini
-ENV VENV=${PROJECT}/.venv
-ENV BUILD=${PROJECT}/.build
-ENV VCPKG_ROOT=${PROJECT}/.vcpkg
-ENV PATH=${VENV}/bin:/root/.cargo/bin:${PATH}
-ENV CARGO_HOME=/root/.cargo
-ENV RUSTUP_HOME=/root/.rustup
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -41,31 +31,34 @@ RUN apt-get update && \
     unzip && \
     rm -rf /var/lib/apt/lists/*
 
+ENV VCPKG_FORCE_SYSTEM_BINARIES=1
+
+ENV PROJECT=/qlean-mini
+ENV BUILD=/root/.build
+ENV VCPKG_ROOT=/root/.vcpkg
+ENV VCPKG_INSTALLED_DIR=/root/.vcpkg_installed
+ENV CARGO_HOME=/root/.cargo
+ENV RUSTUP_HOME=/root/.rustup
+
 WORKDIR ${PROJECT}
 
 # Copy pre-built dependencies from deps image
-COPY --from=dependencies ${VENV} ${VENV}
-COPY --from=dependencies ${PROJECT}/.vcpkg ${PROJECT}/.vcpkg
-COPY --from=dependencies ${BUILD}/vcpkg_installed ${BUILD}/vcpkg_installed
+COPY --from=dependencies ${PROJECT}/.vcpkg ${VCPKG_ROOT}
+COPY --from=dependencies ${PROJECT}/.build/vcpkg_installed ${VCPKG_INSTALLED_DIR}
 COPY --from=dependencies /root/.cargo /root/.cargo
 COPY --from=dependencies /root/.rustup /root/.rustup
 
-# Copy project source code
-COPY . ${PROJECT}
-
-# Configure with shadow support, using pre-built vcpkg deps
-RUN VCPKG_ROOT=${PROJECT}/.vcpkg cmake -G Ninja --preset default \
-    -DPython3_EXECUTABLE="${VENV}/bin/python3" \
-    -DQLEAN_ENABLE_SHADOW=${QLEAN_ENABLE_SHADOW} \
-    -DTESTING=OFF \
-    -DVCPKG_INSTALLED_DIR=${BUILD}/vcpkg_installed \
-    -DVCPKG_MANIFEST_MODE=OFF \
-    -DCMAKE_BUILD_TYPE=Release \
+# Configure using pre-built vcpkg deps
+RUN --mount=type=bind,target=${PROJECT} \
+    --mount=type=cache,target=${BUILD} \
+    cmake -G Ninja --preset default \
+    -D TESTING=OFF \
+    -D VCPKG_INSTALLED_DIR=${VCPKG_INSTALLED_DIR} \
+    -D VCPKG_MANIFEST_MODE=OFF \
+    -D CMAKE_BUILD_TYPE=Release \
     -B ${BUILD} \
-    ${PROJECT}
-
-# Build only the qlean binary (deps already compiled)
-RUN cmake --build ${BUILD} --parallel $(nproc) && \
+    ${PROJECT} && \
+    cmake --build ${BUILD} --parallel $(nproc) && \
     mkdir -p /opt/artifacts/out/bin && \
     cp ${BUILD}/out/bin/qlean /opt/artifacts/out/bin/qlean && \
     strip /opt/artifacts/out/bin/qlean
@@ -78,9 +71,6 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends python3 && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy qlean binary
-COPY --from=builder /opt/artifacts/out/bin/qlean /opt/qlean/bin/qlean
-
 # Copy entrypoint
 COPY scripts/entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
@@ -91,3 +81,6 @@ WORKDIR /output
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/genesis"]
+
+# Copy qlean binary
+COPY --from=builder /opt/artifacts/out/bin/qlean /opt/qlean/bin/qlean

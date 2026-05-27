@@ -6,7 +6,6 @@
 
 cmake_minimum_required(VERSION 3.25)
 
-option(QLEAN_ENABLE_SHADOW "Build executable for shadow simulator" OFF)
 option(TESTING "Build and run test suite" ON)
 if (TESTING)
   list(APPEND VCPKG_MANIFEST_FEATURES test)
@@ -29,8 +28,6 @@ project(qlean-mini
 
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Boost_DIR: ${Boost_DIR}")
-
-find_package(Python3 REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 #pkg_check_modules(libb2 REQUIRED IMPORTED_TARGET GLOBAL libb2)
