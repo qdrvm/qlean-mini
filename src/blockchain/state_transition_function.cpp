@@ -437,7 +437,9 @@ namespace lean {
       // validators justifying specially if the num_validators is low in
       // testing scenarios
       if (3 * count >= 2 * state.validatorCount()) {
-        latest_justified = target;
+        if (target.slot > latest_justified.slot) {
+          latest_justified = target;
+        }
         withJustified(justified_slots, latest_finalized.slot, target_slot);
         justifications.erase(target.root);
 
