@@ -443,14 +443,15 @@ namespace lean {
 
         // Finalization: if the target is the next valid justifiable
         // hash after the source
-        auto any = false;
-        for (auto slot = source_slot + 1; slot < target_slot; ++slot) {
-          if (isJustifiableSlot(latest_finalized.slot, slot)) {
-            any = true;
-            break;
+        auto any_justifiable = [&] {
+          for (auto slot = source_slot + 1; slot < target_slot; ++slot) {
+            if (isJustifiableSlot(latest_finalized.slot, slot)) {
+              return true;
+            }
           }
-        }
-        if (not any) {
+          return false;
+        };
+        if (source.slot > latest_finalized.slot and not any_justifiable()) {
           auto old_finalized_slot = latest_finalized.slot;
           latest_finalized = source;
           //? metrics_->stf_latest_finalized_slot()->set(latest_finalized.slot);
