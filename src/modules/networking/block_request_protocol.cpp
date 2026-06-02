@@ -46,6 +46,7 @@ namespace lean::modules {
                          co_await host_->newStream(peer_id, getProtocolIds()));
     BOOST_OUTCOME_CO_TRY(
         co_await snappy::coCompressFramed(stream, encode(request).value()));
+    std::ignore = stream->close();
     BOOST_OUTCOME_CO_TRY(co_await readResponseStatus(stream));
     BOOST_OUTCOME_CO_TRY(auto encoded,
                          co_await snappy::coUncompressFramed(stream));
