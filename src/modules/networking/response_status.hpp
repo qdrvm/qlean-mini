@@ -12,11 +12,12 @@
 
 namespace lean {
   constexpr uint8_t kResponseStatusSuccess = 0;
+  constexpr uint8_t kResponseStatusInvalidRequest = 1;
 
   inline libp2p::CoroOutcome<void> writeResponseStatus(
-      std::shared_ptr<libp2p::basic::Writer> writer) {
-    qtils::ByteArr<1> status{0};
-    BOOST_OUTCOME_CO_TRY(co_await libp2p::write(writer, status));
+      std::shared_ptr<libp2p::basic::Writer> writer, uint8_t status) {
+    qtils::ByteArr<1> status_bytes{status};
+    BOOST_OUTCOME_CO_TRY(co_await libp2p::write(writer, status_bytes));
     co_return outcome::success();
   }
 

@@ -67,7 +67,8 @@ namespace lean::modules {
         continue;
       }
       BlockResponse &response = block.value();
-      BOOST_OUTCOME_CO_TRY(co_await writeResponseStatus(stream));
+      BOOST_OUTCOME_CO_TRY(
+          co_await writeResponseStatus(stream, kResponseStatusSuccess));
       BOOST_OUTCOME_CO_TRY(co_await snappy::coCompressFramed(
           stream, encode(block.value()).value()));
     }

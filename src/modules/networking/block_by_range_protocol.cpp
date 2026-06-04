@@ -76,6 +76,11 @@ namespace lean::modules {
     BOOST_OUTCOME_CO_TRY(auto encoded,
                          co_await snappy::coUncompressFramed(stream));
     BOOST_OUTCOME_CO_TRY(auto request, decode<BlocksByRangeRequest>(encoded));
+    if (request.count <= 0 or request.count > kMaxRequestBlocks) {
+      BOOST_OUTCOME_CO_TRY(
+          co_await writeResponseStatus(stream, kResponseStatusInvalidRequest));
+      co_return outcome::success();
+    }
     auto max_slot =
         saturatingSub(saturatingAdd(request.start_slot, request.count), 1);
     BlocksResponse response;
@@ -98,7 +103,8 @@ namespace lean::modules {
     }
     std::ranges::reverse(response);
     for (auto &block : response) {
-      BOOST_OUTCOME_CO_TRY(co_await writeResponseStatus(stream));
+      BOOST_OUTCOME_CO_TRY(
+          co_await writeResponseStatus(stream, kResponseStatusSuccess));
       BOOST_OUTCOME_CO_TRY(
           co_await snappy::coCompressFramed(stream, encode(block).value()));
     }
