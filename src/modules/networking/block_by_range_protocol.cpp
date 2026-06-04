@@ -13,6 +13,7 @@
 
 #include "blockchain/block_tree.hpp"
 #include "blockchain/fork_choice_mutex.hpp"
+#include "modules/networking/response_error.hpp"
 #include "modules/networking/response_status.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "utils/saturating.hpp"
@@ -78,7 +79,9 @@ namespace lean::modules {
     BOOST_OUTCOME_CO_TRY(auto request, decode<BlocksByRangeRequest>(encoded));
     if (request.count <= 0 or request.count > kMaxRequestBlocks) {
       BOOST_OUTCOME_CO_TRY(
-          co_await writeResponseStatus(stream, kResponseStatusInvalidRequest));
+          co_await writeResponseError(stream,
+                                      kResponseStatusInvalidRequest,
+                                      "invalid BlocksByRange request"));
       co_return outcome::success();
     }
     auto max_slot =
