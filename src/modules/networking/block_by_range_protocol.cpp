@@ -94,6 +94,7 @@ namespace lean::modules {
           response.emplace_back(std::move(*block));
         }
       }
+      hash = header->parent_root;
     }
     std::ranges::reverse(response);
     for (auto &block : response) {
