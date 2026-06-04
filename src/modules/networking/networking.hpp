@@ -61,7 +61,8 @@ namespace lean::metrics {
 
 namespace lean::modules {
   class StatusProtocol;
-  class BlockRequestProtocol;
+  class BlockByRangeProtocol;
+  class BlockByRootProtocol;
 
   using Clock = std::chrono::steady_clock;
 
@@ -203,7 +204,8 @@ namespace lean::modules {
     libp2p::event::Handle on_peer_disconnected_sub_;
     libp2p::event::Handle on_connection_closed_sub_;
     std::shared_ptr<StatusProtocol> status_protocol_;
-    std::shared_ptr<BlockRequestProtocol> block_request_protocol_;
+    std::shared_ptr<BlockByRangeProtocol> block_by_range_protocol_;
+    std::shared_ptr<BlockByRootProtocol> block_by_root_protocol_;
     std::shared_ptr<libp2p::protocol::gossip::Gossip> gossip_;
     std::shared_ptr<libp2p::protocol::Ping> ping_;
     std::shared_ptr<libp2p::host::BasicHost> host_;

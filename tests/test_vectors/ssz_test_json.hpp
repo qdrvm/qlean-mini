@@ -92,7 +92,7 @@ namespace lean {
                  SszTestJsonT<Block>,
                  SszTestJsonT<BlockBody>,
                  SszTestJsonT<BlockHeader>,
-                 SszTestJsonT<BlockRequest>,
+                 SszTestJsonT<BlocksByRootRequest>,
                  SszTestJsonT<BlockSignatures>,
                  SszTestJsonT<Boolean>,
                  SszTestJsonT<ByteListMiB>,

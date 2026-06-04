@@ -26,13 +26,13 @@ namespace lean::blockchain {
 }  // namespace lean::blockchain
 
 namespace lean::modules {
-  class BlockRequestProtocol
-      : public std::enable_shared_from_this<BlockRequestProtocol>,
+  class BlockByRootProtocol
+      : public std::enable_shared_from_this<BlockByRootProtocol>,
         public libp2p::protocol::BaseProtocol {
    public:
-    BlockRequestProtocol(std::shared_ptr<boost::asio::io_context> io_context,
-                         std::shared_ptr<libp2p::host::BasicHost> host,
-                         qtils::SharedRef<blockchain::BlockTree> block_tree);
+    BlockByRootProtocol(std::shared_ptr<boost::asio::io_context> io_context,
+                        std::shared_ptr<libp2p::host::BasicHost> host,
+                        qtils::SharedRef<blockchain::BlockTree> block_tree);
 
     // BaseProtocol
     libp2p::StreamProtocols getProtocolIds() const override;
@@ -41,7 +41,7 @@ namespace lean::modules {
     void start();
 
     libp2p::CoroOutcome<BlockResponse> request(libp2p::PeerId peer_id,
-                                               BlockRequest request);
+                                               BlocksByRootRequest request);
 
    private:
     libp2p::CoroOutcome<void> coroRespond(

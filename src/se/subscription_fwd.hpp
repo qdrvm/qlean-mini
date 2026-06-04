@@ -50,10 +50,6 @@ namespace lean {
     PeerDisconnected,
     /// Peer counts by user-agent is updated
     PeerCountsUpdated,
-    /// Data of a block is requested
-    BlockRequest,
-    /// Data of a block is respond
-    BlockResponse,
 
     // -- Block production
 

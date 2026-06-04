@@ -40,7 +40,8 @@
 #include "blockchain/validator_subnet.hpp"
 #include "lean_interop_test.hpp"
 #include "metrics/metrics.hpp"
-#include "modules/networking/block_request_protocol.hpp"
+#include "modules/networking/block_by_range_protocol.hpp"
+#include "modules/networking/block_by_root_protocol.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 #include "modules/networking/status_protocol.hpp"
 #include "modules/networking/types.hpp"
@@ -529,9 +530,12 @@ namespace lean::modules {
         });
     status_protocol_->start();
 
-    block_request_protocol_ =
-        std::make_shared<BlockRequestProtocol>(io_context_, host, block_tree_);
-    block_request_protocol_->start();
+    block_by_range_protocol_ = std::make_shared<BlockByRangeProtocol>(
+        io_context_, host, block_tree_, fork_choice_store_);
+    block_by_range_protocol_->start();
+    block_by_root_protocol_ =
+        std::make_shared<BlockByRootProtocol>(io_context_, host, block_tree_);
+    block_by_root_protocol_->start();
 
     gossip_ =
         injector->create<std::shared_ptr<libp2p::protocol::gossip::Gossip>>();
@@ -806,7 +810,7 @@ namespace lean::modules {
         *io_context_,
         [self{shared_from_this()}, peer_id, block_hash, peer_name]()
             -> libp2p::Coro<void> {
-          auto response_res = co_await self->block_request_protocol_->request(
+          auto response_res = co_await self->block_by_root_protocol_->request(
               peer_id, {.roots = {{block_hash}}});
           self->block_requested_at_.erase(block_hash);
           if (response_res.has_value()) {
