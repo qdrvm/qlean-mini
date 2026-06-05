@@ -12,6 +12,7 @@
 #include <libp2p/host/basic_host.hpp>
 
 #include "blockchain/block_tree.hpp"
+#include "modules/networking/response_error.hpp"
 #include "modules/networking/response_status.hpp"
 #include "modules/networking/ssz_snappy.hpp"
 
@@ -59,6 +60,13 @@ namespace lean::modules {
     BOOST_OUTCOME_CO_TRY(auto encoded,
                          co_await snappy::coUncompressFramed(stream));
     BOOST_OUTCOME_CO_TRY(auto request, decode<BlocksByRootRequest>(encoded));
+    if (request.roots.size() > kMaxRequestBlocks) {
+      BOOST_OUTCOME_CO_TRY(
+          co_await writeResponseError(stream,
+                                      kResponseStatusInvalidRequest,
+                                      "invalid BlocksByRoot request"));
+      co_return outcome::success();
+    }
     for (auto &block_hash : request.roots) {
       BOOST_OUTCOME_CO_TRY(auto block,
                            block_tree_->tryGetSignedBlock(block_hash));

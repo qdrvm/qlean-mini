@@ -18,8 +18,6 @@
 #include "modules/networking/ssz_snappy.hpp"
 #include "utils/saturating.hpp"
 
-constexpr size_t kMaxRequestBlocks = 1024;
-
 namespace lean::modules {
   BlockByRangeProtocol::BlockByRangeProtocol(
       std::shared_ptr<boost::asio::io_context> io_context,

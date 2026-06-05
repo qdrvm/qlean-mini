@@ -32,4 +32,6 @@ namespace lean {
 
   using BlockResponse = SignedBlock;
   using BlocksResponse = std::vector<SignedBlock>;
+
+  constexpr size_t kMaxRequestBlocks = 1024;
 }  // namespace lean
