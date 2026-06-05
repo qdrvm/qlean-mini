@@ -142,13 +142,6 @@ namespace lean::blockchain {
     // -- body --
 
     /**
-     * Saves provided body of block to block storage
-     * @returns result of saving
-     */
-    virtual outcome::result<void> putBlockBody(const BlockHash &block_hash,
-                                               const BlockBody &block_body) = 0;
-
-    /**
      * Tries to get block body
      * @returns block body or error
      */
@@ -226,8 +219,8 @@ namespace lean::blockchain {
 
     // -- special
 
-    [[nodiscard]] virtual outcome::result<SignedBlock> getSignedBlock(
-        const BlockHash &block_hash) const = 0;
+    [[nodiscard]] virtual outcome::result<std::optional<SignedBlock>>
+    tryGetSignedBlock(const BlockHash &block_hash) const = 0;
   };
 
 }  // namespace lean::blockchain

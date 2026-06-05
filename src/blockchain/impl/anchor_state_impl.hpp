@@ -23,7 +23,7 @@ namespace lean::app {
 
 namespace lean::blockchain {
 
-  class AnchorStateImpl final : public AnchorState, Singleton<AnchorState> {
+  class AnchorStateImpl final : public AnchorState {
    public:
     explicit AnchorStateImpl(State state) {
       State::operator=(std::move(state));

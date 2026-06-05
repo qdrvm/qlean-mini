@@ -61,11 +61,6 @@ namespace lean::blockchain {
                 (const BlockHash &),
                 (const, override));
 
-    MOCK_METHOD(outcome::result<void>,
-                putBlockBody,
-                (const BlockHash &, const BlockBody &),
-                (override));
-
     MOCK_METHOD(outcome::result<std::optional<BlockBody>>,
                 getBlockBody,
                 (const BlockHash &),
@@ -106,8 +101,8 @@ namespace lean::blockchain {
                 (const BlockHash &),
                 (override));
 
-    MOCK_METHOD(outcome::result<SignedBlock>,
-                getSignedBlock,
+    MOCK_METHOD(outcome::result<std::optional<SignedBlock>>,
+                tryGetSignedBlock,
                 (const BlockHash &),
                 (const, override));
   };

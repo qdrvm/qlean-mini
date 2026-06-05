@@ -140,8 +140,6 @@ struct BlockTreeMock : lean::blockchain::BlockTree {
   }
   outcome::result<BlockBody> getBlockBody(const BlockHash &) const MOCK_UNUSED;
   outcome::result<void> addBlockHeader(const BlockHeader &) MOCK_UNUSED;
-  outcome::result<void> addBlockBody(const BlockHash &,
-                                     const BlockBody &) MOCK_UNUSED;
   outcome::result<void> addExistingBlock(const BlockHash &,
                                          const BlockHeader &) MOCK_UNUSED;
   outcome::result<void> addBlock(SignedBlock block) override {
@@ -216,8 +214,6 @@ struct BlockStorageMock : lean::blockchain::BlockStorage {
       MOCK_UNUSED;
   outcome::result<std::optional<BlockHeader>> tryGetBlockHeader(
       const BlockHash &) const MOCK_UNUSED;
-  outcome::result<void> putBlockBody(const BlockHash &,
-                                     const BlockBody &) MOCK_UNUSED;
   outcome::result<std::optional<BlockBody>> getBlockBody(
       const BlockHash &) const MOCK_UNUSED;
   outcome::result<void> removeBlockBody(const BlockHash &) MOCK_UNUSED;
@@ -235,8 +231,8 @@ struct BlockStorageMock : lean::blockchain::BlockStorage {
   outcome::result<BlockData> getBlock(const BlockHash &,
                                       BlockParts) const MOCK_UNUSED;
   outcome::result<void> removeBlock(const BlockHash &) MOCK_UNUSED;
-  outcome::result<SignedBlock> getSignedBlock(const BlockHash &) const
-      MOCK_UNUSED;
+  outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
+      const BlockHash &) const MOCK_UNUSED;
 
   std::unordered_map<BlockHash, State> states_;
 };

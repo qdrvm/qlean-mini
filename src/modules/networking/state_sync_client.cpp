@@ -29,7 +29,9 @@
 #include <qtils/final_action.hpp>
 
 #include "app/state_manager.hpp"
+#include "blockchain/impl/anchor_block_impl.hpp"
 #include "modules/networking/ssl_context.hpp"
+#include "types/state.hpp"
 
 namespace net = boost::asio;
 namespace ssl = boost::asio::ssl;
@@ -61,11 +63,15 @@ OUTCOME_CPP_DEFINE_CATEGORY(lean, StateSyncError, e) {
       return "deserialization failed";
     case E::ValidationFailed:
       return "validation failed";
+    case E::InconsistentBlockAndState:
+      return "inconsistent block and state";
   }
   return "Unknown error";
 }
 
 namespace lean {
+  static const std::string kPathFinalizedState = "/lean/v0/states/finalized";
+  static const std::string kPathFinalizedBlock = "/lean/v0/blocks/finalized";
 
   namespace {
 
@@ -146,7 +152,7 @@ namespace lean {
       }
     };
 
-    outcome::result<State> map_aborted(const CancelState &cs) {
+    outcome::result<qtils::ByteVec> map_aborted(const CancelState &cs) {
       const auto r = cs.reason.load(std::memory_order_acquire);
       if (r == CancelReason::Timeout) {
         return StateSyncError::Timeout;
@@ -193,7 +199,7 @@ namespace lean {
     }
 
     template <typename Stream>
-    net::awaitable<outcome::result<State>> do_http_flow(
+    net::awaitable<outcome::result<qtils::ByteVec>> do_http_flow(
         tcp::resolver &resolver,
         Stream &stream,
         const UrlParts &parts,
@@ -306,12 +312,6 @@ namespace lean {
       }
       auto &encoded_state = res.body();
 
-      auto state_res = decode<State>(encoded_state);
-      if (state_res.has_error()) {
-        co_return StateSyncError::DeserializeFailed;
-      }
-      auto st = state_res.value();
-
       if constexpr (not std::is_same_v<Stream, beast::tcp_stream>) {
         if (do_tls_handshake) {
           co_await stream.async_shutdown(
@@ -319,10 +319,10 @@ namespace lean {
         }
       }
 
-      co_return st;
+      co_return qtils::ByteVec{res.body()};
     }
 
-    net::awaitable<outcome::result<State>> fetch_http_async(
+    net::awaitable<outcome::result<qtils::ByteVec>> fetch_http_async(
         const UrlParts &parts,
         const std::chrono::seconds timeout,
         const std::atomic_flag &is_shutting_down) {
@@ -335,7 +335,7 @@ namespace lean {
           resolver, stream, parts, timeout, is_shutting_down, false);
     }
 
-    net::awaitable<outcome::result<State>> fetch_https_async(
+    net::awaitable<outcome::result<qtils::ByteVec>> fetch_https_async(
         ssl::context &ssl_ctx,
         const UrlParts &parts,
         const std::chrono::seconds timeout,
@@ -374,8 +374,29 @@ namespace lean {
     is_shutting_down_.test_and_set();
   }
 
-  outcome::result<State> StateSyncClient::fetch(const std::string &url,
-                                                std::chrono::seconds timeout) {
+  outcome::result<AnchorState> StateSyncClient::fetch(
+      std::string url, std::chrono::seconds timeout) {
+    if (url.ends_with("/")) {
+      url.pop_back();
+    }
+    if (url.ends_with(kPathFinalizedState)) {
+      url.resize(url.size() - kPathFinalizedState.size());
+    }
+    BOOST_OUTCOME_TRY(AnchorState state,
+                      fetchT<State>(url + kPathFinalizedState, timeout));
+    BOOST_OUTCOME_TRY(state.signed_block,
+                      fetchT<SignedBlock>(url + kPathFinalizedBlock, timeout));
+    state.signed_block->block.setHash();
+    blockchain::AnchorBlockImpl expected_block{state};
+    if (state.signed_block->block.hash() != expected_block.hash()) {
+      return StateSyncError::InconsistentBlockAndState;
+    }
+    return state;
+  }
+
+  template <typename T>
+  outcome::result<T> StateSyncClient::fetchT(const std::string &url,
+                                             std::chrono::seconds timeout) {
     if (busy_.test_and_set(std::memory_order_acq_rel)) {
       return StateSyncError::Busy;
     }
@@ -390,7 +411,8 @@ namespace lean {
 
     net::io_context io(1);
 
-    auto prom = std::make_shared<std::promise<outcome::result<State>>>();
+    auto prom =
+        std::make_shared<std::promise<outcome::result<qtils::ByteVec>>>();
     auto fut = prom->get_future();
 
     auto run_task = [&](auto &&task) {
@@ -420,11 +442,13 @@ namespace lean {
 
     io.run();
 
+    qtils::ByteVec body;
     try {
-      return fut.get();
+      BOOST_OUTCOME_TRY(body, fut.get());
     } catch (const std::exception &) {
       return StateSyncError::Network;
     }
+    return decode<T>(body);
   }
 
 }  // namespace lean

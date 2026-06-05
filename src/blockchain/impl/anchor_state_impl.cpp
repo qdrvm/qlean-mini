@@ -9,6 +9,7 @@
 #include "app/configuration.hpp"
 #include "app/state_manager.hpp"
 #include "blockchain/genesis_config.hpp"
+#include "blockchain/impl/anchor_block_impl.hpp"
 #include "modules/networking/ssl_context.hpp"
 #include "modules/networking/state_sync_client.hpp"
 #include "modules/production/read_config_yaml.hpp"
@@ -52,7 +53,7 @@ namespace lean::blockchain {
           SL_INFO(logger,
                   "State successfully acquired from URL: {}",
                   state_sync_url);
-          static_cast<State &>(*this) = state_res.value();
+          AnchorState::operator=(state_res.value());
           return;
         }
       }

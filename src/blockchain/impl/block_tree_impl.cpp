@@ -291,14 +291,6 @@ namespace lean::blockchain {
         });
   }
 
-  outcome::result<void> BlockTreeImpl::addBlockBody(const BlockHash &block_hash,
-                                                    const BlockBody &body) {
-    return block_tree_data_.exclusiveAccess(
-        [&](const BlockTreeData &p) -> outcome::result<void> {
-          return p.storage_->putBlockBody(block_hash, body);
-        });
-  }
-
   outcome::result<void> BlockTreeImpl::finalize(const BlockHash &block_hash) {
     return block_tree_data_.exclusiveAccess(
         [&](BlockTreeData &p) -> outcome::result<void> {
@@ -420,15 +412,7 @@ namespace lean::blockchain {
     return block_tree_data_.sharedAccess(
         [&](const BlockTreeData &p)
             -> outcome::result<std::optional<BlockHeader>> {
-          auto header = p.storage_->getBlockHeader(block_hash);
-          if (header) {
-            return header.value();
-          }
-          const auto &header_error = header.error();
-          if (header_error == BlockTreeError::HEADER_NOT_FOUND) {
-            return std::nullopt;
-          }
-          return header_error;
+          return p.storage_->tryGetBlockHeader(block_hash);
         });
   }
 
@@ -766,14 +750,7 @@ namespace lean::blockchain {
     return block_tree_data_.sharedAccess(
         [&](const BlockTreeData &p)
             -> outcome::result<std::optional<SignedBlock>> {
-          auto res = p.storage_->getSignedBlock(block_hash);
-          if (res.has_error()) {
-            if (res.error() == BlockTreeError::HEADER_NOT_FOUND) {
-              return std::nullopt;
-            }
-            return res.error();
-          }
-          return res.value();
+          return p.storage_->tryGetSignedBlock(block_hash);
         });
   }
 
