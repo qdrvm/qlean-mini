@@ -141,17 +141,13 @@ namespace lean::modules {
         std::make_shared<libp2p::crypto::marshaller::KeyMarshaller>(nullptr)};
     auto peer_id = identity_manager.getId();
 
-    std::unordered_set<SubnetIndex> subnets;
     for (auto &validator_index :
          validator_registry_->currentValidatorIndices()) {
-      subnets.emplace(validatorSubnet(validator_index, subnet_count_));
+      subnets_.emplace(validatorSubnet(validator_index, subnet_count_));
     }
-    if (subnets.size() != 1) {
-      SL_FATAL(logger_, "multiple validators on same node are not supported");
-    }
-    auto subnet_id = *subnets.begin();
 
-    metrics_->lean_attestation_committee_subnet()->set(subnet_id);
+    metrics_->lean_attestation_committee_subnet()->set(
+        subnets_.empty() ? 0 : *subnets_.begin());
     metrics_->lean_attestation_committee_count()->set(subnet_count_);
 
     SL_INFO(logger_, "Networking loaded with PeerId {}", peer_id.toBase58());
@@ -270,7 +266,7 @@ namespace lean::modules {
           continue;
         }
         if (bootnode.is_aggregator
-            and subnets.contains(
+            and subnets_.contains(
                 validatorSubnet(validator_index, subnet_count_))) {
           subnet_aggregators_.emplace(bootnode.peer_id);
         } else {
@@ -559,49 +555,56 @@ namespace lean::modules {
           signed_block.block.setHash();
           self->receiveBlock(received_from, std::move(signed_block));
         });
-    gossip_votes_topic_ = gossipSubscribe<SignedAttestation>(
-        std::format("attestation_{}", subnet_id),
-        metrics_->lean_gossip_attestation_size_bytes(),
-        [weak_self{weak_from_this()}](SignedAttestation &&signed_attestation,
-                                      std::optional<libp2p::PeerId> peer_id) {
-          auto self = weak_self.lock();
-          if (not self) {
-            return;
-          }
+    for (auto &subnet_id : subnets_) {
+      gossip_votes_topics_.emplace(
+          subnet_id,
+          gossipSubscribe<SignedAttestation>(
+              std::format("attestation_{}", subnet_id),
+              metrics_->lean_gossip_attestation_size_bytes(),
+              [weak_self{weak_from_this()}](
+                  SignedAttestation &&signed_attestation,
+                  std::optional<libp2p::PeerId> peer_id) {
+                auto self = weak_self.lock();
+                if (not self) {
+                  return;
+                }
 
-          SL_DEBUG(self->logger_,
-                   "Received vote for target={} 🗳️ from peer={} 👤 "
-                   "validator_id={} ✅",
-                   signed_attestation.data.target,
-                   peer_id.has_value() ? peer_id->toBase58() : "unknown",
-                   signed_attestation.validator_id);
+                SL_DEBUG(self->logger_,
+                         "Received vote for target={} 🗳️ from peer={} 👤 "
+                         "validator_id={} ✅",
+                         signed_attestation.data.target,
+                         peer_id.has_value() ? peer_id->toBase58() : "unknown",
+                         signed_attestation.validator_id);
 
-          auto &head = signed_attestation.data.head;
-          if (not self->block_tree_->has(head.root)) {
-            if (head.slot <= self->block_tree_->lastFinalized().slot) {
-              SL_WARN(self->logger_, "Pending attestation for finalized fork");
-              return;
-            }
-            SL_INFO(self->logger_,
-                    "Pending attestation from validator {} for head {}",
-                    signed_attestation.validator_id,
-                    head);
-            self->attestation_cache_.emplace(head.root, signed_attestation);
-            if (peer_id.has_value()) {
-              self->requestBlock(*peer_id, head.root);
-            }
-            return;
-          }
-          auto res =
-              self->fork_choice_store_->onGossipAttestation(signed_attestation);
-          if (not res.has_value()) {
-            SL_WARN(self->logger_,
-                    "Error processing vote for target={}: {}",
-                    signed_attestation.data.target,
-                    res.error());
-            return;
-          }
-        });
+                auto &head = signed_attestation.data.head;
+                if (not self->block_tree_->has(head.root)) {
+                  if (head.slot <= self->block_tree_->lastFinalized().slot) {
+                    SL_WARN(self->logger_,
+                            "Pending attestation for finalized fork");
+                    return;
+                  }
+                  SL_INFO(self->logger_,
+                          "Pending attestation from validator {} for head {}",
+                          signed_attestation.validator_id,
+                          head);
+                  self->attestation_cache_.emplace(head.root,
+                                                   signed_attestation);
+                  if (peer_id.has_value()) {
+                    self->requestBlock(*peer_id, head.root);
+                  }
+                  return;
+                }
+                auto res = self->fork_choice_store_->onGossipAttestation(
+                    signed_attestation);
+                if (not res.has_value()) {
+                  SL_WARN(self->logger_,
+                          "Error processing vote for target={}: {}",
+                          signed_attestation.data.target,
+                          res.error());
+                  return;
+                }
+              }));
+    }
     gossip_signed_aggregated_attestation_topic_ =
         gossipSubscribe<SignedAggregatedAttestation>(
             "aggregation",
@@ -702,8 +705,12 @@ namespace lean::modules {
       SL_DEBUG(self->logger_,
                "📣 Gossiped vote for target={} 🗳️",
                message->notification.data.target);
-      self->gossip_votes_topic_->publish(
-          encodeSszSnappy(message->notification));
+      auto topic_it = self->gossip_votes_topics_.find(validatorSubnet(
+          message->notification.validator_id, self->subnet_count_));
+      if (topic_it == self->gossip_votes_topics_.end()) {
+        return;
+      }
+      topic_it->second->publish(encodeSszSnappy(message->notification));
     });
   }
 

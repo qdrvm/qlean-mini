@@ -35,13 +35,15 @@
 #include "utils/retain_if.hpp"
 
 namespace lean {
-  inline ValidatorIndex getValidatorId(
-      const log::Logger &logger, const ValidatorRegistry &validator_registry) {
-    auto &indices = validator_registry.currentValidatorIndices();
-    if (indices.size() != 1) {
-      SL_FATAL(logger, "multiple validators on same node are not supported");
+  inline std::unordered_set<SubnetIndex> getSubnets(
+      const log::Logger &logger,
+      const ValidatorRegistry &validator_registry,
+      SubnetIndex subnet_count) {
+    std::unordered_set<SubnetIndex> subnets;
+    for (auto &index : validator_registry.currentValidatorIndices()) {
+      subnets.emplace(validatorSubnet(index, subnet_count));
     }
-    return *indices.begin();
+    return subnets;
   }
 
   ForkChoiceStore::ForkChoiceStore(
@@ -66,9 +68,9 @@ namespace lean {
         config_(anchor_state->config),
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)),
-        validator_id_{getValidatorId(logger_, *validator_registry_)},
         is_aggregator_{[chain_spec] { return chain_spec->isAggregator(); }},
-        subnet_count_{app_config->cliSubnetCount()} {
+        subnet_count_{app_config->cliSubnetCount()},
+        subnets_{getSubnets(logger_, *validator_registry_, subnet_count_)} {
     metrics_->stf_latest_justified_slot()->set(
         block_tree_->getLatestJustified().slot);
     metrics_->stf_latest_finalized_slot()->set(
@@ -159,9 +161,9 @@ namespace lean {
         latest_new_attestations_(std::move(latest_new_attestations)),
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)),
-        validator_id_{getValidatorId(logger_, *validator_registry_)},
         is_aggregator_{[is_aggregator] { return is_aggregator; }},
-        subnet_count_{subnet_count} {}
+        subnet_count_{subnet_count},
+        subnets_{getSubnets(logger_, *validator_registry_, subnet_count_)} {}
 
   void ForkChoiceStore::dontPropose() {
     dont_propose_ = true;
@@ -692,8 +694,8 @@ namespace lean {
       return Error::INVALID_ATTESTATION;
     }
     if (is_aggregator_()
-        and validatorSubnet(signed_attestation.validator_id, subnet_count_)
-                == validatorSubnet(validator_id_, subnet_count_)) {
+        and subnets_.contains(
+            validatorSubnet(signed_attestation.validator_id, subnet_count_))) {
       addSignatureToAggregate(signed_attestation.data,
                               signed_attestation.validator_id,
                               signed_attestation.signature);

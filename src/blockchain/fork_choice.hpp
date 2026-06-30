@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <boost/di.hpp>
 #include <qtils/shared_ref.hpp>
@@ -576,12 +577,12 @@ namespace lean {
     std::unordered_map<Hash, AttestationsByData> attestations_by_data_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
-    /**
-     * Index of the validator running this store instance.
-     */
-    ValidatorIndex validator_id_;
     std::function<bool()> is_aggregator_;
     uint64_t subnet_count_;
+    /**
+     * Validator subnets this node belongs to.
+     */
+    std::unordered_set<SubnetIndex> subnets_;
     bool dont_propose_ = false;
     std::unordered_map<BlockHash, Slot> anchor_block_slots_;
   };

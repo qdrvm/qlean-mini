@@ -211,7 +211,9 @@ namespace lean::modules {
     std::shared_ptr<libp2p::host::BasicHost> host_;
     std::shared_ptr<libp2p::protocol::Identify> identify_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_blocks_topic_;
-    std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
+    std::unordered_map<SubnetIndex,
+                       std::shared_ptr<libp2p::protocol::gossip::Topic>>
+        gossip_votes_topics_;
     std::shared_ptr<libp2p::protocol::gossip::Topic>
         gossip_signed_aggregated_attestation_topic_;
     std::unordered_map<BlockHash, Clock::time_point> block_requested_at_;
@@ -235,6 +237,7 @@ namespace lean::modules {
     std::unordered_map<std::string, size_t> connected_peer_count_by_name_;
     std::unordered_set<libp2p::PeerId> subnet_aggregators_;
     uint64_t subnet_count_;
+    std::unordered_set<SubnetIndex> subnets_;
   };
 
 }  // namespace lean::modules
