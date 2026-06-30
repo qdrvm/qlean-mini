@@ -1168,7 +1168,6 @@ namespace lean {
 
         auto metric_time =
             metrics_->lean_attestations_production_time_seconds()->timer();
-        std::optional<Attestation> attestation;
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
           if (dont_propose_) {
@@ -1181,20 +1180,18 @@ namespace lean {
           if (not keypair.has_value()) {
             continue;
           }
-          if (not attestation.has_value()) {
-            attestation = produceAttestation(current_slot,
-                                             validator_index,
-                                             getLatestJustified(),
-                                             head_,
-                                             std::nullopt);
-          }
+          auto attestation = produceAttestation(current_slot,
+                                                validator_index,
+                                                getLatestJustified(),
+                                                head_,
+                                                std::nullopt);
           // sign attestation
-          auto payload = attestationPayload(attestation->data);
+          auto payload = attestationPayload(attestation.data);
           crypto::xmss::XmssSignature signature =
               xmss_provider_->sign(keypair->private_key, current_slot, payload);
           metrics_->lean_pq_sig_attestation_signatures_total()->inc();
           auto signed_attestation =
-              SignedAttestation::from(*attestation, signature);
+              SignedAttestation::from(attestation, signature);
 
           // Dispatching send signed vote-only broadcasts to other peers.
           // Current peer should process attestation directly
@@ -1209,6 +1206,11 @@ namespace lean {
           SL_DEBUG(logger_,
                    "Produced vote for target={}",
                    signed_attestation.data.target);
+          if (is_aggregator_) {
+            addSignatureToAggregate(signed_attestation.data,
+                                    signed_attestation.validator_id,
+                                    signed_attestation.signature);
+          }
           result.emplace_back(signed_attestation);
         }
 
