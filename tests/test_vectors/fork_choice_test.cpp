@@ -40,7 +40,6 @@ TEST_P(ForkChoiceTest, ForkChoice) {
 
       // TODO: HIVE
       "tests/consensus/lstar/fc/test_gossip_aggregated_attestation_validation.py::test_aggregated_attestation_at_disparity_boundary_allowed[fork_Lstar][fork_Lstar-fork_choice_test]",
-      "tests/consensus/lstar/fc/test_gossip_aggregated_attestation_validation.py::test_aggregated_attestation_head_slot_mismatch_rejected[fork_Lstar][fork_Lstar-fork_choice_test]",
       "tests/consensus/lstar/fc/test_gossip_attestation_validation.py::test_attestation_just_beyond_disparity_boundary_rejected[fork_Lstar][fork_Lstar-fork_choice_test]",
       "tests/consensus/lstar/fc/test_gossip_attestation_validation.py::test_attestation_one_full_slot_in_future_rejected[fork_Lstar][fork_Lstar-fork_choice_test]",
       "tests/consensus/lstar/fc/test_tick_system.py::test_tick_interval_0_skips_acceptance_when_not_proposer[fork_Lstar][fork_Lstar-fork_choice_test]",
