@@ -287,8 +287,13 @@ lean::http::Response httpJson(const lean::http::Request &request, auto &&f) {
   }
   auto call = [&] { return f(request_json); };
   if constexpr (std::is_void_v<decltype(call())>) {
-    call();
-    response.result(boost::beast::http::status::no_content);
+    try {
+      call();
+      response.result(boost::beast::http::status::no_content);
+    } catch (std::exception &e) {
+      response.result(boost::beast::http::status::bad_request);
+      response.body() = e.what();
+    }
     return response;
   } else {
     auto response_json = call();
@@ -429,6 +434,12 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
             if (url == "/lean/v0/test_driver/fork_choice/init") {
               return httpJson<ForkChoiceInit>(
                   request, [&](ForkChoiceInit request) {
+                    lean::blockchain::AnchorBlockImpl expected_block{
+                        request.anchor_state};
+                    request.anchor_block.setHash();
+                    if (request.anchor_block.hash() != expected_block.hash()) {
+                      throw std::runtime_error{"anchor hash mismatch"};
+                    }
                     fork_choice->emplace(logsys, request.anchor_state);
                   });
             }
