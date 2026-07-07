@@ -75,42 +75,6 @@ struct ValidatorKeysManifestMock : lean::app::ValidatorKeysManifest {
   }
 };
 
-struct XmssProviderMock : lean::crypto::xmss::XmssProvider {
-  lean::crypto::xmss::XmssKeypair generateKeypair(
-      uint64_t activation_epoch, uint64_t num_active_epochs) MOCK_UNUSED;
-  lean::crypto::xmss::XmssSignature sign(
-      lean::crypto::xmss::XmssPrivateKey xmss_private_key,
-      uint32_t epoch,
-      const lean::crypto::xmss::XmssMessage &message) override {
-    return {};
-  }
-  bool verify(
-      const lean::crypto::xmss::XmssPublicKey &xmss_public_key,
-      const lean::crypto::xmss::XmssMessage &message,
-      uint32_t epoch,
-      const lean::crypto::xmss::XmssSignature &xmss_signature) override {
-    return true;
-  }
-  lean::crypto::xmss::XmssAggregatedSignature aggregateSignatures(
-      std::span<const std::vector<lean::crypto::xmss::XmssPublicKey>>
-          child_public_keys,
-      std::span<const lean::crypto::xmss::XmssAggregatedSignature> child_proofs,
-      std::span<const lean::crypto::xmss::XmssPublicKey> public_keys,
-      std::span<const lean::crypto::xmss::XmssSignature> signatures,
-      uint32_t epoch,
-      const lean::crypto::xmss::XmssMessage &message) const override {
-    return {};
-  }
-  bool verifyAggregatedSignatures(
-      std::span<const lean::crypto::xmss::XmssPublicKey> public_keys,
-      uint32_t epoch,
-      const lean::crypto::xmss::XmssMessage &message,
-      lean::crypto::xmss::XmssAggregatedSignatureIn aggregated_signature)
-      const override {
-    return true;
-  }
-};
-
 struct BlockTreeMock : lean::blockchain::BlockTree {
   USING_(lean, BlockHash);
   USING_(lean, BlockHeader);
@@ -360,10 +324,11 @@ struct ForkChoiceDriver {
                    std::make_shared<ValidatorRegistryMock>(),
                    std::make_shared<ChainSpecMock>(),
                    std::make_shared<ValidatorKeysManifestMock>(),
-                   std::make_shared<XmssProviderMock>(),
+                   std::make_shared<lean::crypto::xmss::XmssProviderImpl>(),
                    block_tree,
                    block_storage);
     store_->dontPropose();
+    store_->ignoreBlockSignature();
   }
 
   lean::ValidatorRegistry::ValidatorIndices validator_indices_{0};
