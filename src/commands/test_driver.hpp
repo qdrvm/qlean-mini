@@ -529,6 +529,8 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                         return store.onGossipAggregatedAttestation(
                             aggregated_step->attestation);
                       }();
+                    } else {
+                      throw std::runtime_error{"Unknown step type"};
                     }
                     if (not result.value().has_value()) {
                       return StepResponse{

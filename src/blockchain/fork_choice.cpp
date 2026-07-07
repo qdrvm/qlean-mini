@@ -646,18 +646,17 @@ namespace lean {
     // Validate checkpoint slots match block slots
     if (auto res = getBlockSlot(data.source.root);
         not res.has_value() or res.value() != data.source.slot) {
-      SL_TRACE(logger_,
-               "Invalid attestation: inconsistent source slot",
-               data.target,
-               data.source);
+      SL_TRACE(logger_, "Invalid attestation: inconsistent source slot");
       return Error::INVALID_ATTESTATION;
     }
     if (auto res = getBlockSlot(data.target.root);
         not res.has_value() or res.value() != data.target.slot) {
-      SL_TRACE(logger_,
-               "Invalid attestation: inconsistent target slot",
-               data.target,
-               data.source);
+      SL_TRACE(logger_, "Invalid attestation: inconsistent target slot");
+      return Error::INVALID_ATTESTATION;
+    }
+    if (auto res = getBlockSlot(data.head.root);
+        not res.has_value() or res.value() != data.head.slot) {
+      SL_TRACE(logger_, "Invalid attestation: inconsistent head slot");
       return Error::INVALID_ATTESTATION;
     }
 
@@ -832,15 +831,6 @@ namespace lean {
       // - They enter the "new" stage,
       // - They must wait for interval tick acceptance before
       //   contributing to fork choice weights.
-
-      // Convert Store time to slots to check for "future" attestations.
-      auto time_slot = getCurrentSlot();
-
-      // Reject the attestation if:
-      // - its slot is strictly greater than our current slot.
-      if (attestation_slot > time_slot) {
-        return Error::INVALID_ATTESTATION;
-      }
 
       // Fetch the previously stored "new" attestation for this validator.
       auto latest_new_attestation = latest_new_attestations_.find(validator_id);
@@ -1160,14 +1150,6 @@ namespace lean {
 
       } else if (time_.phase() == 1) {
         SL_TRACE(logger_, "Interval 1 of slot {}", current_slot);
-
-        // Ensure the head is updated before voting
-        auto ana_res = acceptNewAttestations();
-        if (ana_res.has_error()) {
-          SL_WARN(logger_,
-                  "Failed to accept new attestations: {}",
-                  ana_res.error());
-        }
 
         Checkpoint head = head_;
         auto target =
