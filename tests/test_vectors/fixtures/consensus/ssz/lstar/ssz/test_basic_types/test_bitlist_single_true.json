@@ -1,0 +1,21 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_bitlist_single_true[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "SampleBitlist16",
+        "value": {
+            "data": [
+                true
+            ]
+        },
+        "serialized": "0x03",
+        "root": "0x56d8a66fbae0300efba7ec2c531973aaae22e7a2ed6ded081b5b32d07a32780a",
+        "_info": {
+            "hash": "0x41ec05b5d924b04b521c9b93a1ada655c898abc63b0eb49e25e110b20c545cf0",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_bitlist_single_true[fork_Lstar]",
+            "description": "Bitlist with one set bit. Sentinel immediately follows the data bit.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

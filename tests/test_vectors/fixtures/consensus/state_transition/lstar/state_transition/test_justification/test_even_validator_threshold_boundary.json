@@ -1,0 +1,134 @@
+{
+    "tests/consensus/lstar/state_transition/test_justification.py::test_even_validator_threshold_boundary[fork_Lstar][fork_Lstar-state_transition_test]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "pre": {
+            "config": {
+                "genesisTime": 0
+            },
+            "slot": 0,
+            "latestBlockHeader": {
+                "slot": 0,
+                "proposerIndex": 0,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "bodyRoot": "0xdba9671bac9513c9482f1416a53aabd2c6ce90d5a5f865ce5a55c775325c9136"
+            },
+            "latestJustified": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "latestFinalized": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "historicalBlockHashes": {
+                "data": []
+            },
+            "justifiedSlots": {
+                "data": []
+            },
+            "validators": {
+                "data": [
+                    {
+                        "attestationPubkey": "0x69968a74060bb672709bae2a9020113634052a233f82a1362d836238c42a3a35239f622654db5208a695613841694163e1bb2f03",
+                        "proposalPubkey": "0x2a18d4583f2767751a706c5ece704966fd615a400a80f5059cc91727a3302249e29bcf2ab3a03758de58870497756569dd512402",
+                        "index": 0
+                    },
+                    {
+                        "attestationPubkey": "0x19cb1c1d6125eb5384442c467d2e0c3a043db2354b280026918a9574219bef1b1408375e8c552a572aac724bbc62567252ba5e29",
+                        "proposalPubkey": "0xd9070922f2a61d4f6841a422af4c4c20b884822679e373656d85fb23c16d481950e066599bf38819590a2b1c23a0191412103134",
+                        "index": 1
+                    },
+                    {
+                        "attestationPubkey": "0x92bed26ae499d8697f17f95e7ff3384fc14873104bb8e77c0873c84e62faf807c6ba6a0fbcfc854e3a454967e8d13b3421feb640",
+                        "proposalPubkey": "0xb29ab606672cbb688c6fda46eb61b11c700049668dfea02b8495b31d2f099756b6e4703bb766614db919d628acb94a33191ccd08",
+                        "index": 2
+                    },
+                    {
+                        "attestationPubkey": "0x052219585cd5586b5dec1d5d4726fe7de8ed435e6c96af4abe90f901b5067364ea570106b5cb3126056c5b061d554613418db111",
+                        "proposalPubkey": "0xce5ee06dab5c554e10863f2f9b5cf02543f77b17db0e5e7a4e19f777c266d81325d82f2bc597d322bc10ee25fd09bd3bec791e0a",
+                        "index": 3
+                    },
+                    {
+                        "attestationPubkey": "0x0f478836d9457c66010e6f666a06323ed28bf739976ecd52506d8833c7f58e0f1d08bc1b21e0071830dae70d3063965f3b62ac74",
+                        "proposalPubkey": "0x269ba651884ad96fb81d1449340779761f3fb27d35189b00a9e7b454c10d74651d9ff76bd227a30822cbc93cf06b95080a219b73",
+                        "index": 4
+                    },
+                    {
+                        "attestationPubkey": "0xb781be50a0eb423e72861e3ec8b4bf47ec531f223c037c4c027a661dd1730e709e465779faff8d1445f7f95cfe6f174c258b234a",
+                        "proposalPubkey": "0x6999836ce25a2e7e6e07633b4b9c3c10fe674a5170e62c1ead9a9b6b3d11ae3db579ec349193c33631548f51da54f92fd64cc655",
+                        "index": 5
+                    }
+                ]
+            },
+            "justificationsRoots": {
+                "data": []
+            },
+            "justificationsValidators": {
+                "data": []
+            }
+        },
+        "blocks": [
+            {
+                "slot": 1,
+                "proposerIndex": 1,
+                "parentRoot": "0x1a2aa27ae3a9837f75ad5f088f11d978e5067540ab5782a70d604fe6c3ecd587",
+                "stateRoot": "0x2f69a172909091a4a06f0317427453dcf01afbfbca741faabb39d436d493e98b",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            },
+            {
+                "slot": 2,
+                "proposerIndex": 2,
+                "parentRoot": "0x036843169634ac60ebb001305b91e6373cf8b75bb86e0540670574238c478249",
+                "stateRoot": "0x0f61e71fc366c498db9b06b3454ba153e9993efcf91c50ec57665f2cb67375bc",
+                "body": {
+                    "attestations": {
+                        "data": [
+                            {
+                                "aggregationBits": {
+                                    "data": [
+                                        true,
+                                        true,
+                                        true,
+                                        true
+                                    ]
+                                },
+                                "data": {
+                                    "slot": 2,
+                                    "head": {
+                                        "root": "0x036843169634ac60ebb001305b91e6373cf8b75bb86e0540670574238c478249",
+                                        "slot": 1
+                                    },
+                                    "target": {
+                                        "root": "0x036843169634ac60ebb001305b91e6373cf8b75bb86e0540670574238c478249",
+                                        "slot": 1
+                                    },
+                                    "source": {
+                                        "root": "0x1a2aa27ae3a9837f75ad5f088f11d978e5067540ab5782a70d604fe6c3ecd587",
+                                        "slot": 0
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        ],
+        "post": {
+            "slot": 2,
+            "latestJustifiedSlot": 1
+        },
+        "_info": {
+            "hash": "0xd8f92a770aee720b4b1cad1ad2cda22af6315cd7c70e99c9b2d3308fe6808356",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/state_transition/test_justification.py::test_even_validator_threshold_boundary[fork_Lstar]",
+            "description": "Test that exact two-thirds support is sufficient for justification.\n\n    Scenario\n    --------\n    1. Start from genesis with 6 validators\n    2. Process block_1 at slot 1\n    3. Process a block at slot 2 with attestations from validators 0, 1, 2,\n       and 3 targeting block_1 at slot 1\n\n    Expected Behavior\n    -----------------\n    1. Slot 1 is a justifiable target after finalized slot 0\n    2. Four of six validators meet the exact two-thirds threshold\n    3. The >= supermajority rule applies at the boundary\n    4. latest_justified_slot advances to slot 1",
+            "fixtureFormat": "state_transition_test"
+        }
+    }
+}

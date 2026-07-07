@@ -1,0 +1,19 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_uint32_list_empty[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "SampleUint32List16",
+        "value": {
+            "data": []
+        },
+        "serialized": "0x",
+        "root": "0x7a0501f5957bdf9cb3a8ff4966f02265f968658b7a9c62642cba1165e86642f5",
+        "_info": {
+            "hash": "0x387eba8bffbed7b36322ecaf0170cafe384bc4f78b414311dd3278fea3fac8d3",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_uint32_list_empty[fork_Lstar]",
+            "description": "Empty Uint32 list. Length mix-in is zero, data tree is all-zero.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

@@ -1,0 +1,21 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_bitlist_single_false[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "SampleBitlist16",
+        "value": {
+            "data": [
+                false
+            ]
+        },
+        "serialized": "0x02",
+        "root": "0xcb592844121d926f1ca3ad4e1d6fb9d8e260ed6e3216361f7732e975a0e8bbf6",
+        "_info": {
+            "hash": "0xacecfef7e9400ba0f0acc7fb724df151caefe169211dd3dfbab36c7bd5db9613",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_bitlist_single_false[fork_Lstar]",
+            "description": "Bitlist with one clear bit. The sentinel is the only set bit in the byte.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

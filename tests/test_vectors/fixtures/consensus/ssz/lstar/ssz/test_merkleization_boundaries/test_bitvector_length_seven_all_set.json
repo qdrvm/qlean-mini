@@ -1,0 +1,27 @@
+{
+    "tests/consensus/lstar/ssz/test_merkleization_boundaries.py::test_bitvector_length_seven_all_set[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "BoundaryBitvector7",
+        "value": {
+            "data": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+            ]
+        },
+        "serialized": "0x7f",
+        "root": "0x7f00000000000000000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0x7033a373ee746969b73a1f2b5bda8314d039b28de513c98bac4cb01ce223ad70",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_merkleization_boundaries.py::test_bitvector_length_seven_all_set[fork_Lstar]",
+            "description": "Seven-bit vector exercises the pre-byte-boundary pad bit.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

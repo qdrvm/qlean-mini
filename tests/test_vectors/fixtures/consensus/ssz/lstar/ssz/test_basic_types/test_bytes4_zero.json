@@ -1,0 +1,17 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes4_zero[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "Bytes4",
+        "value": "0x00000000",
+        "serialized": "0x00000000",
+        "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0x9a9561adf53bbf0504d8c8593381976b774bbc0a0bde5a5ce4aaf53467b9b979",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes4_zero[fork_Lstar]",
+            "description": "Bytes4 all zeros. Minimal content, still pads to 32-byte chunk.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

@@ -1,0 +1,17 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes32_zero[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "Bytes32",
+        "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "serialized": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0xdc907b80b0ab6b7452a475a45fa2c88f9c4b22e200f87a8b7979f4ce4a135bd9",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes32_zero[fork_Lstar]",
+            "description": "Bytes32 all zeros. One full chunk of zero bytes.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

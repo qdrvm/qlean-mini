@@ -1,0 +1,17 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes32_typical[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "Bytes32",
+        "value": "0xabababababababababababababababababababababababababababababababab",
+        "serialized": "0xabababababababababababababababababababababababababababababababab",
+        "root": "0xabababababababababababababababababababababababababababababababab",
+        "_info": {
+            "hash": "0x1a62776928ef471792e2916c1a36a588f96d41ced14f3c56b1c400035d0b1e57",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes32_typical[fork_Lstar]",
+            "description": "Bytes32 with uniform nonzero content (0xAB repeated).",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "tests/consensus/lstar/state_transition/test_block_processing.py::test_block_with_wrong_slot[fork_Lstar][fork_Lstar-state_transition_test]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "expectException": "AssertionError",
+        "pre": {
+            "config": {
+                "genesisTime": 0
+            },
+            "slot": 1,
+            "latestBlockHeader": {
+                "slot": 0,
+                "proposerIndex": 0,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0xfa09273d2ca9980eb70b3c638fdcd196114ad600ea29e1b8c040196a356827df",
+                "bodyRoot": "0xdba9671bac9513c9482f1416a53aabd2c6ce90d5a5f865ce5a55c775325c9136"
+            },
+            "latestJustified": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "latestFinalized": {
+                "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "slot": 0
+            },
+            "historicalBlockHashes": {
+                "data": []
+            },
+            "justifiedSlots": {
+                "data": []
+            },
+            "validators": {
+                "data": [
+                    {
+                        "attestationPubkey": "0x69968a74060bb672709bae2a9020113634052a233f82a1362d836238c42a3a35239f622654db5208a695613841694163e1bb2f03",
+                        "proposalPubkey": "0x2a18d4583f2767751a706c5ece704966fd615a400a80f5059cc91727a3302249e29bcf2ab3a03758de58870497756569dd512402",
+                        "index": 0
+                    },
+                    {
+                        "attestationPubkey": "0x19cb1c1d6125eb5384442c467d2e0c3a043db2354b280026918a9574219bef1b1408375e8c552a572aac724bbc62567252ba5e29",
+                        "proposalPubkey": "0xd9070922f2a61d4f6841a422af4c4c20b884822679e373656d85fb23c16d481950e066599bf38819590a2b1c23a0191412103134",
+                        "index": 1
+                    },
+                    {
+                        "attestationPubkey": "0x92bed26ae499d8697f17f95e7ff3384fc14873104bb8e77c0873c84e62faf807c6ba6a0fbcfc854e3a454967e8d13b3421feb640",
+                        "proposalPubkey": "0xb29ab606672cbb688c6fda46eb61b11c700049668dfea02b8495b31d2f099756b6e4703bb766614db919d628acb94a33191ccd08",
+                        "index": 2
+                    },
+                    {
+                        "attestationPubkey": "0x052219585cd5586b5dec1d5d4726fe7de8ed435e6c96af4abe90f901b5067364ea570106b5cb3126056c5b061d554613418db111",
+                        "proposalPubkey": "0xce5ee06dab5c554e10863f2f9b5cf02543f77b17db0e5e7a4e19f777c266d81325d82f2bc597d322bc10ee25fd09bd3bec791e0a",
+                        "index": 3
+                    }
+                ]
+            },
+            "justificationsRoots": {
+                "data": []
+            },
+            "justificationsValidators": {
+                "data": []
+            }
+        },
+        "blocks": [
+            {
+                "slot": 2,
+                "proposerIndex": 2,
+                "parentRoot": "0xaaad34b4601908bb539c3b6d7cd40553624165dba9662127398545ac802ecfa3",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            }
+        ],
+        "expectExceptionMessage": "Block slot mismatch",
+        "_info": {
+            "hash": "0xea7ce48ceb802d8440a01c25edbc501faadcbee847e6143a3b899f5d7dde3ff3",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/state_transition/test_block_processing.py::test_block_with_wrong_slot[fork_Lstar]",
+            "description": "Test that blocks with mismatched slot are rejected.\n\n    Scenario\n    --------\n    Attempt to process a block at slot 1, but the block claims to be\n    at slot 2.\n\n    Expected Behavior\n    -----------------\n    Block processing fails with AssertionError: \"Block slot mismatch\"\n\n    Why This Matters\n    ----------------\n    Ensures temporal consistency:\n    - Blocks can't lie about their slot\n    - Prevents time manipulation attacks\n    - Maintains protocol timing integrity\n    - Essential for slot-based consensus",
+            "fixtureFormat": "state_transition_test"
+        }
+    }
+}

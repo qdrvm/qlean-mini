@@ -1,0 +1,23 @@
+{
+    "tests/consensus/lstar/ssz/test_decode_rejections.py::test_bitlist_decode_rejects_length_above_limit[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "expectException": "SSZValueError",
+        "typeName": "DecodeBitlist8",
+        "value": {
+            "data": [
+                false
+            ]
+        },
+        "rawBytes": "0x0002",
+        "serialized": "0x0002",
+        "root": "",
+        "_info": {
+            "hash": "0x6c36d319025aa5a7b6b25828680e1496b95911461bc1f23bbd87299f0c03df4b",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_decode_rejections.py::test_bitlist_decode_rejects_length_above_limit[fork_Lstar]",
+            "description": "Bitlist whose sentinel implies a bit-length beyond the type limit must be rejected.\n\n    The payload 0x0002 places the sentinel at bit index nine, implying a\n    nine-bit bitlist. The type caps at eight bits, so the decoder must\n    refuse to widen past its own limit.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

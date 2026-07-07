@@ -1,0 +1,23 @@
+{
+    "tests/consensus/lstar/ssz/test_consensus_containers.py::test_block_header_typical[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "BlockHeader",
+        "value": {
+            "slot": 100,
+            "proposerIndex": 3,
+            "parentRoot": "0x0101010101010101010101010101010101010101010101010101010101010101",
+            "stateRoot": "0x0202020202020202020202020202020202020202020202020202020202020202",
+            "bodyRoot": "0x0303030303030303030303030303030303030303030303030303030303030303"
+        },
+        "serialized": "0x64000000000000000300000000000000010101010101010101010101010101010101010101010101010101010101010102020202020202020202020202020202020202020202020202020202020202020303030303030303030303030303030303030303030303030303030303030303",
+        "root": "0xad9980d1fdf5b6b26056ae849bdf21f20debfd10156da95ca8b7b9e9e447891b",
+        "_info": {
+            "hash": "0x2b77cb81f5526461ccfc1d09c04a27c165b8c482e23c4b9203f0e2f4f6561fc8",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_consensus_containers.py::test_block_header_typical[fork_Lstar]",
+            "description": "SSZ roundtrip for BlockHeader with typical values.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

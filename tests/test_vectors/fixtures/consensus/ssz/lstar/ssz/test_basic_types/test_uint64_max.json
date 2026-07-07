@@ -1,0 +1,17 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_uint64_max[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "Uint64",
+        "value": "18446744073709551615",
+        "serialized": "0xffffffffffffffff",
+        "root": "0xffffffffffffffff000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0x3db1bb5dd0270c47780613dd68db7046a5dd842049825accaeea14c7d6412ced",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_uint64_max[fork_Lstar]",
+            "description": "Uint64 upper bound (2^64 - 1). All bytes 0xFF.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

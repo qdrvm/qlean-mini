@@ -1,0 +1,21 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes32_list_single[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "SampleBytes32List8",
+        "value": {
+            "data": [
+                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+        },
+        "serialized": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "root": "0x23f61250eb803aed609f6b7b760298c3abfc31c6ef3019271b3fdf4fdb59011f",
+        "_info": {
+            "hash": "0x2ca35475e3b9848c465de6c60a58621393ebb7b6d6010be714ba1f0049c3b8c8",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes32_list_single[fork_Lstar]",
+            "description": "Bytes32 list with one element. Single chunk plus length mix-in.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}
