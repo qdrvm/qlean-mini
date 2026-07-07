@@ -29,7 +29,8 @@ TEST_P(VerifySignaturesTest, VerifySignatures) {
       .WillRepeatedly(testing::ReturnRef(validator_indices));
   auto block_storage = std::make_shared<lean::blockchain::BlockStorageMock>();
   EXPECT_CALL(*block_storage, getState(fixture.signed_block.block.parent_root))
-      .WillOnce(testing::Return(fixture.anchor_state));
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(fixture.anchor_state));
   lean::ForkChoiceStore store{
       {},
       logsys,
