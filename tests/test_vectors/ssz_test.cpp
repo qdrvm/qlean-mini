@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <qtils/test/outcome.hpp>
+
 #include "ssz_test_json.hpp"
 #include "test_vectors.hpp"
 
@@ -18,10 +20,23 @@ TEST_P(SszTest, Ssz) {
     std::println("  DISABLED");
     return;
   }
-  auto [actual, expected] = std::visit(
+  std::visit(
       [&](auto &v) {
-        return std::make_pair(lean::encode(v.value).value(), v.serialized);
+        auto encoded_res = lean::encode(v.value);
+        auto decoded_res =
+            lean::decode<typename std::remove_cvref_t<decltype(v)>::Type>(
+                v.serialized);
+        if (v.expect_exception.has_value()) {
+          if (encoded_res.has_value()) {
+            auto &encoded = encoded_res.value();
+            EXPECT_NE(encoded.toHex(), v.serialized.toHex());
+          }
+          ASSERT_OUTCOME_ERROR(decoded_res);
+        } else {
+          ASSERT_OUTCOME_SUCCESS(encoded, encoded_res);
+          EXPECT_EQ(encoded.toHex(), v.serialized.toHex());
+          ASSERT_OUTCOME_SUCCESS(decoded_res);
+        }
       },
       fixture.v);
-  EXPECT_EQ(actual.toHex(), expected.toHex());
 }

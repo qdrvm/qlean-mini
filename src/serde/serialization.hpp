@@ -39,8 +39,12 @@ namespace lean {
   template <typename T>
   outcome::result<T> decode(qtils::BytesIn data) {
     try {
-      return ssz::deserialize<T>(
-          reinterpret_cast<std::span<std::byte> &>(data));
+      auto v =
+          ssz::deserialize<T>(reinterpret_cast<std::span<std::byte> &>(data));
+      if (data.size() != ssz::size(v)) {
+        return outcome::failure(SszError::DecodeError);
+      }
+      return v;
     } catch (const std::out_of_range &) {
       return outcome::failure(SszError::DecodeError);
     } catch (const std::invalid_argument &) {

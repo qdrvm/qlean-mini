@@ -33,10 +33,13 @@
 namespace lean {
   template <typename T>
   struct SszTestJsonT {
+    using Type = T;
+
     T value;
     qtils::ByteVec serialized;
+    std::optional<std::string> expect_exception;
 
-    JSON_FIELDS(value, serialized);
+    JSON_FIELDS(value, serialized, expect_exception);
   };
 
   struct SszTestJson {
@@ -61,9 +64,17 @@ namespace lean {
     using AttestationSubnets = Disabled;
     using SyncCommitteeSubnets = Disabled;
 
-    using SampleUnionNone = Disabled;
-    using SampleUnionTypes = Disabled;
-
+    using DecodeBitlist8 = Disabled;
+    using DecodeBitvector16 = Disabled;
+    using SmokeBitlist8 = Disabled;
+    using BoundaryBitvector7 = Disabled;
+    using BoundaryBitlist256 = Disabled;
+    using BoundaryBitvector255 = Disabled;
+    using BoundaryUint64List32 = Disabled;
+    using BoundaryBitvector256 = Disabled;
+    using BoundaryBitvector9 = Disabled;
+    using BoundaryBitvector257 = Disabled;
+    using BoundaryBitvector1 = Disabled;
     using SampleBitlist16 = Disabled;
     using SampleBitvector64 = Disabled;
     using SampleBitvector8 = Disabled;
@@ -102,6 +113,17 @@ namespace lean {
                  SszTestJsonT<Bytes64>,
                  SszTestJsonT<Checkpoint>,
                  SszTestJsonT<Config>,
+                 SszTestJsonT<DecodeBitlist8>,
+                 SszTestJsonT<DecodeBitvector16>,
+                 SszTestJsonT<SmokeBitlist8>,
+                 SszTestJsonT<BoundaryBitvector7>,
+                 SszTestJsonT<BoundaryBitlist256>,
+                 SszTestJsonT<BoundaryBitvector255>,
+                 SszTestJsonT<BoundaryUint64List32>,
+                 SszTestJsonT<BoundaryBitvector256>,
+                 SszTestJsonT<BoundaryBitvector9>,
+                 SszTestJsonT<BoundaryBitvector257>,
+                 SszTestJsonT<BoundaryBitvector1>,
                  SszTestJsonT<Fp>,
                  SszTestJsonT<HashTreeLayer>,
                  SszTestJsonT<HashTreeOpening>,
@@ -113,8 +135,6 @@ namespace lean {
                  SszTestJsonT<SampleUint16Vector3>,
                  SszTestJsonT<SampleUint32List16>,
                  SszTestJsonT<SampleUint64Vector4>,
-                 SszTestJsonT<SampleUnionNone>,
-                 SszTestJsonT<SampleUnionTypes>,
                  SszTestJsonT<Signature>,
                  SszTestJsonT<SignedAggregatedAttestation>,
                  SszTestJsonT<SignedAttestation>,
@@ -148,6 +168,17 @@ namespace lean {
                        "Bytes64",
                        "Checkpoint",
                        "Config",
+                       "DecodeBitlist8",
+                       "DecodeBitvector16",
+                       "SmokeBitlist8",
+                       "BoundaryBitvector7",
+                       "BoundaryBitlist256",
+                       "BoundaryBitvector255",
+                       "BoundaryUint64List32",
+                       "BoundaryBitvector256",
+                       "BoundaryBitvector9",
+                       "BoundaryBitvector257",
+                       "BoundaryBitvector1",
                        "Fp",
                        "HashTreeLayer",
                        "HashTreeOpening",
@@ -159,8 +190,6 @@ namespace lean {
                        "SampleUint16Vector3",
                        "SampleUint32List16",
                        "SampleUint64Vector4",
-                       "SampleUnionNone",
-                       "SampleUnionTypes",
                        "Signature",
                        "SignedAggregatedAttestation",
                        "SignedAttestation",
