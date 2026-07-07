@@ -169,6 +169,10 @@ namespace lean {
     dont_propose_ = true;
   }
 
+  void ForkChoiceStore::ignoreBlockSignature() {
+    ignore_block_signature_ = true;
+  }
+
   inline crypto::xmss::XmssMessage attestationPayload(
       const AttestationData &attestation_data) {
     return sszHash(attestation_data);
@@ -854,6 +858,10 @@ namespace lean {
 
   bool ForkChoiceStore::validateBlockSignatures(
       const SignedBlock &signed_block) const {
+    if (ignore_block_signature_) {
+      return true;
+    }
+
     // Unpack the signed block components
     const auto &block = signed_block.block;
     const auto &signatures = signed_block.signature;

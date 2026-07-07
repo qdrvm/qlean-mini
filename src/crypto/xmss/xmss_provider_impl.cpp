@@ -101,9 +101,11 @@ namespace lean::crypto::xmss {
 
     // Deserialize signature
     PQSignature *signature_raw = nullptr;
-    ffi::asOutcome(
-        pq_signature_from_bytes(xmss_signature.data(), &signature_raw))
-        .value();
+    auto signature_res = ffi::asOutcome(
+        pq_signature_from_bytes(xmss_signature.data(), &signature_raw));
+    if (not signature_res.has_value()) {
+      return 0;
+    }
     ffi::Signature signature{signature_raw};
 
     // Verify signature

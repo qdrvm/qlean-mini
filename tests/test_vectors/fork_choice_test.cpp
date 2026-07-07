@@ -9,6 +9,7 @@
 #include "blockchain/impl/anchor_block_impl.hpp"
 #include "blockchain/impl/anchor_state_impl.hpp"
 #include "clock/manual_clock.hpp"
+#include "crypto/xmss/xmss_provider_impl.hpp"
 #include "metrics/metrics_mock.hpp"
 #include "mock/app/chain_spec_mock.hpp"
 #include "mock/app/configuration_mock.hpp"
@@ -16,7 +17,6 @@
 #include "mock/blockchain/block_storage_mock.hpp"
 #include "mock/blockchain/block_tree_mock.hpp"
 #include "mock/blockchain/validator_registry_mock.hpp"
-#include "mock/crypto/xmss_provider_mock.hpp"
 #include "test_vectors.hpp"
 #include "testutil/prepare_loggers.hpp"
 #include "types/fork_choice_test_json.hpp"
@@ -39,7 +39,6 @@ TEST_P(ForkChoiceTest, ForkChoice) {
       "tests/consensus/lstar/fc/test_finalization_mid_processing.py::test_finalization_advances_mid_attestation_processing[fork_Lstar][fork_Lstar-fork_choice_test]",
 
       // TODO: HIVE
-      "tests/consensus/lstar/fc/test_gossip_attestation_validation.py::test_gossip_attestation_with_invalid_signature[fork_Lstar][fork_Lstar-fork_choice_test]",
       "tests/consensus/lstar/fc/test_duplicate_attestation_data.py::test_block_with_duplicate_aggregated_attestation_data_rejected[fork_Lstar][fork_Lstar-fork_choice_test]",
       "tests/consensus/lstar/fc/test_gossip_aggregated_attestation_validation.py::test_aggregated_attestation_at_disparity_boundary_allowed[fork_Lstar][fork_Lstar-fork_choice_test]",
       "tests/consensus/lstar/fc/test_gossip_aggregated_attestation_validation.py::test_aggregated_attestation_head_slot_mismatch_rejected[fork_Lstar][fork_Lstar-fork_choice_test]",
@@ -154,7 +153,9 @@ TEST_P(ForkChoiceTest, ForkChoice) {
           [](lean::ValidatorIndex i) { return std::format("node_{}", i); });
 
   auto chain_spec = std::make_shared<lean::app::ChainSpecMock>();
-  EXPECT_CALL(*chain_spec, isAggregator()).WillOnce(testing::Return(true));
+  EXPECT_CALL(*chain_spec, isAggregator())
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(true));
 
   auto validator_key_manifest =
       std::make_shared<lean::app::ValidatorKeysManifestMock>();
@@ -164,13 +165,7 @@ TEST_P(ForkChoiceTest, ForkChoice) {
       .Times(testing::AnyNumber())
       .WillRepeatedly(testing::Return(std::nullopt));
 
-  auto xmss = std::make_shared<lean::crypto::xmss::XmssProviderMock>();
-  EXPECT_CALL(*xmss, verify(_, _, _, _)).WillRepeatedly(testing::Return(true));
-  EXPECT_CALL(*xmss, sign(_, _, _)).Times(testing::AnyNumber());
-  EXPECT_CALL(*xmss, verifyAggregatedSignatures(_, _, _, _))
-      .WillRepeatedly(testing::Return(true));
-  EXPECT_CALL(*xmss, aggregateSignatures(_, _, _, _, _, _))
-      .Times(testing::AnyNumber());
+  auto xmss = std::make_shared<lean::crypto::xmss::XmssProviderImpl>();
 
   auto block_tree = std::make_shared<lean::blockchain::BlockTreeMock>();
   auto last_finalized = fixture.anchor_block.index();
@@ -240,6 +235,7 @@ TEST_P(ForkChoiceTest, ForkChoice) {
       block_storage,
   };
   store.dontPropose();
+  store.ignoreBlockSignature();
   auto check = [&](const lean::BaseForkChoiceStep &step, auto &&f) {
     outcome::result<void> r = f();
     ASSERT_EQ(step.valid, r.has_value());

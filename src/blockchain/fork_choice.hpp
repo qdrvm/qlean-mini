@@ -162,6 +162,7 @@ namespace lean {
         uint64_t subnet_count);
 
     void dontPropose();
+    void ignoreBlockSignature();
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -584,6 +585,7 @@ namespace lean {
      */
     std::unordered_set<SubnetIndex> subnets_;
     bool dont_propose_ = false;
+    bool ignore_block_signature_ = false;
     std::unordered_map<BlockHash, Slot> anchor_block_slots_;
   };
 
