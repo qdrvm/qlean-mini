@@ -987,6 +987,15 @@ namespace lean {
 
     OUTCOME_TRY(parent_state, getState(block.parent_root));
 
+    // Reject a block body that repeats the same vote data.
+    std::unordered_set<Hash> attestation_data_set;
+    for (auto &attestation : block.body.attestations) {
+      attestation_data_set.emplace(sszHash(attestation.data));
+    }
+    if (block.body.attestations.size() != attestation_data_set.size()) {
+      return Error::DUPLICATE_ATTESTATION_DATA;
+    }
+
     // at this point parent state should be available so node should sync
     // parent-chain if not available before adding block to forkchoice
 

@@ -89,6 +89,7 @@ namespace lean {
       SIGNATURE_COUNT_MISMATCH,
       TOO_MANY_ATTESTATIONS,
       NO_KEYPAIR,
+      DUPLICATE_ATTESTATION_DATA,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
@@ -111,6 +112,8 @@ namespace lean {
           return "Too many attestations in block";
         case E::NO_KEYPAIR:
           return "No keypair";
+        case E::DUPLICATE_ATTESTATION_DATA:
+          return "DUPLICATE_ATTESTATION_DATA";
       }
       abort();
     }
