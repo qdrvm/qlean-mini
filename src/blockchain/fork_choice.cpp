@@ -665,12 +665,14 @@ namespace lean {
 
     // Validate attestation is not too far in the future
     // We allow a small margin for clock disparity (1 slot), but no further.
-    if (data.slot > getCurrentSlot() + 1) {
+    Interval max_admissible{.interval =
+                                time_.interval + GOSSIP_DISPARITY_INTERVALS};
+    if (data.slot > max_admissible.slot()) {
       SL_TRACE(logger_,
                "Invalid attestation: too big clock disparity",
                data.target,
                data.source);
-      return Error::INVALID_ATTESTATION;
+      return Error::ATTESTATION_TOO_FAR_IN_FUTURE;
     }
 
     return outcome::success();

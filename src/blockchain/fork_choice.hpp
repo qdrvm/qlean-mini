@@ -90,6 +90,7 @@ namespace lean {
       TOO_MANY_ATTESTATIONS,
       NO_KEYPAIR,
       DUPLICATE_ATTESTATION_DATA,
+      ATTESTATION_TOO_FAR_IN_FUTURE,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
@@ -114,6 +115,8 @@ namespace lean {
           return "No keypair";
         case E::DUPLICATE_ATTESTATION_DATA:
           return "DUPLICATE_ATTESTATION_DATA";
+        case E::ATTESTATION_TOO_FAR_IN_FUTURE:
+          return "ATTESTATION_TOO_FAR_IN_FUTURE";
       }
       abort();
     }
