@@ -66,13 +66,15 @@ namespace lean::modules {
       std::shared_ptr<libp2p::Stream> stream) {
     BOOST_OUTCOME_CO_TRY(co_await snappy::coCompressFramed(
         stream, encode(get_status_()).value()));
+    std::ignore = stream->close();
     co_return outcome::success();
   }
 
   libp2p::CoroOutcome<void> StatusProtocol::coroHandle(
       std::shared_ptr<libp2p::Stream> stream) {
     BOOST_OUTCOME_CO_TRY(co_await read(stream));
-    BOOST_OUTCOME_CO_TRY(co_await writeResponseStatus(stream));
+    BOOST_OUTCOME_CO_TRY(
+        co_await writeResponseStatus(stream, kResponseStatusSuccess));
     BOOST_OUTCOME_CO_TRY(co_await write(stream));
     co_return outcome::success();
   }

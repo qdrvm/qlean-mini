@@ -1,0 +1,24 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_uint64_vector4_zero[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "SampleUint64Vector4",
+        "value": {
+            "data": [
+                0,
+                0,
+                0,
+                0
+            ]
+        },
+        "serialized": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0x117c11af5abecd3536c54711e2098c52f4f681d113bc53319f39b810ada1b8a5",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_uint64_vector4_zero[fork_Lstar]",
+            "description": "4-element Uint64 vector, all zeros. Fills exactly one 32-byte chunk.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

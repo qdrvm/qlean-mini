@@ -45,6 +45,9 @@ namespace {
 
   int run_node(std::shared_ptr<LoggingSystem> logsys,
                std::shared_ptr<Configuration> appcfg) {
+    auto logger = logsys->getLogger("Main", lean::log::defaultGroupName);
+    SL_INFO(logger, "Node starting. Version: {} ", appcfg->nodeVersion());
+
     auto injector = std::make_unique<NodeInjector>(logsys, appcfg);
 
     // Load modules
@@ -55,7 +58,6 @@ namespace {
     load("NetworkingLoader");
     load("ProductionLoader");
 
-    auto logger = logsys->getLogger("Main", lean::log::defaultGroupName);
     auto app = injector->injectApplication();
     SL_INFO(logger, "Node started. Version: {} ", appcfg->nodeVersion());
 

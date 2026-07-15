@@ -16,7 +16,8 @@ target_link_libraries(state_sync_client
 
 add_lean_module(networking
   SOURCE
-    block_request_protocol.cpp
+    block_by_range_protocol.cpp
+    block_by_root_protocol.cpp
     networking.cpp
     status_protocol.cpp
     state_sync_client.cpp

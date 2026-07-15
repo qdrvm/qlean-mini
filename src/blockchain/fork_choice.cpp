@@ -35,13 +35,15 @@
 #include "utils/retain_if.hpp"
 
 namespace lean {
-  inline ValidatorIndex getValidatorId(
-      const log::Logger &logger, const ValidatorRegistry &validator_registry) {
-    auto &indices = validator_registry.currentValidatorIndices();
-    if (indices.size() != 1) {
-      SL_FATAL(logger, "multiple validators on same node are not supported");
+  inline std::unordered_set<SubnetIndex> getSubnets(
+      const log::Logger &logger,
+      const ValidatorRegistry &validator_registry,
+      SubnetIndex subnet_count) {
+    std::unordered_set<SubnetIndex> subnets;
+    for (auto &index : validator_registry.currentValidatorIndices()) {
+      subnets.emplace(validatorSubnet(index, subnet_count));
     }
-    return *indices.begin();
+    return subnets;
   }
 
   ForkChoiceStore::ForkChoiceStore(
@@ -66,9 +68,9 @@ namespace lean {
         config_(anchor_state->config),
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)),
-        validator_id_{getValidatorId(logger_, *validator_registry_)},
         is_aggregator_{[chain_spec] { return chain_spec->isAggregator(); }},
-        subnet_count_{app_config->cliSubnetCount()} {
+        subnet_count_{app_config->cliSubnetCount()},
+        subnets_{getSubnets(logger_, *validator_registry_, subnet_count_)} {
     metrics_->stf_latest_justified_slot()->set(
         block_tree_->getLatestJustified().slot);
     metrics_->stf_latest_finalized_slot()->set(
@@ -159,12 +161,16 @@ namespace lean {
         latest_new_attestations_(std::move(latest_new_attestations)),
         validator_registry_(std::move(validator_registry)),
         validator_keys_manifest_(std::move(validator_keys_manifest)),
-        validator_id_{getValidatorId(logger_, *validator_registry_)},
         is_aggregator_{[is_aggregator] { return is_aggregator; }},
-        subnet_count_{subnet_count} {}
+        subnet_count_{subnet_count},
+        subnets_{getSubnets(logger_, *validator_registry_, subnet_count_)} {}
 
   void ForkChoiceStore::dontPropose() {
     dont_propose_ = true;
+  }
+
+  void ForkChoiceStore::ignoreBlockSignature() {
+    ignore_block_signature_ = true;
   }
 
   inline crypto::xmss::XmssMessage attestationPayload(
@@ -640,18 +646,17 @@ namespace lean {
     // Validate checkpoint slots match block slots
     if (auto res = getBlockSlot(data.source.root);
         not res.has_value() or res.value() != data.source.slot) {
-      SL_TRACE(logger_,
-               "Invalid attestation: inconsistent source slot",
-               data.target,
-               data.source);
+      SL_TRACE(logger_, "Invalid attestation: inconsistent source slot");
       return Error::INVALID_ATTESTATION;
     }
     if (auto res = getBlockSlot(data.target.root);
         not res.has_value() or res.value() != data.target.slot) {
-      SL_TRACE(logger_,
-               "Invalid attestation: inconsistent target slot",
-               data.target,
-               data.source);
+      SL_TRACE(logger_, "Invalid attestation: inconsistent target slot");
+      return Error::INVALID_ATTESTATION;
+    }
+    if (auto res = getBlockSlot(data.head.root);
+        not res.has_value() or res.value() != data.head.slot) {
+      SL_TRACE(logger_, "Invalid attestation: inconsistent head slot");
       return Error::INVALID_ATTESTATION;
     }
 
@@ -659,12 +664,14 @@ namespace lean {
 
     // Validate attestation is not too far in the future
     // We allow a small margin for clock disparity (1 slot), but no further.
-    if (data.slot > getCurrentSlot() + 1) {
+    Interval max_admissible{.interval =
+                                time_.interval + GOSSIP_DISPARITY_INTERVALS};
+    if (data.slot > max_admissible.slot()) {
       SL_TRACE(logger_,
                "Invalid attestation: too big clock disparity",
                data.target,
                data.source);
-      return Error::INVALID_ATTESTATION;
+      return Error::ATTESTATION_TOO_FAR_IN_FUTURE;
     }
 
     return outcome::success();
@@ -692,8 +699,8 @@ namespace lean {
       return Error::INVALID_ATTESTATION;
     }
     if (is_aggregator_()
-        and validatorSubnet(signed_attestation.validator_id, subnet_count_)
-                == validatorSubnet(validator_id_, subnet_count_)) {
+        and subnets_.contains(
+            validatorSubnet(signed_attestation.validator_id, subnet_count_))) {
       addSignatureToAggregate(signed_attestation.data,
                               signed_attestation.validator_id,
                               signed_attestation.signature);
@@ -825,15 +832,6 @@ namespace lean {
       // - They must wait for interval tick acceptance before
       //   contributing to fork choice weights.
 
-      // Convert Store time to slots to check for "future" attestations.
-      auto time_slot = getCurrentSlot();
-
-      // Reject the attestation if:
-      // - its slot is strictly greater than our current slot.
-      if (attestation_slot > time_slot) {
-        return Error::INVALID_ATTESTATION;
-      }
-
       // Fetch the previously stored "new" attestation for this validator.
       auto latest_new_attestation = latest_new_attestations_.find(validator_id);
 
@@ -852,6 +850,10 @@ namespace lean {
 
   bool ForkChoiceStore::validateBlockSignatures(
       const SignedBlock &signed_block) const {
+    if (ignore_block_signature_) {
+      return true;
+    }
+
     // Unpack the signed block components
     const auto &block = signed_block.block;
     const auto &signatures = signed_block.signature;
@@ -976,6 +978,15 @@ namespace lean {
     // If missing, the node must sync the parent chain first.
 
     OUTCOME_TRY(parent_state, getState(block.parent_root));
+
+    // Reject a block body that repeats the same vote data.
+    std::unordered_set<Hash> attestation_data_set;
+    for (auto &attestation : block.body.attestations) {
+      attestation_data_set.emplace(sszHash(attestation.data));
+    }
+    if (block.body.attestations.size() != attestation_data_set.size()) {
+      return Error::DUPLICATE_ATTESTATION_DATA;
+    }
 
     // at this point parent state should be available so node should sync
     // parent-chain if not available before adding block to forkchoice
@@ -1140,14 +1151,6 @@ namespace lean {
       } else if (time_.phase() == 1) {
         SL_TRACE(logger_, "Interval 1 of slot {}", current_slot);
 
-        // Ensure the head is updated before voting
-        auto ana_res = acceptNewAttestations();
-        if (ana_res.has_error()) {
-          SL_WARN(logger_,
-                  "Failed to accept new attestations: {}",
-                  ana_res.error());
-        }
-
         Checkpoint head = head_;
         auto target =
             getAttestationTarget(getLatestJustified(), head_, std::nullopt);
@@ -1166,7 +1169,6 @@ namespace lean {
 
         auto metric_time =
             metrics_->lean_attestations_production_time_seconds()->timer();
-        std::optional<Attestation> attestation;
         for (auto validator_index :
              validator_registry_->currentValidatorIndices()) {
           if (dont_propose_) {
@@ -1179,20 +1181,18 @@ namespace lean {
           if (not keypair.has_value()) {
             continue;
           }
-          if (not attestation.has_value()) {
-            attestation = produceAttestation(current_slot,
-                                             validator_index,
-                                             getLatestJustified(),
-                                             head_,
-                                             std::nullopt);
-          }
+          auto attestation = produceAttestation(current_slot,
+                                                validator_index,
+                                                getLatestJustified(),
+                                                head_,
+                                                std::nullopt);
           // sign attestation
-          auto payload = attestationPayload(attestation->data);
+          auto payload = attestationPayload(attestation.data);
           crypto::xmss::XmssSignature signature =
               xmss_provider_->sign(keypair->private_key, current_slot, payload);
           metrics_->lean_pq_sig_attestation_signatures_total()->inc();
           auto signed_attestation =
-              SignedAttestation::from(*attestation, signature);
+              SignedAttestation::from(attestation, signature);
 
           // Dispatching send signed vote-only broadcasts to other peers.
           // Current peer should process attestation directly
@@ -1207,6 +1207,11 @@ namespace lean {
           SL_DEBUG(logger_,
                    "Produced vote for target={}",
                    signed_attestation.data.target);
+          if (is_aggregator_) {
+            addSignatureToAggregate(signed_attestation.data,
+                                    signed_attestation.validator_id,
+                                    signed_attestation.signature);
+          }
           result.emplace_back(signed_attestation);
         }
 

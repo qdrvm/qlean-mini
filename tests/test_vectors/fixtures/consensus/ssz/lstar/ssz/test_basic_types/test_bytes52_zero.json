@@ -1,0 +1,17 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes52_zero[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "Bytes52",
+        "value": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "serialized": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "root": "0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b",
+        "_info": {
+            "hash": "0x259d49eabb3a47fbbff1efafb070f123790621423fb2566fa188faaa7ace8d9a",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_bytes52_zero[fork_Lstar]",
+            "description": "Bytes52 all zeros. Two chunks, second chunk partially zero-padded.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

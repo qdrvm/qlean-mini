@@ -16,7 +16,7 @@ namespace lean {
 
 namespace lean::blockchain {
 
-  class AnchorBlockImpl final : public AnchorBlock, Singleton<AnchorBlock> {
+  class AnchorBlockImpl final : public AnchorBlock {
    public:
     AnchorBlockImpl(const AnchorState &state);
   };

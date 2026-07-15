@@ -11,6 +11,7 @@
 #include "types/checkpoint.hpp"
 #include "types/config.hpp"
 #include "types/constants.hpp"
+#include "types/signed_block.hpp"
 #include "types/validator_index.hpp"
 #include "types/validators.hpp"
 
@@ -56,7 +57,11 @@ namespace lean {
 
   struct AnchorState : State {
     using State::State;
-    virtual ~AnchorState() = 0;
+    AnchorState(const State &state) {
+      State::operator=(state);
+    }
+    virtual ~AnchorState() = default;
+
+    std::optional<SignedBlock> signed_block;
   };
-  inline AnchorState::~AnchorState() = default;
 }  // namespace lean

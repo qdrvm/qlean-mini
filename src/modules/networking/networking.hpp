@@ -61,7 +61,8 @@ namespace lean::metrics {
 
 namespace lean::modules {
   class StatusProtocol;
-  class BlockRequestProtocol;
+  class BlockByRangeProtocol;
+  class BlockByRootProtocol;
 
   using Clock = std::chrono::steady_clock;
 
@@ -203,13 +204,16 @@ namespace lean::modules {
     libp2p::event::Handle on_peer_disconnected_sub_;
     libp2p::event::Handle on_connection_closed_sub_;
     std::shared_ptr<StatusProtocol> status_protocol_;
-    std::shared_ptr<BlockRequestProtocol> block_request_protocol_;
+    std::shared_ptr<BlockByRangeProtocol> block_by_range_protocol_;
+    std::shared_ptr<BlockByRootProtocol> block_by_root_protocol_;
     std::shared_ptr<libp2p::protocol::gossip::Gossip> gossip_;
     std::shared_ptr<libp2p::protocol::Ping> ping_;
     std::shared_ptr<libp2p::host::BasicHost> host_;
     std::shared_ptr<libp2p::protocol::Identify> identify_;
     std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_blocks_topic_;
-    std::shared_ptr<libp2p::protocol::gossip::Topic> gossip_votes_topic_;
+    std::unordered_map<SubnetIndex,
+                       std::shared_ptr<libp2p::protocol::gossip::Topic>>
+        gossip_votes_topics_;
     std::shared_ptr<libp2p::protocol::gossip::Topic>
         gossip_signed_aggregated_attestation_topic_;
     std::unordered_map<BlockHash, Clock::time_point> block_requested_at_;
@@ -233,6 +237,7 @@ namespace lean::modules {
     std::unordered_map<std::string, size_t> connected_peer_count_by_name_;
     std::unordered_set<libp2p::PeerId> subnet_aggregators_;
     uint64_t subnet_count_;
+    std::unordered_set<SubnetIndex> subnets_;
   };
 
 }  // namespace lean::modules

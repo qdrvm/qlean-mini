@@ -1,0 +1,85 @@
+/**
+ * Copyright Quadrivium LLC
+ * All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include "modules/networking/block_by_root_protocol.hpp"
+
+#include <libp2p/basic/read_varint.hpp>
+#include <libp2p/basic/write_varint.hpp>
+#include <libp2p/coro/spawn.hpp>
+#include <libp2p/host/basic_host.hpp>
+
+#include "blockchain/block_tree.hpp"
+#include "modules/networking/response_error.hpp"
+#include "modules/networking/response_status.hpp"
+#include "modules/networking/ssz_snappy.hpp"
+
+namespace lean::modules {
+  BlockByRootProtocol::BlockByRootProtocol(
+      std::shared_ptr<boost::asio::io_context> io_context,
+      std::shared_ptr<libp2p::host::BasicHost> host,
+      qtils::SharedRef<blockchain::BlockTree> block_tree)
+      : io_context_{std::move(io_context)},
+        host_{std::move(host)},
+        block_tree_{std::move(block_tree)} {}
+
+  libp2p::StreamProtocols BlockByRootProtocol::getProtocolIds() const {
+    return {"/leanconsensus/req/blocks_by_root/1/ssz_snappy"};
+  }
+
+  void BlockByRootProtocol::handle(std::shared_ptr<libp2p::Stream> stream) {
+    libp2p::coroSpawn(
+        *io_context_,
+        [self{shared_from_this()}, stream]() -> libp2p::Coro<void> {
+          std::ignore = co_await self->coroRespond(stream);
+        });
+  }
+
+  void BlockByRootProtocol::start() {
+    host_->listenProtocol(shared_from_this());
+  }
+
+  libp2p::CoroOutcome<BlockResponse> BlockByRootProtocol::request(
+      libp2p::PeerId peer_id, BlocksByRootRequest request) {
+    BOOST_OUTCOME_CO_TRY(auto stream,
+                         co_await host_->newStream(peer_id, getProtocolIds()));
+    BOOST_OUTCOME_CO_TRY(
+        co_await snappy::coCompressFramed(stream, encode(request).value()));
+    std::ignore = stream->close();
+    BOOST_OUTCOME_CO_TRY(co_await readResponseStatus(stream));
+    BOOST_OUTCOME_CO_TRY(auto encoded,
+                         co_await snappy::coUncompressFramed(stream));
+    BOOST_OUTCOME_CO_TRY(auto response, decode<BlockResponse>(encoded));
+    co_return response;
+  }
+
+  libp2p::CoroOutcome<void> BlockByRootProtocol::coroRespond(
+      std::shared_ptr<libp2p::Stream> stream) {
+    BOOST_OUTCOME_CO_TRY(auto encoded,
+                         co_await snappy::coUncompressFramed(stream));
+    BOOST_OUTCOME_CO_TRY(auto request, decode<BlocksByRootRequest>(encoded));
+    if (request.roots.size() > kMaxRequestBlocks) {
+      BOOST_OUTCOME_CO_TRY(
+          co_await writeResponseError(stream,
+                                      kResponseStatusInvalidRequest,
+                                      "invalid BlocksByRoot request"));
+      co_return outcome::success();
+    }
+    for (auto &block_hash : request.roots) {
+      BOOST_OUTCOME_CO_TRY(auto block,
+                           block_tree_->tryGetSignedBlock(block_hash));
+      if (not block.has_value()) {
+        // TODO: how to respond?
+        continue;
+      }
+      BlockResponse &response = block.value();
+      BOOST_OUTCOME_CO_TRY(
+          co_await writeResponseStatus(stream, kResponseStatusSuccess));
+      BOOST_OUTCOME_CO_TRY(co_await snappy::coCompressFramed(
+          stream, encode(block.value()).value()));
+    }
+    co_return outcome::success();
+  }
+}  // namespace lean::modules

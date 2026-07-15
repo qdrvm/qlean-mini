@@ -1,0 +1,17 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_uint64_one[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "Uint64",
+        "value": "1",
+        "serialized": "0x0100000000000000",
+        "root": "0x0100000000000000000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0xb55ae0ecec2d613efad0bb0f482ad644950bb54cf1da6e32a44c5ddb6a0dff12",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_uint64_one[fork_Lstar]",
+            "description": "Uint64 smallest nonzero value (1).",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

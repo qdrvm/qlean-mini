@@ -75,42 +75,6 @@ struct ValidatorKeysManifestMock : lean::app::ValidatorKeysManifest {
   }
 };
 
-struct XmssProviderMock : lean::crypto::xmss::XmssProvider {
-  lean::crypto::xmss::XmssKeypair generateKeypair(
-      uint64_t activation_epoch, uint64_t num_active_epochs) MOCK_UNUSED;
-  lean::crypto::xmss::XmssSignature sign(
-      lean::crypto::xmss::XmssPrivateKey xmss_private_key,
-      uint32_t epoch,
-      const lean::crypto::xmss::XmssMessage &message) override {
-    return {};
-  }
-  bool verify(
-      const lean::crypto::xmss::XmssPublicKey &xmss_public_key,
-      const lean::crypto::xmss::XmssMessage &message,
-      uint32_t epoch,
-      const lean::crypto::xmss::XmssSignature &xmss_signature) override {
-    return true;
-  }
-  lean::crypto::xmss::XmssAggregatedSignature aggregateSignatures(
-      std::span<const std::vector<lean::crypto::xmss::XmssPublicKey>>
-          child_public_keys,
-      std::span<const lean::crypto::xmss::XmssAggregatedSignature> child_proofs,
-      std::span<const lean::crypto::xmss::XmssPublicKey> public_keys,
-      std::span<const lean::crypto::xmss::XmssSignature> signatures,
-      uint32_t epoch,
-      const lean::crypto::xmss::XmssMessage &message) const override {
-    return {};
-  }
-  bool verifyAggregatedSignatures(
-      std::span<const lean::crypto::xmss::XmssPublicKey> public_keys,
-      uint32_t epoch,
-      const lean::crypto::xmss::XmssMessage &message,
-      lean::crypto::xmss::XmssAggregatedSignatureIn aggregated_signature)
-      const override {
-    return true;
-  }
-};
-
 struct BlockTreeMock : lean::blockchain::BlockTree {
   USING_(lean, BlockHash);
   USING_(lean, BlockHeader);
@@ -140,8 +104,6 @@ struct BlockTreeMock : lean::blockchain::BlockTree {
   }
   outcome::result<BlockBody> getBlockBody(const BlockHash &) const MOCK_UNUSED;
   outcome::result<void> addBlockHeader(const BlockHeader &) MOCK_UNUSED;
-  outcome::result<void> addBlockBody(const BlockHash &,
-                                     const BlockBody &) MOCK_UNUSED;
   outcome::result<void> addExistingBlock(const BlockHash &,
                                          const BlockHeader &) MOCK_UNUSED;
   outcome::result<void> addBlock(SignedBlock block) override {
@@ -216,8 +178,6 @@ struct BlockStorageMock : lean::blockchain::BlockStorage {
       MOCK_UNUSED;
   outcome::result<std::optional<BlockHeader>> tryGetBlockHeader(
       const BlockHash &) const MOCK_UNUSED;
-  outcome::result<void> putBlockBody(const BlockHash &,
-                                     const BlockBody &) MOCK_UNUSED;
   outcome::result<std::optional<BlockBody>> getBlockBody(
       const BlockHash &) const MOCK_UNUSED;
   outcome::result<void> removeBlockBody(const BlockHash &) MOCK_UNUSED;
@@ -235,8 +195,8 @@ struct BlockStorageMock : lean::blockchain::BlockStorage {
   outcome::result<BlockData> getBlock(const BlockHash &,
                                       BlockParts) const MOCK_UNUSED;
   outcome::result<void> removeBlock(const BlockHash &) MOCK_UNUSED;
-  outcome::result<SignedBlock> getSignedBlock(const BlockHash &) const
-      MOCK_UNUSED;
+  outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
+      const BlockHash &) const MOCK_UNUSED;
 
   std::unordered_map<BlockHash, State> states_;
 };
@@ -327,8 +287,13 @@ lean::http::Response httpJson(const lean::http::Request &request, auto &&f) {
   }
   auto call = [&] { return f(request_json); };
   if constexpr (std::is_void_v<decltype(call())>) {
-    call();
-    response.result(boost::beast::http::status::no_content);
+    try {
+      call();
+      response.result(boost::beast::http::status::no_content);
+    } catch (std::exception &e) {
+      response.result(boost::beast::http::status::bad_request);
+      response.body() = e.what();
+    }
     return response;
   } else {
     auto response_json = call();
@@ -364,10 +329,11 @@ struct ForkChoiceDriver {
                    std::make_shared<ValidatorRegistryMock>(),
                    std::make_shared<ChainSpecMock>(),
                    std::make_shared<ValidatorKeysManifestMock>(),
-                   std::make_shared<XmssProviderMock>(),
+                   std::make_shared<lean::crypto::xmss::XmssProviderImpl>(),
                    block_tree,
                    block_storage);
     store_->dontPropose();
+    store_->ignoreBlockSignature();
   }
 
   lean::ValidatorRegistry::ValidatorIndices validator_indices_{0};
@@ -468,6 +434,12 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
             if (url == "/lean/v0/test_driver/fork_choice/init") {
               return httpJson<ForkChoiceInit>(
                   request, [&](ForkChoiceInit request) {
+                    lean::blockchain::AnchorBlockImpl expected_block{
+                        request.anchor_state};
+                    request.anchor_block.setHash();
+                    if (request.anchor_block.hash() != expected_block.hash()) {
+                      throw std::runtime_error{"anchor hash mismatch"};
+                    }
                     fork_choice->emplace(logsys, request.anchor_state);
                   });
             }
@@ -533,6 +505,8 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                         return store.onGossipAggregatedAttestation(
                             aggregated_step->attestation);
                       }();
+                    } else {
+                      throw std::runtime_error{"Unknown step type"};
                     }
                     if (not result.value().has_value()) {
                       return StepResponse{

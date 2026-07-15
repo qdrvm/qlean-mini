@@ -1,0 +1,36 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_bitlist_at_limit[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "SampleBitlist16",
+        "value": {
+            "data": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+            ]
+        },
+        "serialized": "0xffff01",
+        "root": "0xdc8212e2404720c98554dfddc81733f88cbbe307a1d4ca5eae4b88e55e382392",
+        "_info": {
+            "hash": "0x73c6c3e15010d8f1e8745a86f1123dcd15595d122051d868fdb554570c9e14b9",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_bitlist_at_limit[fork_Lstar]",
+            "description": "Bitlist filled to its 16-bit limit. Sentinel lands in a new byte.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

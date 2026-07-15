@@ -70,9 +70,6 @@ namespace lean::blockchain {
     outcome::result<void> addExistingBlock(
         const BlockHash &block_hash, const BlockHeader &block_header) override;
 
-    outcome::result<void> addBlockBody(const BlockHash &block_hash,
-                                       const BlockBody &body) override;
-
     outcome::result<void> finalize(const BlockHash &block_hash) override;
 
     outcome::result<void> setJustified(const BlockHash &block_hash) override;

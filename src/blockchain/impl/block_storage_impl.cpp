@@ -144,13 +144,6 @@ namespace lean::blockchain {
     return fetchBlockHeader(block_hash);
   }
 
-  outcome::result<void> BlockStorageImpl::putBlockBody(
-      const BlockHash &block_hash, const BlockBody &block_body) {
-    OUTCOME_TRY(encoded_body, encode(block_body));
-    return putToSpace(
-        *storage_, storage::Space::Body, block_hash, std::move(encoded_body));
-  }
-
   outcome::result<std::optional<BlockBody>> BlockStorageImpl::getBlockBody(
       const BlockHash &block_hash) const {
     OUTCOME_TRY(encoded_block_body_opt,
@@ -270,9 +263,19 @@ namespace lean::blockchain {
     return data;
   }
 
-  outcome::result<SignedBlock> BlockStorageImpl::getSignedBlock(
-      const BlockHash &block_hash) const {
-    OUTCOME_TRY(data, getBlock(block_hash, BlockParts::ALL));
+  outcome::result<std::optional<SignedBlock>>
+  BlockStorageImpl::tryGetSignedBlock(const BlockHash &block_hash) const {
+    auto data_res = getBlock(block_hash, BlockParts::ALL);
+    if (not data_res.has_value()) {
+      auto e = data_res.error();
+      if (e == BlockStorageError::HEADER_NOT_FOUND
+          or e == BlockStorageError::SIGNATURE_NOT_FOUND
+          or e == BlockStorageError::BODY_NOT_FOUND) {
+        return std::nullopt;
+      }
+      return e;
+    }
+    auto &data = data_res.value();
 
     SignedBlock block;
 

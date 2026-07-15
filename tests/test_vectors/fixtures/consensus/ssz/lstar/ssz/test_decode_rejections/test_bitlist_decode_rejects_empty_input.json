@@ -1,0 +1,23 @@
+{
+    "tests/consensus/lstar/ssz/test_decode_rejections.py::test_bitlist_decode_rejects_empty_input[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "expectException": "SSZSerializationError",
+        "typeName": "DecodeBitlist8",
+        "value": {
+            "data": [
+                false
+            ]
+        },
+        "rawBytes": "0x",
+        "serialized": "0x",
+        "root": "",
+        "_info": {
+            "hash": "0x7facc0a2a3707be7f577f41adada7c7295c7f34a58e55305eec0bee2199c82c4",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_decode_rejections.py::test_bitlist_decode_rejects_empty_input[fork_Lstar]",
+            "description": "Bitlist decoding of zero bytes has no delimiter bit and must be rejected.\n\n    Every SSZ bitlist encoding ends in a sentinel set bit that signals the\n    bit-length. Empty input carries no such sentinel, so the decoder cannot\n    determine how many bits the value was supposed to hold.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

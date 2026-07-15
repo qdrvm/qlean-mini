@@ -1,0 +1,17 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_uint32_max[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "Uint32",
+        "value": "4294967295",
+        "serialized": "0xffffffff",
+        "root": "0xffffffff00000000000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0x8c51acd58cddfaa8451f4c201ae34819b383fb7e85bb87fe6cb9b6c5fdda2b3c",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_uint32_max[fork_Lstar]",
+            "description": "Uint32 upper bound (2^32 - 1).",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

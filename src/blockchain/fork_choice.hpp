@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <boost/di.hpp>
 #include <qtils/shared_ref.hpp>
@@ -88,6 +89,8 @@ namespace lean {
       SIGNATURE_COUNT_MISMATCH,
       TOO_MANY_ATTESTATIONS,
       NO_KEYPAIR,
+      DUPLICATE_ATTESTATION_DATA,
+      ATTESTATION_TOO_FAR_IN_FUTURE,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
@@ -110,6 +113,10 @@ namespace lean {
           return "Too many attestations in block";
         case E::NO_KEYPAIR:
           return "No keypair";
+        case E::DUPLICATE_ATTESTATION_DATA:
+          return "DUPLICATE_ATTESTATION_DATA";
+        case E::ATTESTATION_TOO_FAR_IN_FUTURE:
+          return "ATTESTATION_TOO_FAR_IN_FUTURE";
       }
       abort();
     }
@@ -161,6 +168,7 @@ namespace lean {
         uint64_t subnet_count);
 
     void dontPropose();
+    void ignoreBlockSignature();
 
     // Compute the latest block that the validator is allowed to choose as the
     // target
@@ -576,13 +584,14 @@ namespace lean {
     std::unordered_map<Hash, AttestationsByData> attestations_by_data_;
     qtils::SharedRef<ValidatorRegistry> validator_registry_;
     qtils::SharedRef<app::ValidatorKeysManifest> validator_keys_manifest_;
-    /**
-     * Index of the validator running this store instance.
-     */
-    ValidatorIndex validator_id_;
     std::function<bool()> is_aggregator_;
     uint64_t subnet_count_;
+    /**
+     * Validator subnets this node belongs to.
+     */
+    std::unordered_set<SubnetIndex> subnets_;
     bool dont_propose_ = false;
+    bool ignore_block_signature_ = false;
     std::unordered_map<BlockHash, Slot> anchor_block_slots_;
   };
 

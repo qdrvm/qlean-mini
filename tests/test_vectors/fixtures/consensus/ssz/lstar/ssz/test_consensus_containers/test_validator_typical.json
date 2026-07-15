@@ -1,0 +1,21 @@
+{
+    "tests/consensus/lstar/ssz/test_consensus_containers.py::test_validator_typical[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "Validator",
+        "value": {
+            "attestationPubkey": "0xabababababababababababababababababababababababababababababababababababababababababababababababababababab",
+            "proposalPubkey": "0xabababababababababababababababababababababababababababababababababababababababababababababababababababab",
+            "index": 42
+        },
+        "serialized": "0xabababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab2a00000000000000",
+        "root": "0x09124ab1d57979c8c1f6ac5d297276759f411d501eeba33946f373fc8f74b4e4",
+        "_info": {
+            "hash": "0x85591b26a5ff9fc9747e18966db55fa28322795dc2bb16cf2d405a09d75919e5",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_consensus_containers.py::test_validator_typical[fork_Lstar]",
+            "description": "SSZ roundtrip for Validator with typical values.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

@@ -44,11 +44,6 @@ namespace lean::blockchain {
                 (override));
 
     MOCK_METHOD(outcome::result<void>,
-                addBlockBody,
-                (const BlockHash &block_hash, const BlockBody &block_body),
-                (override));
-
-    MOCK_METHOD(outcome::result<void>,
                 addExistingBlock,
                 (const BlockHash &block_hash, const BlockHeader &block_header),
                 (override));

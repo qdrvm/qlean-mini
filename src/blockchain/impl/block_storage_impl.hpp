@@ -57,9 +57,6 @@ namespace lean::blockchain {
 
     // -- body --
 
-    outcome::result<void> putBlockBody(const BlockHash &block_hash,
-                                       const BlockBody &block_body) override;
-
     outcome::result<std::optional<BlockBody>> getBlockBody(
         const BlockHash &block_hash) const override;
 
@@ -86,7 +83,7 @@ namespace lean::blockchain {
 
     // -- special
 
-    outcome::result<SignedBlock> getSignedBlock(
+    outcome::result<std::optional<SignedBlock>> tryGetSignedBlock(
         const BlockHash &block_hash) const override;
 
    private:

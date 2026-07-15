@@ -46,15 +46,6 @@ namespace lean::blockchain {
     virtual outcome::result<void> addBlockHeader(const BlockHeader &header) = 0;
 
     /**
-     * Adds block body to the storage
-     * @param block_hash that corresponds to the block which body we are adding
-     * @param block_body that we are adding
-     * @return result with success if block body was inserted. Error otherwise
-     */
-    virtual outcome::result<void> addBlockBody(const BlockHash &block_hash,
-                                               const BlockBody &block_body) = 0;
-
-    /**
      * Add an existent block to the tree
      * @param block_hash is hash of the added block in the tree
      * @param block_header is header of that block

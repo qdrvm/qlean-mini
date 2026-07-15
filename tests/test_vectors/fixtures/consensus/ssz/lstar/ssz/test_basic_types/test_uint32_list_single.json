@@ -1,0 +1,21 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_uint32_list_single[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "SampleUint32List16",
+        "value": {
+            "data": [
+                42
+            ]
+        },
+        "serialized": "0x2a000000",
+        "root": "0xce8fe301de280c5a7364836cf298c285ea47eef6ec3b48f22c43fe29bba02ac3",
+        "_info": {
+            "hash": "0xafa318eba063902b414a06c7fff60ace4942cc87bd819ff2a6dfe95228018400",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_uint32_list_single[fork_Lstar]",
+            "description": "Uint32 list with one element. Minimal non-empty list.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

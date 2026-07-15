@@ -1,0 +1,21 @@
+{
+    "tests/consensus/lstar/ssz/test_merkleization_boundaries.py::test_bitvector_length_one_all_set[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "BoundaryBitvector1",
+        "value": {
+            "data": [
+                true
+            ]
+        },
+        "serialized": "0x01",
+        "root": "0x0100000000000000000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0x76436cb7590234b7bd0fca2cb53836d000995467ca35e32e9e9f844930c795f3",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_merkleization_boundaries.py::test_bitvector_length_one_all_set[fork_Lstar]",
+            "description": "Single-bit vector with the bit set pins the minimal Merkle chunk layout.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

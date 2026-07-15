@@ -29,6 +29,7 @@ namespace lean {
    public:
     ForkChoiceStoreMutex(qtils::SharedRef<ForkChoiceStore> fork_choice);
 
+    Checkpoint getHead() const;
     Checkpoint getLatestFinalized() const;
     Checkpoint getLatestJustified() const;
     outcome::result<std::shared_ptr<const State>> getState(

@@ -1,0 +1,17 @@
+{
+    "tests/consensus/lstar/ssz/test_basic_types.py::test_uint8_max[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "typeName": "Uint8",
+        "value": "255",
+        "serialized": "0xff",
+        "root": "0xff00000000000000000000000000000000000000000000000000000000000000",
+        "_info": {
+            "hash": "0xc8d87d9e3a79e8b538d9a406c9dc7ed18e48ef10696058072161b1f24f6bfcff",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_basic_types.py::test_uint8_max[fork_Lstar]",
+            "description": "Uint8 upper bound (255).",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

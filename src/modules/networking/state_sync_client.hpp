@@ -10,19 +10,19 @@
 #include <chrono>
 #include <string>
 
+#include <qtils/enum_error_code.hpp>
 #include <qtils/outcome.hpp>
 #include <qtils/shared_ref.hpp>
 #include <utils/ctor_limiters.hpp>
 
-#include "types/state.hpp"
+namespace lean {
+  struct AnchorState;
+  class AsioSslContext;
+}  // namespace lean
 
 namespace lean::app {
   class StateManager;
-}
-
-namespace lean {
-  class AsioSslContext;
-}
+}  // namespace lean::app
 
 namespace lean {
 
@@ -36,7 +36,8 @@ namespace lean {
     Network,
     HttpBadStatus,
     DeserializeFailed,
-    ValidationFailed
+    ValidationFailed,
+    InconsistentBlockAndState,
   };
 
   class StateSyncClient final : Singleton<StateSyncClient> {
@@ -46,10 +47,14 @@ namespace lean {
 
     void stop();
 
-    outcome::result<State> fetch(const std::string &url,
-                                 std::chrono::seconds timeout);
+    outcome::result<AnchorState> fetch(std::string url,
+                                       std::chrono::seconds timeout);
 
    private:
+    template <typename T>
+    outcome::result<T> fetchT(const std::string &url,
+                              std::chrono::seconds timeout);
+
     qtils::SharedRef<AsioSslContext> ssl_ctx_;
     qtils::SharedRef<app::StateManager> state_manager_;
     std::atomic_flag is_shutting_down_ = ATOMIC_FLAG_INIT;

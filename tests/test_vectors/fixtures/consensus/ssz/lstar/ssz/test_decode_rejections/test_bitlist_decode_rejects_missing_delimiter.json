@@ -1,0 +1,23 @@
+{
+    "tests/consensus/lstar/ssz/test_decode_rejections.py::test_bitlist_decode_rejects_missing_delimiter[fork_Lstar][fork_Lstar-ssz]": {
+        "network": "Lstar",
+        "leanEnv": "prod",
+        "expectException": "SSZSerializationError",
+        "typeName": "DecodeBitlist8",
+        "value": {
+            "data": [
+                false
+            ]
+        },
+        "rawBytes": "0x00",
+        "serialized": "0x00",
+        "root": "",
+        "_info": {
+            "hash": "0xd15d3f3d464ed1f7c71325675c47d601f002094c2a0deed19231be0ad3078601",
+            "comment": "`leanSpec` generated test",
+            "testId": "tests/consensus/lstar/ssz/test_decode_rejections.py::test_bitlist_decode_rejects_missing_delimiter[fork_Lstar]",
+            "description": "Bitlist bytes with no set bits carry no sentinel and must be rejected.\n\n    A single 0x00 byte encodes eight clear bits with nothing marking the\n    end of the logical bitlist. The decoder needs the sentinel to know\n    where the payload stops.",
+            "fixtureFormat": "ssz"
+        }
+    }
+}

@@ -14,6 +14,11 @@ namespace lean {
       qtils::SharedRef<ForkChoiceStore> fork_choice)
       : fork_choice_{std::move(fork_choice)} {}
 
+  Checkpoint ForkChoiceStoreMutex::getHead() const {
+    std::shared_lock lock{mutex_};
+    return fork_choice_->getHead();
+  }
+
   Checkpoint ForkChoiceStoreMutex::getLatestFinalized() const {
     std::shared_lock lock{mutex_};
     return fork_choice_->getLatestFinalized();
