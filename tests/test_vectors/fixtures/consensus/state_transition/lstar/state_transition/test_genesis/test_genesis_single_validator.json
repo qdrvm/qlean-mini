@@ -2,6 +2,7 @@
     "tests/consensus/lstar/state_transition/test_genesis.py::test_genesis_single_validator[fork_Lstar][fork_Lstar-state_transition_test]": {
         "network": "Lstar",
         "leanEnv": "prod",
+        "proofSetting": 0,
         "pre": {
             "config": {
                 "genesisTime": 0
@@ -31,8 +32,8 @@
             "validators": {
                 "data": [
                     {
-                        "attestationPubkey": "0x69968a74060bb672709bae2a9020113634052a233f82a1362d836238c42a3a35239f622654db5208a695613841694163e1bb2f03",
-                        "proposalPubkey": "0x2a18d4583f2767751a706c5ece704966fd615a400a80f5059cc91727a3302249e29bcf2ab3a03758de58870497756569dd512402",
+                        "attestationPublicKey": "0x6c9dc94cb124fd7eac91680ca6f7c131d7b02f1629ca842b0e714d557da1276b2e5f3d110aab9d6eb8c10c7d1ba0f93cd849c82e",
+                        "proposalPublicKey": "0x4f0098552e05e766afeb0d021742f626de106215bd0c5a5d2516fc75dc3ffc121159b63b6664354dc4eb353631b54a5ad0cc7b14",
                         "index": 0
                     }
                 ]
@@ -48,8 +49,8 @@
             {
                 "slot": 1,
                 "proposerIndex": 0,
-                "parentRoot": "0x647dc9b4cf027224b63aabace094dd68b0ca442fd25b07d435f67e9c24de7938",
-                "stateRoot": "0x89c9674670e3f7e6424a9e10fbad382de10be13c9e8fe5f5d192a62059d17f44",
+                "parentRoot": "0xc95ab27e70a56378d4277188604ecfad536095a9c245576341a1d763a72f756d",
+                "stateRoot": "0xe1a252098eb4a4e2b910e9d243939788a477de0de365c2d96aaef6a91246f8b4",
                 "body": {
                     "attestations": {
                         "data": []
@@ -59,8 +60,8 @@
             {
                 "slot": 2,
                 "proposerIndex": 0,
-                "parentRoot": "0xb31250f824085fb4b52fb6f8f2ebf5d66dfb7e7c7acb1a5f2822f3519f80b4f1",
-                "stateRoot": "0x55299e3e083a825dc745782888e7cf419394d90ede9a9c08a2917bd56e43417e",
+                "parentRoot": "0x9e05eb71f1c36517c0066ccb2b86e0a4e88e454ff3442e4ca91f15b3a4232f11",
+                "stateRoot": "0x707ff4f7044e9a0257aaf22672ab5f067ef7ca6ec4dcf2faccd14323253488f3",
                 "body": {
                     "attestations": {
                         "data": [
@@ -73,15 +74,15 @@
                                 "data": {
                                     "slot": 2,
                                     "head": {
-                                        "root": "0xb31250f824085fb4b52fb6f8f2ebf5d66dfb7e7c7acb1a5f2822f3519f80b4f1",
+                                        "root": "0x9e05eb71f1c36517c0066ccb2b86e0a4e88e454ff3442e4ca91f15b3a4232f11",
                                         "slot": 1
                                     },
                                     "target": {
-                                        "root": "0xb31250f824085fb4b52fb6f8f2ebf5d66dfb7e7c7acb1a5f2822f3519f80b4f1",
+                                        "root": "0x9e05eb71f1c36517c0066ccb2b86e0a4e88e454ff3442e4ca91f15b3a4232f11",
                                         "slot": 1
                                     },
                                     "source": {
-                                        "root": "0x647dc9b4cf027224b63aabace094dd68b0ca442fd25b07d435f67e9c24de7938",
+                                        "root": "0xc95ab27e70a56378d4277188604ecfad536095a9c245576341a1d763a72f756d",
                                         "slot": 0
                                     }
                                 }
@@ -93,8 +94,8 @@
             {
                 "slot": 3,
                 "proposerIndex": 0,
-                "parentRoot": "0xca9cb14ba6d9fd5feec967e45736daea870f3b06e9525a34cc3dbd268652ae35",
-                "stateRoot": "0x37a67bf6bf323290667b51bb9bff3133f570b27422b8a6c91ae6098a13644840",
+                "parentRoot": "0xb75aa2bc452b5c2486509c2a57896bb497ae5ec2207ec7623c79c550b2a532d0",
+                "stateRoot": "0x18b7e49ff232706dc3d6c76081c2188d9c44a6baab060a82bac6b403a09e4e59",
                 "body": {
                     "attestations": {
                         "data": [
@@ -107,15 +108,15 @@
                                 "data": {
                                     "slot": 3,
                                     "head": {
-                                        "root": "0xca9cb14ba6d9fd5feec967e45736daea870f3b06e9525a34cc3dbd268652ae35",
+                                        "root": "0xb75aa2bc452b5c2486509c2a57896bb497ae5ec2207ec7623c79c550b2a532d0",
                                         "slot": 2
                                     },
                                     "target": {
-                                        "root": "0xca9cb14ba6d9fd5feec967e45736daea870f3b06e9525a34cc3dbd268652ae35",
+                                        "root": "0xb75aa2bc452b5c2486509c2a57896bb497ae5ec2207ec7623c79c550b2a532d0",
                                         "slot": 2
                                     },
                                     "source": {
-                                        "root": "0xb31250f824085fb4b52fb6f8f2ebf5d66dfb7e7c7acb1a5f2822f3519f80b4f1",
+                                        "root": "0x9e05eb71f1c36517c0066ccb2b86e0a4e88e454ff3442e4ca91f15b3a4232f11",
                                         "slot": 1
                                     }
                                 }
@@ -132,12 +133,14 @@
             "validatorCount": 1,
             "latestBlockHeaderProposerIndex": 0
         },
+        "postStateRoot": "0x18b7e49ff232706dc3d6c76081c2188d9c44a6baab060a82bac6b403a09e4e59",
         "_info": {
-            "hash": "0xa9dbf6eec7d842767269e922595fb6a18a8d9e0ecab7cfc532050d464d44c7f6",
+            "hash": "0xb8218f3a2604ebc481362df67c5e9d4eea271a94f9b34338d6aa31a2d721e0cf",
             "comment": "`leanSpec` generated test",
             "testId": "tests/consensus/lstar/state_transition/test_genesis.py::test_genesis_single_validator[fork_Lstar]",
-            "description": "Genesis with exactly 1 validator; justification and finalization in 3 blocks.\n\n    Scenario\n    --------\n    Single validator. Proposer for every slot (slot % 1 == 0, always).\n    Supermajority threshold trivially met: 3*1=3 >= 2*1=2.\n\n    - Block 1: empty (creates attestation target)\n    - Block 2: V0 attests to slot 1 -> justifies slot 1\n    - Block 3: V0 attests to slot 2 -> justifies slot 2, finalizes slot 1\n\n    Expected post-state\n    -------------------\n    - Validator count: 1\n    - Justified slot: 2\n    - Finalized slot: 1\n    - Proposer index: always 0",
-            "fixtureFormat": "state_transition_test"
+            "description": "A single validator justifies and finalizes within three blocks.\n\nGiven\n-----\n- 1 validator, which proposes every slot, since the slot modulo 1 is always 0.\n- a slot needs 1 vote (2/3) to be justified, since 3*1 = 3 is at least 2*1 = 2.\n- the chain:\n    genesis -> block_1(1) -> block_2(2) -> block_3(3)\n- block_1 carries no votes.\n- block_2 includes V0's vote for block_1.\n- block_2 justifies slot 1.\n- block_3 includes V0's vote for block_2.\n- block_3 justifies slot 2.\n- block_3 then finalizes slot 1.\n\nWhen\n----\n- the chain processes block_1, block_2, and block_3.\n\nThen\n----\n- the validator count is 1.\n- justified slot is 2.\n- finalized slot is 1.\n- every block proposer is V0.",
+            "fixtureFormat": "state_transition_test",
+            "keySetDigest": "0xc2b5fc4c1f1fbc181ddf07db3df985f79e1dcedcfb7df732ef20863d7cbcf491"
         }
     }
 }

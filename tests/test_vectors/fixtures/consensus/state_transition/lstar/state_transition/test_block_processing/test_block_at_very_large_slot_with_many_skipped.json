@@ -2,6 +2,7 @@
     "tests/consensus/lstar/state_transition/test_block_processing.py::test_block_at_very_large_slot_with_many_skipped[fork_Lstar][fork_Lstar-state_transition_test]": {
         "network": "Lstar",
         "leanEnv": "prod",
+        "proofSetting": 0,
         "pre": {
             "config": {
                 "genesisTime": 0
@@ -31,23 +32,23 @@
             "validators": {
                 "data": [
                     {
-                        "attestationPubkey": "0x69968a74060bb672709bae2a9020113634052a233f82a1362d836238c42a3a35239f622654db5208a695613841694163e1bb2f03",
-                        "proposalPubkey": "0x2a18d4583f2767751a706c5ece704966fd615a400a80f5059cc91727a3302249e29bcf2ab3a03758de58870497756569dd512402",
+                        "attestationPublicKey": "0x6c9dc94cb124fd7eac91680ca6f7c131d7b02f1629ca842b0e714d557da1276b2e5f3d110aab9d6eb8c10c7d1ba0f93cd849c82e",
+                        "proposalPublicKey": "0x4f0098552e05e766afeb0d021742f626de106215bd0c5a5d2516fc75dc3ffc121159b63b6664354dc4eb353631b54a5ad0cc7b14",
                         "index": 0
                     },
                     {
-                        "attestationPubkey": "0x19cb1c1d6125eb5384442c467d2e0c3a043db2354b280026918a9574219bef1b1408375e8c552a572aac724bbc62567252ba5e29",
-                        "proposalPubkey": "0xd9070922f2a61d4f6841a422af4c4c20b884822679e373656d85fb23c16d481950e066599bf38819590a2b1c23a0191412103134",
+                        "attestationPublicKey": "0xadc304243eb9f60ad1016e6610f11420dba97e450171971dda35bf50d4f14117ad3b9f06083c9d05f73d5e12f9e9ce1e7aa65866",
+                        "proposalPublicKey": "0xe2508c4edcc47c50505281470653e6555fe9785380e97c427e99b677f949b125d17f2c58a45c1b5349f20c27db10ea78d2fceb37",
                         "index": 1
                     },
                     {
-                        "attestationPubkey": "0x92bed26ae499d8697f17f95e7ff3384fc14873104bb8e77c0873c84e62faf807c6ba6a0fbcfc854e3a454967e8d13b3421feb640",
-                        "proposalPubkey": "0xb29ab606672cbb688c6fda46eb61b11c700049668dfea02b8495b31d2f099756b6e4703bb766614db919d628acb94a33191ccd08",
+                        "attestationPublicKey": "0x44095a46c1dd521b2e37c626b3401045f2a41713b034d95e9888fb34a15c280a8045b7043b6cca1c3353a6089ae5aa027c548d4b",
+                        "proposalPublicKey": "0xd72b9b4bf39f805d637c855bb3266b373aa97e262cea76359b84e70805268b520cbe62284be2f81da2069b0c5298912169fa935f",
                         "index": 2
                     },
                     {
-                        "attestationPubkey": "0x052219585cd5586b5dec1d5d4726fe7de8ed435e6c96af4abe90f901b5067364ea570106b5cb3126056c5b061d554613418db111",
-                        "proposalPubkey": "0xce5ee06dab5c554e10863f2f9b5cf02543f77b17db0e5e7a4e19f777c266d81325d82f2bc597d322bc10ee25fd09bd3bec791e0a",
+                        "attestationPublicKey": "0xc6ce413056aff1787a8d01575b11781c08ab595fea7cb46372fd8376e054f829da06c251d8e13643e751d9737d52e4474fddab5c",
+                        "proposalPublicKey": "0xd763f750d84c1840a6e2fb16b9f5e13f372e1f4646588a0d0ab96e483b42161f47858d5acb6d3a6bdae7e65a672cd2233fe77c16",
                         "index": 3
                     }
                 ]
@@ -63,8 +64,8 @@
             {
                 "slot": 500,
                 "proposerIndex": 0,
-                "parentRoot": "0xaaad34b4601908bb539c3b6d7cd40553624165dba9662127398545ac802ecfa3",
-                "stateRoot": "0x9ae86ff1d1313c75326751450494c1fbb5d5029effa53a009a94ada69b892a79",
+                "parentRoot": "0x7abe554da998339edfd2ac2b86874b1eeb200f91f11a65701bfbbadc65e1f862",
+                "stateRoot": "0xc96048bb0c6fd8c1432825c2194e59bf214b16aa90924590994ceb8b5cb6a779",
                 "body": {
                     "attestations": {
                         "data": []
@@ -579,12 +580,14 @@
                 ]
             }
         },
+        "postStateRoot": "0xc96048bb0c6fd8c1432825c2194e59bf214b16aa90924590994ceb8b5cb6a779",
         "_info": {
-            "hash": "0xa02fb78c60baef41d49df0197fbe80f89c9e95fc9c5b1e6bcc402e139601f5ea",
+            "hash": "0x4bb5efbc2f9ae0d90b93228ef92eaa8134fcb92a0b286fc5662cf96a498ab2ea",
             "comment": "`leanSpec` generated test",
             "testId": "tests/consensus/lstar/state_transition/test_block_processing.py::test_block_at_very_large_slot_with_many_skipped[fork_Lstar]",
-            "description": "State transition handles hundreds of empty slots without error.\n\n    Scenario\n    --------\n    Jump directly from genesis to slot 500, simulating:\n    - Network bootstrap after very long downtime\n    - Integer overflow boundary testing at scale\n    - Memory usage stress test for slot processing\n\n    Expected Behavior\n    -----------------\n    1. Process 499 empty slots: 1\u21922\u2192...\u2192499\u2192500\n    2. Block at slot 500 processes correctly\n    3. historical_block_hashes has 500 entries:\n       - Genesis parent root\n       - 499 ZERO_HASH entries for skipped slots\n    4. justified_slots tracks slots 1..499 = 499 entries (all False)\n    5. No integer overflow or memory issues",
-            "fixtureFormat": "state_transition_test"
+            "description": "A block at slot 500 processes hundreds of empty slots without error.\n\nGiven\n-----\n- the default genesis state.\n- the chain:\n    genesis -> block(500)\n- slots 1 through 499 carry no block.\n\nWhen\n----\n- the chain processes the block at slot 500.\n\nThen\n----\n- the state slot is 500.\n- the history holds 500 entries.\n- the justified-slots bitfield holds 499 entries, all unjustified.",
+            "fixtureFormat": "state_transition_test",
+            "keySetDigest": "0xc2b5fc4c1f1fbc181ddf07db3df985f79e1dcedcfb7df732ef20863d7cbcf491"
         }
     }
 }
