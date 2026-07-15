@@ -60,7 +60,19 @@
                 "data": []
             }
         },
-        "blocks": [],
+        "blocks": [
+            {
+                "slot": 1,
+                "proposerIndex": 1,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            }
+        ],
         "expectExceptionMessage": "Target slot must be in the future",
         "_info": {
             "hash": "0x9dc05b23320358c8d16360858d2171b904ef9f48123a983670ea1f4148a65dd5",
