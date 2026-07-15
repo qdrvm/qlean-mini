@@ -240,8 +240,9 @@ namespace lean::blockchain {
           encoded_signature_opt,
           getFromSpace(*storage_, storage::Space::Signature, block_hash));
       if (encoded_signature_opt.has_value()) {
-        OUTCOME_TRY(signature,
-                    decode<BlockSignatures>(encoded_signature_opt.value()));
+        OUTCOME_TRY(
+            signature,
+            decode<TypeTwoMultiSignature>(encoded_signature_opt.value()));
         data.signature.emplace(std::move(signature));
       } else {
         return BlockStorageError::SIGNATURE_NOT_FOUND;
@@ -286,7 +287,7 @@ namespace lean::blockchain {
     block.block.state_root = data.header->state_root;
 
     // Block signature
-    block.signature = std::move(*data.signature);
+    block.proof = std::move(*data.signature);
 
     // Block body
     block.block.body = std::move(*data.body);

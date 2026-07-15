@@ -10,14 +10,14 @@
 
 #include "serde/json_fwd.hpp"
 #include "types/block.hpp"
-#include "types/block_signatures.hpp"
+#include "types/type_two_multi_signature.hpp"
 
 namespace lean {
   struct SignedBlock : ssz::ssz_variable_size_container {
     Block block;
-    BlockSignatures signature;
+    TypeTwoMultiSignature proof;
 
-    SSZ_AND_JSON_FIELDS(block, signature);
+    SSZ_AND_JSON_FIELDS(block, proof);
     bool operator==(const SignedBlock &) const = default;
   };
 }  // namespace lean

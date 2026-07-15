@@ -9,8 +9,8 @@
 #include <sszpp/container.hpp>
 
 #include "serde/json_fwd.hpp"
-#include "types/aggregated_signature_proof.hpp"
 #include "types/attestation_data.hpp"
+#include "types/type_one_multi_signature.hpp"
 
 namespace lean {
   /**
@@ -19,7 +19,7 @@ namespace lean {
    */
   struct SignedAggregatedAttestation : ssz::ssz_variable_size_container {
     AttestationData data;
-    AggregatedSignatureProof proof;
+    TypeOneMultiSignature proof;
 
     SSZ_AND_JSON_FIELDS(data, proof);
     bool operator==(const SignedAggregatedAttestation &) const = default;

@@ -45,6 +45,7 @@ namespace lean {
       INVALID_VOTE_SOURCE_SLOT,
       INVALID_VOTE_TARGET_SLOT,
       INVALID_VOTER,
+      INVALID_STATE_JUSTIFICATIONS,
     };
     Q_ENUM_ERROR_CODE_FRIEND(Error) {
       using E = decltype(e);
@@ -63,6 +64,8 @@ namespace lean {
           return "Invalid vote target slot";
         case E::INVALID_VOTER:
           return "Invalid voter";
+        case E::INVALID_STATE_JUSTIFICATIONS:
+          return "Invalid state justifications";
       }
       abort();
     }

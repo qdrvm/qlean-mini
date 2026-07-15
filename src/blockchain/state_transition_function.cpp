@@ -6,7 +6,6 @@
 
 #include "blockchain/state_transition_function.hpp"
 
-#include <boost/assert.hpp>
 #include <soralog/macro.hpp>
 
 #include "blockchain/is_justifiable_slot.hpp"
@@ -96,8 +95,8 @@ namespace lean {
    *
    * Corresponds to flatten_justifications_map in Python spec.
    */
-  inline void setJustifications(State &state,
-                                const Justifications &justifications) {
+  inline outcome::result<void> setJustifications(
+      State &state, const Justifications &justifications) {
     auto &roots = state.justifications_roots.data();
     auto &validators = state.justifications_validators.data();
     roots.clear();
@@ -105,10 +104,13 @@ namespace lean {
     validators.clear();
     validators.reserve(justifications.size() * state.validatorCount());
     for (auto &[root, bits] : justifications) {
-      BOOST_ASSERT(bits.size() == state.validatorCount());
+      if (bits.size() != state.validatorCount()) {
+        return STF::Error::INVALID_STATE_JUSTIFICATIONS;
+      }
       roots.push_back(root);
       validators.insert(validators.end(), bits.begin(), bits.end());
     }
+    return outcome::success();
   }
 
   State STF::generateGenesisState(const Config &config,
@@ -321,8 +323,9 @@ namespace lean {
       auto &roots = state.justifications_roots.data();
       auto &flat_justifications = state.justifications_validators.data();
       size_t offset = 0;
-      BOOST_ASSERT(flat_justifications.size()
-                   == roots.size() * state.validatorCount());
+      if (flat_justifications.size() != roots.size() * state.validatorCount()) {
+        return Error::INVALID_STATE_JUSTIFICATIONS;
+      }
       for (auto &root : roots) {
         auto next_offset = offset + state.validatorCount();
         std::vector<bool> bits{
@@ -391,13 +394,10 @@ namespace lean {
         continue;
       }
 
-      // Source root must match the state's historical block hashes
-      if (source.root != state.historical_block_hashes.data().at(source_slot)) {
-        continue;
-      }
-
-      // Target root must match the state's historical block hashes
-      if (target.root != state.historical_block_hashes.data().at(target_slot)) {
+      // Both roots must match the canonical chain.
+      // This also rejects zero-hash source or target roots.
+      if (not attestation_data.liesOnChain(
+              state.historical_block_hashes.data())) {
         continue;
       }
 
@@ -468,7 +468,9 @@ namespace lean {
           if (delta > 0) {
             shiftWindow(justified_slots, delta);
             retain_if(justifications, [&](const Justifications::value_type &p) {
-              return root_to_slot.at(p.first) > latest_finalized.slot;
+              auto it = root_to_slot.find(p.first);
+              return it != root_to_slot.end()
+                 and it->second > latest_finalized.slot;
             });
           }
         }
@@ -477,7 +479,7 @@ namespace lean {
     }
 
     // Flatten and set updated justifications back to the state
-    setJustifications(state, justifications);
+    BOOST_OUTCOME_TRY(setJustifications(state, justifications));
 
     // Apply tracked state changes
     state.latest_justified = latest_justified;

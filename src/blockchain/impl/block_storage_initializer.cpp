@@ -49,8 +49,7 @@ namespace lean::blockchain {
       anchor_block_data.hash = anchor_block->hash();
       if (anchor_state->signed_block.has_value()) {
         anchor_block_data.body.emplace(anchor_state->signed_block->block.body);
-        anchor_block_data.signature.emplace(
-            anchor_state->signed_block->signature);
+        anchor_block_data.signature.emplace(anchor_state->signed_block->proof);
       }
       BOOST_ASSERT(anchor_block_hash == anchor_block_data.hash);
 

@@ -27,6 +27,10 @@ project(qlean-mini
     LANGUAGES CXX C
 )
 
+if (APPLE)
+  link_libraries(-lobjc)
+endif ()
+
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Boost_DIR: ${Boost_DIR}")
 

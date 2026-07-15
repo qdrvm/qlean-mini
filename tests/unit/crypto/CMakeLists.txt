@@ -8,5 +8,6 @@ addtest(xmss_provider_test
     xmss_provider_test.cpp
 )
 target_link_libraries(xmss_provider_test
+    hashtree
     xmss_provider
 )

@@ -168,6 +168,7 @@ namespace lean {
         uint64_t subnet_count);
 
     void dontPropose();
+    void dontSplit();
     void ignoreBlockSignature();
 
     // Compute the latest block that the validator is allowed to choose as the
@@ -310,7 +311,8 @@ namespace lean {
      */
     outcome::result<SignedBlock> produceBlockWithSignatures(
         Slot slot, ValidatorIndex validator_index);
-    outcome::result<std::pair<AggregatedAttestations, AttestationSignatures>>
+    outcome::result<
+        std::pair<AggregatedAttestations, std::vector<TypeOneMultiSignature>>>
     getProposalAttestations(Slot slot,
                             ValidatorIndex proposer_index,
                             BlockHash parent_root);
@@ -319,10 +321,10 @@ namespace lean {
      * Groups aggregated attestations by data and recursively aggregates their
      * proofs.
      */
-    std::pair<AggregatedAttestations, AttestationSignatures> aggregateDuplicate(
-        const State &state,
-        const AggregatedAttestations &attestations,
-        const AttestationSignatures &signatures);
+    std::pair<AggregatedAttestations, std::vector<TypeOneMultiSignature>>
+    aggregateDuplicate(const State &state,
+                       const AggregatedAttestations &attestations,
+                       const std::vector<TypeOneMultiSignature> &signatures);
 
     /**
      * Produce an attestation for the given slot and validator.
@@ -485,7 +487,7 @@ namespace lean {
       AttestationData data;
       // signatures and public keys must follow bitset order
       std::map<ValidatorIndex, Signature> signatures;
-      std::vector<AggregatedSignatureProof> proofs;
+      std::vector<TypeOneMultiSignature> proofs;
     };
 
     void addSignatureToAggregate(const AttestationData &data,
@@ -500,7 +502,7 @@ namespace lean {
     bool validateAggregatedSignature(
         const State &state,
         const AttestationData &attestation,
-        const AggregatedSignatureProof &signature) const;
+        const TypeOneMultiSignature &signature) const;
 
     std::vector<SignedAggregatedAttestation> aggregateSignatures();
     SignedAggregatedAttestation aggregateSignatures(const State &state,
@@ -511,6 +513,11 @@ namespace lean {
     void prune(Slot finalized_slot);
     void updateMetricGossipSignatures();
     void updateMetricAttestationSignature(bool valid) const;
+    TypeTwoMultiSignature aggregateTypeTwo(
+        const State &state,
+        const Block &block,
+        const crypto::xmss::XmssSignature &proposer_signature,
+        const std::vector<TypeOneMultiSignature> &type_one_signatures) const;
 
     log::Logger logger_;
     qtils::SharedRef<metrics::Metrics> metrics_;
@@ -591,6 +598,7 @@ namespace lean {
      */
     std::unordered_set<SubnetIndex> subnets_;
     bool dont_propose_ = false;
+    bool dont_split_ = false;
     bool ignore_block_signature_ = false;
     std::unordered_map<BlockHash, Slot> anchor_block_slots_;
   };

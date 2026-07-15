@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <c_hash_sig/c_hash_sig.h>
+
 #include "crypto/xmss/xmss_provider_impl.hpp"
 
 using namespace lean::crypto::xmss;
@@ -21,6 +23,7 @@ XmssMessage wrong_message{0x43};
 class XmssProviderTest : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
+    pq_init();
     provider_ = std::make_unique<XmssProviderImpl>();
     keypair = provider_->generateKeypair(activation_epoch, num_active_epochs);
     keypair2 = provider_->generateKeypair(activation_epoch, num_active_epochs);

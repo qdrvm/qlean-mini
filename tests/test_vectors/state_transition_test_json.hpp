@@ -12,12 +12,13 @@
 
 namespace lean {
   struct StateExpectation {
-    Slot slot;
+    std::optional<Slot> slot;
     std::optional<Slot> latest_justified_slot;
     std::optional<BlockHash> latest_justified_root;
     std::optional<Slot> latest_finalized_slot;
     std::optional<BlockHash> latest_finalized_root;
     std::optional<size_t> validator_count;
+    std::optional<Validators> validators;
     std::optional<uint64_t> config_genesis_time;
     std::optional<Slot> latest_block_header_slot;
     std::optional<ValidatorIndex> latest_block_header_proposer_index;
@@ -38,6 +39,7 @@ namespace lean {
                 latest_finalized_slot,
                 latest_finalized_root,
                 validator_count,
+                validators,
                 config_genesis_time,
                 latest_block_header_slot,
                 latest_block_header_proposer_index,
@@ -55,8 +57,8 @@ namespace lean {
     State pre;
     std::vector<Block> blocks;
     std::optional<StateExpectation> post;
-    std::optional<std::string> expect_exception;
+    std::optional<std::string> rejection_reason;
 
-    JSON_FIELDS(pre, blocks, post, expect_exception);
+    JSON_FIELDS(pre, blocks, post, rejection_reason);
   };
 }  // namespace lean

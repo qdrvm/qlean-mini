@@ -54,23 +54,23 @@ namespace lean {
       if (not yaml_validator.IsMap()) {
         return ConfigYamlError::INVALID;
       }
-      auto yaml_attestation_pubkey = yaml_validator["attestation_pubkey"];
+      auto yaml_attestation_pubkey = yaml_validator["attestation_public_key"];
       if (not yaml_attestation_pubkey.IsScalar()) {
         return ConfigYamlError::INVALID;
       }
-      BOOST_OUTCOME_TRY(auto attestation_pubkey,
+      BOOST_OUTCOME_TRY(auto attestation_public_key,
                         crypto::xmss::XmssPublicKey::fromHex(
                             yaml_attestation_pubkey.as<std::string>()));
-      auto yaml_proposal_pubkey = yaml_validator["proposal_pubkey"];
+      auto yaml_proposal_pubkey = yaml_validator["proposal_public_key"];
       if (not yaml_proposal_pubkey.IsScalar()) {
         return ConfigYamlError::INVALID;
       }
-      BOOST_OUTCOME_TRY(auto proposal_pubkey,
+      BOOST_OUTCOME_TRY(auto proposal_public_key,
                         crypto::xmss::XmssPublicKey::fromHex(
                             yaml_proposal_pubkey.as<std::string>()));
       validators.emplace_back(Validator{
-          .attestation_pubkey = attestation_pubkey,
-          .proposal_pubkey = proposal_pubkey,
+          .attestation_public_key = attestation_public_key,
+          .proposal_public_key = proposal_public_key,
           .index = i,
       });
     }

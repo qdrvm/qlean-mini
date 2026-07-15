@@ -16,8 +16,8 @@ namespace lean {
   struct VerifySignaturesTestJson {
     State anchor_state;
     SignedBlock signed_block;
-    std::optional<std::string> expect_exception;
+    std::optional<std::string> rejection_reason;
 
-    JSON_FIELDS(anchor_state, signed_block, expect_exception);
+    JSON_FIELDS(anchor_state, signed_block, rejection_reason);
   };
 }  // namespace lean

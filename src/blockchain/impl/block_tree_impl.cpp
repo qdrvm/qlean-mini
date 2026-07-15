@@ -139,7 +139,7 @@ namespace lean::blockchain {
           block_data.header.emplace(header);
 
           // Signatures
-          block_data.signature.emplace(signed_block.signature);
+          block_data.signature.emplace(signed_block.proof);
 
           // Body
           block_data.body.emplace(block.body);

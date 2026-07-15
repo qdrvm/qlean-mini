@@ -15,11 +15,11 @@
 
 namespace lean {
   struct Validator : ssz::ssz_container {
-    crypto::xmss::XmssPublicKey attestation_pubkey;
-    crypto::xmss::XmssPublicKey proposal_pubkey;
+    crypto::xmss::XmssPublicKey attestation_public_key;
+    crypto::xmss::XmssPublicKey proposal_public_key;
     ValidatorIndex index;
 
-    SSZ_AND_JSON_FIELDS(attestation_pubkey, proposal_pubkey, index);
+    SSZ_AND_JSON_FIELDS(attestation_public_key, proposal_public_key, index);
     bool operator==(const Validator &) const = default;
   };
 }  // namespace lean

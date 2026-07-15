@@ -10,6 +10,7 @@
 #include <memory>
 #include <system_error>
 
+#include <c_hash_sig/c_hash_sig.h>
 #include <fmt/format.h>
 #include <qtils/final_action.hpp>
 #include <soralog/impl/configurator_from_yaml.hpp>
@@ -153,6 +154,9 @@ int main(int argc, const char **argv, const char **env) {
       return EXIT_FAILURE;
     }
   }
+
+  logging_system->getLogger("xmss", "xmss")->info("initializing leanMultisig");
+  pq_init();
 
   if (auto *s = getenv("HIVE_LEAN_TEST_DRIVER");
       s != nullptr and std::string_view{s} == "1") {

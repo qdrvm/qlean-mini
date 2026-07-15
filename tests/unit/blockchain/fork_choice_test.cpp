@@ -48,7 +48,7 @@ BlockHash testHash(std::string_view s) {
 
 Attestation makeAttestation(const Block &source, const Block &target) {
   return Attestation{
-      .validator_id = 0,
+      .validator_index = 0,
       .data =
           {
               .slot = target.slot,

@@ -35,11 +35,13 @@ TEST_P(StateTransitionTest, StateTransition) {
   };
   auto state_result = stf_many();
   ASSERT_EQ(state_result.has_value(), fixture.post.has_value());
-  ASSERT_EQ(state_result.has_value(), not fixture.expect_exception.has_value());
+  ASSERT_EQ(state_result.has_value(), not fixture.rejection_reason.has_value());
   if (state_result.has_value()) {
     auto &state = state_result.value();
     auto &post = *fixture.post;
-    ASSERT_EQ(state.slot, post.slot);
+    if (post.slot) {
+      ASSERT_EQ(state.slot, *post.slot);
+    }
     if (post.latest_justified_slot) {
       ASSERT_EQ(state.latest_justified.slot, *post.latest_justified_slot);
     }
@@ -54,6 +56,9 @@ TEST_P(StateTransitionTest, StateTransition) {
     }
     if (post.validator_count) {
       ASSERT_EQ(state.validators.size(), *post.validator_count);
+    }
+    if (post.validators) {
+      ASSERT_EQ(state.validators, *post.validators);
     }
     if (post.config_genesis_time) {
       ASSERT_EQ(state.config.genesis_time, *post.config_genesis_time);

@@ -28,7 +28,7 @@ namespace lean {
   }
 
   inline std::string leanInteropTest(const SignedAttestation &v) {
-    return fmt::format("[{}, {}]", v.validator_id, leanInteropTest(v.data));
+    return fmt::format("[{}, {}]", v.validator_index, leanInteropTest(v.data));
   }
 
   inline std::string leanInteropTest(const AggregatedAttestation &v) {

@@ -47,6 +47,18 @@ namespace lean::crypto::xmss {
         uint32_t epoch,
         const XmssMessage &message,
         XmssAggregatedSignatureIn aggregated_signature) const override;
+    TypeTwoMultiSignature aggregateTypeTwo(
+        const std::vector<std::vector<XmssPublicKey>> &public_keys,
+        const std::vector<XmssAggregatedSignature> &type_one_signatures)
+        const override;
+    bool verifyTypeTwo(
+        const std::vector<std::vector<XmssPublicKey>> &public_keys,
+        const TypeTwoMultiSignature &type_two_signature,
+        EpochsAndMessages epochs_and_messages) const override;
+    XmssAggregatedSignature splitTypeTwo(
+        const std::vector<std::vector<XmssPublicKey>> &public_keys,
+        const TypeTwoMultiSignature &type_two_signature,
+        size_t index) const override;
 
     static XmssKeypair loadKeypair(const XmssPublicKey &public_key,
                                    std::string_view private_key_path);

@@ -574,7 +574,7 @@ namespace lean::modules {
                          "validator_id={} ✅",
                          signed_attestation.data.target,
                          peer_id.has_value() ? peer_id->toBase58() : "unknown",
-                         signed_attestation.validator_id);
+                         signed_attestation.validator_index);
 
                 auto &head = signed_attestation.data.head;
                 if (not self->block_tree_->has(head.root)) {
@@ -585,7 +585,7 @@ namespace lean::modules {
                   }
                   SL_INFO(self->logger_,
                           "Pending attestation from validator {} for head {}",
-                          signed_attestation.validator_id,
+                          signed_attestation.validator_index,
                           head);
                   self->attestation_cache_.emplace(head.root,
                                                    signed_attestation);
@@ -706,7 +706,7 @@ namespace lean::modules {
                "📣 Gossiped vote for target={} 🗳️",
                message->notification.data.target);
       auto topic_it = self->gossip_votes_topics_.find(validatorSubnet(
-          message->notification.validator_id, self->subnet_count_));
+          message->notification.validator_index, self->subnet_count_));
       if (topic_it == self->gossip_votes_topics_.end()) {
         return;
       }
@@ -920,12 +920,12 @@ namespace lean::modules {
       for (auto &attestation : attestations) {
         SL_INFO(logger_,
                 "Import pending attestation from validator {}",
-                attestation.validator_id);
+                attestation.validator_index);
         auto res = fork_choice_store_->onGossipAttestation(attestation);
         if (not res.has_value()) {
           SL_WARN(logger_,
                   "Error importing pending attestation from validator {}: {}",
-                  attestation.validator_id,
+                  attestation.validator_index,
                   res.error());
         }
       }

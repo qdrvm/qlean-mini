@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <c_hash_sig/c_hash_sig.h>
+
 #include "blockchain/fork_choice.hpp"
 #include "crypto/xmss/xmss_provider_impl.hpp"
 #include "metrics/metrics_mock.hpp"
@@ -15,7 +17,11 @@
 #include "testutil/prepare_loggers.hpp"
 #include "verify_signatures_test_json.hpp"
 
-struct VerifySignaturesTest : FixtureTest<lean::VerifySignaturesTestJson> {};
+struct VerifySignaturesTest : FixtureTest<lean::VerifySignaturesTestJson> {
+  static void SetUpTestCase() {
+    pq_init();
+  }
+};
 FIXTURE_INSTANTIATE(VerifySignaturesTest, "verify_signatures");
 
 TEST_P(VerifySignaturesTest, VerifySignatures) {
@@ -50,5 +56,5 @@ TEST_P(VerifySignaturesTest, VerifySignatures) {
       1,
   };
   EXPECT_EQ(store.validateBlockSignatures(fixture.signed_block),
-            not fixture.expect_exception.has_value());
+            not fixture.rejection_reason.has_value());
 }

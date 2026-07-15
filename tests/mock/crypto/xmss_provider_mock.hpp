@@ -41,5 +41,22 @@ namespace lean::crypto::xmss {
                  const XmssMessage &,
                  XmssAggregatedSignatureIn),
                 (const, override));
+    MOCK_METHOD(TypeTwoMultiSignature,
+                aggregateTypeTwo,
+                (const std::vector<std::vector<XmssPublicKey>> &,
+                 const std::vector<XmssAggregatedSignature> &),
+                (const, override));
+    MOCK_METHOD(bool,
+                verifyTypeTwo,
+                (const std::vector<std::vector<XmssPublicKey>> &,
+                 const TypeTwoMultiSignature &,
+                 EpochsAndMessages),
+                (const, override));
+    MOCK_METHOD(XmssAggregatedSignature,
+                splitTypeTwo,
+                (const std::vector<std::vector<XmssPublicKey>> &,
+                 const TypeTwoMultiSignature &,
+                 size_t),
+                (const, override));
   };
 }  // namespace lean::crypto::xmss

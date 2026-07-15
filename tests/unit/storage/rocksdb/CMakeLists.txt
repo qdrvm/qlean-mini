@@ -9,6 +9,7 @@ addtest(rocksdb_fs_test
 )
 target_link_libraries(rocksdb_fs_test
     base_fs_test
+    hashtree
     storage
 )
 
@@ -17,4 +18,5 @@ addtest(rocksdb_integration_test
 )
 target_link_libraries(rocksdb_integration_test
     base_rocksdb_test
+    hashtree
 )

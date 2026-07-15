@@ -18,7 +18,15 @@
 #include "metrics/metrics.hpp"
 
 namespace lean::crypto::xmss {
+  using const_u8_ptr = const uint8_t *;
+
   constexpr size_t LOG_INV_RATE_PROD = 2;
+
+  qtils::ByteVec ffiByteVec(PQByteVec &&v) {
+    qtils::ByteVec r{std::span{v.ptr, v.size}};
+    PQByteVec_drop(v);
+    return r;
+  }
 
   XmssProviderImpl::XmssProviderImpl(qtils::SharedRef<metrics::Metrics> metrics)
       : use_metrics_(true), metrics_(std::move(metrics)) {}
@@ -101,11 +109,9 @@ namespace lean::crypto::xmss {
 
     // Deserialize signature
     PQSignature *signature_raw = nullptr;
-    auto signature_res = ffi::asOutcome(
-        pq_signature_from_bytes(xmss_signature.data(), &signature_raw));
-    if (not signature_res.has_value()) {
-      return 0;
-    }
+    ffi::asOutcome(
+        pq_signature_from_bytes(xmss_signature.data(), &signature_raw))
+        .value();
     ffi::Signature signature{signature_raw};
 
     // Verify signature
@@ -120,7 +126,7 @@ namespace lean::crypto::xmss {
   }
 
   auto manyToRaw(const auto &items) {
-    std::vector<const uint8_t *> items_raw;
+    std::vector<const_u8_ptr> items_raw;
     items_raw.reserve(items.size());
     for (auto &item : items) {
       items_raw.emplace_back(item.data());
@@ -135,7 +141,6 @@ namespace lean::crypto::xmss {
       std::span<const XmssSignature> signatures,
       uint32_t epoch,
       const XmssMessage &message) const {
-    pq_setup_prover();
     std::optional<metrics::HistogramTimer> timer{};
     if (use_metrics_) {
       timer.emplace(
@@ -155,7 +160,7 @@ namespace lean::crypto::xmss {
     }
     auto public_keys_raw = manyToRaw(public_keys);
     auto signatures_raw = manyToRaw(signatures);
-    std::vector<std::vector<const uint8_t *>> ffi_public_keys;
+    std::vector<std::vector<const_u8_ptr>> ffi_public_keys;
     ffi_public_keys.reserve(child_proofs.size());
     for (auto &keys : child_public_keys) {
       auto &ffi_keys = ffi_public_keys.emplace_back();
@@ -175,19 +180,15 @@ namespace lean::crypto::xmss {
           .public_keys_count = public_keys.size(),
       });
     }
-    auto ffi_bytevec = pq_aggregate_signatures(ffi_children.data(),
-                                               ffi_children.size(),
-                                               public_keys.size(),
-                                               public_keys_raw.data(),
-                                               signatures_raw.data(),
-                                               epoch,
-                                               message.data(),
-                                               LOG_INV_RATE_PROD);
-    XmssAggregatedSignature aggregated_signature{std::span{
-        ffi_bytevec.ptr,
-        ffi_bytevec.size,
-    }};
-    PQByteVec_drop(ffi_bytevec);
+    XmssAggregatedSignature aggregated_signature =
+        ffiByteVec(pq_aggregate_signatures(ffi_children.data(),
+                                           ffi_children.size(),
+                                           public_keys.size(),
+                                           public_keys_raw.data(),
+                                           signatures_raw.data(),
+                                           epoch,
+                                           message.data(),
+                                           LOG_INV_RATE_PROD));
 
     if (use_metrics_) {
       metrics_->pq_sig_attestations_in_aggregated_signatures_total()->inc(
@@ -204,7 +205,6 @@ namespace lean::crypto::xmss {
       uint32_t epoch,
       const XmssMessage &message,
       XmssAggregatedSignatureIn aggregated_signature) const {
-    pq_setup_verifier();
     std::optional<metrics::HistogramTimer> timer{};
     if (use_metrics_) {
       timer.emplace(
@@ -230,4 +230,87 @@ namespace lean::crypto::xmss {
     return is_valid;
   }
 
+  struct PublicKeyVecVec {
+    PublicKeyVecVec(const std::vector<std::vector<XmssPublicKey>> &vec_vec) {
+      ptr.reserve(vec_vec.size());
+      ptr_ptr.reserve(vec_vec.size());
+      ptr_size.reserve(vec_vec.size());
+      for (auto &vec : vec_vec) {
+        auto &row = ptr.emplace_back();
+        row.reserve(vec.size());
+        for (auto &key : vec) {
+          row.emplace_back(key.data());
+        }
+      }
+      for (auto &row : ptr) {
+        ptr_ptr.emplace_back(row.data());
+        ptr_size.emplace_back(row.size());
+      }
+    }
+    std::vector<std::vector<const_u8_ptr>> ptr;
+    std::vector<const const_u8_ptr *> ptr_ptr;
+    std::vector<size_t> ptr_size;
+  };
+
+  TypeTwoMultiSignature XmssProviderImpl::aggregateTypeTwo(
+      const std::vector<std::vector<XmssPublicKey>> &public_keys,
+      const std::vector<XmssAggregatedSignature> &type_one_signatures) const {
+    PublicKeyVecVec keys{public_keys};
+    assert(public_keys.size() == type_one_signatures.size());
+    auto count = public_keys.size();
+    std::vector<const_u8_ptr> type_1_ptr;
+    std::vector<size_t> type_1_size;
+    type_1_ptr.reserve(count);
+    type_1_size.reserve(count);
+    for (auto &type_1 : type_one_signatures) {
+      type_1_ptr.emplace_back(type_1.data());
+      type_1_size.emplace_back(type_1.size());
+    }
+    return TypeTwoMultiSignature{
+        .proof = ffiByteVec(pq_aggregate_type_two(count,
+                                                  keys.ptr_ptr.data(),
+                                                  keys.ptr_size.data(),
+                                                  type_1_ptr.data(),
+                                                  type_1_size.data(),
+                                                  LOG_INV_RATE_PROD)),
+    };
+  }
+
+  bool XmssProviderImpl::verifyTypeTwo(
+      const std::vector<std::vector<XmssPublicKey>> &public_keys,
+      const TypeTwoMultiSignature &type_two_signature,
+      EpochsAndMessages epochs_and_messages) const {
+    PublicKeyVecVec keys{public_keys};
+    assert(public_keys.size() == epochs_and_messages.size());
+    auto count = public_keys.size();
+    std::vector<uint32_t> epochs;
+    std::vector<const_u8_ptr> messages;
+    epochs.reserve(count);
+    messages.reserve(count);
+    for (auto &[epoch, message] : epochs_and_messages) {
+      epochs.emplace_back(epoch);
+      messages.emplace_back(message.data());
+    }
+    return pq_verify_type_two(type_two_signature.proof.data().data(),
+                              type_two_signature.proof.size(),
+                              public_keys.size(),
+                              keys.ptr_ptr.data(),
+                              keys.ptr_size.data(),
+                              epochs.data(),
+                              messages.data());
+  }
+
+  XmssAggregatedSignature XmssProviderImpl::splitTypeTwo(
+      const std::vector<std::vector<XmssPublicKey>> &public_keys,
+      const TypeTwoMultiSignature &type_two_signature,
+      size_t index) const {
+    PublicKeyVecVec keys{public_keys};
+    return ffiByteVec(pq_split_type_two(type_two_signature.proof.data().data(),
+                                        type_two_signature.proof.size(),
+                                        public_keys.size(),
+                                        keys.ptr_ptr.data(),
+                                        keys.ptr_size.data(),
+                                        index,
+                                        LOG_INV_RATE_PROD));
+  }
 }  // namespace lean::crypto::xmss

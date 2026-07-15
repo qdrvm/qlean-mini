@@ -14,10 +14,10 @@
 
 namespace lean {
   struct Attestation : ssz::ssz_container {
-    ValidatorIndex validator_id;
+    ValidatorIndex validator_index;
     AttestationData data;
 
-    SSZ_AND_JSON_FIELDS(validator_id, data);
+    SSZ_AND_JSON_FIELDS(validator_index, data);
     bool operator==(const Attestation &) const = default;
   };
 }  // namespace lean

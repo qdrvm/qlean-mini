@@ -15,19 +15,19 @@
 
 namespace lean {
   struct SignedAttestation : ssz::ssz_container {
-    ValidatorIndex validator_id;
+    ValidatorIndex validator_index;
     AttestationData data;
     Signature signature;
 
     static SignedAttestation from(const auto &attestation,
                                   const auto &signature) {
       return SignedAttestation{
-          .validator_id = attestation.validator_id,
+          .validator_index = attestation.validator_index,
           .data = attestation.data,
           .signature = signature,
       };
     }
 
-    SSZ_AND_JSON_FIELDS(validator_id, data, signature);
+    SSZ_AND_JSON_FIELDS(validator_index, data, signature);
   };
 }  // namespace lean

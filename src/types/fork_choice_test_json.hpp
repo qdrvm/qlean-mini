@@ -15,10 +15,12 @@ namespace lean {
   enum class AttestationCheckLocation {
     NEW,
     KNOWN,
+    SIGNATURES,
   };
   JSON_ENUM(AttestationCheckLocation,
             {AttestationCheckLocation::NEW, "new"},
-            {AttestationCheckLocation::KNOWN, "known"});
+            {AttestationCheckLocation::KNOWN, "known"},
+            {AttestationCheckLocation::SIGNATURES, "signatures"});
 
   struct AggregatedAttestationCheck {
     std::vector<ValidatorIndex> participants;

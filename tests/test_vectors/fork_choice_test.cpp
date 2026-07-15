@@ -6,6 +6,8 @@
 
 #include "blockchain/fork_choice.hpp"
 
+#include <c_hash_sig/c_hash_sig.h>
+
 #include "blockchain/impl/anchor_block_impl.hpp"
 #include "blockchain/impl/anchor_state_impl.hpp"
 #include "clock/manual_clock.hpp"
@@ -24,7 +26,11 @@
 using lean::BlockHash;
 using testing::_;
 
-struct ForkChoiceTest : FixtureTest<lean::ForkChoiceTestJson> {};
+struct ForkChoiceTest : FixtureTest<lean::ForkChoiceTestJson> {
+  static void SetUpTestCase() {
+    pq_init();
+  }
+};
 FIXTURE_INSTANTIATE(ForkChoiceTest, "fork_choice");
 
 TEST_P(ForkChoiceTest, ForkChoice) {
@@ -147,6 +153,7 @@ TEST_P(ForkChoiceTest, ForkChoice) {
       block_storage,
   };
   store.dontPropose();
+  store.dontSplit();
   store.ignoreBlockSignature();
   auto check = [&](const lean::BaseForkChoiceStep &step, auto &&f) {
     outcome::result<void> r = f();
@@ -232,12 +239,8 @@ TEST_P(ForkChoiceTest, ForkChoice) {
         auto &block = block_step->block;
         lean::SignedBlock signed_block{
             .block = block,
-            .signature = {},
+            .proof = {},
         };
-        for (auto &attestation : block.body.attestations) {
-          signed_block.signature.attestation_signatures.push_back(
-              {.participants = attestation.aggregation_bits});
-        }
         auto block_time = std::chrono::seconds{store.getConfig().genesis_time}
                         + block.slot * lean::SLOT_DURATION_MS;
         store.onTick(block_time);

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "crypto/xmss/types.hpp"
+#include "types/type_two_multi_signature.hpp"
 
 namespace lean::crypto::xmss {
 
@@ -39,5 +40,21 @@ namespace lean::crypto::xmss {
         uint32_t epoch,
         const XmssMessage &message,
         XmssAggregatedSignatureIn aggregated_signature) const = 0;
+
+    virtual TypeTwoMultiSignature aggregateTypeTwo(
+        const std::vector<std::vector<XmssPublicKey>> &public_keys,
+        const std::vector<XmssAggregatedSignature> &type_one_signatures)
+        const = 0;
+
+    using EpochsAndMessages = std::vector<std::pair<uint32_t, XmssMessage>>;
+    virtual bool verifyTypeTwo(
+        const std::vector<std::vector<XmssPublicKey>> &public_keys,
+        const TypeTwoMultiSignature &type_two_signature,
+        EpochsAndMessages epochs_and_messages) const = 0;
+
+    virtual XmssAggregatedSignature splitTypeTwo(
+        const std::vector<std::vector<XmssPublicKey>> &public_keys,
+        const TypeTwoMultiSignature &type_two_signature,
+        size_t index) const = 0;
   };
 }  // namespace lean::crypto::xmss

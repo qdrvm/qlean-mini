@@ -27,6 +27,8 @@
 #include "types/state.hpp"
 #include "utils/http.hpp"
 
+// TODO: update after fork_choice_test.cpp
+
 #define USING_(ns, name) using name = ns::name
 
 #define MOCK_UNUSED                                                   \
@@ -478,13 +480,8 @@ inline int cmdTestDriver(std::shared_ptr<lean::log::LoggingSystem> logsys,
                         auto &block = block_step->block;
                         lean::SignedBlock signed_block{
                             .block = block,
-                            .signature = {},
+                            .proof = {},
                         };
-                        for (auto &attestation : block.body.attestations) {
-                          signed_block.signature.attestation_signatures
-                              .push_back({.participants =
-                                              attestation.aggregation_bits});
-                        }
                         auto block_time =
                             std::chrono::seconds{store.getConfig().genesis_time}
                             + block.slot * lean::SLOT_DURATION_MS;

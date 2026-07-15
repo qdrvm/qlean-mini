@@ -26,7 +26,7 @@ TEST_P(SszTest, Ssz) {
         auto decoded_res =
             lean::decode<typename std::remove_cvref_t<decltype(v)>::Type>(
                 v.serialized);
-        if (v.expect_exception.has_value()) {
+        if (v.rejection_reason.has_value()) {
           if (encoded_res.has_value()) {
             auto &encoded = encoded_res.value();
             EXPECT_NE(encoded.toHex(), v.serialized.toHex());

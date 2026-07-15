@@ -14,6 +14,10 @@
 #include "app/configuration.hpp"
 #include "utils/tuple_hash.hpp"
 
+// TODO(turuslan): time function used in `aggregateSignatures`,
+// `aggregateTypeTwo`, `splitTypeTwo` was chosen randomly and is very
+// innacurate.
+
 namespace lean::crypto::xmss {
   constexpr size_t kAggregatedSignatureSize = 263161;
 
@@ -83,6 +87,43 @@ namespace lean::crypto::xmss {
         public_keys.size()
         / app_config_->fakeXmssVerifyAggregatedSignaturesRate()});
     return true;
+  }
+
+  TypeTwoMultiSignature XmssProviderFake::aggregateTypeTwo(
+      const std::vector<std::vector<XmssPublicKey>> &public_keys,
+      const std::vector<XmssAggregatedSignature> &type_one_signatures) const {
+    size_t seed = 0;
+    boost::hash_combine(seed, public_keys);
+    boost::hash_combine(seed, type_one_signatures);
+    TypeTwoMultiSignature signature;
+    signature.proof.data().resize(kAggregatedSignatureSize);
+    randomBytesSeed(signature.proof, seed);
+    std::this_thread::sleep_for(std::chrono::duration<double>{
+        public_keys.size() / app_config_->fakeXmssAggregateSignaturesRate()});
+    return signature;
+  }
+
+  bool XmssProviderFake::verifyTypeTwo(
+      const std::vector<std::vector<XmssPublicKey>> &public_keys,
+      const TypeTwoMultiSignature &type_two_signature,
+      EpochsAndMessages epochs_and_messages) const {
+    return true;
+  }
+
+  XmssAggregatedSignature XmssProviderFake::splitTypeTwo(
+      const std::vector<std::vector<XmssPublicKey>> &public_keys,
+      const TypeTwoMultiSignature &type_two_signature,
+      size_t index) const {
+    size_t seed = 0;
+    boost::hash_combine(seed, public_keys);
+    boost::hash_combine(seed, type_two_signature.proof);
+    boost::hash_combine(seed, index);
+    XmssAggregatedSignature signature;
+    signature.resize(kAggregatedSignatureSize);
+    randomBytesSeed(signature, seed);
+    std::this_thread::sleep_for(std::chrono::duration<double>{
+        public_keys.size() / app_config_->fakeXmssAggregateSignaturesRate()});
+    return signature;
   }
 
   XmssKeypair XmssProviderFake::loadKeypair(const XmssPublicKey &public_key,

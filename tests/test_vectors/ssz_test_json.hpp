@@ -20,7 +20,6 @@
 #include "types/block.hpp"
 #include "types/block_body.hpp"
 #include "types/block_header.hpp"
-#include "types/block_signatures.hpp"
 #include "types/checkpoint.hpp"
 #include "types/config.hpp"
 #include "types/signature.hpp"
@@ -37,9 +36,9 @@ namespace lean {
 
     T value;
     qtils::ByteVec serialized;
-    std::optional<std::string> expect_exception;
+    std::optional<std::string> rejection_reason;
 
-    JSON_FIELDS(value, serialized, expect_exception);
+    JSON_FIELDS(value, serialized, rejection_reason);
   };
 
   struct SszTestJson {
@@ -89,6 +88,9 @@ namespace lean {
     using Bytes52 = qtils::ByteArr<52>;
     using Bytes64 = qtils::ByteArr<64>;
 
+    using SingleMessageAggregate = TypeOneMultiSignature;
+    using MultiMessageAggregate = TypeTwoMultiSignature;
+
     using Boolean = bool;
     using Uint8 = Uint<uint8_t>;
     using Uint16 = Uint<uint16_t>;
@@ -104,13 +106,15 @@ namespace lean {
                  SszTestJsonT<BlockBody>,
                  SszTestJsonT<BlockHeader>,
                  SszTestJsonT<BlocksByRootRequest>,
-                 SszTestJsonT<BlockSignatures>,
                  SszTestJsonT<Boolean>,
                  SszTestJsonT<ByteListMiB>,
                  SszTestJsonT<Bytes32>,
                  SszTestJsonT<Bytes4>,
                  SszTestJsonT<Bytes52>,
                  SszTestJsonT<Bytes64>,
+                 SszTestJsonT<ByteList512KiB>,
+                 SszTestJsonT<SingleMessageAggregate>,
+                 SszTestJsonT<MultiMessageAggregate>,
                  SszTestJsonT<Checkpoint>,
                  SszTestJsonT<Config>,
                  SszTestJsonT<DecodeBitlist8>,
@@ -146,7 +150,8 @@ namespace lean {
                  SszTestJsonT<Uint16>,
                  SszTestJsonT<Uint32>,
                  SszTestJsonT<Uint64>,
-                 SszTestJsonT<Validator>>
+                 SszTestJsonT<Validator>,
+                 SszTestJsonT<Validators>>
         v;
 
     JSON_DISCRIMINATOR(type_name,
@@ -159,13 +164,15 @@ namespace lean {
                        "BlockBody",
                        "BlockHeader",
                        "BlocksByRootRequest",
-                       "BlockSignatures",
                        "Boolean",
                        "ByteListMiB",
                        "Bytes32",
                        "Bytes4",
                        "Bytes52",
                        "Bytes64",
+                       "ByteList512KiB",
+                       "SingleMessageAggregate",
+                       "MultiMessageAggregate",
                        "Checkpoint",
                        "Config",
                        "DecodeBitlist8",
@@ -201,7 +208,8 @@ namespace lean {
                        "Uint16",
                        "Uint32",
                        "Uint64",
-                       "Validator");
+                       "Validator",
+                       "Validators");
 
     auto &typeName() const {
       return typeFieldValues()[v.index()];

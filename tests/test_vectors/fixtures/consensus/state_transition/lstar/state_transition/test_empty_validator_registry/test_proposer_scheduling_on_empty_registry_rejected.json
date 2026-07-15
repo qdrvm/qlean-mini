@@ -40,7 +40,19 @@
                 "data": []
             }
         },
-        "blocks": [],
+        "blocks": [
+            {
+                "slot": 1,
+                "proposerIndex": 1,
+                "parentRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "body": {
+                    "attestations": {
+                        "data": []
+                    }
+                }
+            }
+        ],
         "_info": {
             "hash": "0x3eb0d295e351eeb344797c02c161a81753b6a9302fd808f9391866307bd41c7c",
             "comment": "`leanSpec` generated test",

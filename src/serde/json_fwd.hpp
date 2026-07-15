@@ -47,6 +47,8 @@
   _JSON_FIELDS_1(name), _JSON_FIELDS_15(__VA_ARGS__)
 #define _JSON_FIELDS_17(name, ...) \
   _JSON_FIELDS_1(name), _JSON_FIELDS_16(__VA_ARGS__)
+#define _JSON_FIELDS_18(name, ...) \
+  _JSON_FIELDS_1(name), _JSON_FIELDS_17(__VA_ARGS__)
 #define _JSON_FIELDS_OVERLOAD(_1,    \
                               _2,    \
                               _3,    \
@@ -64,12 +66,14 @@
                               _15,   \
                               _16,   \
                               _17,   \
+                              _18,   \
                               macro, \
                               ...)   \
   macro
 #define _JSON_FIELDS_OVERLOAD_CALL(macro, ...) macro(__VA_ARGS__)
 #define _JSON_FIELDS(...)                                           \
   _JSON_FIELDS_OVERLOAD_CALL(_JSON_FIELDS_OVERLOAD(__VA_ARGS__,     \
+                                                   _JSON_FIELDS_18, \
                                                    _JSON_FIELDS_17, \
                                                    _JSON_FIELDS_16, \
                                                    _JSON_FIELDS_15, \
