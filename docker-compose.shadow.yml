@@ -1,0 +1,20 @@
+services:
+  qlean-shadow:
+    build:
+      context: ..
+      dockerfile: Dockerfile.shadow
+    platform: linux/arm64
+    security_opt:
+      - seccomp=unconfined
+    shm_size: "4g"
+    environment:
+      - STOP_TIME=${STOP_TIME:-120s}
+      - UDP_PORT_BASE=${UDP_PORT_BASE:-10000}
+      - METRICS_PORT_BASE=${METRICS_PORT_BASE:-9100}
+      - MAX_BOOTNODES=${MAX_BOOTNODES:-25}
+    volumes:
+      - ${GENESIS_DIR:-./genesis_shadow}:/genesis:ro
+      - ${OUTPUT_DIR:-./output}:/output
+      - ${DATA_DIR:-./data}:/data
+      - ${TOPOLOGY_DIR:-./topology}:/topology:ro
+    command: ${GENESIS_DIR:-/genesis}

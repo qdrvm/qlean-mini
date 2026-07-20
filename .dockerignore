@@ -40,3 +40,26 @@ __pycache__/
 # Docker
 docker-compose*.yml
 
+# Large untracked directories
+FTXUI/
+c-kzg-4844/
+data/
+genesis/
+genesis_64/
+genesis_128/
+genesis_256/
+hash-sig/
+hash-sig-cli/
+lean-quickstart/
+leanMultisig/
+leanSpec/
+leanp2p/
+qdrvm-crates/
+ream/
+shadow.yaml
+sszpp/
+zeam/
+db/
+simulation_run_64/
+output/
+data/

@@ -24,9 +24,12 @@ namespace lean::app {
     auto yaml = yaml::read(config.genesisDir() / "annotated_validators.yaml");
     auto yaml_items = yaml.map(config.nodeId());
     for (auto &&yaml_item : yaml_items.list()) {
-      auto yaml_pubkey_hex = yaml_item.map("pubkey_hex");
+      auto yaml_pubkey_hex = yaml_item.map("pubkey_hex").str();
+      if (yaml_pubkey_hex.starts_with("0x")) {
+        yaml_pubkey_hex = yaml_pubkey_hex.substr(2);
+      }
       auto public_key =
-          crypto::xmss::XmssPublicKey::fromHex(yaml_pubkey_hex.str()).value();
+          crypto::xmss::XmssPublicKey::fromHex(yaml_pubkey_hex).value();
       auto privkey_file = yaml_item.map("privkey_file").str();
       crypto::xmss::XmssKeypair keypair;
       if constexpr (QLEAN_ENABLE_SHADOW) {

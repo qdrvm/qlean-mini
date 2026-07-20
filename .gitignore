@@ -53,3 +53,5 @@
 /.vcpkg
 /.build*
 /vcpkg_installed
+
+# Generated simulation genesis (run-real.py / run-shadow.py --generate-genesis)
